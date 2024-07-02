@@ -1,6 +1,3 @@
-@extends('livewire.orders.layout.dashboard-layout')
-
-@section('content')
     <div class="pt-10 pl-10 pr-10 lg:pl-72">
         <h1 class="text-2xl font-bold dark:text-gray-200">Help Center</h1>
 
@@ -14,4 +11,3 @@
                     paingoaksoe@shwetatar.org</span></p>
         </div>
     </div>
-@endsection

@@ -177,9 +177,6 @@ class Config extends Component
     {
 
         return view('livewire.orders.config', [
-            // 'relevantMeetingCount' => CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count(),
-            // 'relevantMeetingCount' => CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count(),
-            'agmMeetingCount' => CommentPool::where('completed', 'false')->count(),
             'users' => User::all(),
             'positions' => Position::all(),
             'categories' => Category::all(),

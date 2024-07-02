@@ -181,8 +181,6 @@ class AddOrder extends Component
         }
 
         return view('livewire.orders.add-order', [
-            'relevantMeetingCount' => CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count(),
-            'agmMeetingCount' => CommentPool::where('completed', 'false')->count(),
             'priorities' => Priority::all(),
             'grades' => Grade::all(),
             'categories' => Category::all(),

@@ -1,6 +1,3 @@
-@extends('livewire.orders.layout.dashboard-layout')
-
-@section('content')
     <div class="bg-white px-10 py-5 mt-10 ml-10 mr-10 lg:ml-72">
 
         <div class="rounded-lg dark:bg-gray-800 dark:text-gray-100">
@@ -9,7 +6,7 @@
 
 
             <div class="flex items-center flex-col lg:flex-row lg:items-start">
-                
+
                 <div class="flex flex-col items-center justify-start">
                     <span> {{ $order->grade->name }}</span>
                     <div class="mt-2">
@@ -30,7 +27,7 @@
                 </div>
 
                 <div class="lg:ml-10">
-                    
+
                    <div class="grid grid-cols-1 gap-10 md:grid-cols-4 sm:grid-cols-2">
                       <div class="text-wrap">
                         <h3 class="font-bold">Product</h3>
@@ -51,7 +48,7 @@
                             <span>{{ $order->size }}</span>
                         </div>
                       </div>
-                    
+
                       <div class="text-wrap">
                         <h3 class="font-bold">Sale</h3>
                         <div class="grid grid-cols-2">
@@ -69,9 +66,9 @@
                             <span>Inventory: </span>
                             <span>{{ $order->instockqty }}</span>
                         </div>
-                        
+
                       </div>
-                      
+
                         <div class="text-wrap">
                             <label for="note" class="font-bold">Note</label>
                             <p class="text-sm leading-7">
@@ -103,13 +100,13 @@
         </div>
 
         {{-- Start input data section --}}
-        
+
         @if ($invUser && $order->status_id == 2)
             @if($order->instockqty == 0)
             <div
                 class="w-full px-2 py-4 mx-auto mb-5 text-sm bg-white border border-gray-200 rounded-lg shadow md:flex-row dark:border-gray-700 dark:bg-gray-800">
                 <div class="flex items-center justify-between gap-10">
-                    
+
                         <div class="w-56">
                             <label for="inhand" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">In
                                 Hand</label>
@@ -125,9 +122,9 @@
             </div>
             @endif
         @endif
-        
+
     {{-- add supplier data  --}}
-    
+
     @if( $invUser && ($order->status_id == 3 || $order->status_id == 2))
             <div class="w-full px-2 py-4 mx-auto mb-5 text-sm bg-white border border-gray-200 rounded-lg shadow md:flex-row dark:border-gray-700 dark:bg-gray-800">
                 {{-- supplier data add button --}}
@@ -141,9 +138,9 @@
                             </div>
                 </div>
                 {{-- End supplier data add button --}}
-                      
-                {{-- Add new Product Data and Edit data input sections --}}  
-                
+
+                {{-- Add new Product Data and Edit data input sections --}}
+
                 <div class="mt-4 {{ $supplierProductToggle ? '' : 'hidden' }}">
                     <div class="grid grid-cols-2 gap-6 lg:grid-cols-4 lg:gap-8">
                         <div>
@@ -771,4 +768,4 @@
         }
         gramToKpy()
     </script>
-@endsection
+

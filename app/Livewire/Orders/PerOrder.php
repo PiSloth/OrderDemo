@@ -102,7 +102,7 @@ class PerOrder extends Component
         if (in_array($user_position, ["AGM", "Supervisor", "Super Admin", "Purchaser"])) {
             $this->creator = true;
         }
-        
+
         $this->purchaser = false;
         if (in_array($user_position, [ "Super Admin", "Purchaser"])) {
             $this->purchaser = true;
@@ -682,8 +682,6 @@ try{
             'creator' => $this->creator,
 
             //Count to Noti
-            'relevantMeetingCount' => $relevantMeetingCount,
-            'agmMeetingCount' => $agmMeetingCount,
             'comments' => $comments,
 
             //Selected supplier product

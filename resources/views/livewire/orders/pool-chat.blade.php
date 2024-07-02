@@ -1,6 +1,3 @@
-@extends('livewire.orders.layout.dashboard-layout')
-
-@section('content')
     <div class="pl-10 pt-10 pr-10 lg:pl-72">
         {{-- @dd($chatspool); --}}
         <blockquote class="p-4 my-4 border-s-4 border-gray-300 bg-gray-50 dark:border-gray-500 dark:bg-gray-800">
@@ -268,4 +265,4 @@
         // function updateScroll(){
         // startAutoScroll();
     </script>
-@endsection
+

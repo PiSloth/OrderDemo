@@ -150,8 +150,6 @@ class Supplier extends Component
             $updateProductData = SupplierProduct::find($this->edit_id);
         }
         return view('livewire.orders.supplier', [
-            'relevantMeetingCount' => CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count(),
-            'agmMeetingCount' => CommentPool::where('completed', 'false')->count(),
             'suppliers' => SupplierModel::paginate(5),
             'supplierproducts' => SupplierProduct::get(),
             // 'updateProductData'  => $this->edit_toggle ? SupplierProduct::find($this->edit_id) : null,

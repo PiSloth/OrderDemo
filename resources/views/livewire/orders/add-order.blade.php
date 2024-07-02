@@ -1,6 +1,3 @@
-@extends('livewire.orders.layout.dashboard-layout')
-
-@section('content')
     <div x-data="{ weight: '', size: '', counterstock: '', sell_rate: '', note: '', detail: '', qty: '' }" class="py-10 pl-10 pr-10 lg:pl-72">
         <button id="theme-toggle" type="button"
             class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5">
@@ -388,4 +385,3 @@
             document.getElementById("weightId" + orderId).innerHTML = answer;
         }
     </script>
-@endsection

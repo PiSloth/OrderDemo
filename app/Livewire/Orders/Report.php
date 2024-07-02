@@ -62,8 +62,6 @@ class Report extends Component
         // dd(CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count());
 
         return view('livewire.orders.report', [
-            'relevantMeetingCount' => CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count(),
-            'agmMeetingCount' => CommentPool::where('completed', 'false')->count(),
             'currentTime' => Carbon::now(),
             'orderGroup' => $orders,
             'grades' => Grade::get(),

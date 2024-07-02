@@ -1,6 +1,3 @@
-@extends('livewire.orders.layout.dashboard-layout')
-
-@section('content')
     <div class="ml-10 mr-10 lg:ml-72 mt-10">
         <article class="bg-green-100 p-2 rounded mb-4">
             <h1 class="text-yellow-500 font-bold">သတိပေးချက်</h1>
@@ -125,8 +122,8 @@
                                                                     <small class='text-red-500'>inv turn</small>
                                                                     @endif
                                                                 </div>
-                                                                    
-                                                                
+
+
                                                             </td>
                                                         </tr>
                                                     </tbody>
@@ -143,4 +140,3 @@
             </div>
         </section>
     </div>
-@endsection

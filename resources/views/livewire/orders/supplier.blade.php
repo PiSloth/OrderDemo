@@ -1,6 +1,3 @@
-@extends('livewire.orders.layout.dashboard-layout')
-
-@section('content')
     <div class="pt-10 pl-10 pr-10 text-sm lg:pl-72 ">
 
         {{-- supplier add modal --}}
@@ -249,4 +246,3 @@
         </x-modal>
         {{-- end update modal --}}
     </div>
-@endsection

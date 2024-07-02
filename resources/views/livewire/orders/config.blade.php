@@ -1,5 +1,3 @@
-
-
     <div class="pt-10 pl-10 pr-10 lg:pl-72">
     <?php
     $i = 1;

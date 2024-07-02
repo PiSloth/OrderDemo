@@ -187,8 +187,6 @@ class PoolChat extends Component
         $currentTime = Carbon::now();
 
         return view('livewire.orders.pool-chat', [
-            'relevantMeetingCount' => CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count(),
-            'agmMeetingCount' => CommentPool::where('completed', 'false')->count(),
             'agmMeetings' => CommentPool::where('completed', 'false')->get(),
             'chatspool' => CommentPool::where('completed', false)->get(),
             'currentTime' => $currentTime
