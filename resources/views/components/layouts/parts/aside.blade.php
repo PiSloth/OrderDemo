@@ -1,5 +1,5 @@
 <aside id="asidebar"
-    class="fixed top-0 left-0 w-64 h-screen transition-transform -translate-x-full z-100 lg:translate-x-0"
+    class="fixed top-0 left-0 w-64 h-screen transition-transform -translate-x-full z-50 lg:translate-x-0"
     aria-label="Sidenav">
     <div
         class="h-full px-3 py-5 overflow-y-auto bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
@@ -57,7 +57,7 @@
                     </li>
                 @endcan
 
-                @can('isSuperAdmin')
+                {{-- @can('isSuperAdmin')
                     <li>
                         <a wire:navigate href="/addsupplier"
                             class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
@@ -65,7 +65,7 @@
                             <span class="ml-3">Supplier Config</span>
                         </a>
                     </li>
-                @endcan
+                @endcan --}}
 
                 @can('isSuperAdmin')
                     <li>
@@ -77,82 +77,6 @@
                     </li>
                 @endcan
             @endcan
-            {{-- <li>
-                    <a href="#"
-                        class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                        <img src="{{ url('images/mail-icon.png') }}" alt="mail-icon" class="w-6 h-6">
-                        <span class="flex-1 ml-3 whitespace-nowrap">Messages</span>
-                        <span
-                            class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full text-amber-800 bg-amber-100 dark:bg-amber-200 dark:text-amber-800">
-                            6
-                        </span>
-                    </a>
-                </li> --}}
-
-            {{-- <li>
-                    <a href="#"
-                        class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                        <img src="{{ url('images/users-icon.png') }}" alt="chart-icon" class="w-6 h-6">
-                        <span class="ml-3">Manage Users</span>
-                    </a>
-                </li> --}}
-            {{-- <li>
-                    <button type="button"
-                        class="flex items-center w-full p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700"
-                        aria-controls="dropdown-pages" data-collapse-toggle="dropdown-pages">
-                        <img src="{{ url('images/shop-icon.png') }}" alt="shop-icon" class="w-6 h-6">
-                        <span class="flex-1 ml-3 text-left whitespace-nowrap">Ground Config</span>
-                        <svg aria-hidden="true" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"
-                            xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd"
-                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                clip-rule="evenodd"></path>
-                        </svg>
-                    </button>
-                    <ul id="dropdown-pages" class="hidden py-2 space-y-2">
-                        <li>
-                            <a href=""
-                                class="flex items-center w-full p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Add
-                                Shop</a>
-                        </li>
-                        <li>
-                            <a href=""
-                                class="flex items-center w-full p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Add
-                                City</a>
-                        </li>
-                        <li>
-                            <a href=""
-                                class="flex items-center w-full p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Add
-                                Quarter</a>
-                        </li>
-                    </ul>
-                </li>
-                <li>
-                    <button type="button"
-                        class="flex items-center w-full p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700"
-                        aria-controls="dropdown-stocks" data-collapse-toggle="dropdown-stocks">
-                        <img src="{{ url('images/stock-icon.png') }}" alt="shop-icon" class="w-6 h-6">
-                        <span class="flex-1 ml-3 text-left whitespace-nowrap">Manage Stocks</span>
-                        <svg aria-hidden="true" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"
-                            xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd"
-                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                clip-rule="evenodd"></path>
-                        </svg>
-                    </button>
-                    <ul id="dropdown-stocks" class="hidden py-2 space-y-2">
-                        <li>
-                            <a href="#"
-                                class="flex items-center w-full p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Add
-                                Products</a>
-                        </li>
-                        <li>
-                            <a href="#"
-                                class="flex items-center w-full p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Add
-                                Category</a>
-                        </li>
-                    </ul>
-                </li> --}}
         </ul>
         <ul class="pt-5 mt-5 space-y-2 border-t border-gray-200 dark:border-gray-700">
             <li>
@@ -174,6 +98,15 @@
                     class="flex items-center p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white group">
                     <img src="{{ url('images/help-icon.png') }}" alt="Help Icon" class="w-8 h-8">
                     <span class="ml-3">Help</span>
+                </a>
+            </li>
+
+            {{-- dashboard button  --}}
+            <li>
+                <a href="{{ route('order-dashboard') }}"
+                    class="flex items-center p-2 text-base font-normal text-gray-900 transition duration-75 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white group">
+                    <img src="{{ url('images/speedometer.png') }}" alt="Dashboard Icon" class="w-6 h-6">
+                    <span class="ml-3">Order Dashboard</span>
                 </a>
             </li>
         </ul>

@@ -1,4 +1,4 @@
-    <div class="bg-white px-10 py-5 mt-10 ml-10 mr-10 lg:ml-72">
+    <div>
 
         <div class="rounded-lg dark:bg-gray-800 dark:text-gray-100">
 

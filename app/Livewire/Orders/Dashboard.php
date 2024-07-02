@@ -13,6 +13,6 @@ class Dashboard extends Component
     public function render()
     {
         // dd(auth()->user()->id);
-        return view('livewire.orders.dashboard')->layout('layouts.app');
+        return view('livewire.orders.dashboard');
     }
 }
