@@ -1,0 +1,126 @@
+<div wire:key='{{ $live_order->id }}'>
+                @if ($category_id)
+                <span class="text-red-400">{{ $live_order->category->name }}</span>
+                @endif
+                @if ($quality_id)
+                <i>&NestedGreaterGreater;</i>
+                <span class="text-red-400">{{ $live_order->quality->name }}</span>
+                @endif
+                @if ($design_id)
+                <i>/</i>
+                <span class="text-red-400">{{ $live_order->design->name }}</span>
+                @endif
+                @if ($weight)
+                <i>/</i>
+                <span class="text-red-400">{{ $weight }}</span>
+                @endif
+            </div>
+
+<div>
+        @forelse ($orders as $order)
+        <div class="p-2 mb-3 border shadow-inner cursor-pointer group hover:bg-blue-100 hover:rounded-md bg-slate-50 ">
+            <a href="/order/detail?order_id={{ $order->id }}" wire:navigate  wire:click="toggle({{ $order->id }})" wire:key="{{ $order->id }}">
+                <div>
+                    <div class="">
+                        {{-- Status and Priority --}}
+                        <div class="relative overflow-hidden">
+                            <div class="absolute w-full h-48  rounded shadow-2xl opacity-50
+                                @if ($order->priority_id == 1)
+                                    bg-red-300
+                                    @elseif($order->priority_id == 2)
+                                    bg-yellow-300
+                                    @elseif($order->priority_id == 3)
+                                    bg-green-300
+                                @endif">
+                            </div>
+                                 <span class="text-sm text-stone-800">{{ $order->status->name }}</span>
+                                 <i class="text-sm text-teal-700">{{ $order->priority->name }}</i>
+                        </div>
+                        {{-- End Status and Priority --}}
+                        {{-- Some Detail --}}
+                        <div class="flex mt-1 @if ($order_toggle == $order->id)
+                            hidden
+                            @endif">
+                            <span class="text-blue-500">No, {{ $order->id }}&nbsp;</span>
+                            <span class="rounded text-blue-50 bg-cyan-700/80">{{ $order->quality->name }}/{{ $order->design->name }}</span>
+                            {{-- Show block by Status ID  --}}
+                            @if($order->status_id== 1)
+                            <div>
+                                <span class="text-teal-500">&nbsp;<b>Order-qty</b> {{ $order->qty }} <b>Sell/Month </b> {{ $order->sell_rate }} <b>Counter</b> {{ $order->counterstock }}</span>
+                            </div>
+                            @elseif ($order->status_id == 2)
+                            <div text-teal-500>
+                                <span>Order Qty{{ $order->qty }} /Sell/Month {{ $order->sell_rate }}/Counter{{ $order->counterstock }}</span>
+                                <span>Inv-stock{{ $order->instockqty }} /EstimateTime {{ $order->estimatetime }}</span>
+                            </div>
+                            @endif
+                            {{-- End block by Status ID  --}}
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        @empty
+                <span>Not yet Orders</span>
+        @endforelse
+    </div>
+
+
+
+
+
+
+
+
+    @foreach ($chatspool as $chatpool)
+            <div class="mt-4 mb-4">
+                <div>
+                    @if (!$chatpool->completed)
+                    <i class="text-blue-500">{{ $chatpool->order->id }}</i>
+                    <span class="p-2 bg-blue-300 rounded">
+                        {{ $chatpool->order->priority->name }}
+                    </span>
+                    <button wire:click="toggle({{ $chatpool->id }})" class="p-1 ml-2 rounded bg-slate-400 text-slate-50">get in</button>
+                </div>
+                {{--* hidden section for comment  --}}
+                @if ($chatpool->id == $toggle_id)
+                <div>
+                    <div>
+                        {{-- comment dispaly block --}}
+                        <div>
+                            @forelse ($chatpool->order->comments as $comment)
+                                <li wire:key="{{ $comment->id }}">{{ $comment->content }}</li>
+                            @empty
+                                <i>Not yet message</i>
+                            @endforelse
+                            @if ($content)
+
+                                    <i class="text-sm text-slate-500">
+                                        {{ auth()->user()->name }} is writing
+                                    </i>
+
+                             @endif
+                        </div>
+                    </div>
+                    {{--  comment create form --}}
+                    <div class="flex">
+                        <form action="" class="w-full" wire:submit="create_comment({{ $chatpool->order_id }},{{ $chatpool->id }})"  wire:keydown.shift.enter="create_comment({{ $chatpool->order_id }},{{ $chatpool->id }})" >
+                            <textarea wire:model.live="content" class="w-full mt-2 rounded-full bg-slate-200"></textarea>
+                            @error('content')
+                                <span class="text-sm text-red-400">Write something</span>
+                            @enderror
+                            <button class="p-1 rounded bg-stone-700 text-slate-50">discuss</button>
+                        </form>
+                    </div>
+                    <div class="flex">
+                        <button wire:click="complete_pool({{ $chatpool->id }})" wire:confirm="Do you want to end this meeting chat?" class="px-4 mt-2 bg-red-400 rounded text-slate-50">End</button>
+
+                    </div>
+                </div>
+                @endif
+                {{-- End hidden comment section --}}
+                {{-- <i>Created by {{ $chatpool->user->name }}</i> --}}
+            </div>
+            @endif
+        @endforeach

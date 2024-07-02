@@ -1,0 +1,134 @@
+[33mcommit 576f19cec6833706b88a86150d50536a45cab12e[m[33m ([m[1;36mHEAD -> [m[1;32mkabukii_branch[m[33m, [m[1;31morigin/kabukii_branch[m[33m)[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Tue Nov 21 12:27:10 2023 +0630
+
+    i-Meeting Reason button/end Meeting buttton added
+
+[33mcommit 1f142942e773644b539b49f98aeed465746242f0[m
+Merge: b25445a 3382328
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Fri Nov 17 17:10:31 2023 +0630
+
+    Merge branch 'kabukii_branch' of https://github.com/PiSloth/Order_System into kabukii_branch
+
+[33mcommit b25445a5ba13be4b9cc11c6694d3f3060fd936d1[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Fri Nov 17 17:10:18 2023 +0630
+
+    Pool Table edited
+
+[33mcommit 33823289abed0d870ec825f2299d05d8e943ae60[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Fri Nov 17 17:06:18 2023 +0630
+
+    processing on orderdetail
+
+[33mcommit 3d0cbcc461e0a8746184b2ccf27b2a1be294bb8a[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Fri Nov 17 14:36:18 2023 +0630
+
+    chatpool error
+
+[33mcommit 69ab756d044b25044eb125b38fe73d524ec056fd[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Thu Nov 16 17:19:15 2023 +0630
+
+    before middleware and gate
+
+[33mcommit 439cb46cd4042897bd19be3fa965ee51c6004ea6[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Thu Nov 16 17:03:56 2023 +0630
+
+    processing on iMeeting UI
+
+[33mcommit 9c3fa886fca7851185f6335cc51677ea08af821a[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Thu Nov 16 15:43:32 2023 +0630
+
+    orderlist design finished
+
+[33mcommit 1c83f8e5a44fd92afa65a7f758f90365a8285944[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Thu Nov 16 12:32:07 2023 +0630
+
+    orderlist changing
+
+[33mcommit d4918e4abdc55a65560f592373de16b5fe972fc8[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Thu Nov 16 09:45:53 2023 +0630
+
+    JS edit mmUnitCalc
+
+[33mcommit 72a4b9e28453565feda162358bdff08d8654b5f8[m
+Merge: 537848f 0967854
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Wed Nov 15 17:26:00 2023 +0630
+
+    Merge remote-tracking branch 'origin/master' into kabukii_branch
+
+[33mcommit 537848f65dd399b3adefdb2c98f360fe49258c83[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Wed Nov 15 17:04:05 2023 +0630
+
+    test alpine x-show
+
+[33mcommit 096785406aebfb0ac7c059af4fac3984d723aba7[m[33m ([m[1;31morigin/master[m[33m)[m
+Merge: 7a18b05 11da8ce
+Author: PiSloth <147974714+PiSloth@users.noreply.github.com>
+Date:   Wed Nov 15 16:59:26 2023 +0630
+
+    Merge pull request #2 from PiSloth/stt
+    
+    Stt
+
+[33mcommit 11da8ce6b4e19ac40f387080cafa7f2a492c344f[m[33m ([m[1;31morigin/stt[m[33m)[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Wed Nov 15 16:53:38 2023 +0630
+
+    Beautiful AddOrder
+
+[33mcommit 02d1d7b4ab19e3cc6270087e879354c0ecc6d994[m[33m ([m[1;32mstt[m[33m)[m
+Merge: bef0032 93b59d7
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Wed Nov 15 14:51:28 2023 +0630
+
+    Merge branch 'stt' of https://github.com/PiSloth/Order_System into stt
+
+[33mcommit bef00323d3f7f78b8accf5b8cb8c1dbc6562760a[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Wed Nov 15 14:51:23 2023 +0630
+
+    gram to mm unit updated
+
+[33mcommit 93b59d75ff0442c49c7c1a77e97fc97e36ff4f3d[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Wed Nov 15 14:47:00 2023 +0630
+
+    error
+
+[33mcommit 7a18b05f490153a3951dec3f9b500693cb7d08c9[m
+Merge: 907f83a c99d53b
+Author: PiSloth <147974714+PiSloth@users.noreply.github.com>
+Date:   Wed Nov 15 12:26:37 2023 +0630
+
+    Merge pull request #1 from PiSloth/stt
+    
+    changed app blade
+
+[33mcommit c99d53bf43213e368d0df0f11bbbfb0e97562304[m
+Author: Wai Yan Linn <waiyanlinn@Wais-MacBook-Pro.local>
+Date:   Wed Nov 15 11:55:53 2023 +0630
+
+    changed app blade
+
+[33mcommit 907f83a75a025bad2da29a4d420c77e52dbf55ac[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Wed Nov 15 09:05:16 2023 +0630
+
+    Detail to a single page
+
+[33mcommit 524c33c57b4f24548c4298fb3c5dcdc2dad094d6[m
+Author: PiSloth <sologuardian.org@gmail.com>
+Date:   Sun Nov 12 09:25:29 2023 +0630
+
+    First push Before UI Customize,A little bit error
