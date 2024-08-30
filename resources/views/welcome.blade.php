@@ -8,6 +8,6 @@
 </head>
 <body>
     <h1>Welcome to our order system</h1>
-    <p>Click here: <a href="{{route('login')}}">Login</a></p>
+    <p>Click here: <a href="{{route('login')}}" wire:navigate>Login</a></p>
 </body>
 </html>

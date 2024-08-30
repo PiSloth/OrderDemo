@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Orders;
 
+use App\Models\Branch;
 use App\Models\Design;
 use App\Models\Grade;
 use App\Models\Order;
@@ -11,6 +12,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 use WireUi\Traits\Actions;
 use App\Models\CommentPool;
+use App\Models\Status;
 use Illuminate\Support\Facades\Auth;
 
 class Report extends Component
@@ -21,12 +23,22 @@ class Report extends Component
     public $priorityFilter = 0;
     public $designFilter = 0;
     public $durationFilter = 0;
+    public $statusFilter = 0;
+    public $branchFilter = 0;
     public $priority = '';
     public $date = '';
 
     public function render()
     {
         $orderQuery = Order::get();
+
+        if($this->statusFilter) {
+            $orderQuery = $orderQuery->where('status_id', $this->statusFilter);
+        }
+
+        if($this->branchFilter) {
+            $orderQuery = $orderQuery->where('branch_id', $this->branchFilter);
+        }
 
         if ($this->gradeFilter) {
             $orderQuery = $orderQuery->where('grade_id', $this->gradeFilter);
@@ -51,8 +63,6 @@ class Report extends Component
             return $order->branch->name;
         });
 
-
-
         $orders = $orderQuery->map(function ($order) {
             return $order->groupBy(function ($data) {
                 return $data->status->name;
@@ -68,6 +78,8 @@ class Report extends Component
             'priorities' => Priority::get(),
             'designs' => Design::get(),
             'currentTime' => Carbon::now(),
+            'statuses' => Status::all(),
+            'branches' => Branch::all()
         ]);
     }
 }

@@ -12,7 +12,7 @@ class OrderDashboard extends Component
     {
         $query = Order::join('statuses','orders.status_id','=','statuses.id')
         ->select('statuses.name as status_name', DB::raw('status_id,count(status_id) As totalStatusCount'))
-        ->groupBy('status_id')
+        ->groupBy('status_id','status_name')
         ->get();
 
         $results  = $query->pluck('totalStatusCount', 'status_name')->all();

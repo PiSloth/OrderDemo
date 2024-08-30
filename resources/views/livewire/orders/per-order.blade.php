@@ -1,4 +1,7 @@
-    <div>
+@extends('livewire.orders.layout.dashboard-layout')
+
+@section('content')
+    <div class="bg-white px-10 py-5 mt-10 ml-10 mr-10 lg:ml-72">
 
         <div class="rounded-lg dark:bg-gray-800 dark:text-gray-100">
 
@@ -63,6 +66,10 @@
                             <span>{{ $order->counterstock }}</span>
                         </div>
                         <div class="grid grid-cols-2">
+                            <span>Req Qty: </span>
+                            <span>{{ $order->qty }}</span>
+                        </div>
+                        <div class="grid grid-cols-2">
                             <span>Inventory: </span>
                             <span>{{ $order->instockqty }}</span>
                         </div>
@@ -102,7 +109,7 @@
         {{-- Start input data section --}}
 
         @if ($invUser && $order->status_id == 2)
-            @if($order->instockqty == 0)
+
             <div
                 class="w-full px-2 py-4 mx-auto mb-5 text-sm bg-white border border-gray-200 rounded-lg shadow md:flex-row dark:border-gray-700 dark:bg-gray-800">
                 <div class="flex items-center justify-between gap-10">
@@ -120,7 +127,7 @@
                         </div>
                 </div>
             </div>
-            @endif
+
         @endif
 
     {{-- add supplier data  --}}
@@ -226,7 +233,7 @@
         {{-- End Purchaser Request input with supplier Data   --}}
 
         {{-- start to show relevant requested orders --}}
-        @if ($order->status_id == 3 && $approver)
+        @if ($order->status_id >= 2 && $approver)
             <div>
                 <h1 class="text-2xl font-medium">ယခု order အတွက် Quotation Form များ</h1>
 
@@ -499,7 +506,7 @@
             @endif
 
             @if ($invUser && $order->status_id == 2)
-                @if ($order->instockqty == 0)
+
                     <button wire:click="updateInstockqty({{ $order->id }})"
                         class="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800">
                         <span
@@ -507,7 +514,7 @@
                             Update Inventory Stock
                         </span>
                     </button>
-                @else
+
                     <button wire:click="requested({{ $order->id }})"
                         class="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800">
                         <span
@@ -515,7 +522,7 @@
                             Request
                         </span>
                     </button>
-                @endif
+
             @endif
 
             @if ($approver && $order->status_id == 3)
@@ -768,4 +775,4 @@
         }
         gramToKpy()
     </script>
-
+@endsection
