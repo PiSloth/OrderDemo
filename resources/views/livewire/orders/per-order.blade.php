@@ -1,9 +1,9 @@
 @extends('livewire.orders.layout.dashboard-layout')
 
 @section('content')
-    <div class="bg-white px-10 py-5 mt-10 ml-10 mr-10 lg:ml-72">
+<div class="ml-10 mr-10 mt-10">
 
-        <div class="rounded-lg dark:bg-gray-800 dark:text-gray-100">
+        <div class="rounded-lg dark:bg-gray-800 dark:text-gray-100 p-2">
 
             <p class="font-bold text-2xl text-red-800 mb-5">{{ $order->status->name }}</p>
 
@@ -14,7 +14,8 @@
                     <span> {{ $order->grade->name }}</span>
                     <div class="mt-2">
                     @if ($order->images)
-                        @foreach ($order->images as $image)
+                        <div class="w-48 h-60">
+                             @foreach ($order->images as $image)
                             <img x-on:click="$openModal('image')"
                                 class="object-cover w-full rounded-lg hover:cursor-zoom-in h-96 md:h-auto md:w-48 mb-4"
                                 src="{{ asset('storage/' . $image->orderimg) }}" alt="">
@@ -24,6 +25,8 @@
 
                             </x-modal>
                         @endforeach
+                        </div>
+
                     @endif
                     </div>
                     <span class="text-teal-500">{{ $order->detail }}</span>
@@ -90,7 +93,8 @@
                     <label for="တာဝန်ခံ" class="font-bold">တာဝန်ခံ</label>
                     <p class="text-sm leading-7">
                         {{ $order->user->name }}
-                    </p>
+                    </p> <br />
+                    <span>Ordre အမှတ် {{ $order->id }}</span>
                 </div>
         </div>
 
@@ -101,10 +105,52 @@
                 <x-button flat positive icon="chat-alt-2" label="Comments" @click="$openModal('comments')"></x-button>
             </div>
             <x-button flat info icon="clock" label="History" @click="$openModal('history')"></x-button>
-            @if ($order->status_id !== 8 && $order->status_id !== 7 && $invUser)
+            @if ($order->status_id !== 8 && $order->status_id !== 7 && Gate::allows('isCanceller'))
                 <x-button flat negative icon="x" label="Cancel" @click="$openModal('cancelOrder')"></x-button>
             @endif
         </div>
+
+        {{-- Assinged Supplier to Order --}}
+    @if ($order->status_id >= 4)
+    @if ($order->approvedOrder)
+        <div class="">
+            <div class="bg-white rounded w-96 p-4">
+
+                <h2>Order တင်ရန် ခွင့်ပြုထားသော Supplier</h2>
+                <div class="flex flex-col px-8 py-5 ">
+                    <div class="grid grid-cols-2">
+                        <p class="font-medium">Name </p>
+                        <span>: {{ $order->approvedOrder->supplierProduct->supplier->name }}</span>
+                    </div>
+                    @if ($order->quality->name == '18K')
+                        <div class="grid grid-cols-2">
+                            <p class="font-medium">1 Gram Price </p>
+                            <span>: {{ $order->approvedOrder->youktwat }} </span>
+                        </div>
+                    @else
+                        <div class="grid grid-cols-2">
+                            <p class="font-medium">အလျော့တွက် </p>
+                            <span>: {{ $order->approvedOrder->youktwat_in_kpy }} </span>
+                        </div>
+                    @endif
+                    <div class="grid grid-cols-2">
+                        <p class="font-medium">လက်ခ </p>
+                        <span>: {{ $order->approvedOrder->laukkha }}</span>
+                    </div>
+                    <div class="grid grid-cols-2">
+                        <p class="font-medium">Order တင်ရမည့် ရက်စွဲ</p>
+                        <span>: {{ $order->approvedOrder->to_order_date }}</span>
+                    </div>
+                    <div class="grid grid-cols-2">
+                        <p class="font-medium">မှတ်ချက်</p>
+                        <span>: {{ $order->approvedOrder->approve_note }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+@endif
+{{-- End Assinged Supplier to Order --}}
 
         {{-- Start input data section --}}
 
@@ -132,7 +178,7 @@
 
     {{-- add supplier data  --}}
 
-    @if( $invUser && ($order->status_id == 3 || $order->status_id == 2))
+    @if( Gate::allows('isSupplierDataCreator') && ($order->status_id == 3 || $order->status_id == 2))
             <div class="w-full px-2 py-4 mx-auto mb-5 text-sm bg-white border border-gray-200 rounded-lg shadow md:flex-row dark:border-gray-700 dark:bg-gray-800">
                 {{-- supplier data add button --}}
                 <div class="flex items-end">
@@ -233,7 +279,7 @@
         {{-- End Purchaser Request input with supplier Data   --}}
 
         {{-- start to show relevant requested orders --}}
-        @if ($order->status_id >= 2 && $approver)
+        @if ($order->status_id >= 2 && $order->status_id <=3 && Gate::allows('isQuotationViewer'))
             <div>
                 <h1 class="text-2xl font-medium">ယခု order အတွက် Quotation Form များ</h1>
 
@@ -265,6 +311,8 @@
                                         label="Select" />
                                 @endcan
                             </div>
+
+                            {{-- supplier data detial  --}}
                             <div class="flex flex-col px-8 py-5 ">
                                 <div class="grid grid-cols-2">
                                     <p class="font-medium">Quality/Design: </p>
@@ -413,7 +461,7 @@
         {{-- End Showing Previous Supplier Product Data   --}}
 
         {{-- approve info  --}}
-        @if ($approver && $order->status_id == 3)
+        @if (Gate::allows('isOrderApprover') && $order->status_id == 3)
             <div class="p-4 mt-2">
                 <h2 class="text-xl font-bold">Approve Data</h2>
                 <div class="mt-2 w-52">
@@ -441,7 +489,7 @@
         @endif
         {{-- end approve info  --}}
 
-        @if ($order->status_id >= 5)
+        @if ($order->status_id >= 5 && Gate::allows('isPurchaser'))
             <div class="flex items-center justify-between gap-10 mt-4 {{ $invUser ? '' : 'hidden' }}">
                 <div class="w-full">
                     <label for="aqty"
@@ -505,8 +553,7 @@
                 </button>
             @endif
 
-            @if ($invUser && $order->status_id == 2)
-
+            @if (Gate::allows('isPurchaser') && $order->status_id == 2)
                     <button wire:click="updateInstockqty({{ $order->id }})"
                         class="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800">
                         <span
@@ -525,7 +572,7 @@
 
             @endif
 
-            @if ($approver && $order->status_id == 3)
+            @if (Gate::allows('isOrderApprover') && $order->status_id == 3)
                 <button wire:click="approved({{ $order->id }},{{ $order->qty }})"
                     class="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800">
                     <span
@@ -535,7 +582,7 @@
                 </button>
             @endif
 
-            @if ($invUser && $order->status_id == 4)
+            @if (Gate::allows('isOrderMaker') && $order->status_id == 4)
                 <button wire:click="ordered({{ $order->id }})"
                     class="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800">
                     <span
@@ -702,47 +749,7 @@
     </div>
 
 
-    {{-- Assinged Supplier to Order --}}
-    @if ($order->status_id == 4)
-        @if ($order->approvedOrder)
-            <div class="flex flex-wrap py-5 gap-10 ml-10 mr-10 lg:ml-72">
-                <div class="bg-white rounded w-96 p-4">
 
-                    <h2>Order တင်ရန် ခွင့်ပြုထားသော Supplier</h2>
-                    <div class="flex flex-col px-8 py-5 ">
-                        <div class="grid grid-cols-2">
-                            <p class="font-medium">Name </p>
-                            <span>: {{ $order->approvedOrder->supplierProduct->supplier->name }}</span>
-                        </div>
-                        @if ($order->quality->name == '18K')
-                            <div class="grid grid-cols-2">
-                                <p class="font-medium">1 Gram Price </p>
-                                <span>: {{ $order->approvedOrder->youktwat }} </span>
-                            </div>
-                        @else
-                            <div class="grid grid-cols-2">
-                                <p class="font-medium">အလျော့တွက် </p>
-                                <span>: {{ $order->approvedOrder->youktwat_in_kpy }} </span>
-                            </div>
-                        @endif
-                        <div class="grid grid-cols-2">
-                            <p class="font-medium">လက်ခ </p>
-                            <span>: {{ $order->approvedOrder->laukkha }}</span>
-                        </div>
-                        <div class="grid grid-cols-2">
-                            <p class="font-medium">Order တင်ရမည့် ရက်စွဲ</p>
-                            <span>: {{ $order->approvedOrder->to_order_date }}</span>
-                        </div>
-                        <div class="grid grid-cols-2">
-                            <p class="font-medium">မှတ်ချက်</p>
-                            <span>: {{ $order->approvedOrder->approve_note }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
-    @endif
-    {{-- End Assinged Supplier to Order --}}
 
     <script>
         console.log("Hello");

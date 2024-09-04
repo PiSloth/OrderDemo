@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('isSupplierDataApprover', function(User $user) {
-            $authorizedUsers = ["Super Admin", "AGM"];
+            $authorizedUsers = ["Super Admin", "AGM", "Inventory"];
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
@@ -65,6 +65,54 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('isAuthorized', function(User $user) {
             $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser", "Branch Supervisor"];
+
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('isCreator', function(User $user) {
+            $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser", "Branch Supervisor"];
+
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('isCanceller', function(User $user) {
+            $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser"];
+
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('isSupplierDataCreator', function(User $user) {
+            $authorizedUsers = ["Super Admin","Inventory", "Purchaser"];
+
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('isQuotationViewer', function(User $user) {
+            $authorizedUsers = ["Super Admin","Inventory", "AGM","Purchaser"];
+
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('isOrderApprover', function(User $user) {
+            $authorizedUsers = ["Super Admin","Inventory", "AGM"];
+
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('isOrderMaker', function(User $user) {
+            $authorizedUsers = ["Super Admin", "Purchaser"];
 
             $usr = $user->position->name;
 
