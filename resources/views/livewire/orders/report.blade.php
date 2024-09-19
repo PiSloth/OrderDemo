@@ -76,15 +76,15 @@
                 {{-- start one branch information  --}}
                 <section class="bg-white py-1 my-8 antialiased rounded-lg dark:bg-gray-900 md:py-1 dark:text-gray-200">
                     <div class="mx-auto max-w-screen-4xl px-4 2xl:px-0">
-                        <div class="mx-auto">
-                            <center class="my-4 font-bold text-2xl">{{ $branchName }} </center>
+                        <div class="mx-auto uppercase">
+                            <h1 class="my-4 font-bold text-2xl">{{ $branchName }} </h1>
                             {{-- new table design --}}
-                            <div class="relative overflow-x-auto max-w-screen-kg shadow-md sm:rounded-lg h-96">
+                            <div class="relative overflow-x-auto max-w-screen-kg shadow-md sm:rounded-lg h-auto">
                                 @foreach( $statusGroup as $statusName => $relatedData)
-                                <h2 class="font-bold my-3">{{ $statusName }} </h2>
+                                <h2 class="font-bold mt-12 text-red-400">{{ $statusName }} </h2>
                                 <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                                     <thead
-                                        class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                        class="text-xs text-gray-700 uppercase bg-violet-50 dark:bg-gray-700 dark:text-gray-400">
                                         <tr>
                                             <th scope="col" class="px-6 py-3">
                                                 Detail
@@ -104,7 +104,7 @@
                                             <th scope="col" class="px-6 py-3">
                                                 Last Update
                                             </th>
-                                            <th scope="col" class="px-6 py-3">
+                                            <th scope="col" class="px-6 py-3 sr-only">
                                                 Action
                                             </th>
                                         </tr>
@@ -112,6 +112,7 @@
 
                                     <tbody>
                                         @foreach ($relatedData as $item)
+
                                         <tr
                                             class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
 
@@ -138,6 +139,7 @@
                                             <td class="flex items-center px-6 py-4">
                                                 <a href="/order/detail?order_id={{ $item->id }}"  wire:navigate><small
                                                     class="text-primary-400 underline ">detail</small></a>
+                                                <x-button icon="chat" teal flat onclick="$openModal('comments')" wire:click="order({{$item->id}})" ><span class="text-blue-500">{{count($item->comments) < 1 ? "" : count($item->comments) }}</span></x-button>
                                             </td>
                                         </tr>
                                         @endforeach
@@ -152,5 +154,73 @@
                 {{-- end one branch information  --}}
             @endforeach
         </div>
+
+        {{-- Comment Modal  --}}
+        <x-modal.card title="Comments" wire:model='comments' name="comments">
+            <div class="w-full p-2 overflow-y-scroll border border-gray-400 rounded commentSession h-80">
+                @forelse ($comments as $comment)
+                    <div>
+                        <div class="flex p-2 mb-3 bg-blue-200 rounded sent-message w-fit">
+                            <div class="mr-2 profile">
+                                <img src="{{ asset('images/user.png') }}" alt="user-avatar" class="w-6 h-6">
+                            </div>
+                            <div class="">
+                                <div class="mb-1 text-sm">
+                                    <p class="font-semibold">{{ $comment->user->name }}</p>
+                                    <p class="text-xs">
+                                        {{ $comment->created_at->diffForHumans() }}
+                                    </p>
+                                </div>
+                                <p class="text-sm">{{ $comment->content }}
+                                    <button wire:click='replyComment({{ $comment->id }})'
+                                        class="text-xs text-blue-800 underline rounded-full">reply</button>
+                                </p>
+                            </div>
+                        </div>
+                        @foreach ($comment->replys as $reply)
+                            <div class="flex mb-1 ml-10 sent-message w-fit">
+                                <div class="mr-2 profile">
+                                    <img src="{{ asset('images/user.png') }}" alt="user-avatar" class="w-6 h-6">
+                                </div>
+                                <div class="mb-1 text-sm">
+                                    <p class="font-semibold">{{ $reply->user->name }}<span
+                                            class="text-xs italic text-slate-500">
+                                            {{ $reply->created_at->diffForHumans() }}
+                                        </span></p>
+
+                                    <p>{{ $reply->content }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                        @if ($comment->id == $reply_toggle)
+                            <div x-data x-transition.duration.500ms class="flex flex-col px-10 mb-2">
+                                <div class="flex">
+                                    <x-input
+                                        class="w-full border text-sm rounded focus:ring-0 dark:bg-gray-600 dark:text-gray-200"
+                                        type="text" wire:model='reply' placeholder="reply to this comment" />
+                                        <div>
+                                            <button class="ml-4 bg-emerald-600 text-white px-2 py-1.5 rounded"
+                                            wire:click="createReply({{ $comment->id }})">Reply</button>
+                                        </div>
+                                </div>
+                                @error('reply_content')
+                                    <span class="text-xs text-red-500">Can't empty reply</span>
+                                @enderror
+                            </div>
+                        @endif
+                    </div>
+                @empty
+                    <p>No comment</p>
+                @endforelse
+            </div>
+            <x-slot name="footer">
+                <form wire:model=''>
+                    <x-textarea class="w-full mb-2 rounded bg-slate-100" title="Create a comment" wire:model='comment'
+                        placeholder="Type a comment"></x-textarea>
+                    <x-button wire:click.prevent="createComment()">send</x-button>
+                </form>
+            </x-slot>
+        </x-modal.card>
+
 
     </div>

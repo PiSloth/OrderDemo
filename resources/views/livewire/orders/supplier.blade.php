@@ -1,10 +1,10 @@
-    <div class="pt-10 pl-10 pr-10 text-sm lg:pl-72 ">
+    <div class="ml-10 mr-10 mt-10">
 
         {{-- supplier add modal --}}
         <div class="flex items-center justify-between">
-            <h1 class="mb-4 text-3xl font-bold dark:text-gray-100">Supplier</h1>
+            <h1 class="mb-4 text-3xl font-bold dark:text-gray-100">ပစ္စည်းအသစ် ထည့်သွင်းခြင်း</h1>
             <button class="bg-indigo-400 text-white px-2 py-1.5 rounded focus:ring-4 focus:ring-indigo-300"
-                x-on:click="$openModal('addSupplierModal')">Add New Supplier</button>
+                x-on:click="$openModal('addSupplierModal')">Supplier အသစ်</button>
         </div>
         {{-- end supplier add modal --}}
 

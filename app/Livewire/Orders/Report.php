@@ -3,6 +3,7 @@
 namespace App\Livewire\Orders;
 
 use App\Models\Branch;
+use App\Models\Comment;
 use App\Models\Design;
 use App\Models\Grade;
 use App\Models\Order;
@@ -12,6 +13,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 use WireUi\Traits\Actions;
 use App\Models\CommentPool;
+use App\Models\Reply;
 use App\Models\Status;
 use Illuminate\Support\Facades\Auth;
 
@@ -24,9 +26,54 @@ class Report extends Component
     public $designFilter = 0;
     public $durationFilter = 0;
     public $statusFilter = 0;
-    public $branchFilter = 0;
+    public $branchFilter = 100;
     public $priority = '';
     public $date = '';
+    public $orderId = '';
+    public  $reply_toggle;
+    public $content;
+    public $comment;
+    public $reply;
+
+    public function mount() {
+        $this->branchFilter = auth()->user()->branch_id;
+    }
+    public function order($id){
+        // dd("Hello");
+        $this->orderId = $id;
+    }
+
+    public function replyComment($id){
+        $this->reply_toggle = $id;
+    }
+
+    public function createReply($comId){
+
+        $this->validate([
+            'reply' => 'required'
+        ]);
+        Reply::create([
+            'content' => $this->reply,
+            'user_id' => auth()->user()->id,
+            'comment_id' => $comId,
+        ]);
+
+        $this->reset('reply','reply_toggle');
+    }
+
+    public function createComment(){
+        $this->validate([
+            'comment' => 'required'
+        ]);
+
+        Comment::create([
+            'content' => $this->comment,
+            'user_id' => auth()->user()->id,
+            'order_id' => $this->orderId,
+        ]);
+        $this->reset('orderId','comment');
+        $this->dispatch('close-modal');
+    }
 
     public function render()
     {
@@ -39,6 +86,10 @@ class Report extends Component
         if($this->branchFilter) {
             $orderQuery = $orderQuery->where('branch_id', $this->branchFilter);
         }
+
+        //  if($this->branchFilter == 100){
+        //     $orderQuery = $orderQuery->where('branch_id', auth()->user()->id);
+        // }
 
         if ($this->gradeFilter) {
             $orderQuery = $orderQuery->where('grade_id', $this->gradeFilter);
@@ -69,6 +120,8 @@ class Report extends Component
             });
         });
 
+        $comments = Comment::whereOrderId($this->orderId)->get();
+
         // dd(CommentPool::where('completed', 'false')->where('user_id', '=', Auth::user()->id)->count());
 
         return view('livewire.orders.report', [
@@ -79,7 +132,8 @@ class Report extends Component
             'designs' => Design::get(),
             'currentTime' => Carbon::now(),
             'statuses' => Status::all(),
-            'branches' => Branch::all()
+            'branches' => Branch::all(),
+            'comments' => $comments,
         ]);
     }
 }
