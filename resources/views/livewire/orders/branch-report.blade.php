@@ -135,7 +135,7 @@
                                             </td>
 
                                             <td class="px-6 py-4">
-                                                {{$item->updated_at}}
+                                                {{$item->updated_at->format('M-d-Y')}}<i class="text-small text-blue-400"> ({{ $item->updated_at->diffForHumans() }})</i>
                                             </td>
                                             <td class="flex items-center px-6 py-4">
                                                 <x-button href="/order/detail?order_id={{ $item->id }}" flat teal icon="information-circle"  wire:navigate></x-button>
