@@ -3,6 +3,7 @@
 use App\Http\Controllers\CustomLogout;
 use App\Livewire\Orders\Config;
 use App\Livewire\Orders\AddOrder;
+use App\Livewire\Orders\BranchReport;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Orders\Dashboard;
 use App\Livewire\Orders\Help;
@@ -48,7 +49,8 @@ Route::get('/config', Config::class)
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/order/detail/', PerOrder::class)->name('per_order');
-    Route::get('/order/report/', Report::class)->name('order-report');
+    Route::get('/order/branch-report/', BranchReport::class)->name('order-branch-report');
+    Route::get('/order/report', Report::class)->name('order-report');
     Route::get('/dologout', [CustomLogout::class, 'doLogout'])->name('doLogout');
     Route::get('/help', Help::class)->name('help');
     Route::get('/order/dashboard', OrderDashboard::class)->name('order-dashboard');

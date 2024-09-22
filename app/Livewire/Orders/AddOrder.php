@@ -132,12 +132,17 @@ class AddOrder extends Component
     public function render()
     {
 
-        $orderWithFilter = Order::latest()
-            ->where('category_id', 'like', "%{$this->category_id}%")
-            ->where('quality_id', 'like', "%{$this->quality_id}%")
-            ->where('design_id', 'like', "%{$this->design_id}%")
-            ->where('weight', 'like', "%{$this->weight}%")
-            ->get();
+        if($this->category_id){
+            $orderWithFilter = Order::latest()
+                ->where('branch_id','=',auth()->user()->branch_id)
+                ->where('category_id', 'like', "%{$this->category_id}%")
+                ->where('quality_id', 'like', "%{$this->quality_id}%")
+                ->where('design_id', 'like', "%{$this->design_id}%")
+                ->where('weight', 'like', "%{$this->weight}%")
+                ->get();
+        }else{
+            $orderWithFilter = [];
+        }
 
         $priority = Priority::where('id', $this->priority_id)->get();
         if (!$this->priority_id) {

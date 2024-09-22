@@ -1,6 +1,6 @@
-@extends('livewire.orders.layout.dashboard-layout')
+{{-- @extends('livewire.orders.layout.dashboard-layout')
 
-@section('content')
+@section('content') --}}
 <div class="ml-10 mr-10 mt-10">
 
         <div class="rounded-lg dark:bg-gray-800 dark:text-gray-100 p-2">
@@ -394,7 +394,7 @@
         @if ($previousSupplierToggle)
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-center justify-start py-5 gap-10">
                 @foreach ($supplierdatas as $item)
-                    <div class="bg-gray-100 rounded w-80 h-96 rounded">
+                    <div class="bg-gray-100 rounded w-80 h-96 ">
                         <h2 class="font-bold text-xl pt-4 text-center underline">{{ $item->supplier->name }}</h2>
                         <div class="flex justify-center">
                             <x-button outline sky wire:click="addRequestedOrder({{ $item->id }})" label="Add" />
@@ -782,4 +782,5 @@
         }
         gramToKpy()
     </script>
-@endsection
+{{-- </div> --}}
+{{-- @endsection --}}
