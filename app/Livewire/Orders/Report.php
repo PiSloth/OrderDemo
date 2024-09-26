@@ -16,7 +16,7 @@ class Report extends Component
 
     public function render()
     {
-        $branches = Branch::select('branches.name', 'branches.id', DB::raw('count(orders.status_id) as total'))
+        $branchesData = Branch::select('branches.name', 'branches.id', DB::raw('count(orders.status_id) as total'))
             ->leftJoin('orders', 'branches.id', '=', 'orders.branch_id')
             ->where(function ($query) {
                 $query->where('orders.status_id', $this->status_id)
@@ -35,24 +35,57 @@ class Report extends Component
             ->groupBy('branches.id', 'branches.name')
             ->get();
 
-        $products = Order::select('design_id','weight', DB::raw('SUM(CASE WHEN branch_id = 1 THEN qty ELSE 0 END) As b1')
-            ,DB::raw('SUM(CASE WHEN branch_id=2 THEN qty ELSE 0 END) AS b2')
-            ,DB::raw('SUM(CASE WHEN branch_id=3 THEN qty ELSE 0 END) AS b3')
-            ,DB::raw('SUM(CASE WHEN branch_id=4 THEN qty ELSE 0 END) AS b4')
-            ,DB::raw('SUM(CASE WHEN branch_id=5 THEN qty ELSE 0 END) AS b5')
-            ,DB::raw('SUM(CASE WHEN branch_id=6 THEN qty ELSE 0 END) AS ho')
-            ,DB::raw('SUM(CASE WHEN branch_id=7 THEN qty ELSE 0 END) AS b6')
-            )
-            ->groupBy('design_id','weight')
+        // query data with dynamically branch id
+        $branches = Branch::all();
+        $select = ['design_id','branch_id','weight'];
+
+        foreach ($branches as $branch) {
+            $select[] = DB::raw("SUM(CASE WHEN branch_id = $branch->id THEN qty ELSE 0 END) As index$branch->id");
+        }
+        $products = Order::select($select)
+            ->groupBy('design_id', 'weight', 'branch_id')
             ->get();
-            // dd($products);
+
+
+
+            $startDate = '2024-01-01';
+            $endDate = '2024-12-31';
+
+           $averages = DB::table('orders')
+           ->leftJoin('order_histories', 'order_histories.order_id', '=', 'orders.id')
+           ->selectRaw("
+                COUNT(DISTINCT(orders.id)) AS TotalCount,
+               CEIL(AVG(TIMESTAMPDIFF(DAY, orders.created_at, (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 3 LIMIT 1)))) AS AvgAddedToAcked,
+               CEIL(AVG(TIMESTAMPDIFF(DAY,
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 2 LIMIT 1),
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 3 LIMIT 1)))) AS AvgAckedToRequest,
+               CEIL(AVG(TIMESTAMPDIFF(DAY,
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 3 LIMIT 1),
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 4 LIMIT 1)))) AS AvgRequestToApprove,
+               CEIL(AVG(TIMESTAMPDIFF(DAY,
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 4 LIMIT 1),
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 5 LIMIT 1)))) AS AvgApproveToOrdered,
+               CEIL(AVG(TIMESTAMPDIFF(DAY,
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 5 LIMIT 1),
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 6 LIMIT 1)))) AS AvgOrderedToArrived,
+               CEIL(AVG(TIMESTAMPDIFF(DAY,
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 6 LIMIT 1),
+                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 7 LIMIT 1)))) AS AvgDeliveredToSuccess
+           ")
+        //    ->whereBetween('orders.created_at', [$startDate, $endDate])
+           ->get();
+
+
+        //  dd($averages);
 
         return view('livewire.orders.report', [
             'statuses' => Status::all(),
-            'branches' => $branches,
+            'branches' => $branchesData,
+            'thBranches' => $branches,
             'priorities' => Priority::all(),
             'prioritiesData' => $priorityData,
             'products' => $products,
+            'average' => $averages,
         ]);
     }
 }

@@ -1,24 +1,32 @@
-<div class="h-screen">
+<div class="">
 
-<div id="date-range-picker" date-rangepicker class="flex items-center">
-    <div class="relative">
-      <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-           <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/>
-          </svg>
-      </div>
-      <input id="datepicker-range-start" name="start" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date start">
-    </div>
-    <span class="mx-4 text-gray-500">to</span>
-    <div class="relative">
-      <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-           <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/>
-          </svg>
-      </div>
-      <input id="datepicker-range-end" name="end" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date end">
-  </div>
-  </div>
+    {{-- <div id="date-range-picker" date-rangepicker class="flex items-center">
+        <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z" />
+                </svg>
+            </div>
+            <input id="datepicker-range-start" name="start" type="text"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="Select date start">
+        </div>
+        <span class="mx-4 text-gray-500">to</span>
+        <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z" />
+                </svg>
+            </div>
+            <input id="datepicker-range-end" name="end" type="text"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="Select date end">
+        </div>
+    </div> --}}
 
     <div class="grid grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-4">
         <div class="border rounded shadow-lg p-4 ">
@@ -74,7 +82,49 @@
             </div>
         </div>
     </div>
-    <div class="relative overflow-x-auto">
+
+    {{-- Averages --}}
+
+    <div class="grid sm:grid-cols-1 md:grid-cols-2 p-2 my-4">
+        <ul class="">
+            <span class="font-bold text-2xl">Process တစ်ခုနှင့် တစ်ခုကြား မျှမ်းမျှကြာချိန် (Days)</span>
+            @foreach ($average as $data)
+            <li class="grid grid-cols-2 mb-2 mt-4 border-b hover:bg-slate-100 cursor-pointer">
+                <span> Total Order </span>
+                <span class="text-3xl">{{ $data->TotalCount }}</span>
+            </li>
+            <li  class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <span>Add to Ack</span>
+                <span class="text-3xl ">{{ $data->AvgAddedToAcked }}</span>
+
+            </li>
+            <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <span>Ack to Request </span>
+                <span class="text-3xl ">{{ $data->AvgAckedToRequest }}</span>
+            </li>
+            <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <span> Request to Approve </span>
+                <span class="text-3xl ">{{ $data->AvgRequestToApprove }}</span>
+            </li>
+            <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <span>Approve to Order<i>(Supplier)</i></span>
+                <span class="text-3xl ">{{ $data->AvgApproveToOrdered }}</span>
+            </li>
+            <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <span>Supplier to STT </span>
+                <span class="text-3xl ">{{ $data->AvgOrderedToArrived }}</span>
+            </li>
+            <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <span>Arrivered to Delivered </span>
+                <span class="text-3xl "> {{ $data->AvgDeliveredToSuccess }}</span>
+            </li>
+            @endforeach
+
+        </ul>
+    </div>
+
+    {{-- //Design with gram  --}}
+    <div class="my-3 relative overflow-x-auto">
         <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
             <thead class="text-xs text-gray-900 uppercase dark:text-gray-400">
                 <tr>
@@ -87,62 +137,31 @@
                     <th scope="col" class="px-6 py-3">
                         Weight
                     </th>
-                    <th scope="col" class="px-6 py-3">
-                        HO
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Branch 1
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Branch 2
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Branch 3
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Branch 4
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Branch 5
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Branch 6
-                    </th>
+
+                    @foreach ($branches as $branch)
+                        <th scope="col" class="px-6 py-3">
+                            {{ $branch->name }}
+                        </th>
+                    @endforeach
                 </tr>
             </thead>
             <tbody>
                 @foreach ($products as $product)
-                    <tr class="bg-white dark:bg-gray-800">
+                    <tr class="odd:bg-gray-50 hover:bg-black hover:text-white hover:font-bold bg-white dark:bg-gray-800">
                         <td class="px-6 py-4">
                             {{ $loop->index }}
                         </td>
-                        <th class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                        <th class="px-6 py-4 font-medium  whitespace-nowrap dark:text-white">
                             {{ $product->design->name }}
                         </th>
                         <td class="px-6 py-4">
                             {{ $product->weight }}<i> g</i>
                         </td>
-                        <td class="px-6 py-4">
-                            {{ $product->ho }}
+                        @foreach ($thBranches as $branch)
+                             <td class="px-6 py-4">
+                            {{ $product-> {'index'.$branch->id} }}
                         </td>
-                        <td class="px-6 py-4">
-                            {{ $product->b1 }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {{ $product->b2 }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {{ $product->b3 }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {{ $product->b4 }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {{ $product->b5 }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {{ $product->b6 }}
-                        </td>
+                        @endforeach
 
                     </tr>
                 @endforeach
