@@ -55,6 +55,8 @@ class AddOrder extends Component
     #[AttributesRule('nullable|sometimes|image|max:1024')]
     public $productImg;
 
+    //check order modal
+    public $checkOrder;
 
     public function create_order()
     {

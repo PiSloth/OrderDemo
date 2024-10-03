@@ -1,7 +1,8 @@
 //JS file for add order and Supplier data
 //Calculate Gram to MMunit KPY
 
-document.addEventListener("livewire:navigated", () => {
+function handleLivewireEvents(event){
+
     initFlowbite();
     console.log("listener");
     //weiht from add order blade
@@ -20,7 +21,7 @@ document.addEventListener("livewire:navigated", () => {
     }
     if (weightInSupplier != null) {
         weightInSupplier.addEventListener("keyup", function () {
-            console.log("supplier");
+            // console.log("supplier");
             const weightValue = mmUnitCalc(weightInSupplier.value);
 
             const gramToMmUnitSupplier = document.getElementById(
@@ -76,4 +77,9 @@ document.addEventListener("livewire:navigated", () => {
     } else {
         document.documentElement.classList.remove("dark");
     }
-});
+
+}
+
+document.addEventListener("livewire:navigated", handleLivewireEvents);
+document.addEventListener("livewire:update", handleLivewireEvents);
+

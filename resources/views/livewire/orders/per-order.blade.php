@@ -16,10 +16,10 @@
                     @if ($order->images)
                         <div class="w-48 h-60">
                              @foreach ($order->images as $image)
-                            <img x-on:click="$openModal('image')"
+                            <img x-on:click="$openModal('imageModal')"
                                 class="object-cover w-full rounded-lg hover:cursor-zoom-in h-96 md:h-auto md:w-48 mb-4"
                                 src="{{ asset('storage/' . $image->orderimg) }}" alt="">
-                            <x-modal wire:model='image'>
+                            <x-modal wire:model='imageModal'>
 
                                 <img src="{{ asset('storage/' . $image->orderimg) }}" class="bg-white mb-6 rounded-lg">
 
@@ -102,11 +102,11 @@
         <div class="flex gap-2 mt-4 mb-2 ">
             <div>
                 <x-badge sky class="absolute w-3 h-4 -ml-1" rounded primary label="{{ $comments }}" />
-                <x-button flat positive icon="chat-alt-2" label="Comments" @click="$openModal('comments')"></x-button>
+                <x-button flat positive icon="chat-alt-2" label="Comments" @click="$openModal('commentModal')"></x-button>
             </div>
-            <x-button flat info icon="clock" label="History" @click="$openModal('history')"></x-button>
+            <x-button flat info icon="clock" label="History" @click="$openModal('historyModal')"></x-button>
             @if ($order->status_id !== 8 && $order->status_id !== 7 && Gate::allows('isCanceller'))
-                <x-button flat negative icon="x" label="Cancel" @click="$openModal('cancelOrder')"></x-button>
+                <x-button flat negative icon="x" label="Cancel" @click="$openModal('cancelOrderModal')"></x-button>
             @endif
         </div>
 
@@ -305,7 +305,7 @@
                                 @endcan
 
                                 @can('isSupplierDataApprover')
-                                <x-button outline pink  wire:click="rejectSupplierProduct({{ $requested->supplier_product_id }})"  x-on:click="$openModal('rejectSupplierData')"
+                                <x-button outline pink  wire:click="rejectSupplierProduct({{ $requested->supplier_product_id }})"  x-on:click="$openModal('rejectSupplierDataModal')"
                                     label="reject" />
                                     <x-button outline teal  wire:click="selectedSupplier({{ $requested->supplier_product_id }})"
                                         label="Select" />
@@ -522,7 +522,7 @@
         <div class="w-full px-2 py-4 mx-auto mt-2 mb-3 text-sm bg-white md:flex-row dark:border-gray-700 dark:bg-gray-800">
             @if (!$chatPool || $chatPool->completed)
                 {{-- --}}
-                <x-button label="i-Meeting" onclick="$openModal('iMeeting')"
+                <x-button label="i-Meeting" onclick="$openModal('iMeetingModal')"
                     class="text-black border-2 border-cyan-500 items-center justify-center p-0.5 mb-2 me-2 px-5 py-2.5 transition-all ease-in duration-75 dark:bg-gray-900 rounded-md  bg-gradient-to-br hover:from-cyan-500 hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800" />
                 @error('i_title')
                     <span class="text-sm text-red-400">
@@ -616,7 +616,7 @@
         {{-- End Action Buttons --}}
 
         {{-- i Meeting Create Modal --}}
-        <x-modal.card title="Create i-Meeting" wire:model='iMeeting' name="iMeeting">
+        <x-modal.card title="Create i-Meeting" wire:model='iMeetingModal' name="iMeeting">
             <x-input wire:model='i_title' label="Meeting Title" />
 
             <x-slot name="footer">
@@ -631,7 +631,7 @@
         </x-modal.card>
 
         {{-- Cancel Order Modal  --}}
-        <x-modal.card title="Cancel Order" wire:model='cancelOrder' name="cancelOrder">
+        <x-modal.card title="Cancel Order" wire:model='cancelOrderModal' name="cancelOrder">
             <div>
                 <x-input label="Reason" class="w-full" wire:model='cancel_reason' placeholder="Write a reason" />
             </div>
@@ -642,7 +642,7 @@
         {{-- End Cancel Order Modal  --}}
 
         {{-- History Modal  --}}
-        <x-modal.card title="History" wire:model='history' name='history'>
+        <x-modal.card title="History" wire:model='historyModal' name='history'>
             <div class="px-2 pb-2">
                 <ul>
 
@@ -672,7 +672,7 @@
         </x-modal.card>
         {{-- End Order History --}}
 
-        <x-modal.card title="Comments" wire:model='comments' name="comments">
+        <x-modal.card title="Comments" wire:model='commentModal' name="comments">
             <div class="w-full p-2 overflow-y-scroll border border-gray-400 rounded commentSession h-80">
                 @forelse ($order->comments as $comment)
                     <div>
@@ -728,7 +728,7 @@
                 @endforelse
             </div>
             <x-slot name="footer">
-                <form wire:model=''>
+                <form>
                     <textarea class="w-full mb-2 rounded bg-slate-100" title="Create a comment" wire:model='content'
                         placeholder="Type a comment"></textarea>
                     <x-button wire:click.prevent="create_comment({{ $order->id }})">send</x-button>
@@ -737,9 +737,9 @@
         </x-modal.card>
 
          {{-- Reject Supplier Data Modal  --}}
-         <x-modal.card title="Reject Supplier Data" wire:model='rejectSupplierData' name="rejectSupplierData">
+         <x-modal.card title="Reject Supplier Data" wire:model='rejectSupplierDataModal' name="rejectSupplierData">
             <div>
-                <x-input label="Reason" class="w-full" wire:model='reject_note' placeholder="Write a reason for {{ $rejectSupplierProduct_id }}" />
+                <x-input label="Reason" class="w-full" wire:model='reject_note' placeholder="Write a reason for this" />
             </div>
             <x-slot name="footer">
                 <x-button wire:click="rejectSupplierData" label="confirm"></x-button>
@@ -751,7 +751,7 @@
 
 
 
-    <script>
+    {{-- <script>
         console.log("Hello");
 
         function mmUnitCalc(gramWeight) {
@@ -776,11 +776,11 @@
 
         function gramToKpy() {
             let gram = document.getElementById("weightInGram").value;
-            console.log(gram);
+            // console.log(gram);
             let answer = mmUnitCalc(gram);
             document.getElementById("weight").innerHTML = answer;
         }
         gramToKpy()
-    </script>
+    </script> --}}
 {{-- </div> --}}
 {{-- @endsection --}}

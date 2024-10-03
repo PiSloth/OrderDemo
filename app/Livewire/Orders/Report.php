@@ -13,6 +13,10 @@ class Report extends Component
 {
     public $status_id = 1;
     public $priority_id = 1;
+    public $startDate;
+    public $endDate;
+
+
 
     public function render()
     {
@@ -22,9 +26,18 @@ class Report extends Component
                 $query->where('orders.status_id', $this->status_id)
                     ->orWhereNull('orders.status_id'); // Include null status_id as well
             })
-            ->groupBy('branches.id', 'branches.name')
-            ->get();
-        // dd($branches);
+            //    ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
+            ->groupBy('branches.id', 'branches.name');
+
+        //Check strt date and end date
+        if ($this->startDate && $this->endDate) {
+            $branchesData = $branchesData
+                ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
+                ->get();
+        } else {
+            $branchesData = $branchesData->get();
+        }
+
 
         $priorityData = Branch::select('branches.name', 'branches.id', DB::raw('count(orders.priority_id) as total'))
             ->leftJoin('orders', 'branches.id', '=', 'orders.branch_id')
@@ -32,28 +45,39 @@ class Report extends Component
                 $query->where('orders.priority_id', $this->priority_id)
                     ->orWhereNull('orders.priority_id'); // Include null priority_id as well
             })
-            ->groupBy('branches.id', 'branches.name')
-            ->get();
+            ->groupBy('branches.id', 'branches.name');
+
+            if($this->startDate && $this->endDate){
+                $priorityData = $priorityData
+                ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
+                ->get();
+            }else{
+                $priorityData = $priorityData->get();
+            }
+
 
         // query data with dynamically branch id
         $branches = Branch::all();
-        $select = ['design_id','branch_id','weight'];
+        $select = ['design_id', 'branch_id', 'weight'];
 
         foreach ($branches as $branch) {
             $select[] = DB::raw("SUM(CASE WHEN branch_id = $branch->id THEN qty ELSE 0 END) As index$branch->id");
         }
+
         $products = Order::select($select)
-            ->groupBy('design_id', 'weight', 'branch_id')
-            ->get();
+            ->groupBy('design_id', 'weight', 'branch_id');
+
+        if ($this->startDate && $this->endDate) {
+            $products = $products
+                ->whereBetween('created_at', [$this->startDate, $this->endDate])->get();
+        } else {
+            $products = $products->get();
+        }
 
 
-
-            $startDate = '2024-01-01';
-            $endDate = '2024-12-31';
-
-           $averages = DB::table('orders')
-           ->leftJoin('order_histories', 'order_histories.order_id', '=', 'orders.id')
-           ->selectRaw("
+        $averages = DB::table('orders')
+            ->leftJoin('order_histories', 'order_histories.order_id', '=', 'orders.id')
+            ->selectRaw("
                 COUNT(DISTINCT(orders.id)) AS TotalCount,
                CEIL(AVG(TIMESTAMPDIFF(DAY, orders.created_at, (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 3 LIMIT 1)))) AS AvgAddedToAcked,
                CEIL(AVG(TIMESTAMPDIFF(DAY,
@@ -72,8 +96,15 @@ class Report extends Component
                    (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 6 LIMIT 1),
                    (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 7 LIMIT 1)))) AS AvgDeliveredToSuccess
            ")
-        //    ->whereBetween('orders.created_at', [$startDate, $endDate])
-           ->get();
+            ->whereNot('orders.status_id', 8);
+
+        if ($this->startDate && $this->endDate) {
+            $averages = $averages
+                ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
+                ->get();
+        } else {
+            $averages = $averages->get();
+        }
 
 
         //  dd($averages);

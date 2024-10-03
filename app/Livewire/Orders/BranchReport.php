@@ -2,21 +2,21 @@
 
 namespace App\Livewire\Orders;
 
-use App\Models\Branch;
-use App\Models\Comment;
-use App\Models\Design;
+use Carbon\Carbon;
 use App\Models\Grade;
 use App\Models\Order;
-use App\Models\Priority;
-use Carbon\Carbon;
-use Livewire\Attributes\Title;
+use App\Models\Reply;
+use App\Models\Branch;
+use App\Models\Design;
+use App\Models\Status;
+use App\Models\Comment;
 use Livewire\Component;
+use App\Models\Priority;
 use WireUi\Traits\Actions;
 use App\Models\CommentPool;
-use App\Models\Reply;
-use App\Models\Status;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Url;
+use Livewire\Attributes\Title;
+use Illuminate\Support\Facades\Auth;
 
 class BranchReport extends Component
 {
@@ -33,8 +33,17 @@ class BranchReport extends Component
     #[Url(as: 'branch', keep: false)]
     public $branchFilter;
 
+    #[Url(as: 'st')]
+    public $startDate;
+
+    #[Url(as: 'en')]
+    public $endDate;
+
     public $designFilter = 0;
     public $durationFilter = 0;
+    public $detailFilter;
+
+    public $designName;
 
     public $priority = '';
     public $date = '';
@@ -43,6 +52,9 @@ class BranchReport extends Component
     public $content;
     public $comment;
     public $reply;
+
+    // comment modal
+    public $commentModal;
 
     // public function mount() {
     //     if(!$this->branchFilter){
@@ -91,9 +103,17 @@ class BranchReport extends Component
         $this->dispatch('close-modal');
     }
 
+    //ack order
+    public function ack($id){
+        Order::whereId($id)->update(['status_id' => 2]);
+    }
+
     public function render()
     {
-        $orderQuery = Order::get();
+        $orderQuery = Order::orderBy('created_at', 'desc')
+        ->where('detail','like', '%'. $this->detailFilter . '%')
+        ->get();
+
 
         if ($this->statusFilter) {
             $orderQuery = $orderQuery->where('status_id', $this->statusFilter);
@@ -119,13 +139,20 @@ class BranchReport extends Component
 
         if ($this->designFilter) {
             $orderQuery = $orderQuery->where('design_id', $this->designFilter);
+
+            $this->designName = Design::find($this->designFilter)->first();
         }
 
-        if ($this->durationFilter) {
-            $currentTimeLine = Carbon::now();
-            $monthDuration = $currentTimeLine->copy()->subMonth($this->durationFilter);
+        // if ($this->durationFilter) {
+        //     $currentTimeLine = Carbon::now();
+        //     $monthDuration = $currentTimeLine->copy()->subMonth($this->durationFilter);
 
-            $orderQuery = $orderQuery->whereBetween('created_at', [$monthDuration->startOfDay(), $currentTimeLine->endOfDay()]);
+        //     $orderQuery = $orderQuery->whereBetween('created_at', [$monthDuration->startOfDay(), $currentTimeLine->endOfDay()]);
+        // }
+
+        if($this->startDate && $this->endDate){
+            $orderQuery = $orderQuery
+            ->whereBetween('created_at', [$this->startDate, $this->endDate]);
         }
 
         $orderQuery = $orderQuery->groupBy(function ($order) {
@@ -152,6 +179,7 @@ class BranchReport extends Component
             'statuses' => Status::all(),
             'branches' => Branch::all(),
             'comments' => $comments,
+
         ]);
     }
 }

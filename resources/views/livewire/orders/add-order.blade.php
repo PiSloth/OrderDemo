@@ -188,12 +188,13 @@
 
                     </div>
 
-                    <button type="button" onclick="$openModal('checkOrder')"
+                    <button type="button" x-on:click="$openModal('checkOrder')"
                         class=" first-letter:text-white bg-gradient-to-r mt-5 from-red-400 via-red-500 to-red-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 shadow-lg shadow-red-500/50 dark:shadow-lg dark:shadow-red-800/80 font-medium rounded-lg px-5 py-2.5 text-center me-2 mb-2 flex items-center justify-center">
                         <img src="{{ asset('images/note.png') }}" alt="Note icon" class="w-6 h-6 mr-2">Create
                     </button>
+
                     <!-- Main modal -->
-                    <x-modal.card blur title="အချက်အလက်များကို စစ်ဆေးပါ" wire:model='checkOrder' name="check_order">
+                    <x-modal.card blur title="အချက်အလက်များကို စစ်ဆေးပါ" wire:model="checkOrder" name="checkOrder">
                         <div wire:target='create_order'>
                             <div class="">
                                 <!-- Modal content -->

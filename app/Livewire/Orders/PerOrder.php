@@ -84,6 +84,13 @@ class PerOrder extends Component
     public $editSupplierProductMode;
     public $supplier_product_id;
 
+    public $imageModal;
+    public $iMeetingModal;
+    public $cancelOrderModal;
+    public $historyModal;
+    public $commentModal;
+    public $rejectSupplierDataModal;
+
     public function boot()
     {
         $user_position = auth()->user()->position->name;
