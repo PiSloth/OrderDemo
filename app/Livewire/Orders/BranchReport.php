@@ -110,9 +110,27 @@ class BranchReport extends Component
 
     public function render()
     {
-        $orderQuery = Order::orderBy('created_at', 'desc')
+        $sevenDaysAgo = Carbon::now()->subDays(7);
+
+
+
+        $orderQuery = Order::where(function($query) use ($sevenDaysAgo) {
+            $query->where('status_id', '!=', 7)
+                  ->where('status_id', '!=', 8)  // Exclude status_id 7 and 8
+                  ->orWhere(function($query) use ($sevenDaysAgo) {
+                      $query->where('status_id', 7)
+                            ->where('updated_at', '>=', $sevenDaysAgo);  // Only include status_id 7 updated within last 7 days
+                  })
+                  ->orWhere(function($query) use ($sevenDaysAgo) {
+                      $query->where('status_id', 8)
+                            ->where('updated_at', '>=', $sevenDaysAgo);  // Only include status_id 8 updated within last 7 days
+                  });
+        })
         ->where('detail','like', '%'. $this->detailFilter . '%')
+        ->orderBy('created_at', 'desc')
         ->get();
+
+        // dd($orderQuery);
 
 
         if ($this->statusFilter) {

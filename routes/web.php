@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\CustomLogout;
+use App\Livewire\CommentHistory;
+use App\Livewire\ManufactureCost;
 use App\Livewire\Orders\Config;
 use App\Livewire\Orders\AddOrder;
 use App\Livewire\Orders\BranchReport;
@@ -14,7 +16,9 @@ use App\Livewire\Orders\PerOrder;
 use App\Livewire\Orders\PoolChat;
 use App\Livewire\Orders\Report;
 use App\Livewire\Orders\Supplier;
+use App\Livewire\SupplierDashboard;
 use App\Models\Order;
+use App\Models\OrderHistory;
 use App\View\Components\AppLayout;
 use App\View\Components\GuestLayout;
 
@@ -54,6 +58,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dologout', [CustomLogout::class, 'doLogout'])->name('doLogout');
     Route::get('/help', Help::class)->name('help');
     Route::get('/order/dashboard', OrderDashboard::class)->name('order-dashboard');
+    Route::get('/supplier/dashboard', SupplierDashboard::class)->name('supplier-dashboard');
+    Route::get('/manufacture/costing',ManufactureCost::class)->name('manufacture-costing');
+    Route::get('/comment/history', CommentHistory::class)->name('comment-history');
 });
 
 Route::middleware(['can:isAuthorized'])->group(function () {

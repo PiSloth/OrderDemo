@@ -136,6 +136,9 @@
                                                 <th scope="col" class="px-6 py-3">
                                                     Last Update
                                                 </th>
+                                                <th scope="col" class="px-6 py-3">
+                                                    Order Date
+                                                </th>
                                                 <th scope="col" class="px-6 py-3 sr-only">
                                                     Action
                                                 </th>
@@ -168,6 +171,9 @@
                                                         {{ $item->updated_at->format('d-M-y') }}<i
                                                             class="text-xs text-blue-400">
                                                             ({{ $item->updated_at->diffForHumans() }})</i>
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        {{ $item->created_at->format('d-M-y') }}
                                                     </td>
                                                     <td class="flex items-center px-6 py-4">
                                                         @can('isPurchaser')

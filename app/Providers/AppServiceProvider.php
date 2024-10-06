@@ -118,5 +118,12 @@ class AppServiceProvider extends ServiceProvider
 
             return in_array($usr, $authorizedUsers);
         });
+
+        Gate::define('isAllCommentReader', function (User $user){
+            $authorizedUsers = ["Super Admin", "Purchaser", "AGM","Inventory"];
+            $usr = $user->position->name;
+
+            return in_array($usr , $authorizedUsers);
+        });
     }
 }

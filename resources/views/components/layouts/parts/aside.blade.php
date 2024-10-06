@@ -14,6 +14,7 @@
                     </div>
                 </a>
             </li>
+
             <li>
                 <a wire:navigate href="{{ route('order-report') }}"
                     class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
@@ -21,6 +22,7 @@
                     <span class="ml-3">Order Reports</span>
                 </a>
             </li>
+
             @can('isAuthorized')
                 <li>
                     <a wire:navigate href="{{ route('add_order') }}"
@@ -47,6 +49,14 @@
                     </a>
                 </li>
 
+                <li>
+                        <a wire:navigate href="{{ route('comment-history') }}"
+                            class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                            <img src="{{ url('images/history.png') }}" alt="chart-icon" class="w-6 h-6">
+                            <span class="ml-3">Comments</span>
+                        </a>
+                    </li>
+
                 @can('isPurchaser')
                     <li>
                         <a wire:navigate href="/addsupplier"
@@ -57,15 +67,7 @@
                     </li>
                 @endcan
 
-                {{-- @can('isSuperAdmin')
-                    <li>
-                        <a wire:navigate href="/addsupplier"
-                            class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                            <img src="{{ url('images/supplier-icon.png') }}" alt="chart-icon" class="w-6 h-6">
-                            <span class="ml-3">Supplier Config</span>
-                        </a>
-                    </li>
-                @endcan --}}
+
 
                 @can('isSuperAdmin')
                     <li>
