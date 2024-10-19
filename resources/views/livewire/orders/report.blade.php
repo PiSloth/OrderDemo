@@ -63,7 +63,7 @@
         </div>
 
         {{-- //With Design --}}
-        <div class="p-4 border shadow-xl rounde">
+        <div class="p-4 border shadow-xl rounded">
             <div>
                 <x-button href="{{ route('order-branch-report') }}" class="h-12 w-full" outline pink icon="chart-pie"
                     wire:navigate>All
@@ -92,7 +92,7 @@
 
     {{-- Averages --}}
 
-    <div class="grid sm:grid-cols-1 md:grid-cols-2 p-2 my-4">
+    <div class="grid sm:grid-cols-1 md:grid-cols-2 p-2 my-4 gap-4">
         <ul class="">
             <span class="font-bold text-2xl">Process တစ်ခုနှင့် တစ်ခုကြား ပျှမ်းမျှကြာချိန် (Days)</span>
             @foreach ($average as $data)
@@ -128,6 +128,18 @@
             @endforeach
 
         </ul>
+
+        {{-- all comments by user name with count  --}}
+        <ul class="">
+            <span class="font-bold text-2xl">မဖတ်ရသေးသော Comments များ </span>
+            @foreach ($allUserComments  as $item)
+                <li class="grid grid-cols-2 mb-2 mt-4 border-b hover:bg-slate-100 cursor-pointer">
+                    <span> {{ $item[0] }} </span>
+                    <span class="text-3xl">{{ $item[1] }} <i></i></span>
+                </li>
+            @endforeach
+        </ul>
+
     </div>
 
     {{-- //Design with gram  --}}

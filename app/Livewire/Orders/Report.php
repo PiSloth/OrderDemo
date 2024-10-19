@@ -3,9 +3,12 @@
 namespace App\Livewire\Orders;
 
 use App\Models\Branch;
+use App\Models\Comment;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Priority;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
@@ -16,7 +19,39 @@ class Report extends Component
     public $startDate;
     public $endDate;
 
+    protected function allComments($users){
+        $commentsForAllUsers = [];
 
+        foreach($users as $userId){
+
+            $comments = Comment::leftJoin('notifications',  function ($join) use ($userId) {
+                $join->on('notifications.comment_id', '=', 'comments.id')
+                     ->where('notifications.user_id', '=', $userId);
+            })
+                ->leftJoin('orders', 'comments.order_id', 'orders.id')
+                ->leftJoin('users', 'users.id', 'comments.user_id')
+                ->select(
+
+                    'comments.id AS id',
+                    'users.name AS commentBy',
+                    'comments.order_id AS orderId',
+                    DB::raw('CASE WHEN comments.id = notifications.comment_id THEN TRUE ELSE FALSE END AS isRead
+            ')
+                )
+                ->where('orders.user_id', '=', $userId)
+                ->where('comments.user_id', '!=', $userId)
+                ->orderBy('comments.id', 'desc')
+                ->get();
+
+            $commentCount = $comments->where('is_read', 'false')->count();
+            $userName = User::find($userId)->name;
+
+            $result = [$userName, $commentCount];
+
+            $commentsForAllUsers[$userId] = $result;
+        }
+        return $commentsForAllUsers;
+    }
 
     public function render()
     {
@@ -75,6 +110,7 @@ class Report extends Component
         }
 
 
+        //Process leadtime average
         $averages = DB::table('orders')
             ->leftJoin('order_histories', 'order_histories.order_id', '=', 'orders.id')
             ->selectRaw("
@@ -106,8 +142,13 @@ class Report extends Component
             $averages = $averages->get();
         }
 
+        // End process leadtime average
 
-        //  dd($averages);
+        //user comments count
+        $users = User::all()->pluck('id');
+        // get all comments of each user
+        $commentsForAll = $this->allComments($users);
+        //  dd($commentsForAll);
 
         return view('livewire.orders.report', [
             'statuses' => Status::all(),
@@ -117,6 +158,7 @@ class Report extends Component
             'prioritiesData' => $priorityData,
             'products' => $products,
             'average' => $averages,
+            'allUserComments' => $commentsForAll,
         ]);
     }
 }

@@ -50,6 +50,7 @@ class CommentHistory extends Component
             ')
                 )
                 ->where('comments.user_id', '!=', auth()->user()->id)
+                ->orderBy('comments.id', 'desc')
                 ->get();
 
         } else {
@@ -69,9 +70,8 @@ class CommentHistory extends Component
                 )
                 ->where('orders.user_id', '=', auth()->user()->id)
                 ->where('comments.user_id', '!=', auth()->user()->id)
+                ->orderBy('comments.id', 'desc')
                 ->get();
-
-
         }
 
         $newComment = $comment->where('isRead', false)->count();
