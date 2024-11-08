@@ -15,6 +15,7 @@ use App\Models\Order;
 use App\Models\Priority;
 use App\Models\Quality;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Rule as AttributesRule;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -52,6 +53,7 @@ class AddOrder extends Component
     public $emptyCategory;
     public $emptyDesign;
     public $emptyBranch;
+
     #[AttributesRule('nullable|sometimes|image|max:1024')]
     public $productImg;
 
@@ -76,28 +78,32 @@ class AddOrder extends Component
             'note' => 'required',
         ]);
 
-        Order::create(array_merge($validatedData, [
-            'user_id' => auth()->user()->id,
-            'branch_id' => auth()->user()->branch->id,
-            'status_id' => 1,
-        ]));
+        DB::transaction(function () use ($validatedData) {
+            $createOrder = Order::create(array_merge($validatedData, [
+                'user_id' => auth()->user()->id,
+                'branch_id' => auth()->user()->branch->id,
+                'status_id' => 1,
+            ]));
+
+            if ($this->productImg) {
+
+                $id = $createOrder->id;
+                $image = $this->validate([
+                    'productImg' => 'required|max:1024'
+                ]);
+                $path = $this->productImg->store('images', 'public');
+                // dd($path);
+                Images::create([
+                    'orderimg' => $path,
+                    'order_id' => $id,
+                ]);
+            }
+        });
+
         //Photo Save after create
 
         // dd($this->productImg);
 
-        if ($this->productImg) {
-            $last_id = Order::latest()->first();
-            $id = $last_id->id;
-            $image = $this->validate([
-                'productImg' => 'required|max:1024'
-            ]);
-            $path = $this->productImg->store('images', 'public');
-            // dd($path);
-            Images::create([
-                'orderimg' => $path,
-                'order_id' => $id,
-            ]);
-        }
 
         $this->reset(['priority_id', 'category_id', 'grade_id', 'quality_id', 'design_id', 'branch_id', 'counterstock', 'sell_rate', 'qty', 'size', 'weight', 'detail', 'note', 'productImg', 'estimateTime']);
         $this->dialog([
@@ -134,15 +140,15 @@ class AddOrder extends Component
     public function render()
     {
 
-        if($this->category_id){
+        if ($this->category_id) {
             $orderWithFilter = Order::latest()
-                ->where('branch_id','=',auth()->user()->branch_id)
+                ->where('branch_id', '=', auth()->user()->branch_id)
                 ->where('category_id', 'like', "%{$this->category_id}%")
                 ->where('quality_id', 'like', "%{$this->quality_id}%")
                 ->where('design_id', 'like', "%{$this->design_id}%")
                 ->where('weight', 'like', "%{$this->weight}%")
                 ->get();
-        }else{
+        } else {
             $orderWithFilter = [];
         }
 

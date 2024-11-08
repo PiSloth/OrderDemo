@@ -19,10 +19,13 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use WireUi\Traits\Actions;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Rule as AttributesRule;
+use Livewire\WithFileUploads;
 
 class PerOrder extends Component
 {
     use Actions;
+    use WithFileUploads;
 
 
     #[Url()]
@@ -55,6 +58,8 @@ class PerOrder extends Component
     public $approved_note;
     public $to_order_date;
 
+    #[AttributesRule('nullable|sometimes|image|max:1024')]
+    public $productImg;
 
     //supplier  product model
     public $supplier_id;
@@ -101,7 +106,7 @@ class PerOrder extends Component
         }
 
         $this->approver = false;
-        if (in_array($user_position, ["AGM", "Super Admin", "Purchaser","Inventory"])) {
+        if (in_array($user_position, ["AGM", "Super Admin", "Purchaser", "Inventory"])) {
             $this->approver = true;
         }
 
@@ -111,14 +116,48 @@ class PerOrder extends Component
         }
 
         $this->purchaser = false;
-        if (in_array($user_position, [ "Super Admin", "Purchaser"])) {
+        if (in_array($user_position, ["Super Admin", "Purchaser"])) {
             $this->purchaser = true;
         }
     }
 
+    //save photo
+    public function savePhoto($id, $creator)
+    {
+        if ($creator !== auth()->user()->id) {
+            $this->dialog()->error(
+                $title = 'Error !!!',
+                $description = 'Sorry ! There\'s no permission to upload!'
+            );
+            return;
+        }
+        $image = $this->validate([
+            'productImg' => 'required|max:1024'
+        ]);
+
+        $path = $this->productImg->store('images', 'public');
+        Images::create([
+            'orderimg' => $path,
+            'order_id' => $id,
+        ]);
+        $this->reset('productImg');
+
+        $this->notification([
+            'title'       => 'Success!',
+            'description' => "Photo uploading completed!",
+            'icon'        => 'success'
+        ]);
+    }
+    //clear photo
+    public function clearPhoto()
+    {
+        $this->reset('productImg');
+    }
+
     //add supplier product toggle
-    public function supplierToggle() {
-        if($this->supplierProductToggle == 0) {
+    public function supplierToggle()
+    {
+        if ($this->supplierProductToggle == 0) {
             $this->supplierProductToggle = 1;
         } else {
             $this->supplierProductToggle = 0;
@@ -126,16 +165,18 @@ class PerOrder extends Component
     }
 
     //show previous supplier product toggle
-    public function previousToggle(){
-        if($this->previousSupplierToggle){
+    public function previousToggle()
+    {
+        if ($this->previousSupplierToggle) {
             $this->previousSupplierToggle = null;
-        }else {
-        $this->previousSupplierToggle = true;
+        } else {
+            $this->previousSupplierToggle = true;
         }
     }
 
     //add requested order table for approver
-    public function addRequestedOrder($supId){
+    public function addRequestedOrder($supId)
+    {
         RequestedOrder::create([
             'supplier_product_id' => $supId,
             'order_id' => $this->order_id,
@@ -143,44 +184,46 @@ class PerOrder extends Component
     }
 
     //remove order from requested order table
-    public function removeRequestedOrder($id){
+    public function removeRequestedOrder($id)
+    {
         RequestedOrder::find($id)->delete();
     }
 
     // Reject Supplier Product Data in relevent
-    public function rejectSupplierProduct($id){
+    public function rejectSupplierProduct($id)
+    {
         $this->rejectSupplierProduct_id = $id;
     }
 
     //reject supplier data with modal
-    public function rejectSupplierData(){
+    public function rejectSupplierData()
+    {
         $this->validate([
             'reject_note' => 'required'
         ]);
-        try{
+        try {
             $query = SupplierProduct::find($this->rejectSupplierProduct_id);
-            $query ->is_reject = true;
-            $query ->reject_note = $this->reject_note;
-            $query -> save();
+            $query->is_reject = true;
+            $query->reject_note = $this->reject_note;
+            $query->save();
             $this->dispatch('close-modal');
-            $this->reset('reject_note','rejectSupplierProduct_id');
+            $this->reset('reject_note', 'rejectSupplierProduct_id');
             $this->notification([
                 'title'       => 'Success!',
                 'description' => 'Rejected this data',
                 'icon'        => 'success'
             ]);
-        }catch(Exception $e){
+        } catch (Exception $e) {
             $this->notification([
                 'title'       => 'Success!',
                 'description' => $e,
                 'icon'        => 'success'
             ]);
             $this->dispatch('close-modal');
-
         }
     }
 
-//create supplier product by purchaser or requester
+    //create supplier product by purchaser or requester
     public function createSupplierProduct()
     {
         $validate = $this->validate([
@@ -195,16 +238,15 @@ class PerOrder extends Component
             'min_ar_date' => 'required',
             'max_ar_date' => 'required'
         ]);
-try{
-    SupplierProduct::create(array_merge($validate, [
-        'youktwat' => $this->youktwat,
-        'youktwat_in_kpy' => $this->youktwat_in_kpy,
-        'laukkha' => $this->laukkha,
-        'remark' => $this->remark,
-    ]));
-}catch (Exception $e){
-
-}
+        try {
+            SupplierProduct::create(array_merge($validate, [
+                'youktwat' => $this->youktwat,
+                'youktwat_in_kpy' => $this->youktwat_in_kpy,
+                'laukkha' => $this->laukkha,
+                'remark' => $this->remark,
+            ]));
+        } catch (Exception $e) {
+        }
 
         if ($this->youktwat > 0 || $this->laukkha > 0) {
             $data = SupplierProduct::latest()->first();
@@ -224,7 +266,7 @@ try{
             'supplier_product_id' => SupplierProduct::latest()->first()->id
         ]);
 
-        $this->reset('supplier_id', 'quality_id', 'design_id', 'detail', 'weight',  'weight_in_kpy', 'product_remark','remark', 'min_ar_date', 'max_ar_date');
+        $this->reset('supplier_id', 'quality_id', 'design_id', 'detail', 'weight',  'weight_in_kpy', 'product_remark', 'remark', 'min_ar_date', 'max_ar_date');
 
 
         $this->notification([
@@ -235,16 +277,17 @@ try{
     }
 
     //cancel editSupplier product
-    public function cancelEditSupplierProduct(){
+    public function cancelEditSupplierProduct()
+    {
         $this->supplierProductToggle = 0;
         $this->editSupplierProductMode = null;
 
-        $this->reset('supplier_id', 'quality_id', 'design_id', 'detail', 'weight',  'weight_in_kpy', 'product_remark','remark','min_ar_date','max_ar_date');
+        $this->reset('supplier_id', 'quality_id', 'design_id', 'detail', 'weight',  'weight_in_kpy', 'product_remark', 'remark', 'min_ar_date', 'max_ar_date');
         $this->reset('youktwat', 'youktwat_in_kpy', 'laukkha');
-
     }
     //edit supplier product by purchaser or requester
-    public function editSupplierProduct($id){
+    public function editSupplierProduct($id)
+    {
         //toggle enable supplier add
         $this->supplierProductToggle = 1;
         $this->editSupplierProductMode = true;
@@ -253,11 +296,11 @@ try{
 
         $query = SupplierProduct::find($id);
         $this->supplier_id = $query->supplier_id;
-        $this-> quality_id = $query->quality_id;
+        $this->quality_id = $query->quality_id;
         $this->design_id = $query->design_id;
         $this->detail = $query->detail;
         $this->color = $query->color;
-        $this->weight= $query->weight;
+        $this->weight = $query->weight;
         $this->weight_in_kpy = $query->weight_in_kpy;
         $this->product_remark = $query->product_remark;
         $this->youktwat = $query->youktwat;
@@ -268,7 +311,8 @@ try{
         $this->max_ar_date = $query->max_ar_date;
     }
 
-    public function updateSupplierProduct(){
+    public function updateSupplierProduct()
+    {
         $this->validate([
             'supplier_id' => 'required',
             'quality_id' =>  'required',
@@ -281,14 +325,14 @@ try{
         ]);
 
         //update query
-        try{
+        try {
             $query = SupplierProduct::find($this->supplier_product_id);
             $query->supplier_id = $this->supplier_id;
-            $query-> quality_id = $this->quality_id;
+            $query->quality_id = $this->quality_id;
             $query->design_id = $this->design_id;
             $query->detail = $this->detail;
             $query->color = $this->color;
-            $query->weight= $this->weight;
+            $query->weight = $this->weight;
             $query->weight_in_kpy = $this->weight_in_kpy;
             $query->product_remark = $this->product_remark;
             $query->youktwat = $this->youktwat;
@@ -297,7 +341,7 @@ try{
             $query->remark = $this->remark;
             $query->min_ar_date = $this->min_ar_date;
             $query->max_ar_date = $this->max_ar_date;
-            $query -> save();
+            $query->save();
 
             if ($this->youktwat > 0 || $this->laukkha > 0) {
                 $data = SupplierProduct::latest()->first();
@@ -315,17 +359,13 @@ try{
                 'description' => 'Successfully updated to this order',
                 'icon'        => 'success'
             ]);
-
-
-        } catch(Exception $e){
+        } catch (Exception $e) {
             $this->notification([
                 'title'       => 'Error!',
                 'description' => 'Error while updated to this order',
                 'icon'        => 'error'
             ]);
         }
-
-
     }
 
 
@@ -469,37 +509,37 @@ try{
     public function requested($ordId)
     {
 
-       $query = RequestedOrder::where('order_id',$ordId)->count();
-       if($query > 0){
-        OrderHistory::create([
-            'order_id' => $this->order_id,
-            'user_id' => auth()->user()->id,
-            'status_id' => 3,
-        ]);
+        $query = RequestedOrder::where('order_id', $ordId)->count();
+        if ($query > 0) {
+            OrderHistory::create([
+                'order_id' => $this->order_id,
+                'user_id' => auth()->user()->id,
+                'status_id' => 3,
+            ]);
 
-        $query =  Order::find($ordId);
-        $query->status_id = 3;
-        $query->save();
-        $this->reset('estimatetime');
-        $this->notification([
-            'title'       => 'Successfully Requested!',
-            'description' => 'Your was successfully requested to AGM',
-            'icon'        => 'success'
-        ]);
-       }else {
-           $this->dialog([
-            'title'       => 'Error',
-            'description' => 'Nothing found Supplier Data!',
-            'icon'        => 'error'
-        ]);
-       }
+            $query =  Order::find($ordId);
+            $query->status_id = 3;
+            $query->save();
+            $this->reset('estimatetime');
+            $this->notification([
+                'title'       => 'Successfully Requested!',
+                'description' => 'Your was successfully requested to AGM',
+                'icon'        => 'success'
+            ]);
+        } else {
+            $this->dialog([
+                'title'       => 'Error',
+                'description' => 'Nothing found Supplier Data!',
+                'icon'        => 'error'
+            ]);
+        }
     }
 
-     //Select supplier porduct for approver
-     public function selectedSupplier($id)
-     {
-         $this->selected_approved_supplier = $id;
-     }
+    //Select supplier porduct for approver
+    public function selectedSupplier($id)
+    {
+        $this->selected_approved_supplier = $id;
+    }
 
     //approve order updated with approved order list
     public function approved($ordId, $init_qty)
@@ -669,10 +709,10 @@ try{
 
         //Suppler info
         $supplierDatas = SupplierProduct::where('quality_id', $order->quality_id)
-        ->whereBetween('weight',[$order->weight - 0.05, $order->weight + 0.05])
-        ->where('is_reject', 'false')
-        ->where('detail','like','%'. $this->supplier_data_serarch .'%')
-        ->get();
+            ->whereBetween('weight', [$order->weight - 0.05, $order->weight + 0.05])
+            ->where('is_reject', 'false')
+            ->where('detail', 'like', '%' . $this->supplier_data_serarch . '%')
+            ->get();
 
 
         return view('livewire.orders.per-order', [

@@ -1,15 +1,20 @@
     <div x-data="{ weight: '', size: '', counterstock: '', sell_rate: '', note: '', detail: '', qty: '' }" class="py-10">
 
-        @if(count($liveOrders) > 0)
-        <a href="#history" class="flex items-center p-4 mb-4 text-sm text-yellow-800 border border-yellow-300 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300 dark:border-yellow-800" role="alert">
-            <svg class="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
-            </svg>
-            <span class="sr-only">Info</span>
-            <div>
-              <span class="font-medium">Warning alert!</span> အလားတူ တင်ထားသော Order {{ count($liveOrders) }} ခု တွေ့ရှိထားသည်။
-            </div>
-        </a>
+        @if (count($liveOrders) > 0)
+            <a href="#history"
+                class="flex items-center p-4 mb-4 text-sm text-yellow-800 border border-yellow-300 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300 dark:border-yellow-800"
+                role="alert">
+                <svg class="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                </svg>
+                <span class="sr-only">Info</span>
+                <div>
+                    <span class="font-medium">Warning alert!</span> အလားတူ တင်ထားသော Order {{ count($liveOrders) }} ခု
+                    တွေ့ရှိထားသည်။
+                </div>
+            </a>
         @endif
 
         <button id="theme-toggle" type="button"
@@ -82,8 +87,8 @@
 
                     <div class="grid grid-cols-1 mb-5 md:grid-cols-3 md:space-x-4">
                         <div class="priority-selection">
-                            <x-select label="Quality" wire:model.live="quality_id" placeholder="quality" :async-data="route('qualities.index')"
-                                option-label="name" option-value="id" />
+                            <x-select label="Quality" wire:model.live="quality_id" placeholder="quality"
+                                :async-data="route('qualities.index')" option-label="name" option-value="id" />
                             @error('quality_id')
                                 <span class="text-sm text-red-400">that's required</span>
                             @enderror
@@ -115,7 +120,8 @@
                             <input type="number" step=0.01 x-model="weight" required id="weight" autocomplete=none
                                 wire:model.live="weight" placeholder="Weight"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
-                            <div id="gramToMmUnit" class="absolute text-sm text-blue-900 dark:text-blue-300" wire:ignore>
+                            <div id="gramToMmUnit" class="absolute text-sm text-blue-900 dark:text-blue-300"
+                                wire:ignore>
                             </div>
                         </div>
 
@@ -140,7 +146,8 @@
                     <div class="grid grid-cols-1 mb-5 md:grid-cols-3 md:space-x-4">
                         <div class="mt-3 priority-selection md:mt-0">
                             <label for="stock"
-                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Counter Stock</label>
+                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Counter
+                                Stock</label>
                             <input type="number" id="stock" x-model="counterstock" required
                                 wire:model="counterstock" placeholder="Counter Stock"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
@@ -171,12 +178,15 @@
                             <span class="text-sm text-red-400">Write your thoughts</span>
                         @enderror
                     </div>
+
+                    {{-- Photo upload --}}
                     <div class="my-2">
                         <div wire:loading wire:target='productImg'>
                             <span class="text-green-700">uploading . . . .</span>
                         </div>
                         <input wire:model="productImg" id="image" accept="image/jpeg,image/jpg"
-                            class="my-2 text-gray-700 border border-gray-500 rounded dark:text-gray-200" type="file" />
+                            class="my-2 text-gray-700 border border-gray-500 rounded dark:text-gray-200"
+                            type="file" />
                         @error('productImg')
                             <p class="text-sm text-red-500">{{ $message }}</p>
                         @enderror
@@ -185,7 +195,6 @@
                                 <img src="{{ $productImg->temporaryUrl() }}" />
                             </div>
                         @endif
-
                     </div>
 
                     <button type="button" x-on:click="$openModal('checkOrder')"

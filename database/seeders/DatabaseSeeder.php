@@ -23,10 +23,10 @@ class DatabaseSeeder extends Seeder
     {
         // \App\Models\User::factory(10)->create();
 
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+        /* The commented out code `// \App\Models\User::factory()->create(['name' => 'Test User',
+        'email' => 'test@example.com', ]);` is an example of using Laravel's model factory to create
+        a new user record in the database. */
+
 
         $grades = ['ရောင်းအားအကောင်းဆုံး', 'ရောင်းအားအသင့်အတင့်', 'အမေးများဆုံး', 'ပစ္စည်းအသစ်'];
         $priorities = ['အမြန်ဆုံးမှာပေးပါ', 'သာမာန်', 'ရနိုင်လျှင်'];
@@ -37,53 +37,60 @@ class DatabaseSeeder extends Seeder
         $categories = ['Gold', '18K', 'Diamond', 'Gems'];
         $branches = ['branch 1', 'branch 2', 'branch 3', 'branch 4', 'branch 5', 'HO'];
 
-        foreach($branches as $branch) {
+        foreach ($branches as $branch) {
             Branch::factory()->create([
                 'name' => $branch
             ]);
         }
 
-        foreach($grades as $grade) {
+        foreach ($grades as $grade) {
             Grade::factory()->create([
                 'name' => $grade
             ]);
         }
 
-        foreach($priorities as $priority) {
+        foreach ($priorities as $priority) {
             Priority::factory()->create([
                 'name' => $priority
             ]);
         }
 
-        foreach($statuses as $status) {
+        foreach ($statuses as $status) {
             Status::factory()->create([
                 'name' => $status
             ]);
         }
 
-        foreach($roles as $role) {
+        foreach ($roles as $role) {
             // we used the position table as a role table because we mistakenly assumed using positions would be suitable.
             Position::factory()->create([
                 'name' => $role
             ]);
         }
 
-        foreach($designs as $design) {
+        foreach ($designs as $design) {
             Design::factory()->create([
                 'name' => $design
             ]);
         }
 
-        foreach($qualities as $quality) {
+        foreach ($qualities as $quality) {
             Quality::factory()->create([
                 'name' => $quality
             ]);
         }
 
-        foreach($categories as $category) {
+        foreach ($categories as $category) {
             Category::factory()->create([
                 'name' => $category
             ]);
         }
+
+        \App\Models\User::factory()->create([
+            'name' => 'PiOs',
+            'email' => 'pos@nexgen.com',
+            'position_id' => 1,
+            'branch_id' => 1,
+        ]);
     }
 }
