@@ -17,8 +17,20 @@ use App\Livewire\Orders\PoolChat;
 use App\Livewire\Orders\Report;
 use App\Livewire\Orders\Supplier;
 use App\Livewire\SupplierDashboard;
+use App\Livewire\Order\Psi\CrateProduct;
+use App\Livewire\Order\Psi\CreateProduct;
+use App\Livewire\Order\Psi\Focus;
+use App\Livewire\Order\Psi\MainBoard;
+use App\Livewire\Order\Psi\OrderDetail;
+use App\Livewire\Order\Psi\OutOfStockAnalysis;
+use App\Livewire\Order\Psi\PhotoShooting;
+use App\Livewire\Order\Psi\PsiOrderHsitory;
+use App\Livewire\Order\Psi\PsiProductSupplier;
+use App\Livewire\Order\Psi\SaleLoss;
+use App\Livewire\Order\Psi\StockReceivedByBranch;
 use App\Models\Order;
 use App\Models\OrderHistory;
+use App\Models\PsiPrice;
 use App\View\Components\AppLayout;
 use App\View\Components\GuestLayout;
 
@@ -48,8 +60,8 @@ require __DIR__ . '/auth.php';
 
 Route::view('/', 'welcome')->name('welcome');
 Route::get('/config', Config::class)
-->middleware('can:isSuperAdmin')
-->name('config');
+    ->middleware('can:isSuperAdmin')
+    ->name('config');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/order/detail/', PerOrder::class)->name('per_order');
@@ -59,8 +71,20 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/help', Help::class)->name('help');
     Route::get('/order/dashboard', OrderDashboard::class)->name('order-dashboard');
     Route::get('/supplier/dashboard', SupplierDashboard::class)->name('supplier-dashboard');
-    Route::get('/manufacture/costing',ManufactureCost::class)->name('manufacture-costing');
+    Route::get('/manufacture/costing', ManufactureCost::class)->name('manufacture-costing');
     Route::get('/comment/history', CommentHistory::class)->name('comment-history');
+});
+
+Route::prefix('psi')->group(function () {
+    Route::get('/create/product', CreateProduct::class)->name('psi_product');
+    Route::get('/mainboard', MainBoard::class)->name('mainboard');
+    Route::get('/sale-loss', SaleLoss::class)->name('sale-loss');
+    Route::get('/oos', OutOfStockAnalysis::class)->name('oos');
+    Route::get('/product/focus', Focus::class)->name('focus');
+    Route::get('/product/price', PsiProductSupplier::class)->name('price');
+    Route::get('/product/detail/order', OrderDetail::class)->name('order_detail');
+    Route::get('/product/shooting', PhotoShooting::class)->name('shooting');
+    Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
 });
 
 Route::middleware(['can:isAuthorized'])->group(function () {

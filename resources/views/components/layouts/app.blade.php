@@ -19,14 +19,14 @@
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-800">
-    <x-notifications />
-    <x-dialog />
+    <x-notifications z-index="z-50" position="bottom-right" />
+    <x-dialog z-index="z-40" blur="md" align="center" />
 
     <main class="">
         @include('components.layouts.parts.header')
         @include('components.layouts.parts.aside')
 
-        <div class="bg-white px-10 py-5 mt-10 ml-10 mr-10 lg:ml-72">
+        <div class="px-10 py-5 mt-10 ml-10 mr-10 bg-white lg:ml-72">
             {{ $slot }}
         </div>
     </main>

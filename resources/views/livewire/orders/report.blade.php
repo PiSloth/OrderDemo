@@ -2,7 +2,7 @@
 
     {{-- <div id="date-range-picker" date-rangepicker class="flex items-center">
         <div class="relative">
-            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+            <div class="absolute inset-y-0 flex items-center pointer-events-none start-0 ps-3">
                 <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                     fill="currentColor" viewBox="0 0 20 20">
                     <path
@@ -15,7 +15,7 @@
         </div>
         <span class="mx-4 text-gray-500">to</span>
         <div class="relative">
-            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+            <div class="absolute inset-y-0 flex items-center pointer-events-none start-0 ps-3">
                 <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true"
                     xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                     <path
@@ -27,7 +27,7 @@
                 placeholder="Select date end">
         </div>
     </div> --}}
-    <div class="grid grid-cols-4 sm:grid-cols-2 gap-4 mb-4 p-4 rounded bg-blue-100">
+    <div class="grid grid-cols-4 gap-4 p-4 mb-4 bg-blue-100 rounded sm:grid-cols-2">
         <x-datetime-picker label="Start Date" placeholder="Start Date" parse-format="YYYY-MM-DD HH:mm"
             wire:model.live="startDate" without-time=true />
         <x-datetime-picker label="End Date" placeholder="End Date" parse-format="YYYY-MM-DD HH:mm" wire:model.live="endDate"
@@ -35,13 +35,13 @@
     </div>
 
 
-    <div class="grid grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-4 bg-leamon-50">
-        <div class="border rounded shadow-lg p-4 ">
+    <div class="grid grid-cols-3 gap-4 md:grid-cols-2 sm:grid-cols-1 bg-leamon-50">
+        <div class="p-4 border rounded shadow-lg ">
             <div>
-                <x-button href="{{ route('order-branch-report') }}" class="h-12 w-full" outline teal icon="chart-pie"
+                <x-button href="{{ route('order-branch-report') }}" class="w-full h-12" outline teal icon="chart-pie"
                     wire:navigate>Branch
                     Report Detail</x-button>
-                <form class="max-w-sm mx-auto my-3 border-1 border-gray-100">
+                <form class="max-w-sm mx-auto my-3 border-gray-100 border-1">
                     <label for="underline_select" class="sr-only">Underline select</label>
                     <select id="underline_select" wire:model.live="status_id"
                         class="block py-2.5 px-0 w-full text-sm text-gray-500 bg-transparent border-0 border-b-2 border-gray-200 appearance-none dark:text-gray-400 dark:border-gray-700 focus:outline-none focus:ring-0 focus:border-gray-200 peer">
@@ -54,7 +54,7 @@
                 @foreach ($branches as $item)
                     <a href="{{ route('order-branch-report', ['branch' => $item->id, 'status' => $status_id, 'st' => $startDate, 'en' => $endDate]) }}"
                         wire:navigate
-                        class="hover:font-bold hover:text-teal-900 hover:bg-pink-50 text-slate-500 py-2 border shadow-sm grid w-full grid-cols-2 gap-2 mb-2 uppercase">
+                        class="grid w-full grid-cols-2 gap-2 py-2 mb-2 uppercase border shadow-sm hover:font-bold hover:text-teal-900 hover:bg-pink-50 text-slate-500">
                         <div class="text-center">{{ $item->name }}</div>
                         <div class="text-center">{{ $item->total }}</div>
                     </a>
@@ -63,12 +63,12 @@
         </div>
 
         {{-- //With Design --}}
-        <div class="p-4 border shadow-xl rounded">
+        <div class="p-4 border rounded shadow-xl">
             <div>
-                <x-button href="{{ route('order-branch-report') }}" class="h-12 w-full" outline pink icon="chart-pie"
+                <x-button href="{{ route('order-branch-report') }}" class="w-full h-12" outline pink icon="chart-pie"
                     wire:navigate>All
                     Branch Report</x-button>
-                <form class="max-w-sm mx-auto my-3 border-1 border-gray-100">
+                <form class="max-w-sm mx-auto my-3 border-gray-100 border-1">
                     <label for="underline_select" class="sr-only">Underline select</label>
                     <select id="underline_select" wire:model.live="priority_id"
                         class="block py-2.5 px-0 w-full text-sm text-gray-500 bg-transparent border-0 border-b-2 border-gray-200 appearance-none dark:text-gray-400 dark:border-gray-700 focus:outline-none focus:ring-0 focus:border-gray-200 peer">
@@ -81,7 +81,7 @@
                 @foreach ($prioritiesData as $item)
                     <a href="{{ route('order-branch-report', ['branch' => $item->id, 'priority' => $priority_id, 'st' => $startDate, 'en' => $endDate]) }}"
                         wire:navigate
-                        class="hover:font-bold hover:text-teal-900 hover:bg-pink-50 text-slate-500 py-2 border shadow-sm grid w-full grid-cols-2 gap-2 mb-2 uppercase">
+                        class="grid w-full grid-cols-2 gap-2 py-2 mb-2 uppercase border shadow-sm hover:font-bold hover:text-teal-900 hover:bg-pink-50 text-slate-500">
                         <div class="text-center">{{ $item->name }}</div>
                         <div class="text-center">{{ $item->total }}</div>
                     </a>
@@ -92,36 +92,36 @@
 
     {{-- Averages --}}
 
-    <div class="grid sm:grid-cols-1 md:grid-cols-2 p-2 my-4 gap-4">
+    <div class="grid gap-4 p-2 my-4 sm:grid-cols-1 md:grid-cols-2">
         <ul class="">
-            <span class="font-bold text-2xl">Process တစ်ခုနှင့် တစ်ခုကြား ပျှမ်းမျှကြာချိန် (Days)</span>
+            <span class="text-2xl font-bold">Process တစ်ခုနှင့် တစ်ခုကြား ပျှမ်းမျှကြာချိန် (Days)</span>
             @foreach ($average as $data)
-                <li class="grid grid-cols-2 mb-2 mt-4 border-b hover:bg-slate-100 cursor-pointer">
+                <li class="grid grid-cols-2 mt-4 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span> Total Order </span>
                     <span class="text-3xl">{{ $data->TotalCount }} <i>pcs</i></span>
                 </li>
-                <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span>Add to Ack</span>
                     <span class="text-3xl ">{{ $data->AvgAddedToAcked }}</span>
 
                 </li>
-                <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span>Ack to Request </span>
                     <span class="text-3xl ">{{ $data->AvgAckedToRequest }}</span>
                 </li>
-                <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span> Request to Approve </span>
                     <span class="text-3xl ">{{ $data->AvgRequestToApprove }}</span>
                 </li>
-                <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span>Approve to Order<i>(Supplier)</i></span>
                     <span class="text-3xl ">{{ $data->AvgApproveToOrdered }}</span>
                 </li>
-                <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span>Supplier to STT </span>
                     <span class="text-3xl ">{{ $data->AvgOrderedToArrived }}</span>
                 </li>
-                <li class="grid grid-cols-2 mb-2 border-b hover:bg-slate-100 cursor-pointer">
+                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span>Arrivered to Delivered </span>
                     <span class="text-3xl "> {{ $data->AvgDeliveredToSuccess }}</span>
                 </li>
@@ -130,22 +130,22 @@
         </ul>
 
         {{-- all comments by user name with count  --}}
-        <ul class="">
-            <span class="font-bold text-2xl">မဖတ်ရသေးသော Comments များ </span>
-            @foreach ($allUserComments  as $item)
-                <li class="grid grid-cols-2 mb-2 mt-4 border-b hover:bg-slate-100 cursor-pointer">
+        {{-- <ul class="">
+            <span class="text-2xl font-bold">မဖတ်ရသေးသော Comments များ </span>
+            @foreach ($allUserComments as $item)
+                <li class="grid grid-cols-2 mt-4 mb-2 border-b cursor-pointer hover:bg-slate-100">
                     <span> {{ $item[0] }} </span>
                     <span class="text-3xl">{{ $item[1] }} <i></i></span>
                 </li>
             @endforeach
-        </ul>
+        </ul> --}}
 
     </div>
 
     {{-- //Design with gram  --}}
-    <div class="my-3 relative overflow-x-auto">
-        <table class="w-full table-auto text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-            <thead class="text-xs text-gray-900 uppercase dark:text-gray-400 sticky top-0">
+    <div class="relative my-3 overflow-x-auto">
+        <table class="w-full text-sm text-left text-gray-500 table-auto rtl:text-right dark:text-gray-400">
+            <thead class="sticky top-0 text-xs text-gray-900 uppercase dark:text-gray-400">
                 <tr>
                     <th scope="col" class="px-6 py-3">
                         No
@@ -167,11 +167,11 @@
             <tbody>
                 @foreach ($products as $product)
                     <tr
-                        class="odd:bg-gray-50 hover:bg-black hover:text-white hover:font-bold bg-white dark:bg-gray-800">
+                        class="bg-white odd:bg-gray-50 hover:bg-black hover:text-white hover:font-bold dark:bg-gray-800">
                         <td class="px-6 py-4">
                             {{ $loop->index + 1 }}
                         </td>
-                        <th class="px-6 py-4 font-medium  whitespace-nowrap dark:text-white">
+                        <th class="px-6 py-4 font-medium whitespace-nowrap dark:text-white">
                             {{ $product->design->name }}
                         </th>
                         <td class="px-6 py-4">
@@ -218,8 +218,8 @@
     </div>
 
 
-    {{-- <div class="overflow-auto h-64 relative">
-        <table class="min-w-full text-left text-sm">
+    {{-- <div class="relative h-64 overflow-auto">
+        <table class="min-w-full text-sm text-left">
           <thead class="sticky top-0 bg-gray-200">
             <tr>
               <th class="px-6 py-3">Column 1</th>
@@ -229,14 +229,14 @@
           </thead>
           <tbody>
             <tr>
-              <td class="border px-6 py-4">Row 1 Data 1</td>
-              <td class="border px-6 py-4">Row 1 Data 2</td>
-              <td class="border px-6 py-4">Row 1 Data 3</td>
+              <td class="px-6 py-4 border">Row 1 Data 1</td>
+              <td class="px-6 py-4 border">Row 1 Data 2</td>
+              <td class="px-6 py-4 border">Row 1 Data 3</td>
             </tr>
             <tr>
-              <td class="border px-6 py-4">Row 2 Data 1</td>
-              <td class="border px-6 py-4">Row 2 Data 2</td>
-              <td class="border px-6 py-4">Row 2 Data 3</td>
+              <td class="px-6 py-4 border">Row 2 Data 1</td>
+              <td class="px-6 py-4 border">Row 2 Data 2</td>
+              <td class="px-6 py-4 border">Row 2 Data 3</td>
             </tr>
             <!-- Add more rows as needed -->
           </tbody>
@@ -244,7 +244,7 @@
       </div> --}}
 
     {{-- inline block
-      <span class="border block">Hello</span>
+      <span class="block border">Hello</span>
       <span>World</span>
 
     <div class="h-96 "></div>

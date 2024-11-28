@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Position;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,48 +23,53 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Gate::define('isSuperAdmin', function(User $user) {
+        Gate::define('isSuperAdmin', function (User $user) {
             return $user->position->name == "Super Admin";
         });
 
-        Gate::define('isAGM', function(User $user) {
+        Gate::define('isAGM', function (User $user) {
             return $user->position->name == "AGM";
         });
 
-        Gate::define('isSupplierDataApprover', function(User $user) {
+        Gate::define('isSupplierDataApprover', function (User $user) {
             $authorizedUsers = ["Super Admin", "AGM", "Inventory"];
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isInventory', function(User $user) {
-            return $user->position->name == "Inventory";
+        Gate::define('isInventory', function (User $user) {
+            // return $user->position->name == "Inventory";
+            $authorizedUsers = ["Inventory", "Super Admin"];
+
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isPurchaser', function(User $user) {
+        Gate::define('isPurchaser', function (User $user) {
             $authorizedUsers = ["Purchaser", "Super Admin"];
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isBranchSupervisor', function(User $user) {
+        Gate::define('isBranchSupervisor', function (User $user) {
             return $user->position->name == "Branch Supervisor";
         });
 
-        Gate::define('isGuest', function(User $user) {
+        Gate::define('isGuest', function (User $user) {
             return $user->position->name == "Guest";
         });
 
-        Gate::define('isAuthorizedToEndMeeting', function(User $user) {
+        Gate::define('isAuthorizedToEndMeeting', function (User $user) {
             $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser"];
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isAuthorized', function(User $user) {
+        Gate::define('isAuthorized', function (User $user) {
             $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser", "Branch Supervisor"];
 
             $usr = $user->position->name;
@@ -71,7 +77,7 @@ class AppServiceProvider extends ServiceProvider
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isCreator', function(User $user) {
+        Gate::define('isCreator', function (User $user) {
             $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser", "Branch Supervisor"];
 
             $usr = $user->position->name;
@@ -79,7 +85,7 @@ class AppServiceProvider extends ServiceProvider
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isCanceller', function(User $user) {
+        Gate::define('isCanceller', function (User $user) {
             $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser"];
 
             $usr = $user->position->name;
@@ -87,31 +93,31 @@ class AppServiceProvider extends ServiceProvider
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isSupplierDataCreator', function(User $user) {
-            $authorizedUsers = ["Super Admin","Inventory", "Purchaser"];
+        Gate::define('isSupplierDataCreator', function (User $user) {
+            $authorizedUsers = ["Super Admin", "Inventory", "Purchaser"];
 
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isQuotationViewer', function(User $user) {
-            $authorizedUsers = ["Super Admin","Inventory", "AGM","Purchaser"];
+        Gate::define('isQuotationViewer', function (User $user) {
+            $authorizedUsers = ["Super Admin", "Inventory", "AGM", "Purchaser"];
 
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isOrderApprover', function(User $user) {
-            $authorizedUsers = ["Super Admin","Inventory", "AGM"];
+        Gate::define('isOrderApprover', function (User $user) {
+            $authorizedUsers = ["Super Admin", "Inventory", "AGM"];
 
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isOrderMaker', function(User $user) {
+        Gate::define('isOrderMaker', function (User $user) {
             $authorizedUsers = ["Super Admin", "Purchaser"];
 
             $usr = $user->position->name;
@@ -119,11 +125,18 @@ class AppServiceProvider extends ServiceProvider
             return in_array($usr, $authorizedUsers);
         });
 
-        Gate::define('isAllCommentReader', function (User $user){
-            $authorizedUsers = ["Super Admin", "Purchaser", "AGM","Inventory"];
+        Gate::define('isAllCommentReader', function (User $user) {
+            $authorizedUsers = ["Super Admin", "Purchaser", "AGM", "Inventory"];
             $usr = $user->position->name;
 
-            return in_array($usr , $authorizedUsers);
+            return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('isMarketing', function (User $user) {
+            $authorizedUsers = ["Super Admin", "Marketing"];
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
         });
     }
 }

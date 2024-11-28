@@ -30,6 +30,7 @@
                     fill-rule="evenodd" clip-rule="evenodd"></path>
             </svg>
         </button>
+
         <div class="block p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-900 dark:border-gray-700">
             <h2 class="mb-5 text-2xl font-bold text-center dark:text-gray-200">ပစ္စည်းအော်ဒါတင်ယူရန်</h2>
             <div wire:loading class="absolute px-2 text-sm bg-blue-800 rounded text-slate-50">Searching. . . .</div>

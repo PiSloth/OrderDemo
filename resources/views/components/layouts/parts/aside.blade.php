@@ -1,5 +1,5 @@
 <aside id="asidebar"
-    class="fixed top-0 left-0 w-64 h-screen transition-transform -translate-x-full z-50 lg:translate-x-0"
+    class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0"
     aria-label="Sidenav">
     <div
         class="h-full px-3 py-5 overflow-y-auto bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
@@ -15,6 +15,21 @@
                 </a>
             </li>
 
+            {{-- <li>
+                <a wire:navigate href="{{ route('psi_product') }}"
+                    class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                    <img src="{{ url('images/chart-icon.png') }}" alt="chart-icon" class="w-6 h-6">
+                    <span class="ml-3">PSI Product</span>
+                </a>
+            </li> --}}
+
+            <li>
+                <a wire:navigate href="{{ route('mainboard') }}"
+                    class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                    <img src="{{ url('images/chart-icon.png') }}" alt="chart-icon" class="w-6 h-6">
+                    <span class="ml-3">PSI Dashboard</span>
+                </a>
+            </li>
             <li>
                 <a wire:navigate href="{{ route('order-report') }}"
                     class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
@@ -50,12 +65,12 @@
                 </li>
 
                 <li>
-                        <a wire:navigate href="{{ route('comment-history') }}"
-                            class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                            <img src="{{ url('images/history.png') }}" alt="chart-icon" class="w-6 h-6">
-                            <span class="ml-3">Comments</span>
-                        </a>
-                    </li>
+                    <a wire:navigate href="{{ route('comment-history') }}"
+                        class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                        <img src="{{ url('images/history.png') }}" alt="chart-icon" class="w-6 h-6">
+                        <span class="ml-3">Comments</span>
+                    </a>
+                </li>
 
                 @can('isPurchaser')
                     <li>
