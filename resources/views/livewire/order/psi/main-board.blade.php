@@ -27,100 +27,136 @@
             </x-button>
         @endcan
     </div>
+    {{-- End of Action button  --}}
 
-    <div class="relative mt-4 overflow-x-auto shadow-md sm:rounded-lg">
+    {{-- Sticky Table  --}}
+    <div class="container mx-auto my-10">
         <div class="my-3 font-bold text-blue-500">Branch အလိုက် Signature Product များထားရှိခြင်းပြ ဇယား</div>
-        <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                <tr>
-                    <th scope="col" class="px-16 py-3">
-                        <span class="sr-only">Image</span>
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Product
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Weight/g
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Size
-                    </th>
-                    @foreach ($branches as $branch)
-                        <th>
-                            {{ $branch->name }}
+
+        <div class="flex flex-col h-[34rem]  border border-separate border-solid overflow-clip rounded-xl">
+            {{-- Shpe filter --}}
+            <div class="pb-4 m-4 bg-white dark:bg-gray-900">
+                <label for="table-search" class="sr-only">Search</label>
+                <div class="relative mt-1">
+                    <div class="absolute inset-y-0 flex items-center pointer-events-none rtl:inset-r-0 start-0 ps-3">
+                        <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+                        </svg>
+                    </div>
+                    <input type="text" wire:model.live="shape_detail" id="table-search"
+                        class="block pt-2 text-sm text-gray-900 border border-gray-300 rounded-lg ps-10 w-80 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        placeholder="Search for items">
+                </div>
+            </div>
+            <table class="w-full table-fixed">
+                <thead class="sticky top-0 bg-white">
+                    <tr>
+                        <th scope="col" class="px-16 py-3">
+                            <span class="sr-only">Image</span>
                         </th>
-                    @endforeach
-                    {{-- <th scope="col" class="px-6 py-3">
-                        Action
-                    </th> --}}
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($products as $product)
-                    <tr
-                        class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                        <td class="p-4">
-                            <img src="{{ asset('storage/' . $product->image) }}"
-                                @click="$openModal('{{ $product->id }}')"
-                                class="w-16 max-w-full max-h-full md:w-32 cursor-help " />
-                            <x-modal wire:model='{{ $product->id }}'>
-
-                                <img src="{{ asset('storage/' . $product->image) }}" class="mb-6 bg-white rounded-lg">
-
-                            </x-modal>
-                        </td>
-                        <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                            {{ $product->shape }}
-                        </td>
-                        <td class="px-6 py-4">
-                            <span>{{ $product->weight }}</span>
-                        </td>
-
-                        <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                            <div class="flex items-center">
-                                {{ $product->length }} {{ $product->uom }}
-                            </div>
-                        </td>
-
+                        <th scope="col" class="px-6 py-3">
+                            Product
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Weight/g
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Size
+                        </th>
                         @foreach ($branches as $branch)
-                            <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                                @if ($product->{'index' . $branch->id} > 0)
-                                    <a href="#"
-                                        class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100"
-                                        wire:click='propsToLink({{ $product->id }},{{ $branch->id }})'>
-                                        @if ($product->{'status' . $branch->id})
-                                            <div class="w-6 h-6 rounded-full"
-                                                style="background: {{ $product->{'color' . $branch->id} }}"></div>
-                                            <span class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
-                                            </span>
-                                        @else
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-green-400"
-                                                fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                                stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                    d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                                            </svg>
-                                        @endif
-
-                                    </a>
-                                @else
-                                    <button wire:click="setBranchPsiProduct({{ $product->id }},{{ $branch->id }})"
-                                        @click="$openModal('psiProduct')">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-600"
-                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                @endif
-                            </td>
-                            {{-- @dd($product->{'index' . $branch->id}) --}}
+                            <th scope="col" class="px-6 py-3">
+                                {{ $branch->name }}
+                            </th>
                         @endforeach
+                        {{-- <th scope="col" class="px-6 py-3">
+                            Action
+                        </th> --}}
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+            </table>
+            <div class="flex-1 overflow-y-auto">
+                <table class="w-full table-fixed">
+                    <tbody>
+
+                        @foreach ($products as $product)
+                            <tr
+                                class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <td class="p-4">
+                                    <img src="{{ asset('storage/' . $product->image) }}"
+                                        @click="$openModal('{{ $product->id }}')"
+                                        class="w-16 max-w-full max-h-full md:w-32 cursor-help " />
+                                    <x-modal wire:model='{{ $product->id }}'>
+
+                                        <img src="{{ asset('storage/' . $product->image) }}"
+                                            class="mb-6 bg-white rounded-lg">
+
+                                    </x-modal>
+                                </td>
+                                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                                    {{ $product->shape }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span>{{ $product->weight }}</span>
+                                </td>
+
+                                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                                    <div class="flex items-center">
+                                        {{ $product->length }} {{ $product->uom }}
+                                    </div>
+                                </td>
+
+                                @foreach ($branches as $branch)
+                                    <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                                        @if ($product->{'index' . $branch->id} > 0)
+                                            <a href="#"
+                                                class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100"
+                                                wire:click='propsToLink({{ $product->id }},{{ $branch->id }})'>
+                                                @if ($product->{'status' . $branch->id})
+                                                    <div class="w-6 h-6 rounded-full"
+                                                        style="background: {{ $product->{'color' . $branch->id} }}">
+                                                    </div>
+                                                    <span
+                                                        class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
+                                                    </span>
+                                                @else
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        class="w-6 h-6 text-green-400" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                                    </svg>
+                                                @endif
+
+                                            </a>
+                                        @else
+                                            <button
+                                                wire:click="setBranchPsiProduct({{ $product->id }},{{ $branch->id }})"
+                                                @click="$openModal('psiProduct')">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-600"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        @endif
+                                    </td>
+                                    {{-- @dd($product->{'index' . $branch->id}) --}}
+                                @endforeach
+                            </tr>
+                        @endforeach
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
+
+
+
+
 
 
     <x-modal.card title="Add this Product to PSI" blur wire:model="psiProduct">
@@ -144,16 +180,17 @@
         <x-card title="Choose a function">
 
             <ol class="">
-                <li>
+                <li class="hover:text-gray-500 hover:underline">
                     <a href="{{ route('focus', ['brch' => $branchId, 'prod' => $productId]) }}" wire:navigate>Product
                         Focus</a>
                 </li>
-                <li>
+                <li class="hover:text-gray-500 hover:underline">
                     <a href="{{ route('focus', ['brch' => $branchId, 'prod' => $productId]) }}" wire:navigate>Daily
                         Sale</a>
                 </li>
                 <li>
-                    <a href="{{ route('price', ['prod' => $productId, 'bch' => $branchId]) }}" class="flex"
+                    <a class="hover:text-gray-500 hover:underline"
+                        href="{{ route('price', ['prod' => $productId, 'bch' => $branchId]) }}" class="flex"
                         wire:navigate><span>Order</span>
                     </a>
                     @if ($orderCount)

@@ -22,6 +22,7 @@ class MainBoard extends Component
     public $orderCount;
     public $props_to_link = false;
     public $branchPsiProductId;
+    public $shape_detail;
 
     public function setBranchPsiProduct($productId, $branchId)
     {
@@ -94,24 +95,24 @@ class MainBoard extends Component
 
     public function render()
     {
-        $select = ['psi_products.id', 'shapes.name AS shape', 'psi_products.length', 'uoms.name AS uom', 'psi_products.weight', 'product_photos.image'];
+        // $select = ['psi_products.id', 'shapes.name AS shape', 'psi_products.length', 'uoms.name AS uom', 'psi_products.weight', 'product_photos.image'];
         $branches = Branch::all();
 
 
 
         // dd($select);
 
-        $products  = PsiProduct::select($select, DB::raw('psi_stock_statuses.name AS status, psi_stock_statuses.color AS color'))
-            ->leftJoin('product_photos', 'product_photos.psi_product_id', 'psi_products.id')
-            ->leftJoin('shapes', 'psi_products.shape_id', 'shapes.id')
-            ->leftJoin('branch_psi_products', 'psi_products.id', 'branch_psi_products.psi_product_id')
-            ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
-            ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
-            ->leftJoin('psi_stocks', 'psi_stocks.branch_psi_product_id', 'branch_psi_products.id')
-            ->leftJoin('reorder_points', 'reorder_points.psi_stock_id', 'psi_stocks.id')
-            ->leftJoin('psi_stock_statuses', 'psi_stock_statuses.id', 'reorder_points.psi_stock_status_id')
-            ->groupBy('psi_products.id', 'shapes.name', 'psi_products.weight', 'psi_products.length', 'uoms.name', 'product_photos.image')
-            ->get();
+        // $products  = PsiProduct::select($select, DB::raw('psi_stock_statuses.name AS status, psi_stock_statuses.color AS color'))
+        //     ->leftJoin('product_photos', 'product_photos.psi_product_id', 'psi_products.id')
+        //     ->leftJoin('shapes', 'psi_products.shape_id', 'shapes.id')
+        //     ->leftJoin('branch_psi_products', 'psi_products.id', 'branch_psi_products.psi_product_id')
+        //     ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
+        //     ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
+        //     ->leftJoin('psi_stocks', 'psi_stocks.branch_psi_product_id', 'branch_psi_products.id')
+        //     ->leftJoin('reorder_points', 'reorder_points.psi_stock_id', 'psi_stocks.id')
+        //     ->leftJoin('psi_stock_statuses', 'psi_stock_statuses.id', 'reorder_points.psi_stock_status_id')
+        //     ->groupBy('psi_products.id', 'shapes.name', 'psi_products.weight', 'psi_products.length', 'uoms.name', 'product_photos.image')
+        //     ->get();
 
         $select2 = [];
         foreach ($branches as $branch) {
@@ -156,6 +157,7 @@ class MainBoard extends Component
             ->leftJoin('branch_psi_products', 'psi_products.id', 'branch_psi_products.psi_product_id')
             ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
             ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
+            ->where('shapes.name', 'like', '%' . $this->shape_detail . '%')
             ->groupBy(
                 'psi_products.id',
                 'shapes.name',
@@ -163,8 +165,7 @@ class MainBoard extends Component
                 'psi_products.length',
                 'uoms.name',
                 'product_photos.image'
-            )
-            ->get();
+            )->get();
         // dd($products2);
 
 

@@ -25,7 +25,7 @@ class CreateProduct extends Component
 {
     use WithFileUploads;
     use Actions;
-    #[Title('Crate Product')]
+    #[Title('Create Signature Product')]
 
     public $xSelectInput; //wireui input
     #[Rule('nullable|sometimes|image|max:1024')]

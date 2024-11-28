@@ -75,7 +75,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/comment/history', CommentHistory::class)->name('comment-history');
 });
 
-Route::prefix('psi')->group(function () {
+Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/create/product', CreateProduct::class)->name('psi_product');
     Route::get('/mainboard', MainBoard::class)->name('mainboard');
     Route::get('/sale-loss', SaleLoss::class)->name('sale-loss');

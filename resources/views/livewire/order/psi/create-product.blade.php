@@ -54,9 +54,9 @@
 
 
                     <div>
-                        <label for="length" class="block text-sm/6 font-medium text-gray-900">အတိုင်းအတာ</label>
+                        <label for="length" class="block font-medium text-gray-900 text-sm/6">အတိုင်းအတာ</label>
                         <div class="relative mt-2 rounded-md shadow-sm">
-                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <span class="text-gray-500 sm:text-sm">~</span>
                             </div>
                             <x-input wire:model='length' type="integer" name="length" id="length"
@@ -65,7 +65,7 @@
                             <div class="absolute inset-y-0 right-0 flex items-center">
                                 <label for="uom" class="sr-only">uom</label>
                                 <select id="uom" name="uom" wire:model='uom_id'
-                                    class="h-full rounded-md border-0 bg-transparent py-0 pl-2 pr-7 text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm">
+                                    class="h-full py-0 pl-2 text-gray-500 bg-transparent border-0 rounded-md pr-7 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm">
                                     <option>Select a uom</option>
                                     @foreach ($uoms as $uom)
                                         <option value={{ $uom->id }}>{{ $uom->name }} </option>
@@ -94,27 +94,30 @@
                     </div>
                 </div>
 
-                <div class="grid
-                            grid-cols-1 mb-5 md:grid-cols-3 md:space-x-4">
-                    <x-input label="Weight" wire:model='weight' placeholder="gram" />
-
-
+                <div class="grid grid-cols-1 mb-5 md:grid-cols-3 md:space-x-4">
+                    <x-input type="number" label="Weight" wire:model='weight' placeholder="gram" />
                 </div>
                 {{-- Photo upload --}}
-                <div class="my-2">
-                    <div wire:loading wire:target='productImg'>
-                        <span class="text-green-700">uploading . . . .</span>
-                    </div>
-                    <input wire:model="productImg" id="image" accept="image/jpeg,image/jpg"
-                        class="my-2 text-gray-700 border border-gray-500 rounded dark:text-gray-200" type="file" />
-                    @error('productImg')
-                        <p class="text-sm text-red-500">{{ $message }}</p>
-                    @enderror
+                <div class="flex flex-col my-2">
+                    {{-- temp photo show   --}}
                     @if ($productImg)
-                        <div class="w-36 h-36">
+                        <div class="overflow-hidden w-44 h-44">
                             <img src="{{ $productImg->temporaryUrl() }}" />
                         </div>
                     @endif
+                    <div wire:loading wire:target='productImg'>
+                        <span class="text-green-700">uploading . . . .</span>
+                    </div>
+                    <div>
+                        <input wire:model="productImg" id="image" accept="image/jpeg,image/jpg"
+                            class="my-2 text-gray-700 border border-gray-500 rounded dark:text-gray-200"
+                            type="file" />
+
+                        @error('productImg')
+                            <p class="text-sm text-red-500">{{ $message }}</p>
+                        @enderror
+
+                    </div>
                 </div>
                 <button type="button" wire:click='createProduct'
                     class=" first-letter:text-white bg-gradient-to-r mt-5 from-red-400 via-red-500 to-red-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 shadow-lg shadow-red-500/50 dark:shadow-lg dark:shadow-red-800/80 font-medium rounded-lg px-5 py-2.5 text-center me-2 mb-2 flex items-center justify-center">

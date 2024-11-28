@@ -68,7 +68,7 @@ class PhotoShooting extends Component
             ]);
 
             if ($status === 6) {
-                $order = PsiOrder::findOfFail($ordId);
+                $order = PsiOrder::findOrFail($ordId);
 
                 $order->update([
                     'psi_status_id' => 6

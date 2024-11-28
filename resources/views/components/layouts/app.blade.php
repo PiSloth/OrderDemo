@@ -26,7 +26,7 @@
         @include('components.layouts.parts.header')
         @include('components.layouts.parts.aside')
 
-        <div class="px-10 py-5 mt-10 ml-10 mr-10 bg-white lg:ml-72">
+        <div class="px-10 py-5 mt-10 ml-10 mr-10 text-sm bg-white lg:ml-72">
             {{ $slot }}
         </div>
     </main>
