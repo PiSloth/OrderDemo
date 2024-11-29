@@ -10,11 +10,13 @@ use App\Models\PsiProduct;
 use App\Models\PsiStock;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use Livewire\WithPagination;
 use WireUi\Traits\Actions;
 
 class MainBoard extends Component
 {
     use Actions;
+    use WithPagination;
 
     public $branchId;
     public $productId;
@@ -165,7 +167,8 @@ class MainBoard extends Component
                 'psi_products.length',
                 'uoms.name',
                 'product_photos.image'
-            )->get();
+            )
+            ->paginate(5);
         // dd($products2);
 
 

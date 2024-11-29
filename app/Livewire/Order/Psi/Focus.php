@@ -38,6 +38,8 @@ class Focus extends Component
             ->first();
 
         // dd($branchProduct->id);
+
+        // dd($branchProduct->id);
         $this->branchProductId = $branchProduct->id;
         $this->branchName = $branchProduct->branch->name;
     }
@@ -486,9 +488,11 @@ class Focus extends Component
         // dd($productLeadDay);
 
         // dd($saleData);
+        $productDetail = PsiProduct::findOrFail($this->product_id);
+        // dd($productDetail);
 
         return view('livewire.order.psi.focus', [
-            'product' => PsiProduct::find($this->product_id)->first(),
+            'product' => $productDetail,
             'pastResult' => $mergeData,
             'productLeadDay' => $productLeadDay,
             'foucsHistories' => $focusHistories,

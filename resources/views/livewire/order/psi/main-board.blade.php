@@ -1,36 +1,64 @@
 <div>
-    <div class="flex gap-4">
+    <div class="flex gap-3 mb-4 flex-warp">
+
+    </div>
+
+
+
+
+
+    <div class="flex flex-wrap gap-4">
         <x-button href="{{ route('psi_product') }}" label="new PSI Product" green icon="view-grid-add" wire:navigate />
+
+        {{-- Marketing --}}
         @can('isMarketing')
-            <x-button href="{{ route('shooting') }}" teal wire:navigate>Jobs for
-                Digital_M
-                <x-badge rounded negative> {{ $jobs4Dm > 0 ? $jobs4Dm : '' }}</x-badge>
-            </x-button>
+            <x-dropdown align='left'>
+                <x-slot name="trigger">
+                    <x-button label="Digital Marketing" primary />
+                </x-slot>
+                <x-dropdown.header label="Actions">
+                    <x-dropdown.item href="{{ route('shooting') }}" wire:navigate>ဓာတ်ပုံရိုက်ရန်
+                        @if ($jobs4Dm > 0)
+                            <x-badge.circle negative label="{{ $jobs4Dm }}" />
+                        @endif
+                    </x-dropdown.item>
+                </x-dropdown.header>
+            </x-dropdown>
         @endcan
 
         @can('isBranchSupervisor')
-            <x-button href="{{ route('orders', ['stus' => 8]) }}" sky wire:navigate>Jobs for
-                Branch
-                <x-badge rounded negative>{{ $jobs4Br > 0 ? $jobs4Br : '' }}</x-badge>
-            </x-button>
+            <x-dropdown align='left'>
+                <x-slot name="trigger">
+                    <x-button label="Branch Operation" sky />
+                </x-slot>
+                <x-dropdown.header label="Actions">
+                    <x-dropdown.item href="{{ route('orders', ['stus' => 8]) }}" wire:navigate>Receiving
+                        @if ($jobs4Br > 0)
+                            <x-badge.circle negative label="{{ $jobs4Br }}" />
+                        @endif
+                    </x-dropdown.item>
+                </x-dropdown.header>
+            </x-dropdown>
         @endcan
 
         @can('isInventory')
-            <x-button href="{{ route('orders', ['stus' => 5]) }}" sky wire:navigate>
-                To Register
-                <x-badge rounded negative>i</x-badge>
-            </x-button>
-
-            <x-button href="{{ route('orders', ['stus' => 6]) }}" sky wire:navigate>
-                Processing in Registeration
-                <x-badge rounded negative>i</x-badge>
-            </x-button>
+            <x-dropdown align='left'>
+                <x-slot name="trigger">
+                    <x-button label="Inventory" sky />
+                </x-slot>
+                <x-dropdown.header label="Actions">
+                    <x-dropdown.item href="{{ route('orders', ['stus' => 5]) }}" wire:navigate>To Register
+                    </x-dropdown.item>
+                    <x-dropdown.item href="{{ route('orders', ['stus' => 6]) }}" wire:navigate>Processing in Registeration
+                    </x-dropdown.item>
+                </x-dropdown.header>
+            </x-dropdown>
         @endcan
     </div>
     {{-- End of Action button  --}}
 
     {{-- Sticky Table  --}}
-    <div class="container mx-auto my-10">
+    <div class="container mx-auto my-10 overflow-x-auto">
         <div class="my-3 font-bold text-blue-500">Branch အလိုက် Signature Product များထားရှိခြင်းပြ ဇယား</div>
 
         <div class="flex flex-col h-[34rem]  border border-separate border-solid overflow-clip rounded-xl">
@@ -50,7 +78,7 @@
                         placeholder="Search for items">
                 </div>
             </div>
-            <table class="w-full table-fixed">
+            <table class="w-full text-left text-gray-500 table-fixed rtl:text-right dark:text-gray-400">
                 <thead class="sticky top-0 bg-white">
                     <tr>
                         <th scope="col" class="px-16 py-3">
@@ -76,17 +104,16 @@
                     </tr>
                 </thead>
             </table>
-            <div class="flex-1 overflow-y-auto">
+            <div class="flex-1 overflow-x-auto overflow-y-auto">
                 <table class="w-full table-fixed">
                     <tbody>
-
                         @foreach ($products as $product)
                             <tr
                                 class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                 <td class="p-4">
-                                    <img src="{{ asset('storage/' . $product->image) }}"
-                                        @click="$openModal('{{ $product->id }}')"
-                                        class="w-16 max-w-full max-h-full md:w-32 cursor-help " />
+                                    <img class="w-16 max-w-full max-h-full md:w-32 cursor-help"
+                                        src="{{ asset('storage/' . $product->image) }}"
+                                        @click="$openModal('{{ $product->id }}')" />
                                     <x-modal wire:model='{{ $product->id }}'>
 
                                         <img src="{{ asset('storage/' . $product->image) }}"
@@ -150,6 +177,7 @@
 
                     </tbody>
                 </table>
+                <div>{{ $products->links() }}</div>
             </div>
         </div>
     </div>

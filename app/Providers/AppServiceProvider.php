@@ -55,7 +55,12 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('isBranchSupervisor', function (User $user) {
-            return $user->position->name == "Branch Supervisor";
+            // return $user->position->name == "";
+
+            $authorizedUsers = ["Branch Supervisor", "Super Admin"];
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
         });
 
         Gate::define('isGuest', function (User $user) {
