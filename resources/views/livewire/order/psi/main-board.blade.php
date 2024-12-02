@@ -54,6 +54,9 @@
                 </x-dropdown.header>
             </x-dropdown>
         @endcan
+
+        {{-- Tempoary off --}}
+        {{-- <x-button href="{{ route('daily_sale') }}" label="Daily Sale" wire:navigate /> --}}
     </div>
     {{-- End of Action button  --}}
 
@@ -118,7 +121,6 @@
 
                                         <img src="{{ asset('storage/' . $product->image) }}"
                                             class="mb-6 bg-white rounded-lg">
-
                                     </x-modal>
                                 </td>
                                 <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">

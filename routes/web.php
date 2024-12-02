@@ -19,6 +19,7 @@ use App\Livewire\Orders\Supplier;
 use App\Livewire\SupplierDashboard;
 use App\Livewire\Order\Psi\CrateProduct;
 use App\Livewire\Order\Psi\CreateProduct;
+use App\Livewire\Order\Psi\DailySale;
 use App\Livewire\Order\Psi\Focus;
 use App\Livewire\Order\Psi\MainBoard;
 use App\Livewire\Order\Psi\OrderDetail;
@@ -85,6 +86,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/detail/order', OrderDetail::class)->name('order_detail');
     Route::get('/product/shooting', PhotoShooting::class)->name('shooting');
     Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
+    Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
 });
 
 Route::middleware(['can:isAuthorized'])->group(function () {

@@ -65,6 +65,10 @@ class PsiProductSupplier extends Component
 
     public function updatedYouktwat($value)
     {
+        if ($value == 0) {
+            $this->youktwat_in_kpy = 0;
+            return;
+        }
         $value = (float) $value;
 
         $totalKyat = $value / 16.606;
@@ -85,7 +89,7 @@ class PsiProductSupplier extends Component
 
     public function editInitialize($id)
     {
-        $query = PsiPrice::find($id)->first();
+        $query = PsiPrice::findOrFail($id);
 
         // dd($query);
         $this->supplier_id = $query->supplier_id;
@@ -304,7 +308,7 @@ class PsiProductSupplier extends Component
 
         //todo 1 - Calculate totoal delivered days + Safty Day => $saftyPoint
         //todo find lead day
-        $productLeadDay = PsiSupplier::select(DB::raw('SUM(psi_prices.lead_day) AS leadDay'))
+        $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
             ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
             ->where('psi_suppliers.psi_product_id', $this->product_id)
             ->first();
@@ -465,7 +469,6 @@ class PsiProductSupplier extends Component
         }
 
         $invBalance = $stockId->inventory_balance;
-
         $remainBalance = fmod($invBalance, $lastFocus->qty);
 
         //todo find date diff
@@ -559,12 +562,12 @@ class PsiProductSupplier extends Component
             $lastFocus = 1;
         }
 
-        $productLeadDay = PsiSupplier::select(DB::raw('SUM(psi_prices.lead_day) AS leadDay'))
+        $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
             ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
             ->where('psi_suppliers.psi_product_id', $this->product_id)
             ->first();
 
-        $productLeadDay = $productLeadDay->leadDay;
+        $productLeadDay = ceil($productLeadDay->leadDay);
 
         $psiOrders = PsiOrder::where('psi_status_id', '<', 10)
             ->where('branch_psi_product_id', '=', $branchPsiProductId->id)

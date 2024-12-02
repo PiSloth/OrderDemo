@@ -37,7 +37,8 @@
     {{-- lead time container --}}
     <div class="my-8">
         <strong>Order မှာရန်ကြာမြင့်ချိန် </strong>
-        <span class="text-red-500">{{ $productLeadDay->leadDay > 0 ? $productLeadDay->leadDay : 'Not found any' }}
+        <span
+            class="text-red-500">{{ $productLeadDay->leadDay > 0 ? ceil($productLeadDay->leadDay) : 'Not found any' }}
             ရက်အတွင်း</span> ရောင်းရနိုင်ချေရှိသော <span class="underline">တစ်ရက်၏ </span>ရောင်းအားခန့်မှန်းချက်ကို
         တွက်ချက်ထည့်သွင်းပါ။
         <a href="{{ route('price', ['prod' => $product_id, 'bch' => $branch_id]) }}" wire:navigate>
@@ -155,7 +156,7 @@
 
     {{-- Sale  --}}
     <x-modal wire:model="saleModal">
-        <x-card title="Inventory Adjustment In">
+        <x-card title="Daily Sale">
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-1">
                 <x-input type="date" label="Date" wire:model.live='sale_date' placeholder="Sale Date" />
                 <x-input placeholder="input sale quantity" label="Quantity" wire:model='sale_quantity' />

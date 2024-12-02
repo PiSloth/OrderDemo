@@ -273,6 +273,7 @@ class Focus extends Component
         //todo check stock level and SET due date
         $balance = $invBalance - $saftyPoint;
         $totalDayToSale = $balance / $focusQty;
+
         if ($balance < 0) {
             $subDay = ceil($balance / $focusQty * -1);
             // dd($subDay);
@@ -478,7 +479,7 @@ class Focus extends Component
             return $a['year'] <=> $b['year'];
         });
 
-        $productLeadDay = PsiSupplier::select(DB::raw('SUM(psi_prices.lead_day) AS leadDay'))
+        $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
             ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
             ->where('psi_suppliers.psi_product_id', $this->product_id)
             ->first();
