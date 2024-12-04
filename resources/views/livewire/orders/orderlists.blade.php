@@ -1,14 +1,14 @@
 <div>
     <div class="flex justify-between mb-4">
 
-        <div class="self-end">
+        {{-- <div class="self-end">
             <x-button outline sky label="Filter" icon="filter" onclick="$openModal('filter')"></x-button>
-        </div>
+        </div> --}}
+
         <div class="flex gap-2 ">
-            <x-datetime-picker wire:model.live.debounce="start_date" without-time='true' label="Start Date" placeholder="Now"
-                 />
-            <x-datetime-picker wire:model.live.debounc="end_date" without-time='true' label="End Date"
-                 />
+            <x-datetime-picker wire:model.live.debounce="start_date" without-time='true' label="Start Date"
+                placeholder="Now" />
+            <x-datetime-picker wire:model.live.debounc="end_date" without-time='true' label="End Date" />
         </div>
     </div>
     <div>
@@ -64,8 +64,8 @@
                 </div>
 
                 <div>
-                    <x-select label="Design" wire:model.live="design_id" placeholder="Choose a design"
-                        :async-data="route('designs.index')" option-label="name" option-value="id" />
+                    <x-select label="Design" wire:model.live="design_id" placeholder="Choose a design" :async-data="route('designs.index')"
+                        option-label="name" option-value="id" />
                 </div>
                 <div>
                     <label for="weight"

@@ -1,7 +1,7 @@
-    <div class="ml-10 mr-10 mt-2">
+    <div class="mt-2 ml-10 mr-10">
         <x-button class="mb-4" black label="Back" href="{{ route('order-report') }}" icon="arrow-left" wire:navigate />
-        <article class="bg-green-100 p-2 rounded mb-4">
-            <h1 class="text-yellow-500 font-bold">သတိပေးချက်</h1>
+        <article class="p-2 mb-4 bg-green-100 rounded">
+            <h1 class="font-bold text-yellow-500">သတိပေးချက်</h1>
             <p>အဆင့်တစ်ခုနှင့် တစ်ခုကြား ကြာချိန်ကို ၂၄ နာရီသတ်မှတ်ထားသည်။ ပိုမိုကြာမြင့်အောင်ထားသော Order တို့သည်
                 အနီရောင်ပြောင်းလဲဖော်ပြသွားမည်။ သက်ဆိုင်ရာ အဆင့်အလိုက် အဓိက တာဝန်ရှိသူတွင် တာဝန်အပြည့်အဝရှိပါသည်။</p>
         </article>
@@ -9,7 +9,7 @@
         </h2> --}}
         <div class="gap-x-4 lg:flex lg:items-center lg:justify-between my-4b">
             <div
-                class="mt-6 gap-4 space-y-4 sm:flex sm:items-center sm:space-y-0 lg:mt-0 lg:justify-end dark:text-gray-200">
+                class="gap-4 mt-6 space-y-4 sm:flex sm:items-center sm:space-y-0 lg:mt-0 lg:justify-end dark:text-gray-200">
 
 
                 <select id="branches" wire:model.live="branchFilter"
@@ -72,7 +72,7 @@
         {{-- end filter section   --}}
 
         {{-- disign filter  --}}
-        <div class="my-4 bg-red-300 p-4 w-1/2">
+        <div class="w-1/2 p-4 my-4 bg-red-300">
             <x-input class="h-12 !text-xl !text-gray-500" icon='search' type="search" wire:model.live="detailFilter"
                 placeholder="Search with detail design" />
         </div>
@@ -102,19 +102,19 @@
         </a> --}}
         {{-- end filter warning --}}
 
-        <div class="bg-slate-300 mt-20 mb-4">
+        <div class="mt-20 mb-4 bg-slate-300">
             @foreach ($orderGroup as $branchName => $statusGroup)
                 {{-- start one branch information  --}}
-                <section class="bg-white py-1 my-8 antialiased rounded-lg dark:bg-gray-900 md:py-1 dark:text-gray-200">
-                    <div class="mx-auto max-w-screen-4xl px-4 2xl:px-0">
+                <section class="py-1 my-8 antialiased bg-white rounded-lg dark:bg-gray-900 md:py-1 dark:text-gray-200">
+                    <div class="px-4 mx-auto max-w-screen-4xl 2xl:px-0">
                         <div class="mx-auto uppercase">
-                            <h1 class="my-4 font-bold text-2xl">{{ $branchName }} </h1>
+                            <h1 class="my-4 text-2xl font-bold">{{ $branchName }} </h1>
                             {{-- new table design --}}
-                            <div class="relative overflow-x-auto max-w-screen-kg shadow-md sm:rounded-lg h-auto">
+                            <div class="relative h-auto overflow-x-auto shadow-md max-w-screen-kg sm:rounded-lg">
                                 @foreach ($statusGroup as $statusName => $relatedData)
-                                    <h2 class="font-bold mt-12 text-red-400">{{ $statusName }} </h2>
+                                    <h2 class="mt-12 font-bold text-red-400">{{ $statusName }} </h2>
                                     <table
-                                        class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                        class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
                                         <thead
                                             class="text-xs text-gray-700 uppercase bg-violet-50 dark:bg-gray-700 dark:text-gray-400">
                                             <tr>
@@ -170,7 +170,8 @@
                                                     <td class="px-6 py-4">
                                                         {{ $item->updated_at->format('d-M-y') }}<i
                                                             class="text-xs text-blue-400">
-                                                            ({{ $item->updated_at->diffForHumans() }})</i>
+                                                            ({{ $item->updated_at->diffForHumans() }})
+                                                        </i>
                                                     </td>
                                                     <td class="px-6 py-4">
                                                         {{ $item->created_at->format('d-M-y') }}
@@ -178,7 +179,8 @@
                                                     <td class="flex items-center px-6 py-4">
                                                         @can('isPurchaser')
                                                             @if ($item->status_id == 1)
-                                                                <x-button green label="Ack" xs wire:click="ack({{ $item->id }})" />
+                                                                <x-button green label="Ack" xs
+                                                                    wire:click="ack({{ $item->id }})" />
                                                             @endif
                                                         @endcan
                                                         <x-button href="/order/detail?order_id={{ $item->id }}"
@@ -201,7 +203,9 @@
                 </section>
                 {{-- end one branch information  --}}
             @endforeach
+            {{-- <div>{{ $orderGroup->links() }}</div> --}}
         </div>
+
 
         {{-- Comment Modal  --}}
         <x-modal.card title="Comments" wire:model='commentModal' name="comments">
@@ -244,7 +248,7 @@
                             <div x-data x-transition.duration.500ms class="flex flex-col px-10 mb-2">
                                 <div class="flex">
                                     <x-input
-                                        class="w-full border text-sm rounded focus:ring-0 dark:bg-gray-600 dark:text-gray-200"
+                                        class="w-full text-sm border rounded focus:ring-0 dark:bg-gray-600 dark:text-gray-200"
                                         type="text" wire:model='reply' placeholder="reply to this comment" />
                                     <div>
                                         <button class="ml-4 bg-emerald-600 text-white px-2 py-1.5 rounded"

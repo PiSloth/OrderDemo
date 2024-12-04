@@ -64,4 +64,36 @@ class Order extends Model
     {
         return $this->hasOne(ApprovedOrder::class);
     }
+
+    public function orderHistories()
+    {
+        return $this->hasMany(OrderHistory::class, 'order_id');
+    }
+
+    public function fetchRemarkByStatus($statusId)
+    {
+        $remark = $this->orderHistories()
+            ->where('status_id', $statusId)
+            ->first();
+
+        return $remark ? $remark->content : null;
+    }
+
+    public function fetchArrivalDate($statusId)
+    {
+        $data = $this->orderHistories()
+            ->where('status_id', $statusId)
+            ->first();
+
+        return $data ? $data->created_at : null;
+    }
+
+    // public function fetchCancleRemark($statusId)
+    // {
+    //     $data = $this->orderHistories()
+    //         ->where('status_id', $statusId)
+    //         ->first();
+
+    //     return $data ? $data->created_at : null;
+    // }
 }

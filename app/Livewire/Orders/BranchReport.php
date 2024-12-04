@@ -17,9 +17,11 @@ use App\Models\CommentPool;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\Auth;
+use Livewire\WithPagination;
 
 class BranchReport extends Component
 {
+    use WithPagination;
     use Actions;
     #[Title('Report')]
     public $gradeFilter = 0;
@@ -104,7 +106,8 @@ class BranchReport extends Component
     }
 
     //ack order
-    public function ack($id){
+    public function ack($id)
+    {
         Order::whereId($id)->update(['status_id' => 2]);
     }
 
@@ -114,21 +117,21 @@ class BranchReport extends Component
 
 
 
-        $orderQuery = Order::where(function($query) use ($sevenDaysAgo) {
+        $orderQuery = Order::where(function ($query) use ($sevenDaysAgo) {
             $query->where('status_id', '!=', 7)
-                  ->where('status_id', '!=', 8)  // Exclude status_id 7 and 8
-                  ->orWhere(function($query) use ($sevenDaysAgo) {
-                      $query->where('status_id', 7)
-                            ->where('updated_at', '>=', $sevenDaysAgo);  // Only include status_id 7 updated within last 7 days
-                  })
-                  ->orWhere(function($query) use ($sevenDaysAgo) {
-                      $query->where('status_id', 8)
-                            ->where('updated_at', '>=', $sevenDaysAgo);  // Only include status_id 8 updated within last 7 days
-                  });
+                ->where('status_id', '!=', 8)  // Exclude status_id 7 and 8
+                ->orWhere(function ($query) use ($sevenDaysAgo) {
+                    $query->where('status_id', 7)
+                        ->where('updated_at', '>=', $sevenDaysAgo);  // Only include status_id 7 updated within last 7 days
+                })
+                ->orWhere(function ($query) use ($sevenDaysAgo) {
+                    $query->where('status_id', 8)
+                        ->where('updated_at', '>=', $sevenDaysAgo);  // Only include status_id 8 updated within last 7 days
+                });
         })
-        ->where('detail','like', '%'. $this->detailFilter . '%')
-        ->orderBy('created_at', 'desc')
-        ->get();
+            ->where('detail', 'like', '%' . $this->detailFilter . '%')
+            ->orderBy('created_at', 'desc')
+            ->paginate(2);
 
         // dd($orderQuery);
 
@@ -168,9 +171,9 @@ class BranchReport extends Component
         //     $orderQuery = $orderQuery->whereBetween('created_at', [$monthDuration->startOfDay(), $currentTimeLine->endOfDay()]);
         // }
 
-        if($this->startDate && $this->endDate){
+        if ($this->startDate && $this->endDate) {
             $orderQuery = $orderQuery
-            ->whereBetween('created_at', [$this->startDate, $this->endDate]);
+                ->whereBetween('created_at', [$this->startDate, $this->endDate]);
         }
 
         $orderQuery = $orderQuery->groupBy(function ($order) {

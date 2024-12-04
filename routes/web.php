@@ -29,6 +29,7 @@ use App\Livewire\Order\Psi\PsiOrderHsitory;
 use App\Livewire\Order\Psi\PsiProductSupplier;
 use App\Livewire\Order\Psi\SaleLoss;
 use App\Livewire\Order\Psi\StockReceivedByBranch;
+use App\Livewire\Orders\OrderHistory as OrdersOrderHistory;
 use App\Models\Order;
 use App\Models\OrderHistory;
 use App\Models\PsiPrice;
@@ -74,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/supplier/dashboard', SupplierDashboard::class)->name('supplier-dashboard');
     Route::get('/manufacture/costing', ManufactureCost::class)->name('manufacture-costing');
     Route::get('/comment/history', CommentHistory::class)->name('comment-history');
+    Route::get('/order/histories', OrdersOrderHistory::class)->name('order_histories');
 });
 
 Route::middleware(['auth'])->prefix('psi')->group(function () {
