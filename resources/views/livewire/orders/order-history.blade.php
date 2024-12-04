@@ -92,7 +92,7 @@
                 @endforeach
             </tbody>
         </table>
-        <div>{{ $orders->links() }}</div>
+        <div class="mt-3">{{ $orders->links() }}</div>
     </div>
 
 </div>
