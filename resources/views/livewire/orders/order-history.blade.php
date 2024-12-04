@@ -10,7 +10,7 @@
                 <x-datetime-picker label="End Date" placeholder="End Date" parse-format="YYYY-MM-DD HH:mm"
                     wire:model.live="end_date" without-time=true />
             </div>
-            <x-button class="mb-2" wire:click='export'>Exprot</x-button>
+            <x-button green right-icon="download" class="m-2" wire:click='export'>Exprot</x-button>
 
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
@@ -82,11 +82,11 @@
                             {{ $order->status->name }}
                         </td>
                         <td class="px-6 py-4">
-                            {{ $order->arrival_qty ? $order->arrival_qty : 0 }}
+                            {{ $order->arqty ? $order->arqty : 0 }}
                         </td>
                         <td class="px-6 py-4">
-                            <a href="#"
-                                class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</a>
+                            <a href="/order/detail?order_id={{ $order->id }}" wire:navigate
+                                class="font-medium text-blue-600 dark:text-blue-500 hover:underline">view</a>
                         </td>
                     </tr>
                 @endforeach

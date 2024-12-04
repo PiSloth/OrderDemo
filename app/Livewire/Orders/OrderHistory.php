@@ -6,11 +6,13 @@ use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Response;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 
 class OrderHistory extends Component
 {
 
+    use WithPagination;
     public $start_date;
     public $end_date;
 
@@ -31,6 +33,8 @@ class OrderHistory extends Component
                 return $query->where('created_at', '<=', $this->end_date);
             })
             ->get();
+
+        dd($orders);
 
         // Create a temporary file
         // Create a temporary file with .xlsx extension
