@@ -131,7 +131,7 @@ class BranchReport extends Component
         })
             ->where('detail', 'like', '%' . $this->detailFilter . '%')
             ->orderBy('created_at', 'desc')
-            ->paginate(2);
+            ->get();
 
         // dd($orderQuery);
 

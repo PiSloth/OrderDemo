@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('branch_psi_product_id')->constrained();
             $table->integer('qty');
             $table->date('sale_date');
+            $table->foreignId('user_id')->constrained();
             $table->timestamps();
         });
     }

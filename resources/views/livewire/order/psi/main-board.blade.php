@@ -56,7 +56,7 @@
         @endcan
 
         {{-- Tempoary off --}}
-        {{-- <x-button href="{{ route('daily_sale') }}" label="Daily Sale" wire:navigate /> --}}
+        <x-button href="{{ route('daily_sale') }}" label="Daily Sale" wire:navigate />
     </div>
     {{-- End of Action button  --}}
 

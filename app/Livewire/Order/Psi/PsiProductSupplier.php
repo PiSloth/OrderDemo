@@ -9,6 +9,7 @@ use App\Models\OverDueDateOrder;
 use App\Models\ProductPhoto;
 use App\Models\PsiOrder;
 use App\Models\PsiPrice;
+use App\Models\PsiProduct;
 use App\Models\PsiStock;
 use App\Models\PsiSupplier;
 use App\Models\ReorderPoint;
@@ -53,6 +54,8 @@ class PsiProductSupplier extends Component
     private $porductSupplierCount;
     private $stockStatus;
     private $focusQty;
+    private $branchProductId;
+    public $branchName;
 
 
     // public $is_edit = false;
@@ -61,6 +64,16 @@ class PsiProductSupplier extends Component
     {
         $photo = ProductPhoto::wherePsiProductId($this->product_id)->first();
         $this->photo = $photo->image;
+
+        $branchProduct = BranchPsiProduct::whereBranchId($this->branch_id)
+            ->wherePsiProductId($this->product_id)
+            ->first();
+
+        // dd($branchProduct->id);
+
+        // dd($branchProduct->id);
+        $this->branchProductId = $branchProduct->id;
+        $this->branchName = $branchProduct->branch->name;
     }
 
     public function updatedYouktwat($value)
@@ -573,12 +586,15 @@ class PsiProductSupplier extends Component
             ->where('branch_psi_product_id', '=', $branchPsiProductId->id)
             ->get();
 
+        $productDetail = PsiProduct::findOrFail($this->product_id);
+
         // $psiOrders = PsiOrder::all();
 
         // dd($psiOrders);
 
 
         return view('livewire.order.psi.psi-product-supplier', [
+            'product' => $productDetail,
             'productSuppliers' => $productSuppliers,
             'specifications' => $specifications,
             'stockInfo' => $stockInfo,

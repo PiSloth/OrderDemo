@@ -53,6 +53,8 @@ class OrderHistory extends Component
                 'Size',
                 'Quantity',
                 'Weight',
+                'Order တင်ရသော မှတ်ချက်',
+                'ပစ္စည်းအမျိုးအစား',
                 'Status',
                 'Approve remark',
                 'Arrival Date',
@@ -71,6 +73,8 @@ class OrderHistory extends Component
                 $order->size,
                 $order->qty,
                 $order->weight,
+                $order->note,
+                $order->grade->name,
                 $order->status->name,
                 $order->fetchRemarkByStatus(4), // Approve status
                 $order->fetchArrivalDAte(6), // Approve status

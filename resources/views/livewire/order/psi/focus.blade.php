@@ -4,7 +4,7 @@
         <a href="{{ route('mainboard') }}" wire:navigate class="underline hover:text-blue-500">Product Dashboard</a> > <a
             href="#" class="font-bold">Focus</a>
     </div>
-    <span class="uppercase">{{ $branchName }}</span>
+    <div class="mt-4 "><span class="px-4 py-2 font-bold uppercase bg-yellow-200 rounded">{{ $branchName }}</span></div>
     <div class="flex flex-wrap gap-4 mt-4">
         <img src="{{ asset('storage/' . $product->productPhoto->image) }}"
             class="w-48 max-w-full max-h-full rounded md:w-42" />
@@ -159,7 +159,7 @@
         <x-card title="Daily Sale">
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-1">
                 <x-input type="date" label="Date" wire:model.live='sale_date' placeholder="Sale Date" />
-                <x-input placeholder="input sale quantity" label="Quantity" wire:model='sale_quantity' />
+                <x-input placeholder="input sale quantity" label="Quantity" wire:model='sale_qty' />
             </div>
 
             <x-slot name="footer">

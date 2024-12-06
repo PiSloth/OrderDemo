@@ -4,9 +4,37 @@
             href="{{ route('focus', ['prod' => $product_id, 'brch' => $branch_id]) }}" wire:navigate
             class="underline hover:text-blue-500">Focus</a> > <a href="#" class="font-bold">Safty Point & Order</a>
     </div>
+    <div class="my-4 ">
+        <span class="px-4 py-2 font-bold uppercase bg-yellow-200 rounded">{{ $branchName }}</span>
+    </div>
     <div class="flex flex-wrap gap-4 mb-4">
         <div class="w-48 h-56 overflow-hidden rounded bg-slate-200">
             <img src="{{ asset('storage/' . $photo) }}" />
+        </div>
+        <div>
+            <div class="p-2 mb-4 border-2 border-gray-600 border-dotted rounded">
+                <div class="grid grid-cols-2 gap-3">
+                    <span class="font-bold">Category</span>
+                    <span>{{ $product->category->name }}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <span class="font-bold">Design</span>
+                    <span>{{ $product->design->name }}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <span class="font-bold">Length</span>
+                    <span>{{ $product->length }} <i>{{ $product->uom->name }}</i></span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <span class="font-bold">Weight</span>
+                    <span>{{ $product->weight }} <i>g</i></span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <span class="font-bold">နည်းပညာ</span>
+                    <span>{{ $product->manufactureTechnique->name }}</span>
+                </div>
+            </div>
+            <span class="mt-2 font-semibold">{{ $product->shape->name }}</span>
         </div>
         <div class="content-center w-48 h-56 text-center rounded bg-green-50">
             <x-button icon="view-grid-add" green flat label="Add another supplier"

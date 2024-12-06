@@ -54,6 +54,7 @@ class PsiSeeder extends Seeder
             ['Sale', false],
             ['Arrivals', true],
             ['Error', false],
+            ['Daily Sale Wrong Input Return', true]
         ];
 
 
