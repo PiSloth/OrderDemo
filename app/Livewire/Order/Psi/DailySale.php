@@ -58,6 +58,8 @@ class DailySale extends Component
         $saleRecord = RealSale::findOrFail($record_id);
         $this->sale_date = $saleRecord->sale_date;
         $this->sale_qty = $saleRecord->qty;
+
+        // dd($this->sale_date);
     }
 
     //update sale quantity
@@ -65,7 +67,7 @@ class DailySale extends Component
     {
         $this->validate([
             'sale_qty' => 'required|numeric',
-            'sale_date' => 'required|date',
+            'sale_date' => 'required',
         ]);
 
         //! find safty day and avgerage lead day
@@ -119,13 +121,16 @@ class DailySale extends Component
         //find reorder data history
         $reorderData = ReorderPoint::wherePsiStockId($this->stock_id)->first();
 
-        if ($reorderData) {
+        // dd($reorderData);
+
+        if (!$reorderData) {
             $this->dispatch('close-modal');
             $this->dialog([
                 'title' => 'Not found Order Data',
                 'description' => 'Make sure inventory data is added to order page.',
                 'icon' => 'error'
             ]);
+
             return;
         }
         // dd($reorderData);

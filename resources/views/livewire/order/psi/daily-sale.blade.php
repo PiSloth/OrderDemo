@@ -68,8 +68,9 @@
                         </div>
                         {{-- Sale data input   --}}
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <x-datetime-picker without-time='no' type="date" label="Sale Date"
-                                placeholder="Sale Date" wire:model.live="sale_date" />
+                            {{-- <x-datetime-picker without-time='no' type="date" label="Sale Date"
+                                placeholder="Sale Date" wire:model.live="sale_date" /> --}}
+                            <x-input label="Date" type="date" wire:model.live='sale_date' />
                             <x-input placeholder="input sale quantity" label="Quantity" wire:model.live='sale_qty' />
                         </div>
 
@@ -109,6 +110,7 @@
                     </th>
                 </tr>
             </thead>
+
             <tbody>
                 @forelse ($saleHistories as $data)
                     <tr
@@ -144,8 +146,9 @@
     <x-modal wire:model="editSaleRecordModal">
         <x-card title="Daily Sale">
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-2">
-                <x-datetime-picker label="Start Date" placeholder="Sale Date" parse-format="DD-MM-YY HH:mm"
-                    wire:model.live="sale_date" without-time=true />
+                {{-- <x-datetime-picker label="Start Date" placeholder="Sale Date" parse-format="DD-MM-YY HH:mm"
+                    wire:model.live="sale_date" without-time=true /> --}}
+                <x-input label="Date" placeholder="pick a date" type="date" wire:model.live='sale_date' />
                 <x-input placeholder="input sale quantity" label="Quantity" wire:model.live='sale_qty' />
             </div>
 
