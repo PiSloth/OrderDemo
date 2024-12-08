@@ -160,6 +160,7 @@ class MainBoard extends Component
             ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
             ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
             ->where('shapes.name', 'like', '%' . $this->shape_detail . '%')
+            ->where('branch_psi_products.is_suspended', '=', 'false')
             ->groupBy(
                 'psi_products.id',
                 'shapes.name',

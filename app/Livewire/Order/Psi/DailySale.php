@@ -23,6 +23,20 @@ class DailySale extends Component
     public $sale_date;
     public $detail;
     public $branchPsiProductId;
+    public $sale_history_date;
+
+    public function mount()
+    {
+        $this->sale_history_date = Carbon::now()->toDateString();
+        // dd($this->sale_history_date);
+    }
+
+    public function updatedSaleHistoryDate($value)
+    {
+        if (!$value) {
+            $this->sale_history_date = Carbon::now()->toDateString();
+        }
+    }
 
     //initialize before update sale quantity
     public function initializeUpdate($id)
@@ -104,6 +118,17 @@ class DailySale extends Component
 
         //find reorder data history
         $reorderData = ReorderPoint::wherePsiStockId($this->stock_id)->first();
+
+        if ($reorderData) {
+            $this->dispatch('close-modal');
+            $this->dialog([
+                'title' => 'Not found Order Data',
+                'description' => 'Make sure inventory data is added to order page.',
+                'icon' => 'error'
+            ]);
+            return;
+        }
+        // dd($reorderData);
 
         $psiProduct = PsiStock::findOrFail($this->stock_id);
         // dd($psiProduct);
@@ -258,6 +283,7 @@ class DailySale extends Component
                 'psi_stock_status_id' => $stockStatus
             ]);
         });
+
         $this->dispatch('close-modal');
         $this->reset('sale_qty', 'sale_date');
 
@@ -295,7 +321,6 @@ class DailySale extends Component
             'psi_stocks.inventory_balance AS balance',
             DB::raw('MAX(real_sales.qty) AS sale_qty')
         )
-            ->whereBranchId(auth()->user()->branch->id)
             ->leftJoin('product_photos', 'product_photos.psi_product_id', 'branch_psi_products.psi_product_id')
             ->leftJoin('psi_products', 'psi_products.id', 'branch_psi_products.psi_product_id')
             ->leftJoin('designs', 'designs.id', 'psi_products.design_id')
@@ -304,11 +329,15 @@ class DailySale extends Component
             ->leftJoin('psi_stocks', 'branch_psi_products.id', 'psi_stocks.branch_psi_product_id')
             ->leftJoin('real_sales', function ($join) {
                 $join->on('branch_psi_products.id', '=', 'real_sales.branch_psi_product_id')
-                    ->whereRaw('DATE(real_sales.sale_date) = ?',  [now()->toDateString()]);
+                    ->whereRaw('DATE(real_sales.sale_date) = ?',  [$this->sale_history_date]);
+                // ->whereRaw('DATE(real_sales.sale_date) = ?',  [now()->toDateString()]);
             })
+            ->whereBranchId(auth()->user()->branch->id)
             ->where('shapes.name', 'like', '%' . $this->detail . '%')
+            // ->orderBy('real_sales.qty', 'desc')
             ->groupBy(
                 'branch_psi_products.id',
+                'real_sales.qty',
                 'shapes.name',
                 'psi_stocks.id',
                 'product_photos.image',

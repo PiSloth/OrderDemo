@@ -14,10 +14,20 @@
                 placeholder="Search for items">
         </div>
     </div>
+    <div>
+        <x-button label="filter" positive icon="filter" @click="$openModal('filterModal')" />
+        <span>{{ \Carbon\Carbon::parse($sale_history_date)->format('M j, Y') }}</span>
+    </div>
+    <x-modal.card title="Filter" wire:model="filterModal">
+        <x-datetime-picker wire:model.live.debounce="sale_history_date" without-time='true' label="Date"
+            placeholder="Now" />
 
-
-
-
+        {{-- <div>
+            Lorem ipsum dolor sit amet consectetur, adipisicing elit. Temporibus quasi nulla tenetur quia? Pariatur,
+            obcaecati omnis fugiat, dolore reprehenderit quidem doloremque enim exercitationem dignissimos, officia ad
+            dolorum minima ipsa quasi!
+        </div> --}}
+    </x-modal.card>
 
     <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
         @foreach ($products as $product)
@@ -32,7 +42,8 @@
                             class="hidden md:inline">g</i></h3>
                     <div class="z-10 overflow-hidden text-sm leading-6 text-gray-300 gap-y-1">{{ $product->detail }}
                     </div>
-                    @if ($product->sale_qty > 0)
+
+                    @if ($product->sale_qty !== null)
                         <div class="z-10 overflow-hidden text-sm leading-6 text-gray-300 gap-y-1">
                             <span class="px-2 text-white bg-green-600 rounded-full">{{ $product->sale_qty }}</span>
                         </div>
@@ -57,8 +68,8 @@
                         </div>
                         {{-- Sale data input   --}}
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <x-input type="date" label="Sale Date" placeholder="Sale Date"
-                                wire:model.live="sale_date" />
+                            <x-datetime-picker without-time='no' type="date" label="Sale Date"
+                                placeholder="Sale Date" wire:model.live="sale_date" />
                             <x-input placeholder="input sale quantity" label="Quantity" wire:model.live='sale_qty' />
                         </div>
 
