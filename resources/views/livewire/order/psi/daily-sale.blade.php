@@ -88,8 +88,8 @@
                 </x-modal>
             </div>
         @endforeach
-
     </div>
+    <div class="mt-4">{{ $products->links() }}</div>
 
     {{-- Daily Sale HISTORY MODAL --}}
     <x-modal.card title="Add this Product to PSI" blur wire:model="historyModal">

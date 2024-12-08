@@ -352,7 +352,7 @@ class DailySale extends Component
                 'uoms.name',
                 'psi_stocks.inventory_balance',
             )
-            ->paginate(5);
+            ->paginate(10);
 
 
         $saleHistories = RealSale::whereBranchPsiProductId($this->branchPsiProductId)

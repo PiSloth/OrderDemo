@@ -64,8 +64,8 @@
     <div class="container mx-auto my-10 overflow-x-auto">
         <div class="my-3 font-bold text-blue-500">Branch အလိုက် Signature Product များထားရှိခြင်းပြ ဇယား</div>
 
-        <div class="flex flex-col h-[34rem]  border border-separate border-solid overflow-clip rounded-xl">
-            {{-- Shpe filter --}}
+        <div>
+            {{-- Shape filter --}}
             <div class="pb-4 m-4 bg-white dark:bg-gray-900">
                 <label for="table-search" class="sr-only">Search</label>
                 <div class="relative mt-1">
@@ -81,7 +81,7 @@
                         placeholder="Search for items">
                 </div>
             </div>
-            <table class="w-full text-left text-gray-500 table-fixed rtl:text-right dark:text-gray-400">
+            <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
                 <thead class="sticky top-0 bg-white">
                     <tr>
                         <th scope="col" class="px-16 py-3">
@@ -106,81 +106,126 @@
                         </th> --}}
                     </tr>
                 </thead>
-            </table>
-            <div class="flex-1 overflow-x-auto overflow-y-auto">
-                <table class="w-full table-fixed">
-                    <tbody>
-                        @foreach ($products as $product)
-                            <tr
-                                class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <td class="p-4">
-                                    <img class="w-16 max-w-full max-h-full md:w-32 cursor-help"
-                                        src="{{ asset('storage/' . $product->image) }}"
-                                        @click="$openModal('{{ $product->id }}')" />
-                                    <x-modal wire:model='{{ $product->id }}'>
+                <tbody>
+                    @foreach ($products as $product)
+                        <tr
+                            class="bg-white border-b odd:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <td class="p-4">
+                                <img class="w-32 max-w-full max-h-full md:w-32 cursor-help"
+                                    src="{{ asset('storage/' . $product->image) }}"
+                                    wire:click='initializeProductId({{ $product->id }})'
+                                    @click="$openModal('{{ $product->id }}')" />
+                                <x-modal.card title="{{ $product->shape }}" wire:model='{{ $product->id }}'>
+                                    <table>
+                                        <thead>
+                                            <tr class="p-1 border border-gray-300">
+                                                <th scope="col" class="px-6 py-3">
+                                                    Branch
+                                                </th>
+                                                <th scope="col" class="px-6 py-3">
+                                                    Focus
+                                                </th>
+                                                <th scope="col" class="px-6 py-3">
+                                                    Sale
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="p-1 border border-gray-400">
 
-                                        <img src="{{ asset('storage/' . $product->image) }}"
-                                            class="mb-6 bg-white rounded-lg">
-                                    </x-modal>
-                                </td>
-                                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                                    {{ $product->shape }}
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span>{{ $product->weight }}</span>
-                                </td>
+                                            @foreach ($productSummary as $data)
+                                                <tr
+                                                    class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
 
-                                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                                    <div class="flex items-center">
-                                        {{ $product->length }} {{ $product->uom }}
+                                                    <th scope="row"
+                                                        class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                                        {{ $data['branch_name'] }}</th>
+                                                    <td class="px-6 py-4">{{ $data['latest_focus_qty'] }}</td>
+                                                    <td class="px-6 py-4">{{ (int) $data['avg_sales'] }}</td>
+
+                                                </tr>
+                                            @endforeach
+
+                                        </tbody>
+                                    </table>
+                                    <div>
+                                        <article
+                                            class="relative flex flex-col justify-end px-8 pt-4 pb-8 mx-auto mt-4 overflow-hidden h-96 hover:cursor-pointer isolate rounded-2xl">
+                                            <img class="absolute inset-0 object-cover w-full h-full max-w-xl rounded-lg"
+                                                src="{{ asset('storage/' . $product->image) }}" />
+                                            <div
+                                                class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40">
+                                            </div>
+                                            <h3 class="z-10 mt-3 text-xl font-bold text-white lg:text-3xl md:text-3xl">
+                                                {{ $product->weight }} <i class="hidden md:inline">g</i></h3>
+                                            <div class="z-10 overflow-hidden text-sm leading-6 text-gray-300 gap-y-1">
+                                                {{ $product->detail }}
+                                            </div>
+                                        </article>
                                     </div>
-                                </td>
+                                    {{-- <img src="{{ asset('storage/' . $product->image) }}"
+                                        class="mb-6 bg-white rounded-lg"> --}}
+                                </x-modal.card>
+                            </td>
+                            <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                                {{ $product->shape }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <span>{{ $product->weight }}</span>
+                            </td>
 
-                                @foreach ($branches as $branch)
-                                    <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                                        @if ($product->{'index' . $branch->id} > 0)
-                                            <a href="#"
-                                                class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100"
-                                                wire:click='propsToLink({{ $product->id }},{{ $branch->id }})'>
-                                                @if ($product->{'status' . $branch->id})
-                                                    <div class="w-6 h-6 rounded-full"
-                                                        style="background: {{ $product->{'color' . $branch->id} }}">
-                                                    </div>
-                                                    <span
-                                                        class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
-                                                    </span>
-                                                @else
-                                                    <svg xmlns="http://www.w3.org/2000/svg"
-                                                        class="w-6 h-6 text-green-400" fill="none"
-                                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                                                    </svg>
-                                                @endif
+                            <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                                <div class="flex items-center">
+                                    {{ $product->length }} {{ $product->uom }}
+                                </div>
+                            </td>
 
-                                            </a>
-                                        @else
-                                            <button
-                                                wire:click="setBranchPsiProduct({{ $product->id }},{{ $branch->id }})"
-                                                @click="$openModal('psiProduct')">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-600"
+                            @foreach ($branches as $branch)
+                                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                                    @if ($product->{'index' . $branch->id} > 0)
+                                        <a href="#"
+                                            class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100"
+                                            wire:click='propsToLink({{ $product->id }},{{ $branch->id }})'>
+                                            @if ($product->{'status' . $branch->id})
+                                                <div class="w-6 h-6 rounded-full"
+                                                    style="background: {{ $product->{'color' . $branch->id} }}">
+                                                </div>
+                                                <span class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
+                                                </span>
+                                            @else
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-green-400"
                                                     fill="none" viewBox="0 0 24 24" stroke="currentColor"
                                                     stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M6 18L18 6M6 6l12 12" />
+                                                        d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                                                 </svg>
-                                            </button>
-                                        @endif
-                                    </td>
-                                    {{-- @dd($product->{'index' . $branch->id}) --}}
-                                @endforeach
-                            </tr>
-                        @endforeach
+                                            @endif
 
-                    </tbody>
+                                        </a>
+                                    @else
+                                        <button
+                                            wire:click="setBranchPsiProduct({{ $product->id }},{{ $branch->id }})"
+                                            @click="$openModal('psiProduct')">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-600"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    @endif
+                                </td>
+                                {{-- @dd($product->{'index' . $branch->id}) --}}
+                            @endforeach
+                        </tr>
+                    @endforeach
+
+                </tbody>
+            </table>
+            <div>{{ $products->links() }}</div>
+            {{-- <div class="flex-1 overflow-x-auto overflow-y-auto">
+                <table class="w-full table-fixed">
                 </table>
-                <div>{{ $products->links() }}</div>
-            </div>
+            </div> --}}
         </div>
     </div>
 
@@ -204,6 +249,47 @@
     </x-modal.card>
 
 
+    <x-modal.card title="Summary of Product" blur wire:model="productSummaryModal">
+        @foreach ($productSummary as $data)
+            <div class="flex">
+                <div>
+                    <div class="p-2 mb-4 border-2 border-gray-600 border-dotted rounded">
+                        <div class="grid grid-cols-2 gap-3">
+                            <span class="font-bold">Category</span>
+                            {{-- <span>{{ $product->category->name }}</span> --}}
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <span class="font-bold">Design</span>
+                            {{-- <span>{{ $product->design->name }}</span> --}}
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <span class="font-bold">Length</span>
+                            {{-- <span>{{ $product->length }} <i>{{ $product->uom->name }}</i></span> --}}
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <span class="font-bold">Weight</span>
+                            {{-- <span>{{ $product->weight }} <i>g</i></span> --}}
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <span class="font-bold">နည်းပညာ</span>
+                            {{-- <span>{{ $product->manufactureTechnique->name }}</span> --}}
+                        </div>
+                    </div>
+                    {{-- <span class="mt-2 font-semibold">{{ $product->shape->name }}</span> --}}
+                </div>
+            </div>
+        @endforeach
+        <x-slot name="footer">
+            <div class="flex justify-between gap-x-4">
+                <x-button flat negative label="Delete" wire:click="cancle" />
+
+                {{-- <div class="flex">
+                    <x-button flat label="Cancel" wire:click='cancle' x-on:click="close" />
+                    <x-button primary label="Save" wire:click="createBranchPsiProduct" />
+                </div> --}}
+            </div>
+        </x-slot>
+    </x-modal.card>
 
     {{-- Modal trigger form js  --}}
     <x-modal wire:model="defaultModal" blur>
