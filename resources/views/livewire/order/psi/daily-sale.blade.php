@@ -22,6 +22,18 @@
         <x-datetime-picker wire:model.live.debounce="sale_history_date" without-time='true' label="Date"
             placeholder="Now" />
 
+        @can('isSuperAdmin')
+            <label for="branch" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Category</label>
+            <select id="branch"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                wire:model.live='branch_id'>
+                <option value="" selected>Select a Branch</option>
+                @foreach ($branches as $branch)
+                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                @endforeach
+            </select>
+        @endcan
+
         {{-- <div>
             Lorem ipsum dolor sit amet consectetur, adipisicing elit. Temporibus quasi nulla tenetur quia? Pariatur,
             obcaecati omnis fugiat, dolore reprehenderit quidem doloremque enim exercitationem dignissimos, officia ad

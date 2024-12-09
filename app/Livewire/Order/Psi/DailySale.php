@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Order\Psi;
 
+use App\Models\Branch;
 use App\Models\BranchPsiProduct;
 use App\Models\FocusSale;
 use App\Models\PsiProduct;
@@ -24,6 +25,7 @@ class DailySale extends Component
     public $detail;
     public $branchPsiProductId;
     public $sale_history_date;
+    public $branch_id = '';
 
     public function mount()
     {
@@ -337,7 +339,13 @@ class DailySale extends Component
                     ->whereRaw('DATE(real_sales.sale_date) = ?',  [$this->sale_history_date]);
                 // ->whereRaw('DATE(real_sales.sale_date) = ?',  [now()->toDateString()]);
             })
-            ->whereBranchId(auth()->user()->branch->id)
+            ->when(! $this->branch_id, function ($query) {
+                return $query->whereBranchId(auth()->user()->branch->id);
+            })
+            ->when($this->branch_id, function ($query) {
+                return $query->whereBranchId($this->branch_id);
+            })
+
             ->where('shapes.name', 'like', '%' . $this->detail . '%')
             // ->orderBy('real_sales.qty', 'desc')
             ->groupBy(
@@ -360,11 +368,14 @@ class DailySale extends Component
             ->orderBy('sale_date', 'desc')
             ->get();
 
+        $branches = Branch::all();
+
         // dd($this->branchPsiProductId);
 
         return view('livewire.order.psi.daily-sale', [
             'products' => $products,
             'saleHistories' => $saleHistories,
+            'branches' => $branches,
         ]);
     }
 }
