@@ -94,60 +94,143 @@
 
     {{-- Foucs HISTORY MODAL --}}
     <x-modal.card title="Focus History" blur wire:model="focusModal">
-        <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                <tr>
-                    <th scope="col" class="px-6 py-3">
-                        Created at
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Quantity
-                    </th>
-                    <th scope="col" class="px-6 py-3">
-                        Created by
-                    </th>
+        <div class="container mx-auto my-10 overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <tr>
+                        <th scope="col" class="px-6 py-3">
+                            Created at
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Quantity
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Created by
+                        </th>
 
-                    <th scope="col" class="px-6 py-3">
-                        Action
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($foucsHistories as $data)
+                        <th scope="col" class="px-6 py-3">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($foucsHistories as $data)
+                        <tr
+                            class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                            <th scope="row"
+                                class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                {{ date_format($data->created_at, 'd M, Y') }}
+                            </th>
+                            <td class="px-6 py-4">
+                                {{ $data->qty }}
+                            </td>
+                            <td class="px-6 py-4">
+                                {{ $data->user->name }}
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <a href="#" class="text-blue-500" wire:navigate>
+                                    Detail</a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5">
+
+                                <center>There's no records yet</center>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <x-slot name="footer">
+            <div class="flex justify-between gap-x-4">
+                <x-button outline sky label="Fous သတ်မှတ်ခြင်း" x-on:click="$openModal('compareFocusModal')" />
+                {{-- <div class="flex">
+                    <x-input placeholder="per/day" label="Sale Focus/ day" wire:model.live='focus_quantity' />
+                    <x-button class="mt-6 ms-4" icon="save" label="save" outline green wire:click='focusSave' />
+                </div> --}}
+                {{-- <x-button primary label="save" right-icon="save" wire:click='createOrder' green /> --}}
+            </div>
+        </x-slot>
+    </x-modal.card>
+
+    {{-- Compare with other gram --}}
+    <x-modal.card title="' {{ $product->shape->name }} ' အတွက် အခြား အရောင်းခန့်မှန်းချက်များ" blur
+        wire:model="compareFocusModal">
+        <div class="container mx-auto my-10 overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <tr>
+                        <th scope="col" class="px-6 py-3">
+                            Product
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Gram
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Foucs Qty
+                        </th>
+
+                        <th scope="col" class="px-6 py-3 sr-only">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
                     <tr
                         class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
-                        <th scope="row"
-                            class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                            {{ $data->created_at }}
+                        <th scope="row" rowspan="{{ count($compareFocus) }}"
+                            class="px-6 py-4 font-medium text-gray-900 border border-gray-100 dark:border-slate-50 whitespace-nowrap dark:text-white">
+                            {{ $product->shape->name }}
                         </th>
-                        <td class="px-6 py-4">
-                            {{ $data->qty }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {{ $data->user->name }}
-                        </td>
+                        @php
+                            $totalFocus = 0;
+                        @endphp
+                        @forelse ($compareFocus as $data)
+                            <td class="px-6 py-4 border border-gray-100">
+                                {{ $data->weight }} <i>g</i>
+                            </td>
+                            <td class="px-6 py-4 border border-gray-100">
+                                {{ $data->latest_focus_qty }}
+                            </td>
 
-                        <td class="px-6 py-4">
-                            <a href="#" class="text-blue-500" wire:navigate>
-                                Detail</a>
-                        </td>
+                            <td class="px-6 py-4 border border-gray-100">
+                                <a href="#" class="text-blue-500" wire:navigate>
+                                    Detail</a>
+                            </td>
                     </tr>
+                    @php
+                        $totalFocus += $data->latest_focus_qty;
+                    @endphp
                 @empty
                     <tr>
-                        <td colspan="5">
-
+                        <td colspan="4">
                             <center>There's no records yet</center>
                         </td>
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
+                    @endforelse
+                    <tr
+                        class="border border-gray-100 odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                        <td scope="col" colspan="2"
+                            class="px-6 py-4 font-medium text-right text-gray-900 whitespace-nowrap dark:text-white">
+                            <span>{{ $branchName }} အတွက် စုစုပေါင်းခန့်မှန်းထားသော ရောင်းအား</span>
+                        </td>
+                        <td class="px-6 py-4 border border-gray-100">{{ $totalFocus }} <small>pcs per Day</small>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
         <x-slot name="footer">
             <div class="flex justify-between gap-x-4">
                 <x-button flat label="Cancel" x-on:click="close" />
                 <div class="flex">
-                    <x-input placeholder="per/day" label="Sale Focus/ day" wire:model.live='focus_quantity' />
-                    <x-button class="mt-6 ms-4" icon="save" label="save" outline green wire:click='focusSave' />
+                    <x-input placeholder="per/day" label="Focus for {{ $product->weight }} g"
+                        wire:model.live='focus_quantity' />
+                    <x-button class="mt-6 ms-4" icon="save" label="save" outline green
+                        wire:click='focusSave' />
                 </div>
                 {{-- <x-button primary label="save" right-icon="save" wire:click='createOrder' green /> --}}
             </div>

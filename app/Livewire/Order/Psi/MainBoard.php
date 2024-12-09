@@ -132,7 +132,7 @@ class MainBoard extends Component
 
         // dd($selection);
 
-        $products2 = PsiProduct::select(
+        $producutWithEachBranch = PsiProduct::select(
             array_merge(
                 [
                     'psi_products.id',
@@ -140,7 +140,8 @@ class MainBoard extends Component
                     'psi_products.weight',
                     'shapes.name as shape',
                     'uoms.name as uom',
-                    'product_photos.image as image',
+                    'product_photos.image AS image',
+                    DB::raw('SUM(real_sales.qty) AS total_sale'),
 
                 ],
                 $selection
@@ -150,10 +151,11 @@ class MainBoard extends Component
             ->leftJoin('product_photos', 'product_photos.psi_product_id', 'psi_products.id')
             ->leftJoin('shapes', 'psi_products.shape_id', 'shapes.id')
             ->leftJoin('branch_psi_products', 'psi_products.id', 'branch_psi_products.psi_product_id')
+            ->leftJoin('real_sales', 'real_sales.branch_psi_product_id', '=', 'branch_psi_products.id')
             ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
             ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
             ->where('shapes.name', 'like', '%' . $this->shape_detail . '%')
-            ->where('branch_psi_products.is_suspended', '=', 'false')
+            ->orderBy('total_sale', 'desc')
             ->groupBy(
                 'psi_products.id',
                 'shapes.name',
@@ -163,7 +165,9 @@ class MainBoard extends Component
                 'product_photos.image'
             )
             ->paginate(5);
-        // dd($products2);
+        // ->get();
+
+        // dd($producutWithEachBranch);
 
 
         if ($this->props_to_link == true) {
@@ -178,32 +182,7 @@ class MainBoard extends Component
         $jobs = PhotoShooting::where('photo_shooting_status_id', '<', 6)->get()->count();
 
         $jobsBr = PsiOrder::where('psi_status_id', '=', 8)->count();
-        // dd($jobsBr);
 
-        // $focusDetails = DB::table('branch_psi_products as bp')
-        //     ->join('focus_sales as fs', 'bp.id', '=', 'fs.branch_psi_product_id')
-        //     ->join(
-        //         DB::raw('(
-        //         SELECT branch_psi_product_id, MAX(id) as latest_focus_id
-        //         FROM focus_sales
-        //         GROUP BY branch_psi_product_id
-        //     ) as latest_focus'),
-        //         'fs.id',
-        //         '=',
-        //         'latest_focus.latest_focus_id'
-        //     )
-        //     ->select(
-        //         'bp.psi_product_id', // The product ID
-        //         'bp.id as branch_psi_product_id', // The branch-PSI-product ID
-        //         'fs.qty as latest_focus_qty', // The quantity from the latest focus record
-        //         DB::raw('SUM(fs.qty) as total_focus_quantity') // Total quantity of focus
-        //     )
-        //     ->groupBy('bp.psi_product_id', 'bp.id', 'fs.qty')
-        //     ->get();
-
-        // return $focusDetails;
-
-        // use Illuminate\Support\Facades\DB;
 
         $psiProducts = DB::table('psi_products as p')
             ->leftJoin('branch_psi_products as bp', 'p.id', '=', 'bp.psi_product_id')
@@ -220,18 +199,22 @@ class MainBoard extends Component
             )
             ->leftJoin('focus_sales as fs_latest', 'latest_focus.latest_focus_id', '=', 'fs_latest.id')
             ->leftJoin('real_sales as rs', 'bp.id', '=', 'rs.branch_psi_product_id') // Join with real_sales
+            ->leftJoin('psi_stocks', 'bp.id', 'psi_stocks.branch_psi_product_id')
+            ->leftJoin('reorder_points', 'reorder_points.psi_stock_id', 'psi_stocks.id')
             ->select(
                 'p.id as psi_product_id',
                 // 'p.name as psi_product_name',
                 'bp.id as branch_psi_product_id',
                 'bp.branch_id',
                 'branches.name',
+                'psi_stocks.inventory_balance',
+                'reorder_points.reorder_due_date',
                 'fs_latest.qty as latest_focus_qty',
                 DB::raw('AVG(rs.qty) as avg_sale_qty'), // Average sale quantity for each branch_psi_product
                 // DB::raw('MONTH(rs.sale_date) as sale_month'), // Month of the sale for grouping
                 // DB::raw('YEAR(rs.sale_date) as sale_year') // Year of the sale for grouping
             )
-            ->groupBy('p.id', 'bp.id', 'branches.name', 'bp.branch_id', 'fs_latest.qty')
+            ->groupBy('p.id', 'bp.id', 'branches.name', 'bp.branch_id', 'fs_latest.qty', 'psi_stocks.inventory_balance', 'reorder_points.reorder_due_date')
             // ->groupBy('p.id', 'bp.id', 'rs.qty')
             ->get();
 
@@ -245,6 +228,8 @@ class MainBoard extends Component
                         'branch_name' => $item->name,
                         'latest_focus_qty' => $item->latest_focus_qty,
                         'avg_sales' => $item->avg_sale_qty,
+                        'balance' => $item->inventory_balance,
+                        'due_date' => $item->reorder_due_date,
                         // 'sale_month' => $item->sale_month,
                         // 'sale_year' => $item->sale_year,
                     ];
@@ -261,7 +246,7 @@ class MainBoard extends Component
         }
 
         return view('livewire.order.psi.main-board', [
-            'products' => $products2,
+            'products' => $producutWithEachBranch,
             'productSummary' => $productSummary,
             'branches' => $branches,
             'psiOrders' => $orders,

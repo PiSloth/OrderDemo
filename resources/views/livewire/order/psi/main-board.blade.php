@@ -126,7 +126,13 @@
                                                     Focus
                                                 </th>
                                                 <th scope="col" class="px-6 py-3">
-                                                    Sale
+                                                    Avg Sale
+                                                </th>
+                                                <th scope="col" class="px-6 py-3">
+                                                    Balance
+                                                </th>
+                                                <th scope="col" class="px-6 py-3">
+                                                    To Order Due Date
                                                 </th>
                                             </tr>
                                         </thead>
@@ -141,6 +147,10 @@
                                                         {{ $data['branch_name'] }}</th>
                                                     <td class="px-6 py-4">{{ $data['latest_focus_qty'] }}</td>
                                                     <td class="px-6 py-4">{{ (int) $data['avg_sales'] }}</td>
+                                                    <td class="px-6 py-4">{{ $data['balance'] }}</td>
+                                                    <td class="px-6 py-4">
+                                                        {{ \Carbon\Carbon::parse($data['due_date'])->format('(D) d-M-Y') }}
+                                                    </td>
 
                                                 </tr>
                                             @endforeach
@@ -189,7 +199,8 @@
                                                 <div class="w-6 h-6 rounded-full"
                                                     style="background: {{ $product->{'color' . $branch->id} }}">
                                                 </div>
-                                                <span class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
+                                                <span
+                                                    class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
                                                 </span>
                                             @else
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-green-400"

@@ -612,15 +612,58 @@ class Focus extends Component
             ->first();
 
         $focusHistories = FocusSale::where('branch_psi_product_id', '=', $this->branchProductId)->get();
+        $productDetail = PsiProduct::findOrFail($this->product_id);
 
-        // dd($productLeadDay);
+
+        $productWithFocus = DB::table('psi_products as p')
+            ->leftJoin('branch_psi_products as bp', 'p.id', '=', 'bp.psi_product_id')
+            ->leftJoin('branches', 'bp.branch_id', '=', 'branches.id')
+            ->leftJoin(
+                DB::raw('(
+                SELECT branch_psi_product_id, MAX(id) as latest_focus_id
+                FROM focus_sales
+                GROUP BY branch_psi_product_id
+            ) as latest_focus'),
+                'bp.id',
+                '=',
+                'latest_focus.branch_psi_product_id'
+            )
+            ->leftJoin('focus_sales as fs_latest', 'latest_focus.latest_focus_id', '=', 'fs_latest.id')
+            ->select(
+                'p.shape_id',
+                'p.weight',
+                'p.id AS pId',
+                'fs_latest.qty as latest_focus_qty'
+            )
+            ->where('bp.branch_id', '=', $this->branch_id)
+            // ->where('p.weight', '=', $productDetail->weight)
+            ->where('p.uom_id', '=', $productDetail->uom_id)
+            ->where('p.shape_id', '=', $productDetail->shape_id)
+            ->where('p.category_id', '=', $productDetail->category_id)
+            ->where('p.quality_id', '=', $productDetail->quality_id)
+            ->where('p.design_id', '=', $productDetail->design_id)
+            ->where('p.manufacture_technique_id', '=', $productDetail->manufacture_technique_id)
+            ->groupBy(
+                'fs_latest.qty',
+                'p.id',
+                'p.weight',
+                'p.uom_id',
+                'p.shape_id',
+                'p.category_id',
+                'p.quality_id',
+                'p.design_id',
+                'p.manufacture_technique_id',
+            )
+            ->get();
+
+        // dd($productWithFocus);
 
         // dd($saleData);
-        $productDetail = PsiProduct::findOrFail($this->product_id);
         // dd($productDetail);
 
         return view('livewire.order.psi.focus', [
             'product' => $productDetail,
+            'compareFocus' => $productWithFocus,
             'pastResult' => $mergeData,
             'productLeadDay' => $productLeadDay,
             'foucsHistories' => $focusHistories,
