@@ -16,6 +16,7 @@ use App\Models\ReorderPoint;
 use App\Models\StockTransaction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use PhpParser\Node\Expr\FuncCall;
@@ -28,6 +29,8 @@ use function Livewire\Volt\title;
 class PsiProductSupplier extends Component
 {
     use Actions;
+    #[Title('Stock Balance & Order')]
+
     #[Url(as: 'prod')]
     public $product_id;
 
@@ -525,31 +528,14 @@ class PsiProductSupplier extends Component
         $this->reset('psi_price_id', 'order_qty');
     }
 
+    //Stock Transfer
+
+
+
+
     public function render()
     {
         // Example of specifications array
-        $specifications = [
-            'Network' => [
-                'Technology' => 'GSM / HSPA / LTE / 5G'
-            ],
-            'Launch' => [
-                'Announced' => '2024, October 21',
-                'Status' => 'Available. Released 2024, October 24'
-            ],
-            'Body' => [
-                'Dimensions' => [
-                    'Unfolded' => '157.9 x 142.6 x 5.6 mm',
-                    'Folded' => '157.9 x 72.8 x 10.6 mm'
-                ],
-                'Weight' => '236 g (8.32 oz)',
-                'Build' => 'Glass front (Gorilla Glass Victus 2) (folded), plastic front (unfolded), glass back (Gorilla Glass Victus 2), aluminum frame',
-                'SIM' => 'Nano-SIM, eSIM or Dual eSIM',
-                'Water Resistance' => 'IP48 water resistant (up to 1.5m for 30 min)',
-            ],
-            'Display' => [
-                'Type' => 'Foldable Dynamic LTPO AMOLED 2X, 120Hz, HDR10+, 2600 nits (peak)'
-            ],
-        ];
 
 
         $productSuppliers = PsiSupplier::wherePsiProductId($this->product_id)->get();
@@ -582,25 +568,32 @@ class PsiProductSupplier extends Component
 
         $productLeadDay = ceil($productLeadDay->leadDay);
 
+        // show currently orders, not include transfered
         $psiOrders = PsiOrder::where('psi_status_id', '<', 10)
             ->where('branch_psi_product_id', '=', $branchPsiProductId->id)
             ->get();
 
+
+        //show product detail facts
         $productDetail = PsiProduct::findOrFail($this->product_id);
 
-        // $psiOrders = PsiOrder::all();
+        //show stock that available branch
+        $branchStock = PsiStock::select('psi_stocks.inventory_balance', 'branches.name', 'psi_stocks.id AS stock_id')
+            ->leftJoin('branch_psi_products', 'branch_psi_products.id', 'psi_stocks.branch_psi_product_id')
+            ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
+            ->where('branch_psi_products.psi_product_id', '=', $this->product_id)
+            ->get();
 
-        // dd($psiOrders);
-
+        // dd($branchStock);
 
         return view('livewire.order.psi.psi-product-supplier', [
             'product' => $productDetail,
             'productSuppliers' => $productSuppliers,
-            'specifications' => $specifications,
             'stockInfo' => $stockInfo,
             'lastFocus' => $lastFocus,
             'productLeadDay' => $productLeadDay,
             'psiOrders' => $psiOrders,
+            'branchStock' => $branchStock,
         ]);
     }
 }

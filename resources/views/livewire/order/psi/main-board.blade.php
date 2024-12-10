@@ -1,10 +1,4 @@
 <div>
-    <div class="flex gap-3 mb-4 flex-warp">
-
-    </div>
-
-
-
 
 
     <div class="flex flex-wrap gap-4">
@@ -81,7 +75,7 @@
                         placeholder="Search for items">
                 </div>
             </div>
-            <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
+            <table id="pageproducts" class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
                 <thead class="sticky top-0 bg-white">
                     <tr>
                         <th scope="col" class="px-16 py-3">
@@ -111,70 +105,10 @@
                         <tr
                             class="bg-white border-b odd:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                             <td class="p-4">
-                                <img class="w-32 max-w-full max-h-full md:w-32 cursor-help"
-                                    src="{{ asset('storage/' . $product->image) }}"
-                                    wire:click='initializeProductId({{ $product->id }})'
-                                    @click="$openModal('{{ $product->id }}')" />
-                                <x-modal.card title="{{ $product->shape }}" wire:model='{{ $product->id }}'>
-                                    <table>
-                                        <thead>
-                                            <tr class="p-1 border border-gray-300">
-                                                <th scope="col" class="px-6 py-3">
-                                                    Branch
-                                                </th>
-                                                <th scope="col" class="px-6 py-3">
-                                                    Focus
-                                                </th>
-                                                <th scope="col" class="px-6 py-3">
-                                                    Avg Sale
-                                                </th>
-                                                <th scope="col" class="px-6 py-3">
-                                                    Balance
-                                                </th>
-                                                <th scope="col" class="px-6 py-3">
-                                                    To Order Due Date
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="p-1 border border-gray-400">
-
-                                            @foreach ($productSummary as $data)
-                                                <tr
-                                                    class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
-
-                                                    <th scope="row"
-                                                        class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                                        {{ $data['branch_name'] }}</th>
-                                                    <td class="px-6 py-4">{{ $data['latest_focus_qty'] }}</td>
-                                                    <td class="px-6 py-4">{{ (int) $data['avg_sales'] }}</td>
-                                                    <td class="px-6 py-4">{{ $data['balance'] }}</td>
-                                                    <td class="px-6 py-4">
-                                                        {{ \Carbon\Carbon::parse($data['due_date'])->format('(D) d-M-Y') }}
-                                                    </td>
-
-                                                </tr>
-                                            @endforeach
-
-                                        </tbody>
-                                    </table>
-                                    <div>
-                                        <article
-                                            class="relative flex flex-col justify-end px-8 pt-4 pb-8 mx-auto mt-4 overflow-hidden h-96 hover:cursor-pointer isolate rounded-2xl">
-                                            <img class="absolute inset-0 object-cover w-full h-full max-w-xl rounded-lg"
-                                                src="{{ asset('storage/' . $product->image) }}" />
-                                            <div
-                                                class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40">
-                                            </div>
-                                            <h3 class="z-10 mt-3 text-xl font-bold text-white lg:text-3xl md:text-3xl">
-                                                {{ $product->weight }} <i class="hidden md:inline">g</i></h3>
-                                            <div class="z-10 overflow-hidden text-sm leading-6 text-gray-300 gap-y-1">
-                                                {{ $product->detail }}
-                                            </div>
-                                        </article>
-                                    </div>
-                                    {{-- <img src="{{ asset('storage/' . $product->image) }}"
-                                        class="mb-6 bg-white rounded-lg"> --}}
-                                </x-modal.card>
+                                <img wire:click='initializeProductId({{ $product->id }})'
+                                    class="w-32 max-w-full max-h-full md:w-32 cursor-help"
+                                    src="{{ asset('storage/' . $product->image) }}" {{-- wire:click="initializeProductId({{ $product->id }})" --}}
+                                    @click="$openModal('porductSummaryModal')" />
                             </td>
                             <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                                 {{ $product->shape }}
@@ -199,8 +133,7 @@
                                                 <div class="w-6 h-6 rounded-full"
                                                     style="background: {{ $product->{'color' . $branch->id} }}">
                                                 </div>
-                                                <span
-                                                    class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
+                                                <span class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
                                                 </span>
                                             @else
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-green-400"
@@ -232,7 +165,7 @@
 
                 </tbody>
             </table>
-            <div>{{ $products->links() }}</div>
+            <div>{{ $products->onEachSide(1)->links(data: ['scrollTo' => '#pageproducts']) }}</div>
             {{-- <div class="flex-1 overflow-x-auto overflow-y-auto">
                 <table class="w-full table-fixed">
                 </table>
@@ -242,6 +175,68 @@
 
 
 
+    <x-modal.card title="{{ $productSummary['detail'] }}" wire:model='porductSummaryModal'>
+        <div>
+            <table>
+                <thead>
+                    <tr class="p-1 border border-gray-300">
+                        <th scope="col" class="px-6 py-3">
+                            Branch
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Focus
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Avg Sale
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Balance
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            Remaining to Sale
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            To Order Due Date
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($productSummary['branches'] as $data)
+                        <tr
+                            class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                            <td class="px-6 py-3 uppercase">
+                                {{ $data['branch_name'] }}
+                            </td>
+                            @php
+                                $avg_sale = $data['avg_sales'] > 0 ? (int) $data['avg_sales'] : 1;
+                                $remaining_days = $data['balance'] / $avg_sale;
+                            @endphp
+                            <td class="px-6 py-4">{{ $data['latest_focus_qty'] }}</td>
+                            <td class="px-6 py-4">{{ (int) $data['avg_sales'] }}</td>
+                            <td class="px-6 py-4">{{ $data['balance'] }}</td>
+                            <td class="px-6 py-4">{{ (int) $remaining_days }} <small>days</small></td>
+
+                            <td class="px-6 py-4">
+                                {{ \Carbon\Carbon::parse($data['due_date'])->format('(D) d-M-Y') }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <article
+                class="relative flex flex-col justify-end px-8 pt-4 pb-8 mx-auto mt-4 overflow-hidden h-96 hover:cursor-pointer isolate rounded-2xl">
+                <img class="absolute inset-0 object-cover w-full h-full max-w-xl rounded-lg"
+                    src="{{ asset('storage/' . $productSummary['image']) }}" />
+                <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40">
+                </div>
+                <h3 class="z-10 mt-3 text-xl font-bold text-white lg:text-3xl md:text-3xl">
+                    {{ $productSummary['weight'] }} <i class="hidden md:inline">g</i></h3>
+                <div class="z-10 overflow-hidden text-sm leading-6 text-gray-300 gap-y-1">
+                    {{ $productSummary['detail'] }}
+                </div>
+            </article>
+        </div>
+    </x-modal.card>
 
 
 
@@ -399,4 +394,48 @@
             </tbody>
         </table>
     </x-modal.card>
+
+    {{-- <x-modal.card title="Product Summary" wire:model='porductSummaryModal'>
+        <table>
+            <thead>
+                <tr class="p-1 border border-gray-300">
+                    <th scope="col" class="px-6 py-3">
+                        Branch
+                    </th>
+                    <th scope="col" class="px-6 py-3">
+                        Focus
+                    </th>
+                    <th scope="col" class="px-6 py-3">
+                        Avg Sale
+                    </th>
+                    <th scope="col" class="px-6 py-3">
+                        Balance
+                    </th>
+                    <th scope="col" class="px-6 py-3">
+                        To Order Due Date
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="p-1 border border-gray-400">
+
+                @foreach ($productSummary as $data)
+                    <tr
+                        class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+
+                        <th scope="row"
+                            class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                            {{ $data['branch_name'] }}</th>
+                        <td class="px-6 py-4">{{ $data['latest_focus_qty'] }}</td>
+                        <td class="px-6 py-4">{{ (int) $data['avg_sales'] }}</td>
+                        <td class="px-6 py-4">{{ $data['balance'] }}</td>
+                        <td class="px-6 py-4">
+                            {{ \Carbon\Carbon::parse($data['due_date'])->format('(D) d-M-Y') }}
+                        </td>
+
+                    </tr>
+            </tbody>
+        </table>
+        @endforeach --}}
+
+    {{-- </x-modal.card> --}}
 </div>

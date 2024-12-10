@@ -7,7 +7,8 @@ function handleLivewireEvents(event) {
     });
 
     initFlowbite();
-    console.log("listener O");
+
+    console.log("listener from add.order");
     //weiht from add order blade
     const weight = document.getElementById("weight");
     //these two from supplier blade

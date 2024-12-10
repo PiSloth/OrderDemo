@@ -196,7 +196,56 @@
         </div>
     </div>
 
+    {{-- transfer to another branch --}}
+    {{-- <div class="p-3 border border-gray-300 rounded">
 
+        <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                    <th scope="col" class="px-6 py-3">
+                        Branch
+                    </th>
+                    <th scope="col" class="px-6 py-3">
+                        အရေအတွက်
+                    </th>
+                    <th scope="col" class="px-6 py-3">
+                        Action
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($branchStock as $data)
+                    <tr
+                        class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                        <th scope="row"
+                            class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                            {{ $data->name }}
+                        </th>
+                        <td class="px-6 py-4">
+                            {{ $data->inventory_balance }}
+                            <small><button class="px-2 py-1 ml-2 rounded bg-slate-200">Transfer to</button></small>
+                        </td>
+                        <td class="px-6 py-4">
+                            <select id="branch" class="px-4 py-1 uppercase rounded">
+                                <option>Select</option>
+                                @foreach ($branchStock as $branch)
+                                    <option value="{{ $branch->stock_id }}" class="uppercase">{{ $branch->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <input type="number" class="px-2 py-1 rounded bg-slate-50" placeholder="Qty" />
+                        </td>
+                        <td class="px-6 py-4">
+                            <x-button icon="save" green />
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+    </div> --}}
+
+    {{-- Order Histories --}}
     <div class="relative mb-8 overflow-x-auto shadow-md sm:rounded-lg">
         <h1 class="text-xl">လတ်တလော Order မှာယူထားသောစာရင်းများ</h1>
         <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
@@ -247,7 +296,6 @@
                 @empty
                     <tr>
                         <td colspan="5">
-
                             <center>There's no records yet</center>
                         </td>
                     </tr>

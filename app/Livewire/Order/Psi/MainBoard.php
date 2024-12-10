@@ -33,9 +33,16 @@ class MainBoard extends Component
         $this->branchId = $branchId;
     }
 
+    public function initialize($id)
+    {
+        dd("Clicked");
+    }
+
     public function initializeProductId($id)
     {
         $this->productIdFilter = $id;
+
+        // dd("$id");
     }
 
     public function propsToLink($pId, $bId)
@@ -201,6 +208,8 @@ class MainBoard extends Component
             ->leftJoin('real_sales as rs', 'bp.id', '=', 'rs.branch_psi_product_id') // Join with real_sales
             ->leftJoin('psi_stocks', 'bp.id', 'psi_stocks.branch_psi_product_id')
             ->leftJoin('reorder_points', 'reorder_points.psi_stock_id', 'psi_stocks.id')
+            ->leftJoin('product_photos as pp', 'pp.psi_product_id', '=', 'p.id')
+            ->leftJoin('shapes', 'shapes.id', 'p.shape_id')
             ->select(
                 'p.id as psi_product_id',
                 // 'p.name as psi_product_name',
@@ -210,16 +219,33 @@ class MainBoard extends Component
                 'psi_stocks.inventory_balance',
                 'reorder_points.reorder_due_date',
                 'fs_latest.qty as latest_focus_qty',
+                'pp.image',
+                'p.weight',
+                'shapes.name AS detail',
                 DB::raw('AVG(rs.qty) as avg_sale_qty'), // Average sale quantity for each branch_psi_product
                 // DB::raw('MONTH(rs.sale_date) as sale_month'), // Month of the sale for grouping
                 // DB::raw('YEAR(rs.sale_date) as sale_year') // Year of the sale for grouping
             )
-            ->groupBy('p.id', 'bp.id', 'branches.name', 'bp.branch_id', 'fs_latest.qty', 'psi_stocks.inventory_balance', 'reorder_points.reorder_due_date')
+            ->groupBy(
+                'p.id',
+                'bp.id',
+                'branches.name',
+                'bp.branch_id',
+                'fs_latest.qty',
+                'psi_stocks.inventory_balance',
+                'reorder_points.reorder_due_date',
+                'pp.image',
+                'p.weight',
+                'shapes.name',
+            )
             // ->groupBy('p.id', 'bp.id', 'rs.qty')
             ->get();
 
         $structuredData = $psiProducts->groupBy('psi_product_id')->map(function ($group) {
             return [
+                'image' => $group->max('image'),
+                'weight' => $group->max('weight'),
+                'detail' => $group->max('detail'),
                 'total_focus_quantity' => $group->sum('latest_focus_qty'), // Sum of latest focus quantities
                 'branches' => $group->map(function ($item) {
                     return [
@@ -230,6 +256,7 @@ class MainBoard extends Component
                         'avg_sales' => $item->avg_sale_qty,
                         'balance' => $item->inventory_balance,
                         'due_date' => $item->reorder_due_date,
+
                         // 'sale_month' => $item->sale_month,
                         // 'sale_year' => $item->sale_year,
                     ];
@@ -237,13 +264,21 @@ class MainBoard extends Component
                 'overall_avg_sale_qty' => $group->avg('avg_sale_qty') // Overall average sale for each psi product
             ];
         });
+        // dd($structuredData);
         // dd($structuredData[1]['branches']);
 
         if ($this->productIdFilter) {
-            $productSummary = $structuredData[$this->productIdFilter]['branches'];
+            $productSummary = $structuredData[$this->productIdFilter];
+            // dd($productSummary);
         } else {
-            $productSummary = [];
+            $productSummary = [
+                'weight' => 0,
+                'image' => 0,
+                'detail' => 'null',
+                'branches' => []
+            ];
         }
+        // dd($productSummary);
 
         return view('livewire.order.psi.main-board', [
             'products' => $producutWithEachBranch,
