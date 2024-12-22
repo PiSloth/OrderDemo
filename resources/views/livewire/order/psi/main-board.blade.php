@@ -1,6 +1,4 @@
 <div>
-
-
     <div class="flex flex-wrap gap-4">
         <x-button href="{{ route('psi_product') }}" label="new PSI Product" green icon="view-grid-add" wire:navigate />
 
@@ -49,10 +47,154 @@
             </x-dropdown>
         @endcan
 
-        {{-- Tempoary off --}}
         <x-button href="{{ route('daily_sale') }}" label="Daily Sale" wire:navigate />
     </div>
     {{-- End of Action button  --}}
+    {{-- Tempoary off --}}
+    <div class="my-4 hidden">
+        <div class="flex gap-2 text-blue-400 text-md flex-warp opacity-80">
+            @foreach ($selectedTag as $data)
+                <div class="flex gap-1 cursor-pointer group" wire:click="removeTag({{ $data['key'] }})">
+                    #
+                    <span class="group-hover:text-red-700">
+                        {{ $data['name'] }}
+                    </span>
+                    {{-- <x-icon name="x"
+                        class="hidden w-4 h-4 mt-1 text-red-400 border-gray-300 rounded group-hover:block hover:border hover:text-red-800" /> --}}
+                </div>
+            @endforeach
+        </div>
+    </div>
+    <div class="hidden">
+        <div class="w-48">
+            <x-select wire:model.live="filter_hashtag_id" placeholder="#hash-tag" :async-data="route('hashtag')" option-label="name"
+                option-value="id">
+                <x-slot name="afterOptions" class="flex justify-center p-2" x-show="displayOptions.length === 0">
+                    <x-button x-on:click='close' primary flat full>
+                        <span x-html="`<b>${search}</b> No found`"></span>
+                    </x-button>
+                </x-slot>
+            </x-select>
+        </div>
+        <div>
+            <x-button id="save" icon="save" wire:click='selectTag' />
+        </div>
+    </div>
+    {{-- ! tempoary off Hash Tag Filter  --}}
+
+    {{-- Showing Chart --}}
+    <div class="py-4">
+        {{-- <x-button icon="chart-bar" solid label="chart" /> --}}
+        {{-- chart sample --}}
+        @php
+            $total_branch_sale = 0;
+            foreach ($branch_sales as $sale) {
+                $total_branch_sale += $sale->total;
+            }
+        @endphp
+
+        <div class="max-w-sm w-full bg-white rounded-lg shadow dark:bg-gray-800 p-4 md:p-6">
+            <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center me-3">
+                        <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                            xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
+                            <path
+                                d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z" />
+                            <path
+                                d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h5 class="leading-none text-2xl font-bold text-gray-900 dark:text-white pb-1">
+                            {{ $total_branch_sale }}</h5>
+                        <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Total Sales over branches</p>
+                    </div>
+                </div>
+                <div class="hidden">
+                    <span
+                        class="bg-green-100 text-green-800 text-xs font-medium inline-flex items-center px-2.5 py-1 rounded-md dark:bg-green-900 dark:text-green-300">
+                        <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                            fill="none" viewBox="0 0 10 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 13V1m0 0L1 5m4-4 4 4" />
+                        </svg>
+                        42.5%
+                    </span>
+                </div>
+            </div>
+
+            {{-- <div class="grid grid-cols-2">
+                <dl class="flex items-center">
+                    <dt class="text-gray-500 dark:text-gray-400 text-sm font-normal me-1"></dt>
+                    <dd class="text-gray-900 text-sm dark:text-white font-semibold"></dd>
+                </dl>
+                <dl class="flex items-center justify-end">
+                    <dt class="text-gray-500 dark:text-gray-400 text-sm font-normal me-1">Conversion rate:</dt>
+                    <dd class="text-gray-900 text-sm dark:text-white font-semibold">1.2%</dd>
+                </dl>
+            </div> --}}
+
+            <div id="column-chart"></div>
+            {{-- <div class="grid grid-cols-1 items-center border-gray-200 border-t dark:border-gray-700 justify-between">
+                <div class="flex justify-between items-center pt-5">
+                    <!-- Button -->
+                    <button id="dropdownDefaultButton" data-dropdown-toggle="lastDaysdropdown"
+                        data-dropdown-placement="bottom"
+                        class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 text-center inline-flex items-center dark:hover:text-white"
+                        type="button">
+                        Last 7 days
+                        <svg class="w-2.5 m-2.5 ms-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                            fill="none" viewBox="0 0 10 6">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="m1 1 4 4 4-4" />
+                        </svg>
+                    </button>
+                    <!-- Dropdown menu -->
+                    <div id="lastDaysdropdown"
+                        class="z-10 hidden bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700">
+                        <ul class="py-2 text-sm text-gray-700 dark:text-gray-200"
+                            aria-labelledby="dropdownDefaultButton">
+                            <li>
+                                <a href="#"
+                                    class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Yesterday</a>
+                            </li>
+                            <li>
+                                <a href="#"
+                                    class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Today</a>
+                            </li>
+                            <li>
+                                <a href="#"
+                                    class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
+                                    7 days</a>
+                            </li>
+                            <li>
+                                <a href="#"
+                                    class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
+                                    30 days</a>
+                            </li>
+                            <li>
+                                <a href="#"
+                                    class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
+                                    90 days</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <a href="#"
+                        class="uppercase text-sm font-semibold inline-flex items-center rounded-lg text-blue-600 hover:text-blue-700 dark:hover:text-blue-500  hover:bg-gray-100 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700 px-3 py-2">
+                        Leads Report
+                        <svg class="w-2.5 h-2.5 ms-1.5 rtl:rotate-180" aria-hidden="true"
+                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="m1 9 4-4-4-4" />
+                        </svg>
+                    </a>
+                </div>
+            </div> --}}
+        </div>
+
+    </div>
 
     {{-- Sticky Table  --}}
     <div class="container mx-auto my-10 overflow-x-auto">
@@ -107,8 +249,8 @@
                             <td class="p-4">
                                 <img wire:click='initializeProductId({{ $product->id }})'
                                     class="w-32 max-w-full max-h-full md:w-32 cursor-help"
-                                    src="{{ asset('storage/' . $product->image) }}" {{-- wire:click="initializeProductId({{ $product->id }})" --}}
-                                    @click="$openModal('porductSummaryModal')" />
+                                    src="{{ asset('storage/' . $product->image) }}"
+                                    @click="$openModal('productSummaryModal')" />
                             </td>
                             <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                                 {{ $product->shape }}
@@ -133,7 +275,8 @@
                                                 <div class="w-6 h-6 rounded-full"
                                                     style="background: {{ $product->{'color' . $branch->id} }}">
                                                 </div>
-                                                <span class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
+                                                <span
+                                                    class="text-xs rounded ">{{ $product->{'status' . $branch->id} }}
                                                 </span>
                                             @else
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-green-400"
@@ -165,7 +308,7 @@
 
                 </tbody>
             </table>
-            <div>{{ $products->onEachSide(1)->links(data: ['scrollTo' => '#pageproducts']) }}</div>
+            {{-- <div>{{ $products->onEachSide(1)->links(data: ['scrollTo' => '#pageproducts']) }}</div> --}}
             {{-- <div class="flex-1 overflow-x-auto overflow-y-auto">
                 <table class="w-full table-fixed">
                 </table>
@@ -175,9 +318,31 @@
 
 
 
-    <x-modal.card title="{{ $productSummary['detail'] }}" wire:model='porductSummaryModal'>
-        <div>
-            <table>
+    <x-modal.card title="{{ $productSummary['detail'] }}" wire:model='productSummaryModal'>
+        {{-- <div class="flex gap-2 text-blue-400 text-md flex-warp opacity-80">
+            @foreach ($tags as $data)
+                <div class="flex gap-1 cursor-pointer group">#<span
+                        class="group-hover:text-blue-700">{{ $data->hashtag->name }}</span> <x-icon name="x"
+                        class="hidden w-4 h-4 mt-1 text-red-400 border-gray-300 rounded group-hover:block hover:border hover:text-red-800" />
+                </div>
+            @endforeach
+        </div> --}}
+        <div class="container mx-auto my-2 overflow-x-auto">
+            <div style="display: none" class="grid grid-cols-2 gap-2 my-2 bg-white dark:bg-gray-900">
+                <x-select wire:model.live="hashtag_id" placeholder="#hash-tag" :async-data="route('hashtag')" option-label="name"
+                    option-value="id">
+                    <x-slot name="afterOptions" class="flex justify-center p-2" x-show="displayOptions.length === 0">
+                        <x-button x-on:click='close' wire:click='createTag' primary flat full>
+                            <span x-html="`<b>${search}</b> ကို အသစ်ဖန်တီးမယ်`"></span>
+                        </x-button>
+                    </x-slot>
+                </x-select>
+                <div>
+                    <x-button id="save" icon="save" wire:click='addTagToProduct' />
+                </div>
+            </div>
+
+            <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
                 <thead>
                     <tr class="p-1 border border-gray-300">
                         <th scope="col" class="px-6 py-3">
@@ -208,7 +373,7 @@
                                 {{ $data['branch_name'] }}
                             </td>
                             @php
-                                $avg_sale = $data['avg_sales'] > 0 ? (int) $data['avg_sales'] : 1;
+                                $avg_sale = $data['avg_sales'] > 0 ? $data['avg_sales'] : 1;
                                 $remaining_days = $data['balance'] / $avg_sale;
                             @endphp
                             <td class="px-6 py-4">{{ $data['latest_focus_qty'] }}</td>
@@ -226,7 +391,7 @@
             <article
                 class="relative flex flex-col justify-end px-8 pt-4 pb-8 mx-auto mt-4 overflow-hidden h-96 hover:cursor-pointer isolate rounded-2xl">
                 <img class="absolute inset-0 object-cover w-full h-full max-w-xl rounded-lg"
-                    src="{{ asset('storage/' . $productSummary['image']) }}" />
+                    src="{{ asset('storage/' . $productSummary['image']) }}" alt="product photo" />
                 <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40">
                 </div>
                 <h3 class="z-10 mt-3 text-xl font-bold text-white lg:text-3xl md:text-3xl">
@@ -255,47 +420,7 @@
     </x-modal.card>
 
 
-    <x-modal.card title="Summary of Product" blur wire:model="productSummaryModal">
-        @foreach ($productSummary as $data)
-            <div class="flex">
-                <div>
-                    <div class="p-2 mb-4 border-2 border-gray-600 border-dotted rounded">
-                        <div class="grid grid-cols-2 gap-3">
-                            <span class="font-bold">Category</span>
-                            {{-- <span>{{ $product->category->name }}</span> --}}
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <span class="font-bold">Design</span>
-                            {{-- <span>{{ $product->design->name }}</span> --}}
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <span class="font-bold">Length</span>
-                            {{-- <span>{{ $product->length }} <i>{{ $product->uom->name }}</i></span> --}}
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <span class="font-bold">Weight</span>
-                            {{-- <span>{{ $product->weight }} <i>g</i></span> --}}
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <span class="font-bold">နည်းပညာ</span>
-                            {{-- <span>{{ $product->manufactureTechnique->name }}</span> --}}
-                        </div>
-                    </div>
-                    {{-- <span class="mt-2 font-semibold">{{ $product->shape->name }}</span> --}}
-                </div>
-            </div>
-        @endforeach
-        <x-slot name="footer">
-            <div class="flex justify-between gap-x-4">
-                <x-button flat negative label="Delete" wire:click="cancle" />
 
-                {{-- <div class="flex">
-                    <x-button flat label="Cancel" wire:click='cancle' x-on:click="close" />
-                    <x-button primary label="Save" wire:click="createBranchPsiProduct" />
-                </div> --}}
-            </div>
-        </x-slot>
-    </x-modal.card>
 
     {{-- Modal trigger form js  --}}
     <x-modal wire:model="defaultModal" blur>
@@ -439,3 +564,104 @@
 
     {{-- </x-modal.card> --}}
 </div>
+@section('script')
+    <script>
+        const saleData = JSON.parse('{!! addslashes($sales) !!}');
+
+        const data = Object.entries(saleData).map(([branch, total]) => ({
+            x: branch,
+            y: parseFloat(total)
+        }));
+
+        console.log(data);
+
+        const options = {
+            colors: ["#1A56DB", "#FDBA8C"],
+            series: [{
+                    name: "Sales",
+                    color: "#1A56DB",
+                    data: data,
+                },
+
+            ],
+            chart: {
+                type: "bar",
+                height: "320px",
+                fontFamily: "Inter, sans-serif",
+                toolbar: {
+                    show: false,
+                },
+            },
+            plotOptions: {
+                bar: {
+                    horizontal: false,
+                    columnWidth: "70%",
+                    borderRadiusApplication: "end",
+                    borderRadius: 8,
+                },
+            },
+            tooltip: {
+                shared: true,
+                intersect: false,
+                style: {
+                    fontFamily: "Inter, sans-serif",
+                },
+            },
+            states: {
+                hover: {
+                    filter: {
+                        type: "darken",
+                        value: 1,
+                    },
+                },
+            },
+            stroke: {
+                show: true,
+                width: 0,
+                colors: ["transparent"],
+            },
+            grid: {
+                show: false,
+                strokeDashArray: 4,
+                padding: {
+                    left: 2,
+                    right: 2,
+                    top: -14
+                },
+            },
+            dataLabels: {
+                enabled: false,
+            },
+            legend: {
+                show: false,
+            },
+            xaxis: {
+                floating: false,
+                labels: {
+                    show: true,
+                    style: {
+                        fontFamily: "Inter, sans-serif",
+                        cssClass: 'text-xs font-normal fill-gray-500 dark:fill-gray-400'
+                    }
+                },
+                axisBorder: {
+                    show: false,
+                },
+                axisTicks: {
+                    show: false,
+                },
+            },
+            yaxis: {
+                show: false,
+            },
+            fill: {
+                opacity: 1,
+            },
+        }
+
+        if (document.getElementById("column-chart") && typeof ApexCharts !== 'undefined') {
+            const chart = new ApexCharts(document.getElementById("column-chart"), options);
+            chart.render();
+        }
+    </script>
+@endsection

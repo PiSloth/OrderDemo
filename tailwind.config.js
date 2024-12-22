@@ -35,6 +35,8 @@ export default {
         forms,
         typography,
         require("@tailwindcss/aspect-ratio"),
-        require("flowbite/plugin"),
+        require("flowbite/plugin")({
+            charts: true,
+        }),
     ],
 };

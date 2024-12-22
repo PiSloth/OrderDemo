@@ -4,10 +4,13 @@ namespace App\Livewire\Order\Psi;
 
 use App\Models\Branch;
 use App\Models\BranchPsiProduct;
+use App\Models\Hashtag;
 use App\Models\PhotoShooting;
+use App\Models\ProductHashtag;
 use App\Models\PsiOrder;
 use App\Models\PsiProduct;
 use App\Models\PsiStock;
+use App\Models\RealSale;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -26,6 +29,11 @@ class MainBoard extends Component
     public $branchPsiProductId;
     public $shape_detail;
     public $productIdFilter;
+    public $selectedTag = []; // Holds selected Tag IDs
+    public $selectedTagNames = []; // Holds selected category names
+    public $xSelectInput; //wireui selection input
+    public $hashtag_id;
+    public $filter_hashtag_id;
 
     public function setBranchPsiProduct($productId, $branchId)
     {
@@ -33,11 +41,87 @@ class MainBoard extends Component
         $this->branchId = $branchId;
     }
 
-    public function initialize($id)
+    //filter with tags
+    public function selectTag()
     {
-        dd("Clicked");
+        $this->validate([
+            'filter_hashtag_id' => 'required'
+        ]);
+
+        $query = Hashtag::findOrFail($this->filter_hashtag_id);
+
+        if (! in_array($this->filter_hashtag_id, array_column($this->selectedTag, 'key'))) {
+            $this->selectedTag[] = [
+                'key' => $this->filter_hashtag_id,
+                'name' => $query->name
+            ];
+        } else {
+            $this->notification([
+                'title' => 'Alerady added!',
+                'description' => 'filter added to this.',
+                'icon' => 'success'
+            ]);
+        }
+
+        $this->reset('filter_hashtag_id');
     }
 
+    //remove filter hashtag form array
+    public function removeTag($key)
+    {
+        // Filter out the tag with the specified key
+        $this->selectedTag = array_filter($this->selectedTag, function ($tag) use ($key) {
+            return $tag['key'] !== $key;
+        });
+
+        // Reindex the array to maintain numeric indexes
+        $this->selectedTag = array_values($this->selectedTag);
+    }
+
+    //hashtag create
+    public function createTag()
+    {
+        $this->validate([
+            'xSelectInput' => 'required',
+        ]);
+
+        Hashtag::create([
+            'name' => $this->xSelectInput,
+        ]);
+
+
+        $this->notification([
+            'title' => $this->xSelectInput . ' created!',
+            'description' => 'A new tagname have successfully created.',
+            'icon' => 'success'
+        ]);
+        $this->reset('xSelectInput');
+    }
+
+    //add tag to product
+    public function addTagToProduct()
+    {
+        $this->validate([
+            'hashtag_id' => 'required',
+            'productIdFilter' => 'required'
+        ]);
+
+        ProductHashtag::create([
+            'hashtag_id' => $this->hashtag_id,
+            'psi_product_id' => $this->productIdFilter,
+            'user_id' => auth()->user()->id,
+        ]);
+
+        $this->reset('hashtag_id');
+        $this->notification([
+            'title' => 'Added',
+            'description' => 'Newly added to product ',
+            'icon' => 'success'
+        ]);
+    }
+
+
+    //initialize product id to show in modal
     public function initializeProductId($id)
     {
         $this->productIdFilter = $id;
@@ -148,6 +232,7 @@ class MainBoard extends Component
                     'shapes.name as shape',
                     'uoms.name as uom',
                     'product_photos.image AS image',
+                    // 'product_hashtags.id AS pHT',
                     DB::raw('SUM(real_sales.qty) AS total_sale'),
 
                 ],
@@ -162,6 +247,7 @@ class MainBoard extends Component
             ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
             ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
             ->where('shapes.name', 'like', '%' . $this->shape_detail . '%')
+
             ->orderBy('total_sale', 'desc')
             ->groupBy(
                 'psi_products.id',
@@ -169,12 +255,15 @@ class MainBoard extends Component
                 'psi_products.weight',
                 'psi_products.length',
                 'uoms.name',
-                'product_photos.image'
+                'product_photos.image',
+                // 'product_hashtags.id',
             )
-            ->paginate(5);
-        // ->get();
 
-        // dd($producutWithEachBranch);
+            // ->paginate(5);
+            ->get();
+
+        // dump($producutWithEachBranch);
+        // dump($this->selectedTag);
 
 
         if ($this->props_to_link == true) {
@@ -210,6 +299,11 @@ class MainBoard extends Component
             ->leftJoin('reorder_points', 'reorder_points.psi_stock_id', 'psi_stocks.id')
             ->leftJoin('product_photos as pp', 'pp.psi_product_id', '=', 'p.id')
             ->leftJoin('shapes', 'shapes.id', 'p.shape_id')
+            // ->leftJoin('product_hashtags', 'product_hashtags.psi_product_id', 'psi_products.id')
+            // ->when($this->selectedTag, function ($query) {
+            //     $keys = array_column($this->selectedTag, 'key');
+            //     $query->whereIn('product_hashtags.id', $keys);
+            // })
             ->select(
                 'p.id as psi_product_id',
                 // 'p.name as psi_product_name',
@@ -264,21 +358,38 @@ class MainBoard extends Component
                 'overall_avg_sale_qty' => $group->avg('avg_sale_qty') // Overall average sale for each psi product
             ];
         });
+
         // dd($structuredData);
         // dd($structuredData[1]['branches']);
 
         if ($this->productIdFilter) {
             $productSummary = $structuredData[$this->productIdFilter];
-            // dd($productSummary);
+            // $hashtags = ProductHashtag::wherePsiProductId($this->productIdFilter)
+            //     ->get();
+            // dd($hashtags);
         } else {
             $productSummary = [
                 'weight' => 0,
                 'image' => 0,
-                'detail' => 'null',
+                'detail' => 'loading...',
                 'branches' => []
             ];
+            // $hashtags = [];
         }
-        // dd($productSummary);
+
+        $branch_sales = RealSale::select('branches.name', DB::raw('SUM(real_sales.qty) AS total'))
+            ->leftJoin('branch_psi_products as bpp', 'bpp.id', 'real_sales.branch_psi_product_id')
+            ->leftJoin('branches', 'branches.id', 'bpp.branch_id')
+            ->groupBy('branches.name')
+            ->get();
+
+        $data = $branch_sales->pluck('total', 'name')->all();
+
+        $data = json_encode($data);
+
+
+
+        // dd($data);
 
         return view('livewire.order.psi.main-board', [
             'products' => $producutWithEachBranch,
@@ -287,6 +398,9 @@ class MainBoard extends Component
             'psiOrders' => $orders,
             'jobs4Dm' => $jobs,
             'jobs4Br' => $jobsBr,
+            'sales' => $data,
+            'branch_sales' => $branch_sales,
+            // 'tags' => $hashtags,
         ]);
     }
 }

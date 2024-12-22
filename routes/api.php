@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Designs;
+use App\Http\Controllers\Api\Psi\HashTagController;
 use App\Http\Controllers\Api\Qualities;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\DesignController;
@@ -28,3 +29,4 @@ Route::get('/designs', Designs\Index::class)->name('designs.index');
 Route::get('/qualities', Qualities\Index::class)->name('qualities.index');
 Route::get('/suppliers', SupplierController::class)->name('suppliers');
 Route::get('/shapes', ShapeController::class)->name('psi.shapes');
+Route::get('/hashtags', HashTagController::class)->name('hashtag');

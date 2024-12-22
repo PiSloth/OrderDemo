@@ -10,4 +10,9 @@ class ProductHashtag extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    public function hashtag()
+    {
+        return $this->belongsTo(Hashtag::class);
+    }
 }
