@@ -22,7 +22,7 @@ class SaleAndRepurchase extends Component
     public $update_number;
     public $edit_id;
     public $branch_id = '';
-    private $duration_filter = 0;
+    private $duration_filter = 30;
 
     public function mount()
     {
@@ -227,6 +227,7 @@ class SaleAndRepurchase extends Component
             "#00000A",
             // Add more types and their colors if needed
         ];
+
         $index = 0;
         foreach ($all_data as $record) {
             $type = $record->type;
@@ -236,12 +237,12 @@ class SaleAndRepurchase extends Component
                 $chartData[$type] = [
                     "name" => $type,
                     "data" => [],
-                    "color" => $colors[$index] ?? "#000000", // Default color if not in $colors
+                    "color" => $colors[$index], // Default color if not in $colors
                 ];
+                $index++;
             }
 
             $chartData[$type]["data"][] = round($total, 2); // Ensure numeric values
-            $index++;
         }
 
         $all_reports = json_encode($chartData);
