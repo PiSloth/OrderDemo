@@ -28,7 +28,12 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('isAGM', function (User $user) {
-            return $user->position->name == "AGM";
+
+
+            $authorizedUsers = ["Super Admin", "AGM"];
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
         });
 
         Gate::define('isSupplierDataApprover', function (User $user) {

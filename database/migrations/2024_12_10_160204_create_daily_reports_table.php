@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('daily_reports', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->string('description');
+            $table->boolean('suspended')->default(false);
             $table->timestamps();
         });
     }

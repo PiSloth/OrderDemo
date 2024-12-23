@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CustomLogout;
+use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
 use App\Livewire\ManufactureCost;
 use App\Livewire\Orders\Config;
@@ -89,6 +90,10 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/shooting', PhotoShooting::class)->name('shooting');
     Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
     Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
+});
+
+Route::middleware(['auth'])->prefix('report')->group(function () {
+    Route::get('/sale-repurchase', SaleAndRepurchase::class)->name('sale_repurchase');
 });
 
 Route::middleware(['can:isAuthorized'])->group(function () {

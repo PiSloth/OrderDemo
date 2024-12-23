@@ -51,7 +51,7 @@
     </div>
     {{-- End of Action button  --}}
     {{-- Tempoary off --}}
-    <div class="my-4 hidden">
+    <div class="hidden my-4">
         <div class="flex gap-2 text-blue-400 text-md flex-warp opacity-80">
             @foreach ($selectedTag as $data)
                 <div class="flex gap-1 cursor-pointer group" wire:click="removeTag({{ $data['key'] }})">
@@ -93,11 +93,11 @@
             }
         @endphp
 
-        <div class="max-w-sm w-full bg-white rounded-lg shadow dark:bg-gray-800 p-4 md:p-6">
+        <div class="w-full max-w-sm p-4 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
             <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex items-center">
                     <div
-                        class="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center me-3">
+                        class="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg dark:bg-gray-700 me-3">
                         <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" aria-hidden="true"
                             xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
                             <path
@@ -107,7 +107,7 @@
                         </svg>
                     </div>
                     <div>
-                        <h5 class="leading-none text-2xl font-bold text-gray-900 dark:text-white pb-1">
+                        <h5 class="pb-1 text-2xl font-bold leading-none text-gray-900 dark:text-white">
                             {{ $total_branch_sale }}</h5>
                         <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Total Sales over branches</p>
                     </div>
@@ -127,22 +127,22 @@
 
             {{-- <div class="grid grid-cols-2">
                 <dl class="flex items-center">
-                    <dt class="text-gray-500 dark:text-gray-400 text-sm font-normal me-1"></dt>
-                    <dd class="text-gray-900 text-sm dark:text-white font-semibold"></dd>
+                    <dt class="text-sm font-normal text-gray-500 dark:text-gray-400 me-1"></dt>
+                    <dd class="text-sm font-semibold text-gray-900 dark:text-white"></dd>
                 </dl>
                 <dl class="flex items-center justify-end">
-                    <dt class="text-gray-500 dark:text-gray-400 text-sm font-normal me-1">Conversion rate:</dt>
-                    <dd class="text-gray-900 text-sm dark:text-white font-semibold">1.2%</dd>
+                    <dt class="text-sm font-normal text-gray-500 dark:text-gray-400 me-1">Conversion rate:</dt>
+                    <dd class="text-sm font-semibold text-gray-900 dark:text-white">1.2%</dd>
                 </dl>
             </div> --}}
 
             <div id="column-chart"></div>
-            {{-- <div class="grid grid-cols-1 items-center border-gray-200 border-t dark:border-gray-700 justify-between">
-                <div class="flex justify-between items-center pt-5">
+            <div class="grid items-center justify-between grid-cols-1 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between pt-5">
                     <!-- Button -->
                     <button id="dropdownDefaultButton" data-dropdown-toggle="lastDaysdropdown"
                         data-dropdown-placement="bottom"
-                        class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 text-center inline-flex items-center dark:hover:text-white"
+                        class="inline-flex items-center text-sm font-medium text-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                         type="button">
                         Last 7 days
                         <svg class="w-2.5 m-2.5 ms-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
@@ -157,41 +157,41 @@
                         <ul class="py-2 text-sm text-gray-700 dark:text-gray-200"
                             aria-labelledby="dropdownDefaultButton">
                             <li>
-                                <a href="#"
+                                <a href="#" wire:click='durationFilter(1)'
                                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Yesterday</a>
                             </li>
                             <li>
-                                <a href="#"
+                                <a href="#" wire:click='durationFilter(0)'
                                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Today</a>
                             </li>
                             <li>
-                                <a href="#"
+                                <a href="#" wire:click='durationFilter(7)'
                                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
                                     7 days</a>
                             </li>
                             <li>
-                                <a href="#"
+                                <a href="#" wire:click='durationFilter(30)'
                                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
                                     30 days</a>
                             </li>
                             <li>
-                                <a href="#"
+                                <a href="#" wire:click='durationFilter(90)'
                                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
                                     90 days</a>
                             </li>
                         </ul>
                     </div>
-                    <a href="#"
-                        class="uppercase text-sm font-semibold inline-flex items-center rounded-lg text-blue-600 hover:text-blue-700 dark:hover:text-blue-500  hover:bg-gray-100 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700 px-3 py-2">
+                    {{-- <a href="#"
+                        class="inline-flex items-center px-3 py-2 text-sm font-semibold text-blue-600 uppercase rounded-lg hover:text-blue-700 dark:hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700">
                         Leads Report
                         <svg class="w-2.5 h-2.5 ms-1.5 rtl:rotate-180" aria-hidden="true"
                             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                 stroke-width="2" d="m1 9 4-4-4-4" />
                         </svg>
-                    </a>
+                    </a> --}}
                 </div>
-            </div> --}}
+            </div>
         </div>
 
     </div>
@@ -208,8 +208,8 @@
                     <div class="absolute inset-y-0 flex items-center pointer-events-none rtl:inset-r-0 start-0 ps-3">
                         <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true"
                             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
                         </svg>
                     </div>
                     <input type="text" wire:model.live="shape_detail" id="table-search"
@@ -217,7 +217,8 @@
                         placeholder="Search for items">
                 </div>
             </div>
-            <table id="pageproducts" class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
+            <table id="pageproducts"
+                class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
                 <thead class="sticky top-0 bg-white">
                     <tr>
                         <th scope="col" class="px-16 py-3">

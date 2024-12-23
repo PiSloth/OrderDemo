@@ -11,6 +11,7 @@ use App\Models\PsiOrder;
 use App\Models\PsiProduct;
 use App\Models\PsiStock;
 use App\Models\RealSale;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -34,6 +35,7 @@ class MainBoard extends Component
     public $xSelectInput; //wireui selection input
     public $hashtag_id;
     public $filter_hashtag_id;
+    private $duration_filter;
 
     public function setBranchPsiProduct($productId, $branchId)
     {
@@ -191,9 +193,16 @@ class MainBoard extends Component
         ]);
     }
 
+    public function durationFilter($time)
+    {
+        $this->duration_filter = Carbon::now()->subDay($time)->format('Y-m-d');
+
+        // dd($this->duration_filter);
+    }
 
     public function render()
     {
+        // dd(Carbon::now()->format('Y-m-d'));
         // $select = ['psi_products.id', 'shapes.name AS shape', 'psi_products.length', 'uoms.name AS uom', 'psi_products.weight', 'product_photos.image'];
         $branches = Branch::all();
 
@@ -380,6 +389,12 @@ class MainBoard extends Component
         $branch_sales = RealSale::select('branches.name', DB::raw('SUM(real_sales.qty) AS total'))
             ->leftJoin('branch_psi_products as bpp', 'bpp.id', 'real_sales.branch_psi_product_id')
             ->leftJoin('branches', 'branches.id', 'bpp.branch_id')
+            ->when($this->duration_filter, function ($query) {
+                return $query->where('real_sales.created_at', '>=', $this->duration_filter);
+            })
+            ->when(! $this->duration_filter, function ($query) {
+                return $query->where('real_sales.created_at', '>=', Carbon::now()->subDay(7)->format('Y-m-d'));
+            })
             ->groupBy('branches.name')
             ->get();
 

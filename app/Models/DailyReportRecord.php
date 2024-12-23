@@ -10,4 +10,9 @@ class DailyReportRecord extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    public function dailyReport()
+    {
+        return $this->belongsTo(DailyReport::class);
+    }
 }
