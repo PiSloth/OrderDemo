@@ -65,46 +65,14 @@
         <div class="grid items-center justify-between grid-cols-1 border-t border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between pt-5">
                 <!-- Button -->
-                <button id="dropdownDefaultButton" data-dropdown-toggle="lastDaysdropdown"
-                    data-dropdown-placement="bottom"
-                    class="inline-flex items-center text-sm font-medium text-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                    type="button">
-                    Last 7 days
-                    <svg class="w-2.5 m-2.5 ms-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
-                        viewBox="0 0 10 6">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="m1 1 4 4 4-4" />
-                    </svg>
-                </button>
-                <!-- Dropdown menu -->
-                <div id="lastDaysdropdown"
-                    class="z-10 hidden bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700">
-                    <ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownDefaultButton">
-                        <li>
-                            <a href="#" wire:click='durationFilter(1)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Yesterday</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(0)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Today</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(7)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
-                                7 days</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(30)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
-                                30 days</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(90)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
-                                90 days</a>
-                        </li>
-                    </ul>
-                </div>
+                <select wire:model.live='duration_filter'>
+                    <option value="0">Today</option>
+                    <option value="1">yesterday</option>
+                    <option value="7">7 days</option>
+                    <option value="30">30 days</option>
+                    <option value="60">60 days</option>
+                    <option value="90">90 days</option>
+                </select>
                 {{-- <a href="#"
                     class="inline-flex items-center px-3 py-2 text-sm font-semibold text-blue-600 uppercase rounded-lg hover:text-blue-700 dark:hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700">
                     Leads Report
@@ -148,81 +116,11 @@
                 </span>
             </div>
         </div>
-
-        {{-- <div class="grid grid-cols-2">
-            <dl class="flex items-center">
-                <dt class="text-sm font-normal text-gray-500 dark:text-gray-400 me-1"></dt>
-                <dd class="text-sm font-semibold text-gray-900 dark:text-white"></dd>
-            </dl>
-            <dl class="flex items-center justify-end">
-                <dt class="text-sm font-normal text-gray-500 dark:text-gray-400 me-1">Conversion rate:</dt>
-                <dd class="text-sm font-semibold text-gray-900 dark:text-white">1.2%</dd>
-            </dl>
-        </div> --}}
-
         <div id="data-series-chart"></div>
-        {{-- <div class="grid items-center justify-between grid-cols-1 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between pt-5">
-                <!-- Button -->
-                <button id="dropdownDefaultButton" data-dropdown-toggle="lastDaysdropdown"
-                    data-dropdown-placement="bottom"
-                    class="inline-flex items-center text-sm font-medium text-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                    type="button">
-                    Last 7 days
-                    <svg class="w-2.5 m-2.5 ms-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
-                        viewBox="0 0 10 6">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="m1 1 4 4 4-4" />
-                    </svg>
-                </button>
-                <!-- Dropdown menu -->
-                <div id="lastDaysdropdown"
-                    class="z-10 hidden bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700">
-                    <ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownDefaultButton">
-                        <li>
-                            <a href="#" wire:click='durationFilter(1)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Yesterday</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(0)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Today</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(7)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
-                                7 days</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(30)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
-                                30 days</a>
-                        </li>
-                        <li>
-                            <a href="#" wire:click='durationFilter(90)'
-                                class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Last
-                                90 days</a>
-                        </li>
-                    </ul>
-                </div>
-                {{-- <a href="#"
-                    class="inline-flex items-center px-3 py-2 text-sm font-semibold text-blue-600 uppercase rounded-lg hover:text-blue-700 dark:hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700">
-                    Leads Report
-                    <svg class="w-2.5 h-2.5 ms-1.5 rtl:rotate-180" aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                            stroke-width="2" d="m1 9 4-4-4-4" />
-                    </svg>
-                </a> -
-            </div>
-        </div> --}}
     </div>
     {{-- Create a Report --}}
     <x-modal.card title="New Report" wire:model='addReportModal'>
-        <div x-data="{
-            open: false,
-        }">
-            {{-- <x-datetime-picker label="Report Date" placeholder="choose a date" parse-format="YYYY-MM-DD HH:mm"
-                wire:model.live="report_date" without-time=true /> --}}
+        <div>
             <input type="date" wire:model.live='report_date' />
             @can('isAGM')
                 <select wire:model.live='branch_id'>
@@ -258,8 +156,7 @@
                                     </td>
                                 @else
                                     <td class="px-4 py-2">
-                                        <a href="#" wire:click='edit({{ $entry->id }})'
-                                            @click="open=!open">{{ __('Edit') }}</a>
+                                        <a href="#" wire:click='edit({{ $entry->id }})'>{{ __('Edit') }}</a>
                                     </td>
                                 @endif
                             </tr>
@@ -426,6 +323,7 @@
         // data series chart
 
         const all_reports = JSON.parse('{!! addslashes($all_reports) !!}');
+        const all_reports_categories = JSON.parse('{!! addslashes($categories) !!}')
 
         const pureReports = Object.values(all_reports)
 
@@ -479,9 +377,7 @@
                 },
             },
             xaxis: {
-                categories: ['01 February', '02 February', '03 February', '04 February', '05 February', '06 February',
-                    '07 February'
-                ],
+                categories: all_reports_categories,
                 labels: {
                     show: false,
                 },
