@@ -33,7 +33,7 @@
                 </div>
                 <div>
                     <h5 class="pb-1 text-2xl font-bold leading-none text-gray-900 dark:text-white">
-                        __{{ '100' }}</h5>
+                        {{ 'Last 30 Days' }}</h5>
                     <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Limited showing data</p>
                 </div>
             </div>
@@ -86,6 +86,7 @@
         </div>
     </div>
 
+    {{-- overall report types chart --}}
     <div class="w-full p-4 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
         <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center">
@@ -118,6 +119,53 @@
         </div>
         <div id="data-series-chart"></div>
     </div>
+
+    {{-- Each branch daily index --}}
+    <div class="w-full p-4 mt-8 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
+        <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg dark:bg-gray-700 me-3">
+                    <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
+                        <path
+                            d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z" />
+                        <path
+                            d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z" />
+                    </svg>
+                </div>
+                <div>
+                    <h5 class="pb-1 text-2xl font-bold leading-none text-gray-900 dark:text-white">
+                        {{ $branchOverIndex }}</h5>
+                    <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Total of indexs</p>
+                </div>
+            </div>
+            <div>
+                @if ($index_score >= 0)
+                    <span
+                        class="bg-green-100 text-green-800 text-xs font-medium inline-flex items-center px-2.5 py-1 rounded-md dark:bg-green-900 dark:text-green-300">
+                        <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                            fill="none" viewBox="0 0 10 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 13V1m0 0L1 5m4-4 4 4" />
+                        </svg>
+                        {{ $index_score }}
+                    </span>
+                @else
+                    <span
+                        class="bg-red-100 text-red-800 text-xs font-medium inline-flex items-center px-2.5 py-1 rounded-md dark:bg-green-900 dark:text-green-300">
+                        <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                            fill="none" viewBox="0 0 10 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 1v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                        {{ $index_score }}
+                    </span>
+                @endif
+            </div>
+        </div>
+        <div id="each_branch_index_data-series-chart"></div>
+    </div>
+
     {{-- Create a Report --}}
     <x-modal.card title="New Report" wire:model='addReportModal'>
         <div>
@@ -156,7 +204,8 @@
                                     </td>
                                 @else
                                     <td class="px-4 py-2">
-                                        <a href="#" wire:click='edit({{ $entry->id }})'>{{ __('Edit') }}</a>
+                                        <a href="#"
+                                            wire:click='edit({{ $entry->id }})'>{{ __('Edit') }}</a>
                                     </td>
                                 @endif
                             </tr>
@@ -220,7 +269,9 @@
         // console.log(series);
 
         const options = {
-            colors: ["#1A56DB", "#FDBA8C", "#81B622",
+            colors: ["#1A56DB",
+                "#FDBA8C",
+                "#81B622",
                 "#0077B6",
                 "#FFAEBC",
                 "#A0E7E5",
@@ -400,6 +451,89 @@
 
         if (document.getElementById("data-series-chart") && typeof ApexCharts !== 'undefined') {
             const chart = new ApexCharts(document.getElementById("data-series-chart"), options3);
+            chart.render();
+        }
+
+
+        // each_branch_index_data-series
+
+        const index_data = JSON.parse('{!! addslashes($index_data) !!}');
+        const pureIndexData = Object.values(index_data);
+
+
+        const options_index = {
+            // add data series via arrays, learn more here: https://apexcharts.com/docs/series/
+            series: pureIndexData,
+
+            chart: {
+                height: "100%",
+                maxWidth: "100%",
+                type: "area",
+                fontFamily: "Inter, sans-serif",
+                dropShadow: {
+                    enabled: false,
+                },
+                toolbar: {
+                    show: false,
+                },
+            },
+            tooltip: {
+                enabled: true,
+                x: {
+                    show: false,
+                },
+            },
+            legend: {
+                show: false
+            },
+            fill: {
+                type: "gradient",
+                gradient: {
+                    opacityFrom: 0.55,
+                    opacityTo: 0,
+                    shade: "#1C64F2",
+                    gradientToColors: ["#1C64F2"],
+                },
+            },
+            dataLabels: {
+                enabled: false,
+            },
+            stroke: {
+                width: 6,
+            },
+            grid: {
+                show: false,
+                strokeDashArray: 4,
+                padding: {
+                    left: 2,
+                    right: 2,
+                    top: 0
+                },
+            },
+            xaxis: {
+                categories: all_reports_categories,
+                labels: {
+                    show: false,
+                },
+                axisBorder: {
+                    show: false,
+                },
+                axisTicks: {
+                    show: false,
+                },
+            },
+            yaxis: {
+                show: false,
+                labels: {
+                    formatter: function(value) {
+                        return '$' + value;
+                    }
+                }
+            },
+        }
+
+        if (document.getElementById("each_branch_index_data-series-chart") && typeof ApexCharts !== 'undefined') {
+            const chart = new ApexCharts(document.getElementById("each_branch_index_data-series-chart"), options_index);
             chart.render();
         }
     </script>

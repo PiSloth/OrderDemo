@@ -5,9 +5,11 @@ namespace App\Livewire\BranchReport;
 use App\Models\Branch;
 use App\Models\DailyReport;
 use App\Models\DailyReportRecord;
+use App\Models\RealSale;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 use WireUi\Traits\Actions;
 
 use function PHPSTORM_META\map;
@@ -23,6 +25,8 @@ class SaleAndRepurchase extends Component
     public $edit_id;
     public $branch_id = '';
     private $duration_filter = 30;
+    public $branchOverIndex = 0;
+    public $index_score;
 
     public function mount()
     {
@@ -245,8 +249,95 @@ class SaleAndRepurchase extends Component
             $chartData[$type]["data"][] = round($total, 2); // Ensure numeric values
         }
 
+        $indexYesterday =  DailyReportRecord::select(
+            'branches.name AS branch',
+            DB::raw(
+                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
+                SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number  ELSE 0 END) AS total_quantity'
+            )
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where('daily_report_records.report_date', '=', Carbon::now()->subDay(1)->format('Y-m-d'))
+            ->groupBy('branches.name', 'daily_report_records.report_date')
+            ->get();
+
+        $indexToday =  DailyReportRecord::select(
+            'branches.name AS branch',
+            DB::raw(
+                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
+                    SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number  ELSE 0 END) AS total_quantity'
+            )
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where('daily_report_records.report_date', '=', Carbon::now()->format('Y-m-d'))
+            ->groupBy('branches.name', 'daily_report_records.report_date')
+            ->get();
+
+        $todayIndex = 0;
+        $yseterdayIndex = 0;
+
+        foreach ($indexToday as $index) {
+            $totalToday = round(($index->total_gram * 0.6) + ($index->total_quantity * 0.4), 2);
+            $todayIndex += $totalToday;
+        }
+
+        foreach ($indexYesterday as $index) {
+            $totalYesterday = round(($index->total_gram * 0.6) + ($index->total_quantity * 0.4), 2);
+            $yseterdayIndex += $totalYesterday;
+        }
+
+        if ($todayIndex == 0) {
+            $this->index_score = 0;
+        } else {
+            $this->index_score = $todayIndex - $yseterdayIndex;
+        }
+        // dump($todayIndex);
+        // dump($yseterdayIndex);
+
+
+        //index data to chart series line
+        $indexQuery =  DailyReportRecord::select(
+            'branches.name AS branch',
+            DB::raw(
+                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
+                SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number  ELSE 0 END) AS total_quantity'
+            )
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->groupBy('branches.name', 'daily_report_records.report_date')
+            ->get();
+
+        $indexReformed = [];
+
+        $indexCount = 0;
+
+        foreach ($indexQuery as $index) {
+            $key = $index->branch;
+            $toIndex = ($index->total_gram * 0.6) + ($index->total_quantity * 0.4);
+
+            if (!isset($indexReformed[$key])) {
+                $indexReformed[$key] = [];
+                if (!isset($indexReformed[$key][$colors[$indexCount]])) {
+                    $indexReformed[$key]['name'] = $key;
+                    $indexReformed[$key]['color'] = $colors[$indexCount];
+                    $indexReformed[$key]['data'] = [];
+                }
+                // $indexReformed[$key] = $colors[$indexCount];
+            }
+            $indexReformed[$key]['data'][] = round($toIndex, 2);
+            $this->branchOverIndex += round($toIndex, 2);
+        }
+
+        $indexCount++;
+
+        // dd($indexReformed);
+
         $all_reports = json_encode($chartData);
         $mergeCategory = json_encode($mergeCategory);
+        $indexData = json_encode($indexReformed);
 
         return view('livewire.branch-report.sale-and-repurchase', [
             'daily_entries' => $daily_entries,
@@ -255,6 +346,7 @@ class SaleAndRepurchase extends Component
             'branches' => Branch::all(),
             'types' => DailyReport::all(),
             'categories' => $mergeCategory,
+            'index_data' => $indexData,
         ]);
     }
 }
