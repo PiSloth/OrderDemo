@@ -459,6 +459,7 @@
 
         const index_data = JSON.parse('{!! addslashes($index_data) !!}');
         const pureIndexData = Object.values(index_data);
+        const indexDate = JSON.parse('{!! addslashes($index_date) !!}')
 
 
         const options_index = {
@@ -511,7 +512,7 @@
                 },
             },
             xaxis: {
-                categories: all_reports_categories,
+                categories: indexDate,
                 labels: {
                     show: false,
                 },

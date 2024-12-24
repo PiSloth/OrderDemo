@@ -300,6 +300,7 @@ class SaleAndRepurchase extends Component
         //index data to chart series line
         $indexQuery =  DailyReportRecord::select(
             'branches.name AS branch',
+            'daily_report_records.report_date',
             DB::raw(
                 'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
                 SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number  ELSE 0 END) AS total_quantity'
@@ -324,6 +325,7 @@ class SaleAndRepurchase extends Component
                     $indexReformed[$key]['name'] = $key;
                     $indexReformed[$key]['color'] = $colors[$indexCount];
                     $indexReformed[$key]['data'] = [];
+                    $indexCount++;
                 }
                 // $indexReformed[$key] = $colors[$indexCount];
             }
@@ -331,13 +333,14 @@ class SaleAndRepurchase extends Component
             $this->branchOverIndex += round($toIndex, 2);
         }
 
-        $indexCount++;
+        $indexDate = $indexQuery->pluck('report_date')->toArray();
 
-        // dd($indexReformed);
+        // dd($indexDate);
 
         $all_reports = json_encode($chartData);
         $mergeCategory = json_encode($mergeCategory);
         $indexData = json_encode($indexReformed);
+        $indexDate = json_encode($indexDate);
 
         return view('livewire.branch-report.sale-and-repurchase', [
             'daily_entries' => $daily_entries,
@@ -347,6 +350,7 @@ class SaleAndRepurchase extends Component
             'types' => DailyReport::all(),
             'categories' => $mergeCategory,
             'index_data' => $indexData,
+            'index_date' => $indexDate,
         ]);
     }
 }
