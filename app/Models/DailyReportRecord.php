@@ -15,4 +15,9 @@ class DailyReportRecord extends Model
     {
         return $this->belongsTo(DailyReport::class);
     }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
 }

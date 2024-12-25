@@ -342,6 +342,29 @@ class SaleAndRepurchase extends Component
         $indexData = json_encode($indexReformed);
         $indexDate = json_encode($indexDate);
 
+        $daily_branch_report =  DailyReportRecord::select('daily_report_records.*')
+            ->where('report_date', '=', $this->report_date)
+            ->get();
+        $branch_report = [];
+
+        foreach ($daily_branch_report as $data) {
+            $key =  $data->branch->name . " (" . $data->report_date . ")";
+            $key = ucfirst($key);
+            if (!isset($branch_report[$key])) {
+                $branch_report[$key]['key'] = $key;
+            }
+
+            if (!isset($branch_report[$key][$data->daily_report_id])) {
+                $branch_report[$key]['data'][$data->daily_report_id] = [];
+            }
+
+            $branch_report[$key]['data'][$data->daily_report_id]['name'] = $data->dailyReport->name;
+            $branch_report[$key]['data'][$data->daily_report_id]['quantity'] = $data->number;
+        }
+
+        // dd($branch_report);
+
+
         return view('livewire.branch-report.sale-and-repurchase', [
             'daily_entries' => $daily_entries,
             'daily_reports' => $daily_reports,
@@ -351,6 +374,7 @@ class SaleAndRepurchase extends Component
             'categories' => $mergeCategory,
             'index_data' => $indexData,
             'index_date' => $indexDate,
+            'daily_branch_reports' => $branch_report,
         ]);
     }
 }

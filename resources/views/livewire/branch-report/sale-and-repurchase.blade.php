@@ -12,6 +12,43 @@
         </x-dropdown>
     @endcan
 
+    <div class="flex flex-wrap gap-2 my-4">
+        {{-- @dd($daily_branch_reports) --}}
+        @forelse ($daily_branch_reports as $report)
+            <div>
+                <x-card title="{{ $report['key'] }}">
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2">Name</th>
+                                <th class="px-4 py-2">Number</th>
+
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($report['data'] as $item)
+                                <tr>
+                                    <td class="px-4 py-2">{{ $item['name'] }}</td>
+                                    <td class="px-4 py-2">{{ $item['quantity'] }}</td>
+                                </tr>
+                            @endforeach
+
+                        </tbody>
+                    </table>
+                </x-card>
+            </div>
+
+        @empty
+            <div>
+                <x-card title="info!">
+                    <span class="font-bold">Date : {{ $report_date }}</span><br />
+                    <center class="text-lg">There's nothing to show data.</center><br />
+                    <span>Content Branches to add daily reports.</span>
+                </x-card>
+            </div>
+        @endforelse
+    </div>
 
     <div class="w-full p-4 my-8 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
         <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
@@ -155,8 +192,8 @@
                         class="bg-red-100 text-red-800 text-xs font-medium inline-flex items-center px-2.5 py-1 rounded-md dark:bg-green-900 dark:text-green-300">
                         <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                             fill="none" viewBox="0 0 10 14">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M5 1v12m0 0l4-4m-4 4l-4-4" />
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M5 1v12m0 0l4-4m-4 4l-4-4" />
                         </svg>
                         {{ $index_score }}
                     </span>
