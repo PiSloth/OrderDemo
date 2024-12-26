@@ -10,7 +10,7 @@ class Report extends Component
 {
     public function render()
     {
-        $products = RealSale::select('shapes.name as product', 'branches.name', 'psi_products.weight', DB::raw('SUM(real_sales.qty) AS total_sale'))
+        $products = RealSale::select('shapes.name as product', 'branches.name AS branch', 'psi_products.weight', DB::raw('SUM(real_sales.qty) AS total_sale'))
             ->leftJoin('branch_psi_products', 'branch_psi_products.id', 'real_sales.branch_psi_product_id')
             ->leftJoin('psi_products', 'psi_products.id', 'branch_psi_products.psi_product_id')
             ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
@@ -19,15 +19,25 @@ class Report extends Component
             ->orderBy('shapes.id')
             ->get();
 
-        //     $mergeData = [];
+        $mergeData = [];
 
-        //     foreach($products as $product){
+        foreach ($products as $item) {
+            $key = $item->branch;
+            if (!isset($mergeData[$key][$item->product])) {
+                $mergeData[$key][$item->product] = [];
+            }
 
-        //     }
-        // dd($products);
+            $mergeData[$key][$item->product] = [
+
+                'weight' => $item->weight,
+                'total_sale' => $item->total_sale
+
+            ];
+        }
+        // dd($mergeData);
 
         return view('livewire.order.psi.report', [
-            'products' => $products,
+            'products' => $mergeData,
         ]);
     }
 }
