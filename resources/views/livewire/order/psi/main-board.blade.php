@@ -1,6 +1,7 @@
 <div>
     <div class="flex flex-wrap gap-4">
         <x-button href="{{ route('psi_product') }}" label="new PSI Product" green icon="view-grid-add" wire:navigate />
+        <x-button href="{{ route('psi-report') }}" label="report" teal icon="view-grid-add" wire:navigate />
 
         {{-- Marketing --}}
         @can('isMarketing')

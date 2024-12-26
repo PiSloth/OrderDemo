@@ -182,7 +182,7 @@ class SaleAndRepurchase extends Component
         $formattedReports = [];
 
         foreach ($reportTypeSummary as $item) {
-            $key = $item->branch;
+            $key = ucfirst($item->branch);
             $type = $item->type;
 
             if (!isset($formattedReports[$key])) {
@@ -297,10 +297,10 @@ class SaleAndRepurchase extends Component
         // dump($yseterdayIndex);
 
 
-        //index data to chart series line
+        //!index data to chart series line
         $indexQuery =  DailyReportRecord::select(
             'branches.name AS branch',
-            'daily_report_records.report_date',
+            'daily_report_records.report_date AS date',
             DB::raw(
                 'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
                 SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number  ELSE 0 END) AS total_quantity'
@@ -316,7 +316,7 @@ class SaleAndRepurchase extends Component
         $indexCount = 0;
 
         foreach ($indexQuery as $index) {
-            $key = $index->branch;
+            $key = ucfirst($index->branch);
             $toIndex = ($index->total_gram * 0.6) + ($index->total_quantity * 0.4);
 
             if (!isset($indexReformed[$key])) {
@@ -333,14 +333,22 @@ class SaleAndRepurchase extends Component
             $this->branchOverIndex += round($toIndex, 2);
         }
 
-        $indexDate = $indexQuery->pluck('report_date')->toArray();
+        $indexDate = $indexQuery->pluck('date')->toArray();
+
+        // $dateIndex = $indexDate->map(function ($data) {
+        //     return Carbon::parse($data->date)->format('M j, Y');
+        // });
+
+        // dd($dateIndex);
+
+        //? convert data to json format
+        $indexData = json_encode($indexReformed);
+        $indexDate = json_encode($indexDate);
 
         // dd($indexDate);
 
-        $all_reports = json_encode($chartData);
-        $mergeCategory = json_encode($mergeCategory);
-        $indexData = json_encode($indexReformed);
-        $indexDate = json_encode($indexDate);
+
+        //! Daily Report Card view
 
         $daily_branch_report =  DailyReportRecord::select('daily_report_records.*')
             ->where('report_date', '=', $this->report_date)
@@ -348,7 +356,8 @@ class SaleAndRepurchase extends Component
         $branch_report = [];
 
         foreach ($daily_branch_report as $data) {
-            $key =  $data->branch->name . " (" . $data->report_date . ")";
+
+            $key =  $data->branch->name . " (" . Carbon::parse($data->report_date)->format('M j, Y')  . ")";
             $key = ucfirst($key);
             if (!isset($branch_report[$key])) {
                 $branch_report[$key]['key'] = $key;
@@ -363,6 +372,11 @@ class SaleAndRepurchase extends Component
         }
 
         // dd($branch_report);
+
+
+        $all_reports = json_encode($chartData);
+        $mergeCategory = json_encode($mergeCategory);
+
 
 
         return view('livewire.branch-report.sale-and-repurchase', [

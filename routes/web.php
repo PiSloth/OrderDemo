@@ -28,6 +28,7 @@ use App\Livewire\Order\Psi\OutOfStockAnalysis;
 use App\Livewire\Order\Psi\PhotoShooting;
 use App\Livewire\Order\Psi\PsiOrderHsitory;
 use App\Livewire\Order\Psi\PsiProductSupplier;
+use App\Livewire\Order\Psi\Report as PsiReport;
 use App\Livewire\Order\Psi\SaleLoss;
 use App\Livewire\Order\Psi\StockReceivedByBranch;
 use App\Livewire\Orders\OrderHistory as OrdersOrderHistory;
@@ -94,6 +95,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
 
 Route::middleware(['auth'])->prefix('report')->group(function () {
     Route::get('/sale-repurchase', SaleAndRepurchase::class)->name('sale_repurchase');
+    Route::get('/psi', PsiReport::class)->name('psi-report');
 });
 
 Route::middleware(['can:isAuthorized'])->group(function () {

@@ -42,9 +42,10 @@
         @empty
             <div>
                 <x-card title="info!">
-                    <span class="font-bold">Date : {{ $report_date }}</span><br />
+                    <span class="font-bold">Date :
+                        {{ \Carbon\Carbon::parse($report_date)->format('M j, Y') }}</span><br />
                     <center class="text-lg">There's nothing to show data.</center><br />
-                    <span>Content Branches to add daily reports.</span>
+                    <span>Please, contact <i>branches</i> to add daily reports.</span>
                 </x-card>
             </div>
         @endforelse
