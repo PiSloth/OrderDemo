@@ -1,4 +1,4 @@
-<div>
+<div x-data="{ open: true, }">
     <x-button label="Add Report" @click="$openModal('addReportModal')" />
     @can('isAGM')
         <x-dropdown align='left'>
@@ -11,13 +11,52 @@
             </x-dropdown.header>
         </x-dropdown>
     @endcan
+    <div class="mt-4">
+        <div class="flex flex-wrap w-2/4 gap-4">
+            <input type="date" id="date" wire:model.live='report_date'
+                class="bg-gray-50 border w-44  border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+            <label for="date" class="text-xl text-gray-400">Report Date ရွေးချယ်ပါ</label>
+        </div>
 
-    <div class="flex flex-wrap gap-2 my-4">
+        <label class="inline-flex items-center mt-2 cursor-pointer">
+            <input x-model="open" type="checkbox" value="" class="sr-only peer">
+            <div
+                class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
+            </div>
+            <span class="text-sm font-medium text-gray-900 ms-3 dark:text-gray-300">View All Branch Reports</span>
+        </label>
+
+    </div>
+
+    <div class="flex flex-wrap gap-2 my-4" x-show="open" x-transition>
+
+        <div>
+            <x-card title="Daily Summary" class="border-2 border-red-700">
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Sale</th>
+                            <th scope="col" class="px-6 py-3">Repurchase</th>
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($daily_spirit as $data)
+                            <tr class="text-lg text-gray-900">
+                                <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
+                                <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
+                            </tr>
+                        @endforeach
+
+                    </tbody>
+                </table>
+            </x-card>
+        </div>
+
         {{-- @dd($daily_branch_reports) --}}
         @forelse ($daily_branch_reports as $report)
             <div>
                 <x-card title="{{ $report['key'] }}">
-
                     <table>
                         <thead>
                             <tr>
@@ -183,8 +222,8 @@
                         class="bg-green-100 text-green-800 text-xs font-medium inline-flex items-center px-2.5 py-1 rounded-md dark:bg-green-900 dark:text-green-300">
                         <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                             fill="none" viewBox="0 0 10 14">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M5 13V1m0 0L1 5m4-4 4 4" />
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M5 13V1m0 0L1 5m4-4 4 4" />
                         </svg>
                         {{ $index_score }}
                     </span>

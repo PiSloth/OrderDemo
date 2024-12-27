@@ -15,6 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('description');
+            $table->boolean('is_sale_gram')->default(false);
+            $table->boolean('is_sale_quantity')->default(false);
+            $table->boolean('is_repurchase_gram')->default(false);
             $table->boolean('suspended')->default(false);
             $table->timestamps();
         });

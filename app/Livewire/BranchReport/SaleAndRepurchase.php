@@ -371,7 +371,15 @@ class SaleAndRepurchase extends Component
             $branch_report[$key]['data'][$data->daily_report_id]['quantity'] = $data->number;
         }
 
-        // dd($branch_report);
+        $dailySpirit = DailyReportRecord::select(DB::raw(
+            'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS total_sale,
+            SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS total_repurchase'
+        ))
+            ->where('daily_report_records.report_date', '=', $this->report_date)
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->get();
+
+        // dd($dailySpirit);
 
 
         $all_reports = json_encode($chartData);
@@ -389,6 +397,7 @@ class SaleAndRepurchase extends Component
             'index_data' => $indexData,
             'index_date' => $indexDate,
             'daily_branch_reports' => $branch_report,
+            'daily_spirit' => $dailySpirit,
         ]);
     }
 }
