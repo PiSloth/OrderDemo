@@ -231,7 +231,7 @@ class SaleAndRepurchase extends Component
 
         foreach ($reportTypeSummary as $data) {
             $key = $data->type;
-            $branch = $data->branch;
+            $branch = ucfirst($data->branch);
             $total = $data->total;
 
             if (!isset($impSummaryData[$key])) {
@@ -425,6 +425,7 @@ class SaleAndRepurchase extends Component
             ->where('report_date', '=', $this->report_date)
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
             ->orderBy('branches.name')
+            ->orderBy('daily_report_records.daily_report_id')
             ->get();
         $branch_report = [];
 
