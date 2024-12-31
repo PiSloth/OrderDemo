@@ -53,6 +53,7 @@ class PsiProductSupplier extends Component
     public $adjust_remark;
     public $psi_price_id;
     public $order_qty;
+    public $initial_lead_day;
 
 
     private $stockId;
@@ -79,6 +80,11 @@ class PsiProductSupplier extends Component
         // dd($branchProduct->id);
         $this->branchProductId = $branchProduct->id;
         $this->branchName = $branchProduct->branch->name;
+
+        $data = BranchLeadDay::whereBranchPsiProductId($branchProduct->id)->first();
+        if ($data) {
+            $this->initial_lead_day = BranchLeadDay::whereBranchPsiProductId($branchProduct->id)->first()->quantity;
+        }
     }
 
     //!Branch Product set Lead day except HO
@@ -90,15 +96,13 @@ class PsiProductSupplier extends Component
         ]);
 
 
-
-        $this->generateReorderPoint();
-
         $branchProductId = BranchPsiProduct::whereBranchId($this->branch_id)
             ->wherePsiProductId($this->product_id)
             ->first()->id;
 
-        $query = BranchLeadDay::find($branchProductId);
+        $query = BranchLeadDay::whereBranchPsiProductId($branchProductId)->first();
 
+        // dd($query);
         if ($query) {
             $query->update([
                 'quantity' => $this->branch_lead_day
@@ -109,8 +113,12 @@ class PsiProductSupplier extends Component
                 'branch_psi_product_id' => $branchProductId,
             ]);
         }
-        // dd($branchProductId);
 
+        $this->generateReorderPoint();
+
+        // dd($branchProductId);
+        $this->initial_lead_day = $this->branch_lead_day;
+        $this->reset('branch_lead_day');
 
         $this->notification([
             'icon' => 'success',
@@ -358,47 +366,55 @@ class PsiProductSupplier extends Component
             return;
         }
 
-        //todo find inv balance
-        $invBalance = PsiStock::whereBranchPsiProductId($branchPsiProductId)->first()->inventory_balance;
-        // $invBalance = $invBalance->inventory_balance;
+
 
         //todo 1 - Calculate totoal delivered days + Safty Day => $saftyPoint
 
         //todo find lead day
-        if ($this->branch_id == 7) {
+        $branchProductId = $this->branchProductId;
+
+        $queryProductLeadDay = BranchLeadDay::select('quantity AS leadDay')
+            ->whereBranchPsiProductId($branchProductId)
+            ->first();
+
+        if ($queryProductLeadDay) {
+            $productLeadDay = $queryProductLeadDay;
+        } else {
             $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
                 ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
                 ->where('psi_suppliers.psi_product_id', $this->product_id)
                 ->first();
-        } else {
-            $productLeadDay = BranchLeadDay::select('quantity AS leadDay')
-                ->whereBranchPsiProductId($branchPsiProductId)
-                ->first();
         }
-
-
-
         $productLeadDay = $productLeadDay->leadDay;
+        //? end lead day found
+
+
+        //todo find safty point
         if ($this->safty_day > 0) {
+            //when safty day update
             $saftyPoint = ($productLeadDay +  $this->safty_day) * $this->focusQty;
         } else {
             $saftyPoint = ($productLeadDay +  $saftyDay->safty_day) * $this->focusQty;
         }
-        // dd($saftyPoint);
-        //todo check stock level and SET due date
-        $balance = $invBalance - $saftyPoint;
-        $totalDayToSale = $balance / $this->focusQty;
 
-        if ($balance < 0) {
-            $subDay = ceil($balance / $this->focusQty * -1);
+        //? end safty point
+
+        //todo check stock level and SET due date
+        //todo find inv balance
+        $invBalance = PsiStock::whereBranchPsiProductId($branchPsiProductId)->first()->inventory_balance;
+
+        $netBalance = $invBalance - $saftyPoint;
+        $totalDayToSale = $netBalance / $this->focusQty;
+
+        // dd("total day = $totalDayToSale, b = $netBalance , invB = $invBalance, stB = $saftyPoint, focus = $this->focusQty");
+
+
+        if ($netBalance < 0) {
+            $subDay = ceil($totalDayToSale * -1);
 
             $orderDueDate = Carbon::now()->subDays($subDay);
-            // dd($orderDueDate);
         } else {
             $addDay = (int) $totalDayToSale;
-            // dd($totalDayToSale);
-            // $totalDayToSale = (int) $totalDayToSale;
-            //
             //todo 2 - Reorder Due Date => $orderDueDate
             $orderDueDate = Carbon::now()->addDays($addDay);
         }
@@ -614,16 +630,21 @@ class PsiProductSupplier extends Component
             ->wherePsiProductId($this->product_id)
             ->first()->id;
 
-        if ($this->branch_id == 7) {
+        $queryProductLeadDay = BranchLeadDay::select('quantity AS leadDay')
+            ->whereBranchPsiProductId($branchProductId)
+            ->first();
+
+        if ($queryProductLeadDay) {
+            $productLeadDay = BranchLeadDay::select('quantity AS leadDay')
+                ->whereBranchPsiProductId($branchProductId)
+                ->first();
+        } else {
             $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
                 ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
                 ->where('psi_suppliers.psi_product_id', $this->product_id)
                 ->first();
-        } else {
-            $productLeadDay = BranchLeadDay::select('quantity AS leadDay')
-                ->whereBranchPsiProductId($branchProductId)
-                ->first();
         }
+
 
         $productLeadDay = ceil($productLeadDay->leadDay);
 

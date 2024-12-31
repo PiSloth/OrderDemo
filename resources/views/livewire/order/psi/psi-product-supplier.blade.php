@@ -1,14 +1,17 @@
 <div>
     @can('isAGM')
-        <div class="w-32 mb-3">
-            <x-input type="number" wire:model='branch_lead_day' wire:keydown.enter='createLeadDay'
+        <div class="w-1/4 mb-3 min-w-52">
+            <label for="lead_day">Product အတွက် Lead Day သတ်မှတ်ပါ။</label>
+            <x-input id="lead_day" type="number" wire:model='branch_lead_day' wire:keydown.enter='createLeadDay'
                 placeholder="Branch lead day" />
+            <span>initial lead day {{ $initial_lead_day }}</span>
         </div>
     @endcan
     <div class="px-1 py-2 mb-2 text-sm bg-yellow-100 rounded">
         <a href="{{ route('mainboard') }}" wire:navigate class="underline hover:text-blue-500">Product Dashboard</a> > <a
             href="{{ route('focus', ['prod' => $product_id, 'brch' => $branch_id]) }}" wire:navigate
-            class="underline hover:text-blue-500">Focus</a> > <a href="#" class="font-bold">Safty Point & Order</a>
+            class="underline hover:text-blue-500">Focus</a> > <a href="#" class="font-bold">Safty Point &
+            Order</a>
     </div>
     <div class="my-4 ">
         <span class="px-4 py-2 font-bold uppercase bg-yellow-200 rounded">{{ $branchName }}</span>

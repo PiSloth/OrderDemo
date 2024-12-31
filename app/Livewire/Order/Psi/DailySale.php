@@ -3,6 +3,7 @@
 namespace App\Livewire\Order\Psi;
 
 use App\Models\Branch;
+use App\Models\BranchLeadDay;
 use App\Models\BranchPsiProduct;
 use App\Models\FocusSale;
 use App\Models\PsiProduct;
@@ -26,6 +27,7 @@ class DailySale extends Component
     public $branchPsiProductId;
     public $sale_history_date;
     public $branch_id = '';
+    public $branch_psi_product_for_lead_day;
 
     public function mount()
     {
@@ -45,6 +47,8 @@ class DailySale extends Component
     {
         $this->stock_id = $id;
         $this->sale_date = $this->sale_history_date;
+
+        $this->branch_psi_product_for_lead_day = PsiStock::find($id)->branch_psi_product_id;
     }
 
     // data initialize before viewing daily sale history
@@ -114,10 +118,32 @@ class DailySale extends Component
         }
 
         //End return if not found foucs qty
+        //todo find lead day
+
+
+        $branchProductId = $this->branch_psi_product_for_lead_day;
+
+        $queryProductLeadDay = BranchLeadDay::select('quantity AS leadDay')
+            ->whereBranchPsiProductId($branchProductId)
+            ->first();
+
+        if ($queryProductLeadDay) {
+            $productLeadDay = BranchLeadDay::select('quantity AS leadDay')
+                ->whereBranchPsiProductId($branchProductId)
+                ->first();
+        } else {
+            $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
+                ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
+                ->where('psi_suppliers.psi_product_id', $this->product_id)
+                ->first();
+        }
+
+        $productLeadDay = $productLeadDay->leadDay;
+
 
 
         //todo safty Point => (saft day + avg lead day) * last focus
-        $saftyPoint = $productQuery->total_lead_days * $focusQty;
+        $saftyPoint = $productLeadDay * $focusQty;
 
         //find reorder data history
         $reorderData = ReorderPoint::wherePsiStockId($this->stock_id)->first();
@@ -248,13 +274,16 @@ class DailySale extends Component
             $netBalance = $inventoryBalance - $saftyPoint;
 
             $totalDayToSale = $netBalance / $focusQty;
+            // dd("total day = $totalDayToSale, b = $netBalance , invB = $inventoryBalance, stB = $saftyPoint, focus = $focusQty");
 
             if ($netBalance < 0) {
-                $subDay = ceil($netBalance / $focusQty * -1);
+                $subDay = ceil($totalDayToSale * -1);
                 $orderDueDate = Carbon::now()->subDays($subDay); //? due date got
             } else {
-                // $addDay = (int) $totalDayToSale;
-                $orderDueDate = Carbon::now()->addDays((int) $totalDayToSale); //? due date got
+                $addDay = (int) $totalDayToSale;
+
+                //todo 2 - Reorder Due Date => $orderDueDate
+                $orderDueDate = Carbon::now()->addDays($addDay);
             }
             //end due date
 
@@ -283,7 +312,7 @@ class DailySale extends Component
 
             $reorderData->update([
                 'psi_stock_id' => $this->stock_id,
-                'safty_day' => $productQuery->safty_day,
+                // 'safty_day' => $productQuery->safty_day,
                 'reorder_point' => $saftyPoint,
                 'reorder_due_date' => $orderDueDate,
                 'psi_stock_status_id' => $stockStatus
