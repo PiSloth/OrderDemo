@@ -91,6 +91,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/shooting', PhotoShooting::class)->name('shooting');
     Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
     Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
+    Route::get('/psi/oos', OutOfStockAnalysis::class)->name('oos');
 });
 
 Route::middleware(['auth'])->prefix('report')->group(function () {

@@ -2,12 +2,67 @@
 
 namespace App\Livewire\Order\Psi;
 
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class OutOfStockAnalysis extends Component
 {
+    use WithPagination;
+
+
+    #[Title('OOS analysis of your business')]
     public function render()
     {
-        return view('livewire.order.psi.out-of-stock-analysis');
+
+        $rawAnalysis = DB::table('branch_psi_products as bpsi')
+            ->select(DB::raw('shp.name AS product,
+             b.name AS branch,
+              pst.inventory_balance AS balance,
+              (AVG(rs.qty)) AS avg_sale,
+              fs_latest.qty AS focus
+              '))
+            ->leftJoin(
+                DB::raw('(
+                SELECT branch_psi_product_id, MAX(id) as latest_focus_id
+                FROM focus_sales
+                GROUP BY branch_psi_product_id
+            ) as latest_focus'),
+                'bpsi.id',
+                '=',
+                'latest_focus.branch_psi_product_id'
+            )
+            ->leftJoin('focus_sales as fs_latest', 'latest_focus.latest_focus_id', '=', 'fs_latest.id')
+            ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
+            ->leftJoin('shapes as shp', 'shp.id', 'p.shape_id')
+            ->leftJoin('branches as b', 'b.id', 'bpsi.branch_id')
+            ->leftJoin('psi_stocks as pst', 'pst.branch_psi_product_id', 'bpsi.id')
+            ->leftJoin('real_sales as rs', 'rs.branch_psi_product_id', 'bpsi.id')
+            ->orderBy('shp.name')
+            ->orderBy('b.name')
+            ->groupBy('b.name', 'pst.inventory_balance', 'shp.name', 'fs_latest.qty')
+            ->get();
+
+        $analysis = [];
+        foreach ($rawAnalysis as $data) {
+            $key = $data->product;
+            $branch = ucfirst($data->branch);
+
+            if (!isset($analysis[$key][$branch])) {
+                $analysis[$key][$branch] = [];
+            }
+            $analysis[$key][$branch] = [
+                'balance' => $data->balance,
+                'focus' => $data->focus,
+                'avg_sale' => $data->avg_sale
+            ];
+        }
+
+        // dd($analysis);
+
+        return view('livewire.order.psi.out-of-stock-analysis', [
+            'analysis' => $analysis,
+        ]);
     }
 }

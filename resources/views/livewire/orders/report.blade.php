@@ -35,7 +35,7 @@
     </div>
 
 
-    <div class="grid grid-cols-3 gap-4 md:grid-cols-2 sm:grid-cols-1 bg-leamon-50">
+    <div class="grid gap-4 md:grid-cols-2 sm:grid-cols-1 bg-leamon-50">
         <div class="p-4 border rounded shadow-lg ">
             <div>
                 <x-button href="{{ route('order-branch-report') }}" class="w-full h-12" outline teal icon="chart-pie"
