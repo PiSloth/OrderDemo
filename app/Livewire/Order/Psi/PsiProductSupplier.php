@@ -3,6 +3,7 @@
 namespace App\Livewire\Order\Psi;
 
 use App\Models\Branch;
+use App\Models\BranchLeadDay;
 use App\Models\BranchPsiProduct;
 use App\Models\FocusSale;
 use App\Models\OverDueDateOrder;
@@ -46,6 +47,7 @@ class PsiProductSupplier extends Component
     public $remark;
     public $photo;
     public $safty_day;
+    public $branch_lead_day;
     public $stock_balance;
     public $adjust_qty;
     public $adjust_remark;
@@ -57,7 +59,7 @@ class PsiProductSupplier extends Component
     private $porductSupplierCount;
     private $stockStatus;
     private $focusQty;
-    private $branchProductId;
+    public $branchProductId;
     public $branchName;
 
 
@@ -77,6 +79,44 @@ class PsiProductSupplier extends Component
         // dd($branchProduct->id);
         $this->branchProductId = $branchProduct->id;
         $this->branchName = $branchProduct->branch->name;
+    }
+
+    //!Branch Product set Lead day except HO
+
+    public function createLeadDay()
+    {
+        $this->validate([
+            'branch_lead_day' => 'required|numeric',
+        ]);
+
+
+
+        $this->generateReorderPoint();
+
+        $branchProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+            ->wherePsiProductId($this->product_id)
+            ->first()->id;
+
+        $query = BranchLeadDay::find($branchProductId);
+
+        if ($query) {
+            $query->update([
+                'quantity' => $this->branch_lead_day
+            ]);
+        } else {
+            BranchLeadDay::create([
+                'quantity' => $this->branch_lead_day,
+                'branch_psi_product_id' => $branchProductId,
+            ]);
+        }
+        // dd($branchProductId);
+
+
+        $this->notification([
+            'icon' => 'success',
+            'title' => 'Created',
+            'description' => 'Successfully created.'
+        ]);
     }
 
     public function updatedYouktwat($value)
@@ -323,11 +363,20 @@ class PsiProductSupplier extends Component
         // $invBalance = $invBalance->inventory_balance;
 
         //todo 1 - Calculate totoal delivered days + Safty Day => $saftyPoint
+
         //todo find lead day
-        $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
-            ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
-            ->where('psi_suppliers.psi_product_id', $this->product_id)
-            ->first();
+        if ($this->branch_id == 7) {
+            $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
+                ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
+                ->where('psi_suppliers.psi_product_id', $this->product_id)
+                ->first();
+        } else {
+            $productLeadDay = BranchLeadDay::select('quantity AS leadDay')
+                ->whereBranchPsiProductId($branchPsiProductId)
+                ->first();
+        }
+
+
 
         $productLeadDay = $productLeadDay->leadDay;
         if ($this->safty_day > 0) {
@@ -561,10 +610,20 @@ class PsiProductSupplier extends Component
             $lastFocus = 1;
         }
 
-        $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
-            ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
-            ->where('psi_suppliers.psi_product_id', $this->product_id)
-            ->first();
+        $branchProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+            ->wherePsiProductId($this->product_id)
+            ->first()->id;
+
+        if ($this->branch_id == 7) {
+            $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
+                ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
+                ->where('psi_suppliers.psi_product_id', $this->product_id)
+                ->first();
+        } else {
+            $productLeadDay = BranchLeadDay::select('quantity AS leadDay')
+                ->whereBranchPsiProductId($branchProductId)
+                ->first();
+        }
 
         $productLeadDay = ceil($productLeadDay->leadDay);
 

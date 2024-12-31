@@ -24,7 +24,7 @@ class SaleAndRepurchase extends Component
     public $update_number;
     public $edit_id;
     public $branch_id = '';
-    private $duration_filter = 30;
+    public $duration_filter = 30;
     public $branchOverIndex = 0;
     public $index_score;
 
@@ -46,6 +46,13 @@ class SaleAndRepurchase extends Component
             $this->reset('entry_modal');
         }
     }
+
+    // public function updatedDurationFilter($value)
+    // {
+
+    //     dd($value);
+    //     $this->duration_filter = $value;
+    // }
 
     // public function durationFilter($time)
     // {
@@ -176,8 +183,12 @@ class SaleAndRepurchase extends Component
                 return $query->where('daily_report_records.report_date', '=', Carbon::now()->format('Y-m-d'));
             })
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
-            ->groupBy('branches.name', 'daily_reports.name')
+            ->groupBy('branches.name', 'daily_reports.name', 'daily_reports.id')
+            ->orderBy('branches.name')
+            ->orderBy('daily_reports.id')
             ->get();
+
+        // dd($reportTypeSummary);
 
         $formattedReports = [];
 
@@ -215,6 +226,67 @@ class SaleAndRepurchase extends Component
         }
         // dd($mergeCategory);
 
+        //important summary table
+        $impSummaryData = [];
+
+        foreach ($reportTypeSummary as $data) {
+            $key = $data->type;
+            $branch = $data->branch;
+            $total = $data->total;
+
+            if (!isset($impSummaryData[$key])) {
+                $impSummaryData[$key] = [];
+            }
+
+            $impSummaryData[$key][] = [
+                'name' =>  $branch,
+                'total' => $total
+            ];
+        }
+
+        $impSummaryTotalGram = DailyReportRecord::select(DB::raw(
+            'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS total_sale,
+            SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS total_repurchase'
+        ))
+            ->when($this->duration_filter, function ($query) {
+                return $query->where('daily_report_records.report_date', '>=', Carbon::now()->subDay($this->duration_filter)->format('Y-m-d'));
+            })
+            ->when(! $this->duration_filter, function ($query) {
+                return $query->where('daily_report_records.report_date', '=', Carbon::now()->format('Y-m-d'));
+            })
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->get();
+
+        // dd($impSummaryTotalGram);
+
+        // $reportTypes = DailyReport::select('name')->get()->toArray();
+
+        // dd($reportTypes[0]['name']);
+
+        // $reStureImpData = [];
+
+        // foreach ($reportTypeSummary as $data) {
+        //     $key = $data->branch;
+        //     $type = $data->type;
+        //     $total = $data->total;
+
+        //     if (!isset($reStureImpData[$key][$type])) {
+        //         $reStureImpData[$key][$type] = [];
+        //     }
+
+        //     // $reStureImpData[$key][$branch];
+        // }
+        // // dd($reStureImpData);
+
+        // $example = [
+        //     'branch 1' => [
+        //         "ရွှေ" => 10,
+        //         "18K" => 11
+        //     ]
+        // ];
+
+        // dd($example['branch 1']['ရွှေ']);
+
 
         // Restructure the data
         $chartData = [];
@@ -229,6 +301,11 @@ class SaleAndRepurchase extends Component
             "#0c33cc",
             "#cf1717", //repurchase weight - red
             "#00000A",
+            '#08DAE6',
+            '#BA17DA',
+            '#67047B',
+            '#96038F',
+            '#579D0C'
             // Add more types and their colors if needed
         ];
 
@@ -335,12 +412,6 @@ class SaleAndRepurchase extends Component
 
         $indexDate = $indexQuery->pluck('date')->toArray();
 
-        // $dateIndex = $indexDate->map(function ($data) {
-        //     return Carbon::parse($data->date)->format('M j, Y');
-        // });
-
-        // dd($dateIndex);
-
         //? convert data to json format
         $indexData = json_encode($indexReformed);
         $indexDate = json_encode($indexDate);
@@ -352,6 +423,8 @@ class SaleAndRepurchase extends Component
 
         $daily_branch_report =  DailyReportRecord::select('daily_report_records.*')
             ->where('report_date', '=', $this->report_date)
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->orderBy('branches.name')
             ->get();
         $branch_report = [];
 
@@ -385,8 +458,6 @@ class SaleAndRepurchase extends Component
         $all_reports = json_encode($chartData);
         $mergeCategory = json_encode($mergeCategory);
 
-
-
         return view('livewire.branch-report.sale-and-repurchase', [
             'daily_entries' => $daily_entries,
             'daily_reports' => $daily_reports,
@@ -398,6 +469,8 @@ class SaleAndRepurchase extends Component
             'index_date' => $indexDate,
             'daily_branch_reports' => $branch_report,
             'daily_spirit' => $dailySpirit,
+            'impSummaryData' => $impSummaryData,
+            'impSummaryTotalGram' => $impSummaryTotalGram,
         ]);
     }
 }

@@ -1,4 +1,4 @@
-<div x-data="{ open: true, }">
+<div x-data="{ open: true, summary: true }">
     <x-button label="Add Report" @click="$openModal('addReportModal')" />
     @can('isAGM')
         <x-dropdown align='left'>
@@ -23,13 +23,12 @@
             <div
                 class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
             </div>
-            <span class="text-sm font-medium text-gray-900 ms-3 dark:text-gray-300">View All Branch Reports</span>
+            <span class="text-sm font-medium text-gray-900 ms-3 dark:text-gray-300">နေ့စဉ် ဆိုင်ခွဲများ report</span>
         </label>
 
     </div>
 
     <div class="flex flex-wrap gap-2 my-4" x-show="open" x-transition>
-
         <div>
             <x-card title="Daily Summary" class="border-2 border-red-700">
                 <table>
@@ -89,6 +88,92 @@
             </div>
         @endforelse
     </div>
+    <hr />
+    <div class="mt-4">
+        <div class="flex flex-wrap w-2/4 gap-4 my-8">
+            {{-- Filter to show interval --}}
+            <select id="dateInterval" wire:model.live='duration_filter'
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500  p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                <option value="0">Today</option>
+                <option value="1">Yesterday</option>
+                <option value="7">7 days ago</option>
+                <option selected value="30">30 days ago</option>
+                <option value="60">60 days ago</option>
+                <option value="90">90 days ago</option>
+            </select>
+            <label for="dateInterval" class="text-xl text-gray-400">Report Date ရွေးချယ်ပါ</label>
+        </div>
+
+        <label class="inline-flex items-center mt-2 cursor-pointer">
+            <input x-model="summary" type="checkbox" value="" class="sr-only peer">
+            <div
+                class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
+            </div>
+            <span class="text-sm font-medium text-gray-900 ms-3 dark:text-gray-300">Reports အမျိုးအစားအလိုက်
+                အကျဉ်းချုပ်</span>
+        </label>
+
+    </div>
+
+
+    {{-- Summarize table --}}
+    <div class="flex flex-wrap gap-2" x-show="summary">
+        <div>
+            <x-card title="Daily Summary" class="border-2 border-red-700">
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Sale</th>
+                            <th scope="col" class="px-6 py-3">Repurchase</th>
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($impSummaryTotalGram as $data)
+                            <tr class="text-lg text-gray-900">
+                                <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
+                                <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
+                            </tr>
+                        @endforeach
+
+                    </tbody>
+                </table>
+            </x-card>
+        </div>
+
+        @foreach ($impSummaryData as $type => $data)
+            <div class="p-2 mt-4 border border-teal-400 rounded-lg">
+                <x-card title="{{ $type }}" class="border-2">
+                    <table class="text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">
+                                    Branch
+                                </th>
+                                <th scope="col" class="px-6 py-3">
+                                    Quantity
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($data as $item)
+                                <tr
+                                    class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                                    <th scope="row"
+                                        class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                        {{ $item['name'] }}
+                                    </th>
+                                    <td class="px-6 py-4">
+                                        {{ $item['total'] }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </x-card>
+            </div>
+        @endforeach
+    </div>
 
     <div class="w-full p-4 my-8 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
         <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
@@ -117,8 +202,8 @@
             <div class="hidden">
                 <span
                     class="bg-green-100 text-green-800 text-xs font-medium inline-flex items-center px-2.5 py-1 rounded-md dark:bg-green-900 dark:text-green-300">
-                    <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
-                        viewBox="0 0 10 14">
+                    <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                        fill="none" viewBox="0 0 10 14">
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M5 13V1m0 0L1 5m4-4 4 4" />
                     </svg>
@@ -138,7 +223,7 @@
             </dl>
         </div> --}}
 
-        <div id="column-chart"></div>
+        <div class="overflow-x-scroll" id="column-chart"></div>
         <div class="grid items-center justify-between grid-cols-1 border-t border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between pt-5">
                 <!-- Button -->
@@ -185,8 +270,8 @@
             <div class="hidden">
                 <span
                     class="bg-green-100 text-green-800 text-xs font-medium inline-flex items-center px-2.5 py-1 rounded-md dark:bg-green-900 dark:text-green-300">
-                    <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
-                        viewBox="0 0 10 14">
+                    <svg class="w-2.5 h-2.5 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                        fill="none" viewBox="0 0 10 14">
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M5 13V1m0 0L1 5m4-4 4 4" />
                     </svg>
@@ -212,7 +297,8 @@
                 </div>
                 <div>
                     <h5 class="pb-1 text-2xl font-bold leading-none text-gray-900 dark:text-white">
-                        {{ $branchOverIndex }}</h5>
+                        {{-- {{ $branchOverIndex }} --}}
+                    </h5>
                     <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Total of indexs</p>
                 </div>
             </div>

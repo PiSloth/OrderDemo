@@ -240,7 +240,7 @@
     {{-- Sale  --}}
     <x-modal wire:model="saleModal">
         <x-card title="Daily Sale">
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-1">
+            {{-- <div class="grid grid-cols-2 gap-4 sm:grid-cols-1">
                 <x-input type="date" label="Date" wire:model.live='sale_date' placeholder="Sale Date" />
                 <x-input placeholder="input sale quantity" label="Quantity" wire:model='sale_qty' />
             </div>
@@ -250,7 +250,7 @@
                     <x-button flat label="Cancel" x-on:click="close" />
                     <x-button primary label="save" right-icon="save" wire:click='saleUpdate' green />
                 </div>
-            </x-slot>
+            </x-slot> --}}
         </x-card>
     </x-modal>
 </div>
