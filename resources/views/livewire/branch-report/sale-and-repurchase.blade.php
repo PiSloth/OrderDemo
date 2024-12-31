@@ -30,26 +30,28 @@
 
     <div class="flex flex-wrap gap-2 my-4" x-show="open" x-transition>
         <div>
-            <x-card title="Daily Summary" class="border-2 border-red-700">
-                <table>
-                    <thead>
-                        <tr>
-                            <th scope="col" class="px-6 py-3">Sale</th>
-                            <th scope="col" class="px-6 py-3">Repurchase</th>
+            <div class="p-2 border-2 border-red-700 rounded-lg">
+                <x-card title="Daily Summary">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col" class="px-6 py-3">Sale</th>
+                                <th scope="col" class="px-6 py-3">Repurchase</th>
 
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($daily_spirit as $data)
-                            <tr class="text-lg text-gray-900">
-                                <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
-                                <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
                             </tr>
-                        @endforeach
+                        </thead>
+                        <tbody>
+                            @foreach ($daily_spirit as $data)
+                                <tr class="text-lg text-gray-900">
+                                    <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
+                                    <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
+                                </tr>
+                            @endforeach
 
-                    </tbody>
-                </table>
-            </x-card>
+                        </tbody>
+                    </table>
+                </x-card>
+            </div>
         </div>
 
         {{-- @dd($daily_branch_reports) --}}
@@ -117,32 +119,34 @@
 
 
     {{-- Summarize table --}}
-    <div class="flex flex-wrap gap-2" x-show="summary">
+    <div class="flex flex-wrap gap-2" x-show="summary" x-transition>
         <div>
-            <x-card title="Daily Summary" class="border-2 border-red-700">
-                <table>
-                    <thead>
-                        <tr>
-                            <th scope="col" class="px-6 py-3">Sale</th>
-                            <th scope="col" class="px-6 py-3">Repurchase</th>
+            <div class="p-2 border-2 border-red-700 rounded-lg">
+                <x-card title="Daily Summary">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col" class="px-6 py-3">Sale</th>
+                                <th scope="col" class="px-6 py-3">Repurchase</th>
 
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($impSummaryTotalGram as $data)
-                            <tr class="text-lg text-gray-900">
-                                <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
-                                <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
                             </tr>
-                        @endforeach
+                        </thead>
+                        <tbody>
+                            @foreach ($impSummaryTotalGram as $data)
+                                <tr class="text-lg text-gray-900">
+                                    <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
+                                    <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
+                                </tr>
+                            @endforeach
 
-                    </tbody>
-                </table>
-            </x-card>
+                        </tbody>
+                    </table>
+                </x-card>
+            </div>
         </div>
 
         @foreach ($impSummaryData as $type => $data)
-            <div class="p-2 mt-4 border border-teal-400 rounded-lg">
+            <div class="p-2 border border-teal-400 rounded-lg">
                 <x-card title="{{ $type }}" class="border-2">
                     <table class="text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -361,7 +365,11 @@
                                 @if ($edit_id == $entry->id)
                                     <td class="flex gap-2 px-4 py-2">
                                         <x-input type='number' step=0.01 wire:model.live='update_number'
-                                            placeholder="number" />
+                                            placeholder="number" wire:keydown.enter="update({{ $entry->id }})" />
+                                        <div class="hidden lg:block xl:block">
+                                            <kbd
+                                                class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Enter</kbd>
+                                        </div>
                                         <a href="#" class="text-blue-300 underline"
                                             wire:click="update({{ $entry->id }})">{{ __('Update') }}</a>
                                     </td>
@@ -410,8 +418,6 @@
             </tbody>
         </table>
     </x-modal.card>
-
-
 </div>
 
 @section('script')
