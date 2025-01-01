@@ -28,6 +28,7 @@ class DailySale extends Component
     public $sale_history_date;
     public $branch_id = '';
     public $branch_psi_product_for_lead_day;
+    public $product_id;
 
     public function mount()
     {
@@ -48,7 +49,10 @@ class DailySale extends Component
         $this->stock_id = $id;
         $this->sale_date = $this->sale_history_date;
 
-        $this->branch_psi_product_for_lead_day = PsiStock::find($id)->branch_psi_product_id;
+        $stockQuery = PsiStock::find($id);
+        $this->branch_psi_product_for_lead_day = $stockQuery->branch_psi_product_id;
+
+        $this->product_id = BranchPsiProduct::find($stockQuery->branch_psi_product_id)->product_id;
     }
 
     // data initialize before viewing daily sale history
