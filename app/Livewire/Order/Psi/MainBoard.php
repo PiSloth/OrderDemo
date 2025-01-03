@@ -242,8 +242,7 @@ class MainBoard extends Component
                     'uoms.name as uom',
                     'product_photos.image AS image',
                     // 'product_hashtags.id AS pHT',
-                    DB::raw('SUM(real_sales.qty) AS total_sale'),
-
+                    DB::raw('SUM((CASE WHEN real_sales.qty > 0 THEN real_sales ELSE 0 END)) AS total_sale'),
                 ],
                 $selection
             )
@@ -256,7 +255,6 @@ class MainBoard extends Component
             ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
             ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
             ->where('shapes.name', 'like', '%' . $this->shape_detail . '%')
-
             ->orderBy('total_sale', 'desc')
             ->groupBy(
                 'psi_products.id',
