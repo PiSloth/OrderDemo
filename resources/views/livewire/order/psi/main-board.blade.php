@@ -311,7 +311,7 @@
 
                 </tbody>
             </table>
-            {{-- <div>{{ $products->onEachSide(1)->links(data: ['scrollTo' => '#pageproducts']) }}</div> --}}
+            <div class="p-4">{{ $products->onEachSide(1)->links(data: ['scrollTo' => '#pageproducts']) }}</div>
             {{-- <div class="flex-1 overflow-x-auto overflow-y-auto">
                 <table class="w-full table-fixed">
                 </table>

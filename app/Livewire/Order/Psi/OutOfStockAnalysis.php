@@ -20,6 +20,7 @@ class OutOfStockAnalysis extends Component
             ->select(DB::raw('shp.name AS product,
              b.name AS branch,
               pst.inventory_balance AS balance,
+              p.weight,
               (AVG(rs.qty)) AS avg_sale,
               fs_latest.qty AS focus
               '))
@@ -41,12 +42,12 @@ class OutOfStockAnalysis extends Component
             ->leftJoin('real_sales as rs', 'rs.branch_psi_product_id', 'bpsi.id')
             ->orderBy('shp.name')
             ->orderBy('b.name')
-            ->groupBy('b.name', 'pst.inventory_balance', 'shp.name', 'fs_latest.qty')
+            ->groupBy('b.name', 'pst.inventory_balance', 'p.weight', 'shp.name', 'fs_latest.qty')
             ->get();
 
         $analysis = [];
         foreach ($rawAnalysis as $data) {
-            $key = $data->product;
+            $key = $data->product . " / " . $data->weight . " g";
             $branch = ucfirst($data->branch);
 
             if (!isset($analysis[$key][$branch])) {

@@ -268,8 +268,8 @@ class MainBoard extends Component
                 // 'product_hashtags.id',
             )
 
-            // ->paginate(5);
-            ->get();
+            ->paginate(5);
+        // ->get();
 
         // dump($producutWithEachBranch);
         // dump($this->selectedTag);
