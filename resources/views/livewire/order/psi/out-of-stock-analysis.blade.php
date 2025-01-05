@@ -31,8 +31,13 @@
         </thead>
         <tbody>
             @foreach ($analysis as $productName => $products)
-                @php $rowspan = count($products); @endphp
+                {{-- @dd($products) --}}
+                @php
+                    $rowspan = count($products);
+
+                @endphp
                 @foreach ($products as $branchName => $details)
+                    {{-- @dd($products) --}}
                     @php
                         $focus = $details['focus'];
                         $balance = $details['balance'];

@@ -242,7 +242,7 @@ class MainBoard extends Component
                     'uoms.name as uom',
                     'product_photos.image AS image',
                     // 'product_hashtags.id AS pHT',
-                    DB::raw('SUM((CASE WHEN real_sales.qty > 0 THEN real_sales ELSE 0 END)) AS total_sale'),
+                    DB::raw('SUM((CASE WHEN real_sales.qty > 0 THEN real_sales.qty ELSE 0 END)) AS total_sale'),
                 ],
                 $selection
             )

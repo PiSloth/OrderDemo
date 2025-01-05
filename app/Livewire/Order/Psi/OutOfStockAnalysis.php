@@ -12,7 +12,7 @@ class OutOfStockAnalysis extends Component
     use WithPagination;
 
 
-    #[Title('OOS analysis of your business')]
+    #[Title('\'Out of Stock\' analysis of your business')]
     public function render()
     {
 
@@ -46,6 +46,9 @@ class OutOfStockAnalysis extends Component
             ->get();
 
         $analysis = [];
+        $allBranchRealSale = [];
+
+
         foreach ($rawAnalysis as $data) {
             $key = $data->product . " / " . $data->weight . " g";
             $branch = ucfirst($data->branch);
@@ -53,12 +56,35 @@ class OutOfStockAnalysis extends Component
             if (!isset($analysis[$key][$branch])) {
                 $analysis[$key][$branch] = [];
             }
+
+
             $analysis[$key][$branch] = [
                 'balance' => $data->balance,
                 'focus' => $data->focus,
                 'avg_sale' => $data->avg_sale
             ];
+
+            if (!isset($allBranchRealSale[$key])) {
+                $totalSale = 0;
+                $totalFocus = 0;
+            }
+
+            $totalSale += ceil($data->avg_sale);
+            $totalFocus += $data->focus;
+
+            $allBranchRealSale[$key] = [
+                'total_sale' => $totalSale,
+                'total_focus' => $totalFocus
+            ];
         }
+
+        foreach ($analysis as $key => $products) {
+            $analysis[$key]['HO']['avg_sale'] = $allBranchRealSale[$key]['total_sale'];
+            $analysis[$key]['HO']['focus'] = $allBranchRealSale[$key]['total_focus'];
+            // dd($analysis[$key]['HO']);
+        }
+
+        // dd($allBranchRealSale);
 
         // dd($analysis);
 
