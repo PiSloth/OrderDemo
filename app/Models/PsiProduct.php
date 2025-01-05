@@ -34,6 +34,10 @@ class PsiProduct extends Model
     {
         return $this->belongsTo(Design::class);
     }
+    public function quality()
+    {
+        return $this->belongsTo(Quality::class);
+    }
 
     public function psiPrice()
     {

@@ -4,6 +4,7 @@ use App\Http\Controllers\CustomLogout;
 use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
 use App\Livewire\ManufactureCost;
+use App\Livewire\Order\Psi\Branch\StockUpdate;
 use App\Livewire\Orders\Config;
 use App\Livewire\Orders\AddOrder;
 use App\Livewire\Orders\BranchReport;
@@ -92,6 +93,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
     Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
     Route::get('/psi/oos', OutOfStockAnalysis::class)->name('oos');
+    Route::get('/psi/branch/sotckupdate', StockUpdate::class)->name('stock-update');
 });
 
 Route::middleware(['auth'])->prefix('report')->group(function () {

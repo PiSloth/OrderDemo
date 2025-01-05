@@ -19,4 +19,8 @@ class BranchPsiProduct extends Model
     {
         return $this->belongsTo(PsiProduct::class);
     }
+    public function psiStock()
+    {
+        return $this->hasOne(PsiStock::class);
+    }
 }
