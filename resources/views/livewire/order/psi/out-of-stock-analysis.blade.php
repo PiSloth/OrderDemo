@@ -59,8 +59,8 @@
                                 $backgroundColor = 'red';
                                 break;
                             case $diffWithDueDate > 3:
-                                $color = 'white';
-                                $backgroundColor = 'green';
+                                $color = '#1E3A8A';
+                                $backgroundColor = '#F5F5F5';
                                 break;
                             case $diffWithDueDate == 3:
                                 $color = 'white';
@@ -74,27 +74,29 @@
                                 break;
                         }
                     @endphp
-                    <tr class="mt-4 border-b-2 border-teal-900 odd:bg-white even:bg-gray-100">
+                    <tr class="mt-4 border-b-2 border-gray-400 odd:bg-white even:bg-gray-100">
                         @if ($loop->first)
-                            <th scope="row" class="px-6 py-4 font-medium text-gray-900 dark:text-white"
+                            <th scope="row" class="px-6 py-4 text-teal-500 font-lg dark:text-white"
                                 rowspan="{{ $rowspan }}">
+                                <img class="w-48 mb-2 border rounded-full md:rounded-lg"
+                                    src="{{ asset('/storage/' . $images[$productName]) }}" alt="product_photo" />
                                 {{ ucfirst($productName) }}
                             </th>
                         @endif
                         <td style="color: {{ $color }}; background-color: {{ $backgroundColor }}"
-                            class="px-6 py-4">{{ $branchName }}</td>
+                            class="px-3 py-2 md:px-6 md:py-4">{{ $branchName }}</td>
                         <td style="color: {{ $color }}; background-color: {{ $backgroundColor }}"
-                            class="px-6 py-4">{{ $focus }}</td>
+                            class="px-3 py-2 md:px-6 md:py-4">{{ $focus }}</td>
                         <td style="color: {{ $color }}; background-color: {{ $backgroundColor }}"
-                            class="px-6 py-4">{{ $avg_sale }}</td>
+                            class="px-3 py-2 md:px-6 md:py-4">{{ $avg_sale }}</td>
                         <td style="color: {{ $color }}; background-color: {{ $backgroundColor }}"
-                            class="px-6 py-4">{{ $balance }}</td>
+                            class="px-3 py-2 md:px-6 md:py-4">{{ $balance }}</td>
                         <td style="color: {{ $color }}; background-color: {{ $backgroundColor }}"
-                            class="px-6 py-4">{{ $remainingToSale }}</td>
+                            class="px-3 py-2 md:px-6 md:py-4">{{ $remainingToSale }}</td>
                         <td style="color: {{ $color }}; background-color: {{ $backgroundColor }}"
-                            class="px-6 py-4">{{ $dueDate }}</td>
+                            class="px-3 py-2 md:px-6 md:py-4">{{ $dueDate }}</td>
                         <td style="color: {{ $color }}; background-color: {{ $backgroundColor }}"
-                            class="px-6 py-4">{{ $diffWithDueDate }}</td>
+                            class="px-3 py-2 md:px-6 md:py-4">{{ $diffWithDueDate }}</td>
                     </tr>
                 @endforeach
             @endforeach

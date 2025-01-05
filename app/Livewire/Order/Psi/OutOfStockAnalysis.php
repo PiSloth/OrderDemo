@@ -21,6 +21,9 @@ class OutOfStockAnalysis extends Component
              b.name AS branch,
               pst.inventory_balance AS balance,
               p.weight,
+              p.length,
+              uoms.name AS uom,
+              photo.image,
               (AVG(rs.qty)) AS avg_sale,
               fs_latest.qty AS focus
               '))
@@ -40,9 +43,11 @@ class OutOfStockAnalysis extends Component
             ->leftJoin('branches as b', 'b.id', 'bpsi.branch_id')
             ->leftJoin('psi_stocks as pst', 'pst.branch_psi_product_id', 'bpsi.id')
             ->leftJoin('real_sales as rs', 'rs.branch_psi_product_id', 'bpsi.id')
+            ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
+            ->leftJoin('product_photos AS photo', 'photo.psi_product_id', 'p.id')
             ->orderBy('shp.name')
             ->orderBy('b.name')
-            ->groupBy('b.name', 'pst.inventory_balance', 'p.weight', 'shp.name', 'fs_latest.qty')
+            ->groupBy('b.name', 'pst.inventory_balance', 'p.weight', 'shp.name', 'fs_latest.qty', 'p.length', 'photo.image', 'uoms.name')
             ->get();
 
         $analysis = [];
@@ -50,7 +55,7 @@ class OutOfStockAnalysis extends Component
 
 
         foreach ($rawAnalysis as $data) {
-            $key = $data->product . " / " . $data->weight . " g";
+            $key = $data->product . " / " . $data->weight . " g/ size-" . $data->length . " " . $data->uom;
             $branch = ucfirst($data->branch);
 
             if (!isset($analysis[$key][$branch])) {
@@ -64,6 +69,7 @@ class OutOfStockAnalysis extends Component
                 'avg_sale' => $data->avg_sale
             ];
 
+            //all branch summary for ho focus and real sale
             if (!isset($allBranchRealSale[$key])) {
                 $totalSale = 0;
                 $totalFocus = 0;
@@ -76,7 +82,10 @@ class OutOfStockAnalysis extends Component
                 'total_sale' => $totalSale,
                 'total_focus' => $totalFocus
             ];
+            $porductPhoto[$key] = $data->image;
         }
+
+        // dd($porductPhoto);
 
         foreach ($analysis as $key => $products) {
             $analysis[$key]['HO']['avg_sale'] = $allBranchRealSale[$key]['total_sale'];
@@ -90,6 +99,7 @@ class OutOfStockAnalysis extends Component
 
         return view('livewire.order.psi.out-of-stock-analysis', [
             'analysis' => $analysis,
+            'images' => $porductPhoto,
         ]);
     }
 }
