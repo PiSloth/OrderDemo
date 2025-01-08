@@ -57,6 +57,7 @@ class StockUpdate extends Component
     public function render()
     {
         $products = BranchPsiProduct::whereBranchId($this->branch_id)
+            ->where('is_suspended', '=', 'false')
             ->get();
         // dd($products);
 

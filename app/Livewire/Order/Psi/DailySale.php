@@ -15,11 +15,13 @@ use App\Models\StockTransaction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use Livewire\WithPagination;
 use WireUi\Traits\Actions;
 
 class DailySale extends Component
 {
     use Actions;
+    use WithPagination;
     public $sale_qty;
     public $stock_id;
     public $sale_date;
@@ -369,6 +371,7 @@ class DailySale extends Component
             })
 
             ->where('shapes.name', 'like', '%' . $this->detail . '%')
+            ->where('branch_psi_products.is_suspended', '=', 'false')
             // ->orderBy('real_sales.qty', 'desc')
             ->groupBy(
                 'branch_psi_products.id',
