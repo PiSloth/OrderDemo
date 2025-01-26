@@ -8,8 +8,10 @@ use App\Models\DailyReportRecord;
 use App\Models\RealSale;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Response;
 use Livewire\Component;
 use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
+use Spatie\SimpleExcel\SimpleExcelWriter;
 use WireUi\Traits\Actions;
 
 use function PHPSTORM_META\map;
@@ -27,6 +29,7 @@ class SaleAndRepurchase extends Component
     public $duration_filter = 30;
     public $branchOverIndex = 0;
     public $index_score;
+    public $start_date, $end_date;
 
     public function mount()
     {
@@ -66,6 +69,7 @@ class SaleAndRepurchase extends Component
         $this->edit_id = $id;
     }
 
+    //when update report date
     public function updatedReportDate()
     {
         $daily_entries =  DailyReportRecord::select('daily_report_records.*')
@@ -81,6 +85,7 @@ class SaleAndRepurchase extends Component
         }
     }
 
+    //when update branch id in filter
     public function updatedBranchId()
     {
         $daily_entries =  DailyReportRecord::select('daily_report_records.*')
@@ -96,6 +101,7 @@ class SaleAndRepurchase extends Component
         }
     }
 
+    //create a new report type
     public function createReportType()
     {
 
@@ -116,6 +122,7 @@ class SaleAndRepurchase extends Component
         ]);
     }
 
+    //create a new report record
     public function crateNewRecord()
     {
         $report_types = DailyReport::all();
@@ -149,6 +156,7 @@ class SaleAndRepurchase extends Component
         $this->entry_modal = true;
     }
 
+    //update a new record
     public function update($id)
     {
         $this->validate([
@@ -159,6 +167,61 @@ class SaleAndRepurchase extends Component
         ]);
 
         $this->reset('update_number', 'edit_id');
+    }
+
+    //Export to Excel
+    public function export()
+    {
+
+        $daily_branch_report =  DailyReportRecord::select('daily_report_records.*')
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->when($this->branch_id, function ($query) {
+                return $query->where('branch_id', $this->branch_id);
+            })
+            ->when($this->start_date && $this->end_date, function ($query) {
+                return $query->whereBetween('report_date', [$this->start_date, $this->end_date]);
+            })
+            ->when($this->start_date && !$this->end_date, function ($query) {
+                return $query->where('report_date', '>=', $this->start_date);
+            })
+            ->when(!$this->start_date && $this->end_date, function ($query) {
+                return $query->where('report_date', '<=', $this->end_date);
+            })
+            ->orderBy('branches.name')
+            ->orderBy('daily_report_records.daily_report_id')
+            ->get();
+        //export data
+        // Create a temporary file
+        // Create a temporary file with .xlsx extension
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'pos') . '.xlsx';
+
+        // dd($tempFilePath);
+
+        // Create the Excel file at the temporary location
+        $writer = SimpleExcelWriter::create($tempFilePath)
+            ->addHeader([
+                'Month',
+                'Day',
+                'Branch',
+                'Title', //Report title
+                'Quantity', //Quantity
+            ]);
+
+        foreach ($daily_branch_report as $record) {
+            // dd($record);
+
+            $writer->addRow([
+                date('F', strtotime($record->report_date)),
+                date('j', strtotime($record->report_date)),
+                $record->branch->name,
+                $record->dailyReport->name,
+                $record->number,
+            ]);
+        }
+        $writer->close();
+
+        // Stream the file to the browser
+        return Response::download($tempFilePath, Carbon::now()->format('dmY_His') . '-branch-daily-report.xlsx')->deleteFileAfterSend(true);
     }
 
     public function render()
@@ -458,6 +521,7 @@ class SaleAndRepurchase extends Component
 
         $all_reports = json_encode($chartData);
         $mergeCategory = json_encode($mergeCategory);
+
 
         return view('livewire.branch-report.sale-and-repurchase', [
             'daily_entries' => $daily_entries,

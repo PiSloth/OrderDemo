@@ -1,5 +1,6 @@
 <div x-data="{ open: true, summary: true }">
     <x-button label="Add Report" @click="$openModal('addReportModal')" />
+    <x-button label="Export" @click="$openModal('exportModal')" />
     @can('isAGM')
         <x-dropdown align='left'>
             <x-slot name="trigger">
@@ -417,6 +418,23 @@
                 @endforeach
             </tbody>
         </table>
+    </x-modal.card>
+
+    {{-- Export data --}}
+    <x-modal.card title="Export data" wire:model='exportModal'>
+        <select wire:model='branch_id' class="ml-4 bg-gray-100 border rounded-lg border-gray-50">
+            <option value="" selected disabled>Select</option>
+            @foreach ($branches as $branch)
+                <option value="{{ $branch->id }}"> {{ ucfirst($branch->name) }}</option>
+            @endforeach
+        </select>
+        <div class="grid grid-cols-1 gap-4 p-4 mb-4 rounded sm:grid-cols-2">
+            <x-datetime-picker label="Start Date" placeholder="Start Date" parse-format="YYYY-MM-DD HH:mm"
+                wire:model="start_date" without-time=true />
+            <x-datetime-picker label="End Date" placeholder="End Date" parse-format="YYYY-MM-DD HH:mm"
+                wire:model="end_date" without-time=true />
+        </div>
+        <x-button green right-icon="download" class="m-2" wire:click='export'>Exprot</x-button>
     </x-modal.card>
 </div>
 
