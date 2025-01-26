@@ -422,8 +422,8 @@
 
     {{-- Export data --}}
     <x-modal.card title="Export data" wire:model='exportModal'>
-        <select wire:model='branch_id' class="ml-4 bg-gray-100 border rounded-lg border-gray-50">
-            <option value="" selected disabled>Select</option>
+        <select wire:model='export_branch_id' class="ml-4 bg-gray-100 border rounded-lg border-gray-50">
+            <option value="" selected>All Branch</option>
             @foreach ($branches as $branch)
                 <option value="{{ $branch->id }}"> {{ ucfirst($branch->name) }}</option>
             @endforeach

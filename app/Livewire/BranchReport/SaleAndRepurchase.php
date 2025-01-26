@@ -26,6 +26,7 @@ class SaleAndRepurchase extends Component
     public $update_number;
     public $edit_id;
     public $branch_id = '';
+    public $export_branch_id;
     public $duration_filter = 30;
     public $branchOverIndex = 0;
     public $index_score;
@@ -34,6 +35,7 @@ class SaleAndRepurchase extends Component
     public function mount()
     {
         $this->branch_id = auth()->user()->branch_id;
+        $this->export_branch_id = auth()->user()->branch_id;
 
         $this->report_date = Carbon::now()->format('Y-m-d');
 
@@ -49,20 +51,6 @@ class SaleAndRepurchase extends Component
             $this->reset('entry_modal');
         }
     }
-
-    // public function updatedDurationFilter($value)
-    // {
-
-    //     dd($value);
-    //     $this->duration_filter = $value;
-    // }
-
-    // public function durationFilter($time)
-    // {
-    //     $this->duration_filter = Carbon::now()->subDay($time)->format('Y-m-d');
-
-    //     // dd($this->duration_filter);
-    // }
 
     public function edit($id)
     {
@@ -175,8 +163,8 @@ class SaleAndRepurchase extends Component
 
         $daily_branch_report =  DailyReportRecord::select('daily_report_records.*')
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-            ->when($this->branch_id, function ($query) {
-                return $query->where('branch_id', $this->branch_id);
+            ->when($this->export_branch_id, function ($query) {
+                return $query->where('branch_id', $this->export_branch_id);
             })
             ->when($this->start_date && $this->end_date, function ($query) {
                 return $query->whereBetween('report_date', [$this->start_date, $this->end_date]);
