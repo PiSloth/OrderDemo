@@ -129,14 +129,17 @@ class OutOfStockAnalysis extends Component
             if (!isset($allBranchRealSale[$key])) {
                 $totalSale = 0;
                 $totalFocus = 0;
+                $totalStock = 0;
             }
 
             $totalSale += ceil($data->avg_sale);
             $totalFocus += $data->focus;
+            $totalStock += $data->balance;
 
             $allBranchRealSale[$key] = [
                 'total_sale' => $totalSale,
-                'total_focus' => $totalFocus
+                'total_focus' => $totalFocus,
+                'total_stock' => $totalStock
             ];
             $porductPhoto[$key] = $data->image ?? '';
         }
@@ -147,6 +150,7 @@ class OutOfStockAnalysis extends Component
             if (isset($analysis[$key]['HO'])) {
                 $analysis[$key]['HO']['avg_sale'] = $allBranchRealSale[$key]['total_sale'];
                 $analysis[$key]['HO']['focus'] = $allBranchRealSale[$key]['total_focus'];
+                $analysis[$key]['HO']['balance'] = $allBranchRealSale[$key]['total_stock'];
                 // dd($analysis[$key]['HO']);
             }
         }

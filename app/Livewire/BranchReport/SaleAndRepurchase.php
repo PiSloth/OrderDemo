@@ -175,7 +175,7 @@ class SaleAndRepurchase extends Component
             ->when(!$this->start_date && $this->end_date, function ($query) {
                 return $query->where('report_date', '<=', $this->end_date);
             })
-            ->orderBy('branches.name')
+            ->orderBy('report_date')
             ->orderBy('daily_report_records.daily_report_id')
             ->get();
         //export data
@@ -201,7 +201,7 @@ class SaleAndRepurchase extends Component
             $writer->addRow([
                 date('F', strtotime($record->report_date)),
                 date('j', strtotime($record->report_date)),
-                $record->branch->name,
+                ucfirst($record->branch->name),
                 $record->dailyReport->name,
                 $record->number,
             ]);
