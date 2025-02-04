@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CustomLogout;
+use App\Livewire\BranchReport\Dashboard as BranchReportDashboard;
 use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
 use App\Livewire\ManufactureCost;
@@ -99,6 +100,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
 Route::middleware(['auth'])->prefix('report')->group(function () {
     Route::get('/sale-repurchase', SaleAndRepurchase::class)->name('sale_repurchase');
     Route::get('/psi', PsiReport::class)->name('psi-report');
+    Route::get('/dashboard', BranchReportDashboard::class)->name('report-dashboard');
 });
 
 Route::middleware(['can:isAuthorized'])->group(function () {
