@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('isSupplierDataApprover', function (User $user) {
-            $authorizedUsers = ["Super Admin", "AGM", "Inventory"];
+            $authorizedUsers = ["Super Admin", "AGM", "Inventory", "Purchaser"];
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
@@ -45,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('isInventory', function (User $user) {
             // return $user->position->name == "Inventory";
-            $authorizedUsers = ["Inventory", "Super Admin"];
+            $authorizedUsers = ["Inventory", "Super Admin", "Purchaser"];
 
             $usr = $user->position->name;
 
@@ -120,7 +120,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('isOrderApprover', function (User $user) {
-            $authorizedUsers = ["Super Admin", "Inventory", "AGM", 'Inventory'];
+            $authorizedUsers = ["Super Admin", "Purchaser", "AGM", 'Inventory'];
 
             $usr = $user->position->name;
 
