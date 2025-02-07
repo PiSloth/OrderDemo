@@ -37,7 +37,7 @@
             <tbody>
                 @foreach ($products as $item)
                     <tr x-data="{ editable: false, value: {{ $item->psiStock->inventory_balance }}, }"
-                        class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                        class="odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800">
                         <th scope="row"
                             class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
                             <x-badge positive>{{ $loop->index + 1 }}</x-badge>
@@ -75,6 +75,10 @@
                                 wire:click='transactionHistory({{ $item->psiStock->id }})' />
                         </td>
                     </tr>
+                    <tr class="border-b dark:border-gray-700">
+                        <td colspan="4" class="px-6 py-2 text-slates-400">
+                            {{ $item->psiProduct->remark }}</td>
+                    </tr>
                 @endforeach
             </tbody>
         </table>
@@ -92,10 +96,13 @@
                         Date
                     </th>
                     <th scope="col" class="px-6 py-3">
+                        Qty
+                    </th>
+                    <th scope="col" class="px-6 py-3">
                         Remark
                     </th>
                     <th scope="col" class="px-6 py-3">
-                        Write By
+                        Written By
                     </th>
                     <th scope="col" class="px-6 py-3 sr-only">
                         Action
@@ -112,14 +119,15 @@
                             {{ \Carbon\Carbon::parse($data->created_at)->format('M j,y') }}
                         </th>
                         <td class="px-6 py-4">
+                            {{ $data->qty }}
+                        </td>
+                        <td class="px-6 py-4">
                             {{ $data->remark ?? '' }}
                         </td>
                         <td class="px-6 py-4">
                             {{ $data->user->name ?? '' }}
                         </td>
-                        <td class="px-6 py-4">
 
-                        </td>
                     </tr>
                 @empty
                     <tr>

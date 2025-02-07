@@ -124,17 +124,44 @@ class SaleAndRepurchase extends Component
             ]);
             return;
         }
-        DB::transaction(function () use ($report_types) {
-            foreach ($report_types as $type) {
-                DailyReportRecord::create([
-                    'daily_report_id' => $type->id,
-                    'user_id' => auth()->user()->id,
-                    'branch_id' => $this->branch_id,
-                    'number' => 0,
-                    'report_date' => $this->report_date,
-                ]);
-            }
-        });
+
+
+
+        // dd($type);
+
+        $daily_entries =  DailyReportRecord::select('daily_report_records.*')
+            ->where('report_date', '=', $this->report_date)
+            ->where('branch_id', '=', $this->branch_id)
+            ->get();
+
+        $entries = $daily_entries->pluck('daily_report_id')->toArray();
+        $type = $report_types->pluck('id')->toArray();
+
+        $remaining_record = array_diff($type, $entries);
+
+
+        if (count($remaining_record) > 0) {
+            DB::transaction(function () use ($remaining_record) {
+                foreach ($remaining_record as $type) {
+                    DailyReportRecord::create([
+                        'daily_report_id' => $type,
+                        'user_id' => auth()->user()->id,
+                        'branch_id' => $this->branch_id,
+                        'number' => 0,
+                        'report_date' => $this->report_date,
+                    ]);
+                }
+            });
+        } else {
+            $this->notification([
+                'icon' => 'info',
+                'title' => 'Already created',
+                'description' => 'These records were already generated.'
+            ]);
+
+            return;
+        }
+
         $this->notification([
             'icon' => 'success',
             'title' => 'Successed',
@@ -155,6 +182,12 @@ class SaleAndRepurchase extends Component
         ]);
 
         $this->reset('update_number', 'edit_id');
+    }
+
+    //delect record
+    public function delete($id)
+    {
+        DailyReportRecord::findOrFail($id)->delete();
     }
 
     //Export to Excel
@@ -218,6 +251,7 @@ class SaleAndRepurchase extends Component
             $daily_entries =  DailyReportRecord::select('daily_report_records.*')
                 ->where('report_date', '=', $this->report_date)
                 ->where('branch_id', '=', $this->branch_id)
+                ->orderBy('daily_report_id')
                 ->get();
 
             $this->dispatch('open-modal', 'dataEntryModal');

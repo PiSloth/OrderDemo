@@ -37,6 +37,7 @@ class MainBoard extends Component
     public $filter_hashtag_id;
     private $duration_filter;
 
+
     public function setBranchPsiProduct($productId, $branchId)
     {
         $this->productId = $productId;
@@ -127,8 +128,6 @@ class MainBoard extends Component
     public function initializeProductId($id)
     {
         $this->productIdFilter = $id;
-
-        // dd("$id");
     }
 
     public function propsToLink($pId, $bId)
@@ -200,6 +199,21 @@ class MainBoard extends Component
         // dd($this->duration_filter);
     }
 
+    //? product remark add
+    public function updateRemark()
+    {
+        $this->validate([
+            'remark' => 'required',
+        ]);
+        $product = PsiProduct::find($this->productIdFilter);
+
+        $product->update([
+            'remark' => $this->remark
+        ]);
+
+        $this->reset('remark');
+    }
+
     public function render()
     {
         // dd(Carbon::now()->format('Y-m-d'));
@@ -268,11 +282,6 @@ class MainBoard extends Component
             )
 
             ->paginate(5);
-        // ->get();
-
-        // dump($producutWithEachBranch);
-        // dump($this->selectedTag);
-
 
         if ($this->props_to_link == true) {
             $orders = PsiOrder::where('branch_psi_product_id', '=', $this->branchPsiProductId)
@@ -314,6 +323,7 @@ class MainBoard extends Component
             // })
             ->select(
                 'p.id as psi_product_id',
+                'p.remark',
                 // 'p.name as psi_product_name',
                 'bp.id as branch_psi_product_id',
                 'bp.branch_id',
@@ -348,9 +358,11 @@ class MainBoard extends Component
                 'image' => $group->max('image'),
                 'weight' => $group->max('weight'),
                 'detail' => $group->max('detail'),
+                'remark' => $group->max('remark'),
                 'total_focus_quantity' => $group->sum('latest_focus_qty'), // Sum of latest focus quantities
                 'branches' => $group->map(function ($item) {
                     return [
+
                         'branch_psi_product_id' => $item->branch_psi_product_id,
                         'branch_id' => $item->branch_id,
                         'branch_name' => $item->name,

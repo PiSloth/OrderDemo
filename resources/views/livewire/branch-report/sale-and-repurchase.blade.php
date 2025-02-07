@@ -1,6 +1,6 @@
 <div x-data="{ open: true, summary: true }">
-    <x-button label="Add Report" @click="$openModal('addReportModal')" />
-    <x-button label="Export" @click="$openModal('exportModal')" />
+    <x-button pink label="Add Report" @click="$openModal('addReportModal')" />
+    <x-button teal label="Export" @click="$openModal('exportModal')" />
     @can('isAGM')
         <x-dropdown align='left'>
             <x-slot name="trigger">
@@ -337,15 +337,18 @@
     {{-- Create a Report --}}
     <x-modal.card title="New Report" wire:model='addReportModal'>
         <div>
-            <input type="date" wire:model.live='report_date' />
+            <input class="rounded-lg" type="date" wire:model.live='report_date' />
             @can('isAGM')
-                <select wire:model.live='branch_id'>
+                <select wire:model.live='branch_id' class="rounded-lg">
                     <option value="" selected disabled>Select</option>
                     @foreach ($branches as $branch)
                         <option value="{{ $branch->id }}"> {{ $branch->name }}</option>
                     @endforeach
                 </select>
             @endcan
+            <button wire:click='crateNewRecord'
+                class="px-4 py-2 mt-4 text-white bg-gray-900 rounded-lg hover:bg-gray-950 hover:shadow-lg"><x-icon
+                    name="check" solid class="inline w-4 h-4 mr-2" />{{ __('GENERATE') }}</button>
 
             <hr />
             @if ($entry_modal !== null)
@@ -378,16 +381,14 @@
                                     <td class="px-4 py-2">
                                         <a href="#"
                                             wire:click='edit({{ $entry->id }})'>{{ __('Edit') }}</a>
+                                        <a href="#" class="text-red-500 hover:underline hover:text-red-700"
+                                            wire:click='delete({{ $entry->id }})'>{{ __('delete') }}</a>
                                     </td>
                                 @endif
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
-            @else
-                <button wire:click='crateNewRecord'
-                    class="px-4 py-2 mt-4 text-white bg-gray-900 rounded-lg hover:bg-gray-950 hover:shadow-lg"><x-icon
-                        name="check" solid class="inline w-4 h-4 mr-2" />{{ __('GENERATE') }}</button>
             @endif
         </div>
     </x-modal.card>
