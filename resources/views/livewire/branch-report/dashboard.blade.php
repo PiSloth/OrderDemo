@@ -141,6 +141,73 @@
                 @endforeach
             </tbody>
         </table>
+    </div>
+
+    {{-- index --}}
+    <div class="my-4">
+        <div class="w-1/2 mx-auto mb-4">
+            <x-datetime-picker wire:model.live.debounce="index_date_filter" without-time='true' label="Date"
+                placeholder="Now" />
+        </div>
+        <div class="mb-4">
+            <span> Report at - {{ \Carbon\Carbon::parse($index_date_filter)->format('M, Y') }}</span>
+        </div>
+        {{-- <table class="w-full border border-collapse border-gray-300 table-auto">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="px-4 py-2 border border-gray-300">Branch</th>
+                    <th class="px-4 py-2 border border-gray-300">index</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($indexs as $index => $item)
+                    <tr class="text-center {{ $index % 2 == 0 ? 'bg-gray-100' : '' }}">
+                        <td class="px-4 py-2 font-bold border border-gray-300">
+                            {{ ucfirst($item->branch) }}
+                        </td>
+                        <td class="px-4 py-2 border border-gray-300">{{ $item->shape }}
+                            {{ $item->total_gram }}
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table> --}}
+
+        <div class="p-4 border border-gray-200 rounded">
+            @foreach ($indexs as $sequence => $item)
+                @php
+                    $branch = strtolower($item->branch);
+                    $target = $monthly_target['branch 1'];
+                    $achieved = ($item->total_gram * 60) / 100 + ($item->total_quantity * 40) / 100;
+                    $progress = ($achieved / (int) $target) * 100; // Ensure max 100%
+                @endphp
+                <div x-data="{ progress: 0 }" x-init="setTimeout(() => { progress = {{ $progress }} }, 300)" class="mb-2">
+                    <!-- Branch Name -->
+                    <h2 class="mb-3 text-lg font-bold text-center text-gray-700">{{ ucfirst($item->branch) }}</h2>
+
+                    <!-- Achieved & Target -->
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-semibold text-gray-600">Achieved: {{ number_format($achieved) }}</span>
+                        <span class="font-semibold text-gray-600">Target: {{ number_format($target) }}</span>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="relative w-full h-6 bg-gray-200 rounded-full">
+                        <div class="h-6 text-sm font-bold text-center text-white transition-all duration-700 bg-green-500 rounded-full"
+                            :style="'width:' + Math.min(progress, 100) + '%; max-width: 100%'">
+                            <span x-text="progress.toFixed(0) + '%'"></span>
+                        </div>
+                        <div x-show="progress > 100" class="absolute inset-0 flex items-end justify-end">
+                            <span class="text-xs font-bold text-red-600">🔥 Over Target!</span>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+
+
+
 
     </div>
 </div>

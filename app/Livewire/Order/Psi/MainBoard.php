@@ -339,6 +339,7 @@ class MainBoard extends Component
                 // DB::raw('YEAR(rs.sale_date) as sale_year') // Year of the sale for grouping
             )
             ->groupBy(
+                'p.remark',
                 'p.id',
                 'bp.id',
                 'branches.name',

@@ -21,20 +21,35 @@ class Dashboard extends Component
     public $limit = 5;
 
     public $branch_id;
+    //top ten sale items
     public $popular_date_filter;
 
     public $popular_month_filter;
     public $popular_year_filter;
+    //index of daily records
+    public $index_date_filter, $index_month_filter, $index_year_filter;
+
+    //monthly target
+    public $monthly_target = [
+        'branch 1' => 5000,
+        'branch 2' => 5000,
+        'branch 3' => 5000,
+        'branch 4' => 5000,
+        'branch 5' => 5000,
+        'branch 6' => 5000,
+        'online sale' => 5000,
+    ];
 
 
     public function mount()
     {
-        $this->month_filter = Carbon::now()->month;
-        $this->year_filter = Carbon::now()->year;
+        // dd($this->target['branch 1']);
 
-        $this->popular_month_filter = Carbon::now()->month;
-        $this->popular_year_filter =  Carbon::now()->year;
+        $month = Carbon::now()->month;
+        $year = Carbon::now()->year;
 
+        $this->month_filter = $this->popular_month_filter = $this->index_month_filter = $month;
+        $this->year_filter = $this->popular_year_filter = $this->index_year_filter = $year;
 
         // dd($this->year_filter);
     }
@@ -50,6 +65,12 @@ class Dashboard extends Component
     {
         $this->popular_month_filter = Carbon::parse($value)->month;
         $this->popular_year_filter = Carbon::parse($value)->year;
+    }
+
+    public function updatedIndexDateFilter($value)
+    {
+        $this->index_month_filter = Carbon::parse($value)->month;
+        $this->index_year_filter = Carbon::parse($value)->year;
     }
 
     public function render()
@@ -115,9 +136,27 @@ class Dashboard extends Component
             ->limit($this->limit)
             ->get();
 
-        // dd($most_popular);
+        //index by daily records
+        $totalIndexByMonth =  DailyReportRecord::select(
+            'branches.name AS branch',
+            DB::raw(
+                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
+                SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number  ELSE 0 END) AS total_quantity'
+            )
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where(function ($query) {
+                $query->whereMonth('daily_report_records.report_date', $this->index_month_filter)
+                    ->whereYear('daily_report_records.report_date', $this->index_year_filter);
+            })
+            ->groupBy('branches.name')
+            ->get();
 
+
+        // dd($totalIndexByMonth);
         //Index by psi
+
 
         //Branch Entrace counts
 
@@ -132,6 +171,7 @@ class Dashboard extends Component
             'monthlyAllReportTypes' => $monthlyAllReportTypes,
             'branches' => Branch::orderBy('name')->get(),
             'sales' => $most_popular,
+            'indexs' => $totalIndexByMonth,
         ]);
     }
 }
