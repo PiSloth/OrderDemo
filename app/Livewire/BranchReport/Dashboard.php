@@ -9,9 +9,11 @@ use App\Models\PsiProduct;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use WireUi\Traits\Actions;
 
 class Dashboard extends Component
 {
+    use Actions;
     public $duration_filter;
     public $self_date_filter;
     public $month_filter;
@@ -29,15 +31,22 @@ class Dashboard extends Component
     //index of daily records
     public $index_date_filter, $index_month_filter, $index_year_filter;
 
+    //daily specific report type
+    public $dailyAllReportTypes = [
+        'ရွှေ (weight / g)' => []
+    ];
+    public $specific_date_filter;
+    public $specific_branch_id;
+
     //monthly target
     public $monthly_target = [
-        'branch 1' => 5000,
-        'branch 2' => 5000,
-        'branch 3' => 5000,
-        'branch 4' => 5000,
-        'branch 5' => 5000,
-        'branch 6' => 5000,
-        'online sale' => 5000,
+        'branch 1' => 3848,
+        'branch 2' => 1780,
+        'branch 3' => 1506,
+        'branch 4' => 1589,
+        'branch 5' => 3011,
+        'branch 6' => 800,
+        'online sale' => 2258,
     ];
 
 
@@ -50,6 +59,10 @@ class Dashboard extends Component
 
         $this->month_filter = $this->popular_month_filter = $this->index_month_filter = $month;
         $this->year_filter = $this->popular_year_filter = $this->index_year_filter = $year;
+
+        $this->specific_date_filter = now();
+
+        $this->specific_branch_id = auth()->user()->branch_id;
 
         // dd($this->year_filter);
     }
@@ -73,34 +86,85 @@ class Dashboard extends Component
         $this->index_year_filter = Carbon::parse($value)->year;
     }
 
-    public function render()
+    //specific date filter of reports type
+    public function specificDateFilterOfReportType()
     {
-        $allBranchMonthlyData = DailyReportRecord::select('branches.name AS branch', 'daily_reports.name AS type', DB::raw('SUM(daily_report_records.number) AS result'))
+        $this->validate([
+            'specific_date_filter' => 'required',
+            // 'specific_branch_id' => 'required'
+        ]);
+
+        $branchDailyData = DailyReportRecord::select('branches.name AS branch', 'daily_reports.name AS type', DB::raw('SUM(daily_report_records.number) AS result'))
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-            ->whereMonth('daily_report_records.report_date',  $this->month_filter) //
-            ->whereYear('daily_report_records.report_date',  $this->year_filter) //
+            ->whereDate('daily_report_records.report_date',  $this->specific_date_filter) //
+            ->where('branches.id', $this->specific_branch_id ?? auth()->user()->branch_id)
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->groupBy('branches.name', 'daily_reports.name', 'daily_reports.id')
             ->orderBy('branches.name')
             ->orderBy('daily_reports.id')
             ->get();
 
-        $monthlyAllReportTypes = [];
 
+        if ($branchDailyData->count() == 0) {
+            $this->notification([
+                'icon' => 'info',
+                'title' => 'No data found',
+                'description' => 'No data found to show'
+            ]);
 
+            return;
+        }
 
-        foreach ($allBranchMonthlyData as $data) {
+        foreach ($branchDailyData as $data) {
             $key = $data->type;
-            $branch = ucfirst($data->branch);
+            $branch = ucfirst($data->branch) .  Carbon::parse($this->specific_date_filter)->format(' (j M y)');
 
-            if (!isset($monthlyAllReportTypes[$key][$branch])) {
-                $monthlyAllReportTypes[$key][$branch] = [];
+            if (!isset($this->dailyAllReportTypes[$key][$branch])) {
+                $this->dailyAllReportTypes[$key][$branch] = [];
             }
-
-
-            $monthlyAllReportTypes[$key][$branch] = [
+            $this->dailyAllReportTypes[$key][$branch] = [
                 $data->result,
             ];
+        }
+
+        // dd($this->dailyAllReportTypes);
+    }
+
+    public function removeKeyFromSelectedArray($keyItem)
+    {
+        $result = array_map(fn($item) => array_filter($item, fn($key) => $key !== $keyItem, ARRAY_FILTER_USE_KEY), $this->dailyAllReportTypes);
+        $this->dailyAllReportTypes = $result;
+    }
+
+    public function render()
+    {
+
+        //! monthly report of report types
+        {
+            $allBranchMonthlyData = DailyReportRecord::select('branches.name AS branch', 'daily_reports.name AS type', DB::raw('SUM(daily_report_records.number) AS result'))
+                ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+                ->whereMonth('daily_report_records.report_date',  $this->month_filter) //
+                ->whereYear('daily_report_records.report_date',  $this->year_filter) //
+                ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+                ->groupBy('branches.name', 'daily_reports.name', 'daily_reports.id')
+                ->orderBy('branches.name')
+                ->orderBy('daily_reports.id')
+                ->get();
+
+
+            $monthlyAllReportTypes = [];
+
+            foreach ($allBranchMonthlyData as $data) {
+                $key = $data->type;
+                $branch = ucfirst($data->branch);
+
+                if (!isset($monthlyAllReportTypes[$key][$branch])) {
+                    $monthlyAllReportTypes[$key][$branch] = [];
+                }
+                $monthlyAllReportTypes[$key][$branch] = [
+                    $data->result,
+                ];
+            }
         }
 
         $selfComparation = DailyReportRecord::select('branches.name AS branch', 'daily_reports.name AS type')
@@ -115,7 +179,9 @@ class Dashboard extends Component
 
         //Branch index count Monthly
 
-        //PSI Most popular sale
+
+
+        //! PSI Most popular sale
         $most_popular = DB::table('real_sales as rs')
             ->select('s.name as shape', 'p.length', 'p.weight', 'uoms.name as uom', DB::raw('SUM(rs.qty) AS sale'))
             ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
@@ -136,7 +202,8 @@ class Dashboard extends Component
             ->limit($this->limit)
             ->get();
 
-        //index by daily records
+
+        //! index by daily records
         $totalIndexByMonth =  DailyReportRecord::select(
             'branches.name AS branch',
             DB::raw(
@@ -154,7 +221,7 @@ class Dashboard extends Component
             ->get();
 
 
-        // dd($totalIndexByMonth);
+
         //Index by psi
 
 

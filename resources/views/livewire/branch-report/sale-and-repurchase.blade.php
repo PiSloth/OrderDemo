@@ -381,8 +381,10 @@
                                     <td class="px-4 py-2">
                                         <a href="#"
                                             wire:click='edit({{ $entry->id }})'>{{ __('Edit') }}</a>
-                                        <a href="#" class="text-red-500 hover:underline hover:text-red-700"
-                                            wire:click='delete({{ $entry->id }})'>{{ __('delete') }}</a>
+                                        @can('isIT')
+                                            <a href="#" class="text-red-500 hover:underline hover:text-red-700"
+                                                wire:click='delete({{ $entry->id }})'>{{ __('delete') }}</a>
+                                        @endcan
                                     </td>
                                 @endif
                             </tr>
