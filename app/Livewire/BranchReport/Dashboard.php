@@ -26,8 +26,9 @@ class Dashboard extends Component
     //top ten sale items
     public $popular_date_filter;
 
-    public $popular_month_filter;
-    public $popular_year_filter;
+    //popular slae product filters
+    public $popular_month_filter, $popular_year_filter;
+    public $popular_start_date_filter, $popular_end_date_filter;
     //index of daily records
     public $index_date_filter, $index_month_filter, $index_year_filter;
 
@@ -78,6 +79,17 @@ class Dashboard extends Component
     {
         $this->popular_month_filter = Carbon::parse($value)->month;
         $this->popular_year_filter = Carbon::parse($value)->year;
+    }
+    //sale popular data
+    public function updatedPopularStartDateFilter($value)
+    {
+        $this->popular_start_date_filter = $value;
+    }
+
+    //sale popular data
+    public function updatedPopularEndDateFilter($value)
+    {
+        $this->popular_end_date_filter = $value;
     }
 
     public function updatedIndexDateFilter($value)
@@ -186,7 +198,6 @@ class Dashboard extends Component
             ->select('s.name as shape', 'p.length', 'p.weight', 'uoms.name as uom', DB::raw('SUM(rs.qty) AS sale'))
             ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
             ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
-            ->leftJoin('shapes as shp', 'shp.id', 'p.shape_id')
             ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
             ->leftJoin('shapes as s', 's.id', 'p.shape_id')
             ->leftJoin('branches as b', 'b.id', 'bpsi.branch_id')
@@ -201,6 +212,51 @@ class Dashboard extends Component
             ->orderByRaw('SUM(rs.qty)' . $this->ac)
             ->limit($this->limit)
             ->get();
+
+
+        //! PSI Most popular sale
+        $most_popular_summary = DB::table('real_sales as rs')
+            ->select(
+                's.name as shape',
+                'p.length',
+                'p.weight',
+                'uoms.name as uom',
+                DB::raw('SUM(rs.qty) AS total_sale')
+            )
+            ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
+            ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
+            ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
+            ->leftJoin('shapes as s', 's.id', 'p.shape_id')
+            ->whereBetween('rs.sale_date', [$this->popular_start_date_filter, $this->popular_end_date_filter])
+            ->when($this->branch_id, function ($query) {
+                return $query->where('bpsi.branch_id', $this->branch_id);
+            })
+            ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight')
+            ->orderByDesc('total_sale') // Order by total sale DESC
+            ->get();
+
+        $most_popular_details = DB::table('real_sales as rs')
+            ->select(
+                's.name as shape',
+                'p.length',
+                'p.weight',
+                'uoms.name as uom',
+                'b.name as branch',
+                DB::raw('SUM(rs.qty) AS branch_sale')
+            )
+            ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
+            ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
+            ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
+            ->leftJoin('shapes as s', 's.id', 'p.shape_id')
+            ->leftJoin('branches as b', 'b.id', 'bpsi.branch_id')
+            ->whereBetween('rs.sale_date', [$this->popular_start_date_filter, $this->popular_end_date_filter])
+            ->when($this->branch_id, function ($query) {
+                return $query->where('bpsi.branch_id', $this->branch_id);
+            })
+            ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight', 'b.name')
+            ->orderByDesc('branch_sale') // Order by branch sale DESC
+            ->get();
+
 
 
         //! index by daily records
@@ -239,6 +295,8 @@ class Dashboard extends Component
             'branches' => Branch::orderBy('name')->get(),
             'sales' => $most_popular,
             'indexs' => $totalIndexByMonth,
+            'most_popular_details' => $most_popular_details,
+            'most_popular_summary' => $most_popular_summary,
         ]);
     }
 }

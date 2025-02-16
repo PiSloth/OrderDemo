@@ -53,8 +53,6 @@
                 wire:click='specificDateFilterOfReportType'>Generate</span>
         </div>
 
-
-        {{-- @dd($dailyAllReportTypes) --}}
         <table class="w-full mt-2 text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
@@ -71,15 +69,17 @@
                     <tr class="odd:bg-white even:bg-gray-100">
                         <td class=" md:px-4 md:py-2">{{ $typeName }}</td>
                         @foreach ($branchData as $values)
-                            <td class=" md:px-4 md:py-2">{{ $values[0] ?? 0 }}</td> {{-- Display value or 0 if empty --}}
+                            <td class=" md:px-4 md:py-2">{{ $values[0] ?? 0 }}</td>
                         @endforeach
                     </tr>
                 @endforeach
             </tbody>
         </table>
-
     </div>
+
+
     {{-- Popular Sale --}}
+
     <div class="my-4 shadow-lg">
         <div class="w-1/2 mx-auto mb-4">
             <x-datetime-picker wire:model.live.debounce="popular_date_filter" without-time='true' label="Date"
@@ -140,6 +140,74 @@
         </table>
     </div>
 
+    {{-- pupular with detail --}}
+    <div class="flex w-1/2 gap-2 mx-auto mb-4">
+        <x-datetime-picker wire:model.live.debounce="popular_start_date_filter" without-time='true' label="Date"
+            placeholder="Now" />
+        <x-datetime-picker wire:model.live.debounce="popular_end_date_filter" without-time='true' label="Date"
+            placeholder="Now" />
+    </div>
+
+    <table class="w-full border-collapse table-auto">
+        <thead>
+            <tr class="text-left bg-gray-200">
+                <th class="p-2 border">Shape</th>
+                <th class="p-2 border">Length</th>
+                <th class="p-2 border">Weight</th>
+                <th class="p-2 border">UOM</th>
+                <th class="p-2 border">Total Sale</th>
+                {{-- <th class="p-2 border">Details</th> --}}
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($most_popular_summary as $summary)
+                <tr class="bg-gray-100">
+                    <td class="p-2 border">{{ $summary->shape }}</td>
+                    <td class="p-2 text-center border">{{ $summary->length }}</td>
+                    <td class="p-2 text-center border">{{ $summary->weight }}</td>
+                    <td class="p-2 text-center border">{{ $summary->uom }}</td>
+                    <td class="p-2 font-bold text-center border">{{ $summary->total_sale }}</td>
+                </tr>
+                <tr class="bg-gray-100">
+
+                    <td class="p-2 align-top border">
+                        <details class="w-full p-2 border">
+                            <summary class="font-semibold text-blue-600 cursor-pointer">View Branch Details</summary>
+                            <div class="p-2 mt-2 bg-white border rounded-lg shadow-md">
+                                <table class="w-full border-collapse table-auto">
+                                    <thead>
+                                        <tr class="text-left bg-gray-300">
+                                            <th class="p-2 text-center border">Branch</th>
+                                            <th class="p-2 text-center border">Branch Sale</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($most_popular_details as $detail)
+                                            @if (
+                                                $detail->shape === $summary->shape &&
+                                                    $detail->length === $summary->length &&
+                                                    $detail->weight === $summary->weight &&
+                                                    $detail->uom === $summary->uom)
+                                                <tr class="bg-white">
+                                                    <td class="p-2 text-center border">{{ $detail->branch }}</td>
+                                                    <td class="p-2 font-bold text-center border">
+                                                        {{ $detail->branch_sale }}</td>
+                                                </tr>
+                                            @endif
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+
+
+
     {{-- index --}}
     <div class="my-4 shadow-xl">
         <div class="w-1/2 mx-auto mb-4">
@@ -149,35 +217,16 @@
         <div class="mb-4">
             <span> Report at - {{ \Carbon\Carbon::parse($index_date_filter)->format('M, Y') }}</span>
         </div>
-        {{-- <table class="w-full border border-collapse border-gray-300 table-auto">
-            <thead>
-                <tr class="bg-gray-200">
-                    <th class="px-4 py-2 border border-gray-300">Branch</th>
-                    <th class="px-4 py-2 border border-gray-300">index</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($indexs as $index => $item)
-                    <tr class="text-center {{ $index % 2 == 0 ? 'bg-gray-100' : '' }}">
-                        <td class="px-4 py-2 font-bold border border-gray-300">
-                            {{ ucfirst($item->branch) }}
-                        </td>
-                        <td class="px-4 py-2 border border-gray-300">{{ $item->shape }}
-                            {{ $item->total_gram }}
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table> --}}
 
         <div class="p-4 border border-gray-200 rounded">
             @foreach ($indexs as $sequence => $item)
                 @php
                     $branch = strtolower($item->branch);
-                    $target = $monthly_target[$item->branch];
+                    $target = $monthly_target[$branch];
                     $achieved = ($item->total_gram * 60) / 100 + ($item->total_quantity * 40) / 100;
                     $progress = ($achieved / (int) $target) * 100; // Ensure max 100%
                 @endphp
+
                 <div x-data="{ progress: 0 }" x-init="setTimeout(() => { progress = {{ $progress }} }, 300)" class="mb-2">
                     <!-- Branch Name -->
                     <h2 class="mb-3 text-lg font-bold text-center text-gray-700">{{ ucfirst($item->branch) }}</h2>
