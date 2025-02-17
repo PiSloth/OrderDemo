@@ -65,7 +65,10 @@ class Dashboard extends Component
 
         $this->specific_branch_id = auth()->user()->branch_id;
 
-        // dd($this->year_filter);
+        $this->popular_start_date_filter = Carbon::now()->startOfMonth();
+        $this->popular_end_date_filter = Carbon::now();
+
+        // dd($this->popular_start_date_filter);
     }
 
     public function updatedReportTypesDateFilter($value)
@@ -194,24 +197,24 @@ class Dashboard extends Component
 
 
         //! PSI Most popular sale
-        $most_popular = DB::table('real_sales as rs')
-            ->select('s.name as shape', 'p.length', 'p.weight', 'uoms.name as uom', DB::raw('SUM(rs.qty) AS sale'))
-            ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
-            ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
-            ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
-            ->leftJoin('shapes as s', 's.id', 'p.shape_id')
-            ->leftJoin('branches as b', 'b.id', 'bpsi.branch_id')
-            ->where(function ($query) {
-                $query->whereMonth('rs.sale_date', $this->popular_month_filter)
-                    ->whereYear('rs.sale_date', $this->popular_year_filter);
-            })
-            ->when($this->branch_id, function ($query) {
-                return $query->where('b.id', $this->branch_id);
-            })
-            ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight')
-            ->orderByRaw('SUM(rs.qty)' . $this->ac)
-            ->limit($this->limit)
-            ->get();
+        // $most_popular = DB::table('real_sales as rs')
+        //     ->select('s.name as shape', 'p.length', 'p.weight', 'uoms.name as uom', DB::raw('SUM(rs.qty) AS sale'))
+        //     ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
+        //     ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
+        //     ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
+        //     ->leftJoin('shapes as s', 's.id', 'p.shape_id')
+        //     ->leftJoin('branches as b', 'b.id', 'bpsi.branch_id')
+        //     ->where(function ($query) {
+        //         $query->whereMonth('rs.sale_date', $this->popular_month_filter)
+        //             ->whereYear('rs.sale_date', $this->popular_year_filter);
+        //     })
+        //     ->when($this->branch_id, function ($query) {
+        //         return $query->where('b.id', $this->branch_id);
+        //     })
+        //     ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight')
+        //     ->orderByRaw('SUM(rs.qty)' . $this->ac)
+        //     ->limit($this->limit)
+        //     ->get();
 
 
         //! PSI Most popular sale
@@ -233,6 +236,7 @@ class Dashboard extends Component
             })
             ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight')
             ->orderByDesc('total_sale') // Order by total sale DESC
+            ->limit($this->limit)
             ->get();
 
         $most_popular_details = DB::table('real_sales as rs')
@@ -255,6 +259,7 @@ class Dashboard extends Component
             })
             ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight', 'b.name')
             ->orderByDesc('branch_sale') // Order by branch sale DESC
+            ->limit($this->limit)
             ->get();
 
 
@@ -293,7 +298,7 @@ class Dashboard extends Component
         return view('livewire.branch-report.dashboard', [
             'monthlyAllReportTypes' => $monthlyAllReportTypes,
             'branches' => Branch::orderBy('name')->get(),
-            'sales' => $most_popular,
+            // 'sales' => $most_popular,
             'indexs' => $totalIndexByMonth,
             'most_popular_details' => $most_popular_details,
             'most_popular_summary' => $most_popular_summary,
