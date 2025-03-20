@@ -2,28 +2,29 @@
 
 namespace App\Livewire\Orders;
 
-use Carbon\Carbon;
+use App\Models\Branch;
+use App\Models\Comment;
+use App\Models\CommentPool;
+use App\Models\Design;
 use App\Models\Grade;
 use App\Models\Order;
-use App\Models\Reply;
-use App\Models\Branch;
-use App\Models\Design;
-use App\Models\Status;
-use App\Models\Comment;
-use Livewire\Component;
 use App\Models\Priority;
-use WireUi\Traits\Actions;
-use App\Models\CommentPool;
-use Livewire\Attributes\Url;
-use Livewire\Attributes\Title;
+use App\Models\Quality;
+use App\Models\Reply;
+use App\Models\Status;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
+use Livewire\Component;
 use Livewire\WithPagination;
+use WireUi\Traits\Actions;
 
 class BranchReport extends Component
 {
-    use WithPagination;
     use Actions;
-    #[Title('Report')]
+    use WithPagination;
+
     public $gradeFilter = 0;
 
     #[Url(as: 'priority')]
@@ -42,17 +43,27 @@ class BranchReport extends Component
     public $endDate;
 
     public $designFilter = 0;
+
     public $durationFilter = 0;
+
     public $detailFilter;
+
+    public $qualityFilter;
 
     public $designName;
 
     public $priority = '';
+
     public $date = '';
+
     public $orderId = '';
-    public  $reply_toggle;
+
+    public $reply_toggle;
+
     public $content;
+
     public $comment;
+
     public $reply;
 
     // comment modal
@@ -79,7 +90,7 @@ class BranchReport extends Component
     {
 
         $this->validate([
-            'reply' => 'required'
+            'reply' => 'required',
         ]);
         Reply::create([
             'content' => $this->reply,
@@ -93,7 +104,7 @@ class BranchReport extends Component
     public function createComment()
     {
         $this->validate([
-            'comment' => 'required'
+            'comment' => 'required',
         ]);
 
         Comment::create([
@@ -111,11 +122,10 @@ class BranchReport extends Component
         Order::whereId($id)->update(['status_id' => 2]);
     }
 
+    #[Title('Report')]
     public function render()
     {
         $sevenDaysAgo = Carbon::now()->subDays(7);
-
-
 
         $orderQuery = Order::where(function ($query) use ($sevenDaysAgo) {
             $query->where('status_id', '!=', 7)
@@ -129,12 +139,11 @@ class BranchReport extends Component
                         ->where('updated_at', '>=', $sevenDaysAgo);  // Only include status_id 8 updated within last 7 days
                 });
         })
-            ->where('detail', 'like', '%' . $this->detailFilter . '%')
+            ->where('detail', 'like', '%'.$this->detailFilter.'%')
             ->orderBy('created_at', 'desc')
             ->get();
 
         // dd($orderQuery);
-
 
         if ($this->statusFilter) {
             $orderQuery = $orderQuery->where('status_id', $this->statusFilter);
@@ -152,6 +161,10 @@ class BranchReport extends Component
 
         if ($this->gradeFilter) {
             $orderQuery = $orderQuery->where('grade_id', $this->gradeFilter);
+        }
+
+        if ($this->qualityFilter) {
+            $orderQuery = $orderQuery->where('quality_id', $this->qualityFilter);
         }
 
         if ($this->priorityFilter) {
@@ -200,6 +213,7 @@ class BranchReport extends Component
             'statuses' => Status::all(),
             'branches' => Branch::all(),
             'comments' => $comments,
+            'qualities' => Quality::all(),
 
         ]);
     }
