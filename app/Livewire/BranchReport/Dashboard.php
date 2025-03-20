@@ -65,7 +65,7 @@ class Dashboard extends Component
 
         $this->specific_branch_id = auth()->user()->branch_id;
 
-        $this->popular_start_date_filter = Carbon::now()->startOfMonth();
+        $this->popular_start_date_filter = Carbon::now()->subMonth(5)->startOfMonth();
         $this->popular_end_date_filter = Carbon::now();
 
         // dd($this->popular_start_date_filter);
@@ -259,9 +259,10 @@ class Dashboard extends Component
             })
             ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight', 'b.name')
             ->orderByDesc('branch_sale') // Order by branch sale DESC
-            ->limit($this->limit)
+            // ->limit($this->limit)
             ->get();
 
+        // dd($most_popular_details);
 
 
         //! index by daily records

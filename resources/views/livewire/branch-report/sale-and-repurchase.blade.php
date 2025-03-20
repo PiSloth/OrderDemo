@@ -26,7 +26,6 @@
             </div>
             <span class="text-sm font-medium text-gray-900 ms-3 dark:text-gray-300">နေ့စဉ် ဆိုင်ခွဲများ report</span>
         </label>
-
     </div>
 
     <div class="flex flex-wrap gap-2 my-4" x-show="open" x-transition>

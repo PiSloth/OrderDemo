@@ -292,7 +292,7 @@
                                                     $detail->weight === $summary->weight &&
                                                     $detail->uom === $summary->uom)
                                                 <li class="flex justify-between shadow-sm">
-                                                    <sapn class="p-2">{{ ucfirst($detail->branch) }}
+                                                    <sapn class="p-2">{{ $detail->branch }}
                                                     </sapn>
                                                     <span class="p-2 text-right text-slate-800 ">
                                                         {{ number_format($detail->branch_sale) }} </span>
