@@ -92,18 +92,11 @@
     </div>
     <hr />
     <div class="mt-4">
-        <div class="flex flex-wrap w-2/4 gap-4 my-8">
-            {{-- Filter to show interval --}}
-            <select id="dateInterval" wire:model.live='duration_filter'
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500  p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                <option value="0">Today</option>
-                <option value="1">Yesterday</option>
-                <option value="7">7 days ago</option>
-                <option selected value="30">30 days ago</option>
-                <option value="60">60 days ago</option>
-                <option value="90">90 days ago</option>
-            </select>
-            <label for="dateInterval" class="text-xl text-gray-400">Report Date ရွေးချယ်ပါ</label>
+        <div class="flex w-1/2 gap-2 mx-auto mb-4">
+            <x-datetime-picker wire:model.live.debounce="start_date_summary" without-time='true' label="Start"
+                placeholder="Now" />
+            <x-datetime-picker wire:model.live.debounce="end_date_summary" without-time='true' label="End"
+                placeholder="Now" />
         </div>
 
         <label class="inline-flex items-center mt-2 cursor-pointer">

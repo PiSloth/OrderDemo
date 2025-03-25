@@ -167,6 +167,8 @@
                     <cite class="text-sm text-gray-500 ps-3 dark:text-gray-400">{{ $order->user->branch->name }}</cite>
                 </div>
             </figcaption>
+            <span>{{ $order->created_at->diffForHumans() }}</span>
+            <span>( {{ \Carbon\Carbon::parse($order->created_at)->format('j M y') }} )</span>
         </figure>
     </div>
 
