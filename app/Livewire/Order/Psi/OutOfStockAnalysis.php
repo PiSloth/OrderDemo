@@ -11,9 +11,13 @@ use Livewire\WithPagination;
 class OutOfStockAnalysis extends Component
 {
     use WithPagination;
+
     public $filter = [];
+
     public $checkbox = '';
+
     public $branch_1 = '';
+
     public $branches = [
         'br1' => 'branch 1',
         'br2' => 'branch 2',
@@ -22,19 +26,28 @@ class OutOfStockAnalysis extends Component
         'br5' => 'branch 5',
         'br6' => 'branch 6',
         'ho' => 'ho',
-        'online_sale' => 'online sale'
+        'online_sale' => 'online sale',
     ];
+
     public $selectedBranch = [];
+
     public $br1;
+
     public $br2;
+
     public $br3;
+
     public $br4;
+
     public $br5;
+
     public $br6;
+
     public $ho;
+
     public $online_sale;
 
-    public function mount() {}
+    // public function mount() {}
 
     public function updated($property, $value)
     {
@@ -49,7 +62,6 @@ class OutOfStockAnalysis extends Component
     public function removeFilter($key)
     {
 
-
         // Filter out the tag with the specified key
         $this->selectedBranch = array_filter($this->selectedBranch, function ($branch) use ($key) {
             // dd($branch);
@@ -60,8 +72,6 @@ class OutOfStockAnalysis extends Component
         // Reindex the array to maintain numeric indexes
         $this->selectedBranch = array_values($this->selectedBranch);
     }
-
-
 
     #[Title('\'Out of Stock\' analysis of your business')]
     public function render()
@@ -97,7 +107,7 @@ class OutOfStockAnalysis extends Component
             ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
             ->leftJoin('product_photos AS photo', 'photo.psi_product_id', 'p.id')
             ->where('bpsi.is_suspended', '=', 'false')
-            ->when(!empty($this->selectedBranch), function ($query) {
+            ->when(! empty($this->selectedBranch), function ($query) {
                 return $query->whereIn('b.name', $this->selectedBranch);
             })
             ->orderBy('shp.name')
@@ -105,28 +115,25 @@ class OutOfStockAnalysis extends Component
             ->groupBy('b.name', 'pst.inventory_balance', 'p.weight', 'shp.name', 'fs_latest.qty', 'p.length', 'photo.image', 'uoms.name')
             ->get();
 
-
         $analysis = [];
         $allBranchRealSale = [];
 
-
         foreach ($rawAnalysis as $data) {
-            $key = $data->product . " / " . $data->weight . " g/ size-" . $data->length . " " . $data->uom;
+            $key = $data->product.' / '.$data->weight.' g/ size-'.$data->length.' '.$data->uom;
             $branch = ucfirst($data->branch);
 
-            if (!isset($analysis[$key][$branch])) {
+            if (! isset($analysis[$key][$branch])) {
                 $analysis[$key][$branch] = [];
             }
-
 
             $analysis[$key][$branch] = [
                 'balance' => $data->balance ?? 0,
                 'focus' => $data->focus,
-                'avg_sale' => $data->avg_sale
+                'avg_sale' => $data->avg_sale,
             ];
 
             //all branch summary for ho focus and real sale
-            if (!isset($allBranchRealSale[$key])) {
+            if (! isset($allBranchRealSale[$key])) {
                 $totalSale = 0;
                 $totalFocus = 0;
                 $totalStock = 0;
@@ -139,7 +146,7 @@ class OutOfStockAnalysis extends Component
             $allBranchRealSale[$key] = [
                 'total_sale' => $totalSale,
                 'total_focus' => $totalFocus,
-                'total_stock' => $totalStock
+                'total_stock' => $totalStock,
             ];
             $porductPhoto[$key] = $data->image ?? '';
         }
@@ -155,12 +162,13 @@ class OutOfStockAnalysis extends Component
             }
         }
 
-        if (!empty($this->selectedBranch)) {
+        if (! empty($this->selectedBranch)) {
             // dd($analysis);
         }
         // dd($allBranchRealSale);
 
         // dd($analysis);
+        $productPhoto = [];
 
         return view('livewire.order.psi.out-of-stock-analysis', [
             'analysis' => $analysis,

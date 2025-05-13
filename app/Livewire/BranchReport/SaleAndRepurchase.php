@@ -5,32 +5,46 @@ namespace App\Livewire\BranchReport;
 use App\Models\Branch;
 use App\Models\DailyReport;
 use App\Models\DailyReportRecord;
-use App\Models\RealSale;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Livewire\Component;
-use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 use WireUi\Traits\Actions;
-
-use function PHPSTORM_META\map;
 
 class SaleAndRepurchase extends Component
 {
     use Actions;
+
     public $name;
+
     public $description;
+
     public $report_date;
+
     public $entry_modal;
+
     public $update_number;
+
     public $edit_id;
+
     public $branch_id = '';
+
     public $export_branch_id;
+
     public $duration_filter = 30;
+
     public $branchOverIndex = 0;
+
     public $index_score;
-    public $start_date, $end_date;
+
+    public $start_date;
+
+    public $end_date;
+
+    public $start_date_summary;
+
+    public $end_date_summary;
 
     public function mount()
     {
@@ -39,7 +53,7 @@ class SaleAndRepurchase extends Component
 
         $this->report_date = Carbon::now()->format('Y-m-d');
 
-        $daily_entries =  DailyReportRecord::select('daily_report_records.*')
+        $daily_entries = DailyReportRecord::select('daily_report_records.*')
             ->where('report_date', '=', $this->report_date)
             ->where('branch_id', '=', $this->branch_id)
             ->exists();
@@ -60,7 +74,7 @@ class SaleAndRepurchase extends Component
     //when update report date
     public function updatedReportDate()
     {
-        $daily_entries =  DailyReportRecord::select('daily_report_records.*')
+        $daily_entries = DailyReportRecord::select('daily_report_records.*')
             ->where('report_date', '=', $this->report_date)
             ->where('branch_id', '=', $this->branch_id)
             ->exists();
@@ -76,7 +90,7 @@ class SaleAndRepurchase extends Component
     //when update branch id in filter
     public function updatedBranchId()
     {
-        $daily_entries =  DailyReportRecord::select('daily_report_records.*')
+        $daily_entries = DailyReportRecord::select('daily_report_records.*')
             ->where('report_date', '=', $this->report_date)
             ->where('branch_id', '=', $this->branch_id)
             ->exists();
@@ -93,9 +107,9 @@ class SaleAndRepurchase extends Component
     public function createReportType()
     {
 
-        $validated =  $this->validate([
+        $validated = $this->validate([
             'name' => 'required',
-            'description' => 'required'
+            'description' => 'required',
         ]);
 
         DailyReport::create($validated);
@@ -106,7 +120,7 @@ class SaleAndRepurchase extends Component
         $this->notification([
             'icon' => 'success',
             'title' => 'Successed',
-            'description' => 'New report type added successfully.'
+            'description' => 'New report type added successfully.',
         ]);
     }
 
@@ -120,16 +134,15 @@ class SaleAndRepurchase extends Component
             $this->notification([
                 'icon' => 'error',
                 'title' => 'Failed',
-                'description' => 'First new report type add before you create a report.'
+                'description' => 'First new report type add before you create a report.',
             ]);
+
             return;
         }
 
-
-
         // dd($type);
 
-        $daily_entries =  DailyReportRecord::select('daily_report_records.*')
+        $daily_entries = DailyReportRecord::select('daily_report_records.*')
             ->where('report_date', '=', $this->report_date)
             ->where('branch_id', '=', $this->branch_id)
             ->get();
@@ -138,7 +151,6 @@ class SaleAndRepurchase extends Component
         $type = $report_types->pluck('id')->toArray();
 
         $remaining_record = array_diff($type, $entries);
-
 
         if (count($remaining_record) > 0) {
             DB::transaction(function () use ($remaining_record) {
@@ -156,7 +168,7 @@ class SaleAndRepurchase extends Component
             $this->notification([
                 'icon' => 'info',
                 'title' => 'Already created',
-                'description' => 'These records were already generated.'
+                'description' => 'These records were already generated.',
             ]);
 
             return;
@@ -165,7 +177,7 @@ class SaleAndRepurchase extends Component
         $this->notification([
             'icon' => 'success',
             'title' => 'Successed',
-            'description' => 'New report generated successfully.'
+            'description' => 'New report generated successfully.',
         ]);
 
         $this->entry_modal = true;
@@ -194,7 +206,7 @@ class SaleAndRepurchase extends Component
     public function export()
     {
 
-        $daily_branch_report =  DailyReportRecord::select('daily_report_records.*')
+        $daily_branch_report = DailyReportRecord::select('daily_report_records.*')
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
             ->when($this->export_branch_id, function ($query) {
                 return $query->where('branch_id', $this->export_branch_id);
@@ -202,10 +214,10 @@ class SaleAndRepurchase extends Component
             ->when($this->start_date && $this->end_date, function ($query) {
                 return $query->whereBetween('report_date', [$this->start_date, $this->end_date]);
             })
-            ->when($this->start_date && !$this->end_date, function ($query) {
+            ->when($this->start_date && ! $this->end_date, function ($query) {
                 return $query->where('report_date', '>=', $this->start_date);
             })
-            ->when(!$this->start_date && $this->end_date, function ($query) {
+            ->when(! $this->start_date && $this->end_date, function ($query) {
                 return $query->where('report_date', '<=', $this->end_date);
             })
             ->orderBy('report_date')
@@ -214,7 +226,7 @@ class SaleAndRepurchase extends Component
         //export data
         // Create a temporary file
         // Create a temporary file with .xlsx extension
-        $tempFilePath = tempnam(sys_get_temp_dir(), 'pos') . '.xlsx';
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'pos').'.xlsx';
 
         // dd($tempFilePath);
 
@@ -242,13 +254,13 @@ class SaleAndRepurchase extends Component
         $writer->close();
 
         // Stream the file to the browser
-        return Response::download($tempFilePath, Carbon::now()->format('dmY_His') . '-branch-daily-report.xlsx')->deleteFileAfterSend(true);
+        return Response::download($tempFilePath, Carbon::now()->format('dmY_His').'-branch-daily-report.xlsx')->deleteFileAfterSend(true);
     }
 
     public function render()
     {
         if ($this->entry_modal) {
-            $daily_entries =  DailyReportRecord::select('daily_report_records.*')
+            $daily_entries = DailyReportRecord::select('daily_report_records.*')
                 ->where('report_date', '=', $this->report_date)
                 ->where('branch_id', '=', $this->branch_id)
                 ->orderBy('daily_report_id')
@@ -261,11 +273,14 @@ class SaleAndRepurchase extends Component
 
         $reportTypeSummary = DailyReportRecord::select('branches.name AS branch', 'daily_reports.name AS type', DB::raw('SUM(daily_report_records.number) AS total'))
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-            ->when($this->duration_filter, function ($query) {
-                return $query->where('daily_report_records.report_date', '>=', Carbon::now()->subDay($this->duration_filter)->format('Y-m-d'));
+            ->when($this->start_date_summary && $this->end_date_summary, function ($query) {
+                return $query->whereBetween('daily_report_records.report_date', [$this->start_date_summary, $this->end_date_summary]);
             })
-            ->when(! $this->duration_filter, function ($query) {
-                return $query->where('daily_report_records.report_date', '=', Carbon::now()->format('Y-m-d'));
+            ->when($this->start_date_summary && ! $this->end_date_summary, function ($query) {
+                return $query->where('daily_report_records.report_date', '>=', $this->start_date_summary);
+            })
+            ->when(! $this->start_date_summary && $this->end_date_summary, function ($query) {
+                return $query->where('daily_report_records.report_date', '<=', $this->end_date_summary);
             })
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->groupBy('branches.name', 'daily_reports.name', 'daily_reports.id')
@@ -281,7 +296,7 @@ class SaleAndRepurchase extends Component
             $key = ucfirst($item->branch);
             $type = $item->type;
 
-            if (!isset($formattedReports[$key])) {
+            if (! isset($formattedReports[$key])) {
                 $formattedReports[$key] = [];
             }
 
@@ -292,7 +307,7 @@ class SaleAndRepurchase extends Component
         }
         $daily_reports = json_encode($formattedReports); // report type summary
 
-        $all_data =  DailyReportRecord::select('daily_reports.name AS type', 'daily_report_records.report_date', DB::raw('SUM(daily_report_records.number) AS total'))
+        $all_data = DailyReportRecord::select('daily_reports.name AS type', 'daily_report_records.report_date', DB::raw('SUM(daily_report_records.number) AS total'))
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->groupBy('daily_reports.name', 'daily_report_records.report_date')
@@ -304,8 +319,7 @@ class SaleAndRepurchase extends Component
         foreach ($categories as $item) {
             $key = Carbon::parse($item)->format('M j, Y');
 
-
-            if (!in_array($item, $mergeCategory)) {
+            if (! in_array($item, $mergeCategory)) {
                 $mergeCategory[] = $key;
             }
         }
@@ -319,13 +333,13 @@ class SaleAndRepurchase extends Component
             $branch = ucfirst($data->branch);
             $total = $data->total;
 
-            if (!isset($impSummaryData[$key])) {
+            if (! isset($impSummaryData[$key])) {
                 $impSummaryData[$key] = [];
             }
 
             $impSummaryData[$key][] = [
-                'name' =>  $branch,
-                'total' => $total
+                'name' => $branch,
+                'total' => $total,
             ];
         }
 
@@ -372,25 +386,24 @@ class SaleAndRepurchase extends Component
 
         // dd($example['branch 1']['ရွှေ']);
 
-
         // Restructure the data
         $chartData = [];
         $colors = [
-            "#ba891e", //g pcs
-            "#d8f211", //gold weight - yellow
-            "#1eba7c", //p pcs
-            "#46e810", //pandora weight - green
-            "#ba1eb2", //k pcs
-            "#8e10e8", // 18 k weight - brown
-            "#4789bf",
-            "#0c33cc",
-            "#cf1717", //repurchase weight - red
-            "#00000A",
+            '#ba891e', //g pcs
+            '#d8f211', //gold weight - yellow
+            '#1eba7c', //p pcs
+            '#46e810', //pandora weight - green
+            '#ba1eb2', //k pcs
+            '#8e10e8', // 18 k weight - brown
+            '#4789bf',
+            '#0c33cc',
+            '#cf1717', //repurchase weight - red
+            '#00000A',
             '#08DAE6',
             '#BA17DA',
             '#67047B',
             '#96038F',
-            '#579D0C'
+            '#579D0C',
             // Add more types and their colors if needed
         ];
 
@@ -399,19 +412,19 @@ class SaleAndRepurchase extends Component
             $type = $record->type;
             $total = $record->total;
 
-            if (!isset($chartData[$type])) {
+            if (! isset($chartData[$type])) {
                 $chartData[$type] = [
-                    "name" => $type,
-                    "data" => [],
-                    "color" => $colors[$index], // Default color if not in $colors
+                    'name' => $type,
+                    'data' => [],
+                    'color' => $colors[$index], // Default color if not in $colors
                 ];
                 $index++;
             }
 
-            $chartData[$type]["data"][] = round($total, 2); // Ensure numeric values
+            $chartData[$type]['data'][] = round($total, 2); // Ensure numeric values
         }
 
-        $indexYesterday =  DailyReportRecord::select(
+        $indexYesterday = DailyReportRecord::select(
             'branches.name AS branch',
             DB::raw(
                 'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
@@ -424,7 +437,7 @@ class SaleAndRepurchase extends Component
             ->groupBy('branches.name', 'daily_report_records.report_date')
             ->get();
 
-        $indexToday =  DailyReportRecord::select(
+        $indexToday = DailyReportRecord::select(
             'branches.name AS branch',
             DB::raw(
                 'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
@@ -458,9 +471,8 @@ class SaleAndRepurchase extends Component
         // dump($todayIndex);
         // dump($yseterdayIndex);
 
-
         //!index data to chart series line
-        $indexQuery =  DailyReportRecord::select(
+        $indexQuery = DailyReportRecord::select(
             'branches.name AS branch',
             'daily_report_records.report_date AS date',
             DB::raw(
@@ -481,9 +493,9 @@ class SaleAndRepurchase extends Component
             $key = ucfirst($index->branch);
             $toIndex = ($index->total_gram * 0.6) + ($index->total_quantity * 0.4);
 
-            if (!isset($indexReformed[$key])) {
+            if (! isset($indexReformed[$key])) {
                 $indexReformed[$key] = [];
-                if (!isset($indexReformed[$key][$colors[$indexCount]])) {
+                if (! isset($indexReformed[$key][$colors[$indexCount]])) {
                     $indexReformed[$key]['name'] = $key;
                     $indexReformed[$key]['color'] = $colors[$indexCount];
                     $indexReformed[$key]['data'] = [];
@@ -503,10 +515,9 @@ class SaleAndRepurchase extends Component
 
         // dd($indexDate);
 
-
         //! Daily Report Card view
 
-        $daily_branch_report =  DailyReportRecord::select('daily_report_records.*')
+        $daily_branch_report = DailyReportRecord::select('daily_report_records.*')
             ->where('report_date', '=', $this->report_date)
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
             ->orderBy('branches.name')
@@ -516,13 +527,13 @@ class SaleAndRepurchase extends Component
 
         foreach ($daily_branch_report as $data) {
 
-            $key =  $data->branch->name . " (" . Carbon::parse($data->report_date)->format('M j, Y')  . ")";
+            $key = $data->branch->name.' ('.Carbon::parse($data->report_date)->format('M j, Y').')';
             $key = ucfirst($key);
-            if (!isset($branch_report[$key])) {
+            if (! isset($branch_report[$key])) {
                 $branch_report[$key]['key'] = $key;
             }
 
-            if (!isset($branch_report[$key][$data->daily_report_id])) {
+            if (! isset($branch_report[$key][$data->daily_report_id])) {
                 $branch_report[$key]['data'][$data->daily_report_id] = [];
             }
 
@@ -540,10 +551,8 @@ class SaleAndRepurchase extends Component
 
         // dd($dailySpirit);
 
-
         $all_reports = json_encode($chartData);
         $mergeCategory = json_encode($mergeCategory);
-
 
         return view('livewire.branch-report.sale-and-repurchase', [
             'daily_entries' => $daily_entries,
