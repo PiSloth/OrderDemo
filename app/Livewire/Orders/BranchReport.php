@@ -190,7 +190,7 @@ class BranchReport extends Component
                 $order->category->name,
                 $order->design->name,
                 $order->detail,
-                $order->grade->name,
+                $order->quality->name,
                 $order->size,
                 $order->weight,
                 $order->qty,
