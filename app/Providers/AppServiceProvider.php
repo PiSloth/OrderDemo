@@ -148,5 +148,12 @@ class AppServiceProvider extends ServiceProvider
 
             return in_array($usr, $authorizedUsers);
         });
+
+        Gate::define('branchChooserInStockUpdate', function (User $user) {
+            $authorizedUsers = ["Super Admin", "Branch Monitor"];
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
     }
 }

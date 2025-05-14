@@ -1,7 +1,7 @@
     <div class="pt-10 pl-10 pr-10 lg:pl-72">
-    <?php
-    $i = 1;
-    ?>
+        <?php
+        $i = 1;
+        ?>
         <div>
             {{-- User name start --}}
             <div class="p-3 mb-4 border-2 border-b-blue-700">
@@ -60,16 +60,19 @@
             <div class="p-3 mb-4 border-2 border-b-blue-700">
                 <form action="" wire:submit wire:keydown.enter="create_position">
                     <div>
-                        <input type="text" wire:model="position" placeholder="position">
-                        <button
-                            class="px-2 py-2 bg-gray-400 rounded text-slate-300 hover:bg-gray-600 hover:text-slate-50">Create</button>
+                        <label for="position" class="block text-xl text-gray-500">Position</label>
+                        <input id="position" class="rounded-full ring-slate-50" type="text" wire:model="position"
+                            placeholder="Type & Enter">
+                        {{-- <button
+                            class="px-2 py-2 bg-gray-400 rounded text-slate-300 hover:bg-gray-600 hover:text-slate-50">Create</button> --}}
                     </div>
                 </form>
                 <div class="">
                     @forelse ($positions as $position)
                         <li class="flex justify-between mb-2" wire:key="{{ $position->id }}">
                             {{ $position->name }}
-                            <button class="text-red-500" wire:click="delete_position({{ $position->id }})">&times;</button>
+                            <button class="text-red-500"
+                                wire:click="delete_position({{ $position->id }})">&times;</button>
                         </li>
                     @empty
                         <p>Not yet</p>
@@ -202,9 +205,11 @@
                 <div class="flex flex-col justify-between">
                     @foreach ($priorities as $priority)
                         <div class="mb-2">
-                            <li class="flex justify-between bg-[{{ $priority->color }}]" wire:key="{{ $priority->id }}">
+                            <li class="flex justify-between bg-[{{ $priority->color }}]"
+                                wire:key="{{ $priority->id }}">
                                 <span>{{ $priority->color }}</span>
-                                <span x-bind:class="bg - [{{ $priority->color }}]" class="bg-[{{ $priority->color }}]">
+                                <span x-bind:class="bg - [{{ $priority->color }}]"
+                                    class="bg-[{{ $priority->color }}]">
                                     {{ $priority->name }}
                                 </span>
                                 <button class="text-red-500" wire:click="delete_priority({{ $priority->id }})"
@@ -239,4 +244,3 @@
             {{-- branch end --}}
         </div>
     </div>
-

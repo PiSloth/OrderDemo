@@ -48,6 +48,10 @@ class Config extends Component
     public function create_position()
     {
         // dd($this->position);
+        $this->validate([
+            'position' => 'required|unique:positions,name'
+        ]);
+
         Position::create([
             'name' => $this->position,
         ]);
