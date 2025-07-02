@@ -46,6 +46,8 @@ class SaleAndRepurchase extends Component
 
     public $end_date_summary;
 
+    public $scope = 'p';
+
     public function mount()
     {
         $this->branch_id = auth()->user()->branch_id;
@@ -69,6 +71,12 @@ class SaleAndRepurchase extends Component
     public function edit($id)
     {
         $this->edit_id = $id;
+    }
+
+    public function scopeChange($scope)
+    {
+        // dd($scope);
+        $this->scope = $scope;
     }
 
     //when update report date
@@ -226,7 +234,7 @@ class SaleAndRepurchase extends Component
         //export data
         // Create a temporary file
         // Create a temporary file with .xlsx extension
-        $tempFilePath = tempnam(sys_get_temp_dir(), 'pos').'.xlsx';
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'pos') . '.xlsx';
 
         // dd($tempFilePath);
 
@@ -254,16 +262,18 @@ class SaleAndRepurchase extends Component
         $writer->close();
 
         // Stream the file to the browser
-        return Response::download($tempFilePath, Carbon::now()->format('dmY_His').'-branch-daily-report.xlsx')->deleteFileAfterSend(true);
+        return Response::download($tempFilePath, Carbon::now()->format('dmY_His') . '-branch-daily-report.xlsx')->deleteFileAfterSend(true);
     }
 
     public function render()
     {
         if ($this->entry_modal) {
             $daily_entries = DailyReportRecord::select('daily_report_records.*')
-                ->where('report_date', '=', $this->report_date)
-                ->where('branch_id', '=', $this->branch_id)
-                ->orderBy('daily_report_id')
+                ->join('daily_reports', 'daily_reports.id', '=', 'daily_report_records.daily_report_id')
+                ->where('daily_report_records.report_date', '=', $this->report_date)
+                ->where('daily_report_records.branch_id', '=', $this->branch_id)
+                ->where('daily_reports.scope', 'like', "%{$this->scope}%")
+                ->orderBy('daily_report_records.daily_report_id')
                 ->get();
 
             $this->dispatch('open-modal', 'dataEntryModal');
@@ -527,7 +537,7 @@ class SaleAndRepurchase extends Component
 
         foreach ($daily_branch_report as $data) {
 
-            $key = $data->branch->name.' ('.Carbon::parse($data->report_date)->format('M j, Y').')';
+            $key = $data->branch->name . ' (' . Carbon::parse($data->report_date)->format('M j, Y') . ')';
             $key = ucfirst($key);
             if (! isset($branch_report[$key])) {
                 $branch_report[$key]['key'] = $key;

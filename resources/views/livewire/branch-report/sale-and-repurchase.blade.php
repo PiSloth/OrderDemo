@@ -334,7 +334,7 @@
                 <select wire:model.live='branch_id' class="rounded-lg">
                     <option value="" selected disabled>Select</option>
                     @foreach ($branches as $branch)
-                        <option value="{{ $branch->id }}"> {{ $branch->name }}</option>
+                        <option value="{{ $branch->id }}"> {{ ucfirst($branch->name) }}</option>
                     @endforeach
                 </select>
             @endcan
@@ -344,6 +344,11 @@
 
             <hr />
             @if ($entry_modal !== null)
+                <div class="p-2 rounded shadow-sm">
+                    <x-button.circle teal label="S" wire:click="scopeChange('S')" />
+                    <x-button.circle amber label="O" wire:click="scopeChange('O')" />
+                    <x-button.circle sky label="P" wire:click="scopeChange('P')" />
+                </div>
                 <table>
                     <thead>
                         <tr>

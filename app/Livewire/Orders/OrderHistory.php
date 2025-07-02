@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Orders;
 
+use App\Models\Branch;
 use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Response;
@@ -15,6 +16,7 @@ class OrderHistory extends Component
     use WithPagination;
     public $start_date;
     public $end_date;
+    public $branch_id;
 
     public function export()
     {
@@ -31,6 +33,9 @@ class OrderHistory extends Component
             })
             ->when(!$this->start_date && $this->end_date, function ($query) {
                 return $query->where('created_at', '<=', $this->end_date);
+            })
+            ->when(!$this->branch_id, function ($query) {
+                return $query->where('branch_id', '=', $this->branch_id);
             })
             ->get();
 
@@ -106,6 +111,7 @@ class OrderHistory extends Component
 
         return view('livewire.orders.order-history', [
             'orders' => $orders,
+            'branches' => Branch::all(),
         ]);
     }
 }
