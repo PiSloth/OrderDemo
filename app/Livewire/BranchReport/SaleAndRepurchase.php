@@ -46,7 +46,7 @@ class SaleAndRepurchase extends Component
 
     public $end_date_summary;
 
-    public $scope = 'p';
+    public $scope = 'S';
 
     public function mount()
     {
@@ -410,6 +410,10 @@ class SaleAndRepurchase extends Component
             '#cf1717', //repurchase weight - red
             '#00000A',
             '#08DAE6',
+            '#BA17DA',
+            '#67047B',
+            '#96038F',
+            '#579D0C',
             '#BA17DA',
             '#67047B',
             '#96038F',

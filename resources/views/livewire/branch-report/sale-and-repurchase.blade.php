@@ -344,7 +344,7 @@
 
             <hr />
             @if ($entry_modal !== null)
-                <div class="p-2 rounded shadow-sm">
+                <div class="p-2 rounded shadow-sm flex gap-6">
                     <x-button.circle teal label="S" wire:click="scopeChange('S')" />
                     <x-button.circle amber label="O" wire:click="scopeChange('O')" />
                     <x-button.circle sky label="P" wire:click="scopeChange('P')" />

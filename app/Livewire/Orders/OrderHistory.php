@@ -9,11 +9,13 @@ use Illuminate\Support\Facades\Response;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Spatie\SimpleExcel\SimpleExcelWriter;
+use WireUi\Traits\Actions;
 
 class OrderHistory extends Component
 {
 
     use WithPagination;
+    use Actions;
     public $start_date;
     public $end_date;
     public $branch_id;
@@ -24,22 +26,34 @@ class OrderHistory extends Component
 
         //start date found
 
+        $start_date = Carbon::parse($this->start_date)->startOfDay();
+        $end_date = Carbon::parse($this->end_date)->endOfDay();
+
+
         $orders = Order::with('branch', 'design', 'status', 'grade', 'priority')
-            ->when($this->start_date && $this->end_date, function ($query) {
-                return $query->whereBetween('created_at', [$this->start_date, $this->end_date]);
+            ->when($this->start_date && $this->end_date, function ($query) use ($start_date, $end_date) {
+                return $query->whereBetween('created_at', [$start_date, $end_date]);
             })
-            ->when($this->start_date && !$this->end_date, function ($query) {
-                return $query->where('created_at', '>=', $this->start_date);
+            ->when($this->start_date && !$this->end_date, function ($query) use ($start_date) {
+                return $query->where('created_at', '>=', $start_date);
             })
-            ->when(!$this->start_date && $this->end_date, function ($query) {
-                return $query->where('created_at', '<=', $this->end_date);
+            ->when(!$this->start_date && $this->end_date, function ($query) use ($end_date) {
+                return $query->where('created_at', '<=', $end_date);
             })
-            ->when(!$this->branch_id, function ($query) {
+            ->when($this->branch_id, function ($query) {
                 return $query->where('branch_id', '=', $this->branch_id);
             })
             ->get();
 
-        // dd($orders);
+        if (count($orders) == 0) {
+            $this->dialog([
+                'title'       => 'No record found!',
+                'description' => 'Please try again with valid date range.',
+                'icon'        => 'warning'
+            ]);
+            return;
+        }
+
 
         // Create a temporary file
         // Create a temporary file with .xlsx extension
@@ -95,15 +109,20 @@ class OrderHistory extends Component
     }
     public function render()
     {
+        $start_date = Carbon::parse($this->start_date)->startOfDay();
+        $end_date = Carbon::parse($this->end_date)->endOfDay();
+
         $orders = Order::with('branch', 'design', 'status', 'grade', 'priority')
-            ->when($this->start_date && $this->end_date, function ($query) {
-                return $query->whereBetween('created_at', [$this->start_date, $this->end_date]);
+            ->when($this->start_date && $this->end_date, function ($query) use ($start_date, $end_date) {
+                return $query->whereBetween('created_at', [$start_date, $end_date]);
             })
-            ->when($this->start_date && !$this->end_date, function ($query) {
-                return $query->where('created_at', '>=', $this->start_date);
+            ->when($this->start_date && !$this->end_date, function ($query) use ($start_date) {
+                return $query->where('created_at', '>=', $start_date);
             })
-            ->when(!$this->start_date && $this->end_date, function ($query) {
-                return $query->where('created_at', '<=', $this->end_date);
+            ->when(!$this->start_date && $this->end_date, function ($query) use ($end_date) {
+                return $query->where('created_at', '<=', $end_date);
+            })->when($this->branch_id, function ($query) {
+                return $query->where('branch_id', '=', $this->branch_id);
             })
             ->paginate(10);
 
