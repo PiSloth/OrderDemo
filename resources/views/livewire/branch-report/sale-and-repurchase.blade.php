@@ -47,50 +47,157 @@
                                     <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
                                 </tr>
                             @endforeach
-
                         </tbody>
                     </table>
                 </x-card>
             </div>
         </div>
 
-        {{-- @dd($daily_branch_reports) --}}
+        {{-- All branch specific report --}}
         @forelse ($daily_branch_reports as $report)
-            <div>
-                <x-card title="{{ $report['key'] }}">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="px-4 py-2">Name</th>
-                                <th class="px-4 py-2">Number</th>
+            <!-- Main Card Container -->
+            <div class="w-full max-w-2xl bg-[#1e293b] text-slate-300 rounded-2xl shadow-2xl p-6 space-y-6">
 
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($report['data'] as $item)
-                                <tr>
-                                    <td class="px-4 py-2">{{ $item['name'] }}</td>
-                                    <td class="px-4 py-2">{{ $item['quantity'] }}</td>
-                                </tr>
-                            @endforeach
+                <!-- Card Header -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-700">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">{{ $report['key'] }}</h2>
 
-                        </tbody>
-                    </table>
-                </x-card>
+                        {{-- <p class="text-sm text-slate-400">
+                            {{ \Carbon\Carbon::parse($report['created_at'])->format('j m y') }}</p> --}}
+                    </div>
+                    <!-- More Options Icon (three dots) -->
+
+                    <button class="text-slate-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Key Metrics Section -->
+                <div>
+                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500">Key Metrics</h3>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <!-- Sales KPI -->
+                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-800/50">
+                            <div class="flex items-center text-slate-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path
+                                        d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                                </svg>
+                                <span class="text-sm">Total Sales (g)</span>
+                            </div>
+                            <p class="mt-2 text-3xl font-bold text-emerald-400">
+                                {{ $report['ရွှေ (weight / g)'] + $report['Pandora (weihgt / g)'] + $report['18K (weihgt / g)'] }}
+                            </p>
+                        </div>
+                        <!-- Repurchase KPI -->
+                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-800/50">
+                            <div class="flex items-center text-slate-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.186l-2.387-.597a4.002 4.002 0 00-7.652-1.282V4a1 1 0 01-2 0v1.5a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1zm14 4.899A7.002 7.002 0 012.101 15.1l2.387.597a4.002 4.002 0 007.652 1.282V18a1 1 0 112 0v-1.5a1 1 0 011-1h1.5a1 1 0 011 1V19a1 1 0 11-2 0v-2.101z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-sm">Repurchase (g)</span>
+                            </div>
+                            <p class="mt-2 text-3xl font-bold text-amber-400">{{ $report['Repurchase (weight / g )'] }}
+                            </p>
+                        </div>
+                        <!-- Customer KPI -->
+                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-800/50">
+                            <div class="flex items-center text-slate-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path
+                                        d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm-1.559 5.56a.75.75 0 01.03-1.06 4.5 4.5 0 00-5.962 0 .75.75 0 01-1.09-1.03 6 6 0 018.142 0 .75.75 0 01-1.09 1.03.75.75 0 01-1.121.03zM16.25 11.75a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" />
+                                </svg>
+                                <span class="text-sm">Customers In</span>
+                            </div>
+                            <p class="mt-2 text-3xl font-bold text-sky-400">
+                                {{ $report['Customer အဝင် ဦးရေ'] +
+                                    $report['Customer (viber) အဝင်ဦးရေ'] +
+                                    $report['Customer (Telegram) အဝင်ဦးရေ'] +
+                                    $report['Customer (tik tok) အဝင်ဦးရေ'] +
+                                    $report['Customer (messenger)အဝင်ဦးရေ'] +
+                                    $report['Customer လူဝင်ဦးရေ (Pawn)'] }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item Breakdown Section -->
+                <div>
+                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500">Item Breakdown</h3>
+                    <div class="space-y-2 text-sm">
+                        <!-- Header Row -->
+                        <div class="grid grid-cols-2 gap-4 px-2 font-semibold text-slate-400">
+                            <span>Item Type</span>
+                            <span class="text-center">Sales (pcs / g)</span>
+                            {{-- <span class="text-center">Repurchase (pcs / g / vr)</span> --}}
+                        </div>
+                        <!-- Data Rows -->
+                        <div class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-800/50">
+                            <span class="font-medium text-white">ရွှေ</span>
+                            <span class="text-center text-slate-300">{{ $report['ရွှေ (pcs)'] }} /
+                                {{ $report['ရွှေ (weight / g)'] }}</span>
+                            {{-- <span class="text-center text-slate-300">{{ $report['Repurchase ပစ္စည်းအခုရေ'] }} / --}}
+                            {{-- {{ $report['Repurchase (weight / g )'] }} / {{ $report['Repurchase အစောင်ရေ'] }}</span> --}}
+                        </div>
+                        <div class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-800/50">
+                            <span class="font-medium text-white">18K</span>
+                            <span class="text-center text-slate-300">{{ $report['18K (pcs)'] }} /
+                                {{ $report['18K (weihgt / g)'] }}</span>
+                            {{-- <span class="text-center text-slate-300">8 / 4.33</span> --}}
+                        </div>
+                        <div class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-800/50">
+                            <span class="font-medium text-white">Pandora</span>
+                            <span class="text-center text-slate-300">{{ $report['Pandora (pcs)'] }} /
+                                {{ $report['Pandora (weihgt / g)'] }}</span>
+                            {{-- <span class="text-center text-slate-300">50 / 34.51</span> --}}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pawn Activity Section -->
+                <div>
+                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500">Pawn Activity</h3>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div class="p-3 rounded-lg bg-slate-800/50">
+                            <p class="text-sm text-slate-400">New (အသစ်ဝင်)</p>
+                            <p class="mt-1 text-2xl font-bold text-white">{{ $report['အစောင်ရေ အသစ် (Pawn)'] }}</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-slate-800/50">
+                            <p class="text-sm text-slate-400">Redeem (အတိုးဆပ်)</p>
+                            <p class="mt-1 text-2xl font-bold text-white">
+                                {{ $report['အတိုးသွင်း/လက်မှတ်လဲအစောင်ရေ (Pawn)'] }}</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-slate-800/50">
+                            <p class="text-sm text-slate-400">အရွေးအစောင်ရေ</p>
+                            <p class="mt-1 text-2xl font-bold text-white">{{ $report['အရွေးအစောင်ရေ (Pawn)'] }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer / Actions -->
+                <div class="pt-4 text-center">
+                    <a href="#" class="text-sm font-semibold transition-colors text-sky-400 hover:text-sky-300">
+                        View Full Details &rarr;
+                    </a>
+                </div>
+
             </div>
-
         @empty
-            <div>
-                <x-card title="info!">
-                    <span class="font-bold">Date :
-                        {{ \Carbon\Carbon::parse($report_date)->format('M j, Y') }}</span><br />
-                    <center class="text-lg">There's nothing to show data.</center><br />
-                    <span>Please, contact <i>branches</i> to add daily reports.</span>
-                </x-card>
-            </div>
         @endforelse
+
     </div>
     <hr />
+
     <div class="mt-4">
         <div class="flex w-1/2 gap-2 mx-auto mb-4">
             <x-datetime-picker wire:model.live.debounce="start_date_summary" without-time='true' label="Start"
@@ -344,7 +451,7 @@
 
             <hr />
             @if ($entry_modal !== null)
-                <div class="p-2 rounded shadow-sm flex gap-6">
+                <div class="flex gap-6 p-2 rounded shadow-sm">
                     <x-button.circle teal label="S" wire:click="scopeChange('S')" />
                     <x-button.circle amber label="O" wire:click="scopeChange('O')" />
                     <x-button.circle sky label="P" wire:click="scopeChange('P')" />

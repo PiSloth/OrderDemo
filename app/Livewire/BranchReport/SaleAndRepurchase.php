@@ -418,6 +418,11 @@ class SaleAndRepurchase extends Component
             '#67047B',
             '#96038F',
             '#579D0C',
+            '#579D0C',
+            '#BA17DA',
+            '#67047B',
+            '#96038F',
+            '#579D0C',
             // Add more types and their colors if needed
         ];
 
@@ -538,22 +543,28 @@ class SaleAndRepurchase extends Component
             ->orderBy('daily_report_records.daily_report_id')
             ->get();
         $branch_report = [];
+        // dd($daily_branch_report);
 
         foreach ($daily_branch_report as $data) {
 
             $key = $data->branch->name . ' (' . Carbon::parse($data->report_date)->format('M j, Y') . ')';
+
             $key = ucfirst($key);
             if (! isset($branch_report[$key])) {
                 $branch_report[$key]['key'] = $key;
             }
 
-            if (! isset($branch_report[$key][$data->daily_report_id])) {
-                $branch_report[$key]['data'][$data->daily_report_id] = [];
+            if (! isset($branch_report[$key][$data->dailyReport->name])) {
+                $branch_report[$key][$data->dailyReport->name] = $data->number;
             }
 
-            $branch_report[$key]['data'][$data->daily_report_id]['name'] = $data->dailyReport->name;
-            $branch_report[$key]['data'][$data->daily_report_id]['quantity'] = $data->number;
+            //  $branch_report[$key]['data'][$data->dailyReport->name] = [];
+            // $branch_report[$key]['name'] = $data->dailyReport->name;
+
+            // $branch_report[$key]['data'][$data->daily_report_id]['quantity'] = $data->number;
         }
+
+        // dd($branch_report);
 
         $dailySpirit = DailyReportRecord::select(DB::raw(
             'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS total_sale,
