@@ -564,11 +564,11 @@
     @endif
     {{-- end approve info  --}}
 
-    @if ($order->status_id >= 5 && Gate::allows('isPurchaser'))
-        <div class="flex items-center justify-between gap-10 mt-4 {{ $invUser ? '' : 'hidden' }}">
-            <div class="w-full">
+    @if ($order->status_id >= 5 && (Gate::allows('closeOrder') || Gate::allows('isPurchaser')))
+        <div class="flex items-center justify-between gap-10 mt-4 dark:bg-gray-50">
+            <div class="w-1/4 {{ $order->status_id == 5 ? '' : 'hidden' }}">
                 <label for="aqty"
-                    class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Arrivals-Qty</label>
+                    class="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-400">Arrivals-Qty</label>
                 <input type="number" id="aqty" wire:model='arqty'
                     class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                     placeholder="{{ $order->arqty }}" required>
@@ -577,16 +577,27 @@
                 @enderror
             </div>
 
-            <div class="w-full">
-                <label for="cqty"
-                    class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Close-Qty</label>
-                <input type="number" id="cqty" wire:model='closeqty'
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    placeholder="{{ $order->closeqty }}">
-                @error('closeqty')
-                    <p class="text-sm text-red-400">{{ $message }}</p>
-                @enderror
+            <div class="w-full {{ $order->status_id == 6 ? '' : 'hidden' }}">
+                <div class="w-1/4">
+                    <label for="cqty"
+                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-500">Close-Qty</label>
+                    <input type="number" id="cqty" wire:model='closeqty'
+                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        placeholder="{{ $order->closeqty }}">
+
+                    @error('closeqty')
+                        <p class="text-sm text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div class="w-full">
+                    <label for="close_remark"
+                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-500">Remark</label>
+                    <x-textarea wire:model="close_remark" placeholder="Remark please if any sepcial" />
+                </div>
             </div>
+
+
+
         </div>
     @endif
 
@@ -676,7 +687,7 @@
             </button>
         @endif
 
-        @if ($invUser && $order->status_id == 6)
+        @if (Gate::allows('closeOrder') && $order->status_id == 6)
             <button wire:click="closed({{ $order->id }})"
                 class="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800">
                 <span

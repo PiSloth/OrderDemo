@@ -155,5 +155,12 @@ class AppServiceProvider extends ServiceProvider
 
             return in_array($usr, $authorizedUsers);
         });
+
+        Gate::define('closeOrder', function (User $user) {
+            $authorizedUsers = ["Super Admin", "Branch Supervisor"];
+            $usr = $user->position->name;
+
+            return in_array($usr, $authorizedUsers);
+        });
     }
 }

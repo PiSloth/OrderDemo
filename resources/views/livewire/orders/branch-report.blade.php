@@ -17,7 +17,7 @@
                     <option selected value="0">Filter by Branch</option>
 
                     @foreach ($branches as $branch)
-                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                        <option value="{{ $branch->id }}">{{ ucfirst($branch->name) }}</option>
                     @endforeach
                 </select>
 
@@ -81,7 +81,7 @@
         {{-- end filter section   --}}
 
         {{-- disign filter  --}}
-        <div class="w-1/2 p-4 my-4 bg-red-300">
+        <div class="w-1/2 my-2">
             <x-input class="h-12 !text-xl !text-gray-500" icon='search' type="search" wire:model.live="detailFilter"
                 placeholder="Search with detail design" />
         </div>

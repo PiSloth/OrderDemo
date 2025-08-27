@@ -218,69 +218,68 @@ class MainBoard extends Component
     {
         // dd(Carbon::now()->format('Y-m-d'));
         // $select = ['psi_products.id', 'shapes.name AS shape', 'psi_products.length', 'uoms.name AS uom', 'psi_products.weight', 'product_photos.image'];
-        $branches = Branch::all();
+        $branches = Branch::orderBy('name')->get();
 
         $selection = [];
         foreach ($branches as $branch) {
-            // Sum for branch-specific index
-            $selection[] = DB::raw("SUM(CASE WHEN branch_psi_products.branch_id = $branch->id THEN 1 ELSE 0 END) AS index$branch->id");
-
-            // Subquery for branch-specific status
-            $selection[] = DB::raw("(SELECT (psi_stock_statuses.name)
-                                       FROM psi_stock_statuses
-                                       JOIN reorder_points ON reorder_points.psi_stock_status_id = psi_stock_statuses.id
-                                       JOIN psi_stocks ON psi_stocks.id = reorder_points.psi_stock_id
-                                       JOIN branch_psi_products ON branch_psi_products.id = psi_stocks.branch_psi_product_id
-                                       WHERE branch_psi_products.psi_product_id = psi_products.id
-                                         AND branch_psi_products.branch_id = $branch->id) AS status$branch->id");
-
-            // Subquery for branch-specific color
-            $selection[] = DB::raw("(SELECT (psi_stock_statuses.color)
-                                       FROM psi_stock_statuses
-                                       JOIN reorder_points ON reorder_points.psi_stock_status_id = psi_stock_statuses.id
-                                       JOIN psi_stocks ON psi_stocks.id = reorder_points.psi_stock_id
-                                       JOIN branch_psi_products ON branch_psi_products.id = psi_stocks.branch_psi_product_id
-                                       WHERE branch_psi_products.psi_product_id = psi_products.id
-                                         AND branch_psi_products.branch_id = $branch->id) AS color$branch->id");
+            $bid = (int) $branch->id;
+            // Per-branch presence index
+            $selection[] = DB::raw("SUM(CASE WHEN bpp.branch_id = $bid THEN 1 ELSE 0 END) AS index$bid");
+            // Per-branch latest status and color (from latest reorder status per BPP)
+            $selection[] = DB::raw("MAX(CASE WHEN bpp.branch_id = $bid THEN pss.name END) AS status$bid");
+            $selection[] = DB::raw("MAX(CASE WHEN bpp.branch_id = $bid THEN pss.color END) AS color$bid");
         }
 
         // dd($selection);
 
-        $producutWithEachBranch = PsiProduct::select(
-            array_merge(
-                [
-                    'psi_products.id',
-                    'psi_products.length',
-                    'psi_products.weight',
-                    'shapes.name as shape',
-                    'uoms.name as uom',
-                    'product_photos.image AS image',
-                    // 'product_hashtags.id AS pHT',
-                    DB::raw('SUM((CASE WHEN real_sales.qty > 0 THEN real_sales.qty ELSE 0 END)) AS total_sale'),
-                ],
-                $selection
-            )
+        // Pre-aggregations to reduce row explosion and improve readability
+        $latestReorderSub = DB::table('reorder_points as rp')
+            ->select('ps.branch_psi_product_id', DB::raw('MAX(rp.id) as latest_reorder_id'))
+            ->join('psi_stocks as ps', 'ps.id', '=', 'rp.psi_stock_id')
+            ->groupBy('ps.branch_psi_product_id');
 
-        )
-            ->leftJoin('product_photos', 'product_photos.psi_product_id', 'psi_products.id')
-            ->leftJoin('shapes', 'psi_products.shape_id', 'shapes.id')
-            ->leftJoin('branch_psi_products', 'psi_products.id', 'branch_psi_products.psi_product_id')
-            ->leftJoin('real_sales', 'real_sales.branch_psi_product_id', '=', 'branch_psi_products.id')
-            ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
-            ->leftJoin('uoms', 'psi_products.uom_id', 'uoms.id')
+        $realSalesSumSub = DB::table('real_sales')
+            ->select('branch_psi_product_id', DB::raw('SUM(qty) as total_sale'))
+            ->groupBy('branch_psi_product_id');
+
+        $latestPhotoSub = DB::table('product_photos')
+            ->select('psi_product_id', DB::raw('MAX(id) as latest_photo_id'))
+            ->groupBy('psi_product_id');
+
+        $producutWithEachBranch = PsiProduct::from('psi_products as p')
+            ->select(array_merge([
+                'p.id',
+                'p.length',
+                'p.weight',
+                DB::raw('shapes.name as shape'),
+                DB::raw('uoms.name as uom'),
+                DB::raw('pp.image AS image'),
+                DB::raw('SUM(COALESCE(rs_sum.total_sale, 0)) AS total_sale'),
+            ], $selection))
+            // Joins
+            ->leftJoin('branch_psi_products as bpp', 'p.id', '=', 'bpp.psi_product_id')
+            // Latest reorder status per BPP
+            ->leftJoinSub($latestReorderSub, 'lr', function ($join) {
+                $join->on('lr.branch_psi_product_id', '=', 'bpp.id');
+            })
+            ->leftJoin('reorder_points as rp_latest', 'rp_latest.id', '=', 'lr.latest_reorder_id')
+            ->leftJoin('psi_stock_statuses as pss', 'pss.id', '=', 'rp_latest.psi_stock_status_id')
+            // Real sales aggregated per BPP
+            ->leftJoinSub($realSalesSumSub, 'rs_sum', function ($join) {
+                $join->on('rs_sum.branch_psi_product_id', '=', 'bpp.id');
+            })
+            // Latest photo per product
+            ->leftJoinSub($latestPhotoSub, 'lp', function ($join) {
+                $join->on('lp.psi_product_id', '=', 'p.id');
+            })
+            ->leftJoin('product_photos as pp', 'pp.id', '=', 'lp.latest_photo_id')
+            // Other dimension tables
+            ->leftJoin('shapes', 'p.shape_id', '=', 'shapes.id')
+            ->leftJoin('uoms', 'p.uom_id', '=', 'uoms.id')
             ->where('shapes.name', 'like', '%' . $this->shape_detail . '%')
-            ->where('branch_psi_products.is_suspended', '=', 'false')
-            ->orderBy('total_sale', 'desc')
-            ->groupBy(
-                'psi_products.id',
-                'shapes.name',
-                'psi_products.weight',
-                'psi_products.length',
-                'uoms.name',
-                'product_photos.image',
-                // 'product_hashtags.id',
-            )
-
+            ->where('bpp.is_suspended', '=', 'false')
+            ->groupBy('p.id', 'shapes.name', 'p.weight', 'p.length', 'uoms.name', 'pp.image')
+            ->orderByDesc('total_sale')
             ->paginate(5);
 
         if ($this->props_to_link == true) {

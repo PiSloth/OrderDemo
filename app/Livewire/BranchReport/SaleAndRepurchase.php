@@ -213,20 +213,22 @@ class SaleAndRepurchase extends Component
     //Export to Excel
     public function export()
     {
+        $start_date = Carbon::parse($this->start_date)->startOfDay();
+        $end_date = Carbon::parse($this->end_date);
 
         $daily_branch_report = DailyReportRecord::select('daily_report_records.*')
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
             ->when($this->export_branch_id, function ($query) {
                 return $query->where('branch_id', $this->export_branch_id);
             })
-            ->when($this->start_date && $this->end_date, function ($query) {
-                return $query->whereBetween('report_date', [$this->start_date, $this->end_date]);
+            ->when($this->start_date && $this->end_date, function ($query)  use ($start_date, $end_date) {
+                return $query->whereBetween('report_date', [$start_date, $end_date]);
             })
-            ->when($this->start_date && ! $this->end_date, function ($query) {
-                return $query->where('report_date', '>=', $this->start_date);
+            ->when($this->start_date && ! $this->end_date, function ($query) use ($start_date) {
+                return $query->where('report_date', '>=', $start_date);
             })
-            ->when(! $this->start_date && $this->end_date, function ($query) {
-                return $query->where('report_date', '<=', $this->end_date);
+            ->when(! $this->start_date && $this->end_date, function ($query) use ($end_date) {
+                return $query->where('report_date', '<=', $end_date);
             })
             ->orderBy('report_date')
             ->orderBy('daily_report_records.daily_report_id')

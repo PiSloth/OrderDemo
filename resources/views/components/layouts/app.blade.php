@@ -32,7 +32,7 @@
         @include('components.layouts.parts.header')
         @include('components.layouts.parts.aside')
 
-        <div class="px-10 py-5 m-0 text-sm bg-white md:m-10 lg:ml-72">
+        <div class="px-10 py-5 m-0 text-sm bg-white md:m-10 lg:ml-72 dark:bg-gray-800">
             {{ $slot }}
         </div>
     </main>

@@ -1,7 +1,4 @@
 <div>
-
-
-
     <div class="relative  shadow-md sm:rounded-lg">
         <table class="w-full p-2 text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
             <div class="w-40 mb-3">
@@ -96,7 +93,7 @@
                             {{ $order->arqty ? $order->arqty : 0 }}
                         </td>
                         <td class="px-6 py-4">
-                            <a href="/order/detail?order_id={{ $order->id }}" wire:navigate
+                            <a href="/order/detail?order_id={{ $order->id }}" target="_blank"
                                 class="font-medium text-blue-600 dark:text-blue-500 hover:underline">view</a>
                         </td>
                     </tr>

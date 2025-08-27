@@ -99,12 +99,12 @@
     </div>
 
     {{-- Sticky Table  --}}
-    <div class="container mx-auto my-10 overflow-x-auto">
+    <div class="container mx-auto my-10 overflow-auto max-h-[70vh]">
         {{-- <div class="my-3 font-bold text-blue-500">Branch အလိုက် Signature Product များထားရှိခြင်းပြ ဇယား</div> --}}
 
         <div>
             {{-- Shape filter --}}
-            <div class="pb-4 m-4 bg-white dark:bg-gray-900">
+            <div class="pb-4 m-4 bg-white dark:bg-gray-800">
                 <label for="table-search" class="sr-only">Search</label>
                 <div class="relative mt-1">
                     <div class="absolute inset-y-0 flex items-center pointer-events-none rtl:inset-r-0 start-0 ps-3">
@@ -115,28 +115,29 @@
                         </svg>
                     </div>
                     <input type="text" wire:model.live="shape_detail" id="table-search"
-                        class="block pt-2 text-sm text-gray-900 border border-gray-300 rounded-lg ps-10 w-80 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        class="block w-full sm:w-80 pt-2 text-sm text-gray-900 border border-gray-300 rounded-lg ps-10 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                         placeholder="Search for items">
                 </div>
             </div>
-            <table id="pageproducts" class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
-                <thead class="sticky top-0 bg-white">
+            <table id="pageproducts"
+                class="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200 rtl:text-right">
+                <thead class="text-xs uppercase text-gray-700 dark:text-gray-300">
                     <tr>
-                        <th scope="col" class="px-16 py-3">
+                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3 w-40">
                             <span class="sr-only">Image</span>
                         </th>
-                        <th scope="col" class="px-6 py-3">
+                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
                             Product
                         </th>
-                        <th scope="col" class="px-6 py-3">
+                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
                             Weight/g
                         </th>
-                        <th scope="col" class="px-6 py-3">
+                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
                             Size
                         </th>
                         @foreach ($branches as $branch)
-                            <th scope="col" class="px-6 py-3">
-                                {{ $branch->name }}
+                            <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
+                                {{ ucfirst($branch->name) }}
                             </th>
                         @endforeach
                     </tr>
@@ -144,11 +145,11 @@
                 <tbody>
                     @foreach ($products as $product)
                         <tr
-                            class="bg-white border-b odd:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                            <td class="p-4">
+                            class="bg-white border-b odd:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60">
+                            <td class="p-4 w-40">
                                 <img wire:click='initializeProductId({{ $product->id }})'
-                                    class="w-32 max-w-full max-h-full md:w-32 cursor-help"
-                                    src="{{ asset('storage/' . $product->image) }}"
+                                    class="w-32 max-w-full max-h-full md:w-32 cursor-help rounded-md"
+                                    src="{{ asset('storage/' . $product->image) }}" alt="product image"
                                     @click="$openModal('productSummaryModal')" />
                             </td>
                             <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
@@ -168,7 +169,7 @@
                                 <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                                     @if ($product->{'index' . $branch->id} > 0)
                                         <a href="#"
-                                            class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100"
+                                            class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100 dark:hover:bg-gray-700/60"
                                             wire:click='propsToLink({{ $product->id }},{{ $branch->id }})'>
                                             @if ($product->{'status' . $branch->id})
                                                 <div class="w-6 h-6 rounded-full"
@@ -377,9 +378,7 @@
                     <th scope="col" class="px-6 py-3">
                         အရေအတွက်
                     </th>
-                    <th scope="col" class="px-6 py-3">
-                        မှာယူခဲ့သော ရက်စွဲ
-                    </th>
+                    <th scope="col" class="px-6 py-3">မှာယူခဲ့သော ရက်စွဲ</th>
                     <th scope="col" class="px-6 py-4">
                         အခြေအနေ
                     </th>
