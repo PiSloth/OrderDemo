@@ -368,6 +368,13 @@ class SaleAndRepurchase extends Component
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->get();
 
+        if ($impSummaryTotalGram->isEmpty()) {
+            $impSummaryTotalGram = collect([(object) [
+                'total_sale' => 0,
+                'total_repurchase' => 0,
+            ]]);
+        }
+
         // dd($impSummaryTotalGram);
 
         // $reportTypes = DailyReport::select('name')->get()->toArray();
@@ -458,6 +465,8 @@ class SaleAndRepurchase extends Component
             ->groupBy('branches.name', 'daily_report_records.report_date')
             ->get();
 
+        // dd($indexYesterday);
+
         $indexToday = DailyReportRecord::select(
             'branches.name AS branch',
             DB::raw(
@@ -471,6 +480,7 @@ class SaleAndRepurchase extends Component
             ->groupBy('branches.name', 'daily_report_records.report_date')
             ->get();
 
+        // dd($indexToday);
         $todayIndex = 0;
         $yseterdayIndex = 0;
 
@@ -484,11 +494,14 @@ class SaleAndRepurchase extends Component
             $yseterdayIndex += $totalYesterday;
         }
 
+
         if ($todayIndex == 0) {
             $this->index_score = 0;
         } else {
             $this->index_score = $todayIndex - $yseterdayIndex;
         }
+        // dd($todayIndex, $yseterdayIndex);
+
         // dump($todayIndex);
         // dump($yseterdayIndex);
 
@@ -549,11 +562,13 @@ class SaleAndRepurchase extends Component
 
         foreach ($daily_branch_report as $data) {
 
-            $key = $data->branch->name . ' (' . Carbon::parse($data->report_date)->format('M j, Y') . ')';
+            $displayKey = $data->branch->name . ' (' . Carbon::parse($data->report_date)->format('M j, Y') . ')';
 
-            $key = ucfirst($key);
+            $key = ucfirst($displayKey);
             if (! isset($branch_report[$key])) {
-                $branch_report[$key]['key'] = $key;
+                $branch_report[$key]['key'] = $key; // for display
+                // store original branch name for reliable lookups later
+                $branch_report[$key]['__branch_name'] = $data->branch->name;
             }
 
             if (! isset($branch_report[$key][$data->dailyReport->name])) {
@@ -612,10 +627,53 @@ class SaleAndRepurchase extends Component
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->get();
 
+        if ($dailySpirit->isEmpty()) {
+            $dailySpirit = collect([(object) [
+                'total_sale' => 0,
+                'total_repurchase' => 0,
+            ]]);
+        }
+
         // dd($dailySpirit);
 
         // Compute today vs yesterday deltas per branch for key KPIs (sales grams, repurchase grams)
         $yesterdayDate = Carbon::parse($this->report_date)->subDay()->format('Y-m-d');
+
+        // Compute overall (all branches) today vs yesterday totals for Sale/Repurchase grams
+        $dailySpiritPrev = DailyReportRecord::select(DB::raw(
+            'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS total_sale,
+            SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS total_repurchase'
+        ))
+            ->where('daily_report_records.report_date', '=', $yesterdayDate)
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->first();
+
+        $todayTotals = $dailySpirit->first();
+
+        $saleToday = (float) ($todayTotals->total_sale ?? 0);
+        $salePrev = (float) ($dailySpiritPrev->total_sale ?? 0);
+        $repToday = (float) ($todayTotals->total_repurchase ?? 0);
+        $repPrev = (float) ($dailySpiritPrev->total_repurchase ?? 0);
+
+        $saleDeltaPct = $salePrev > 0 ? (($saleToday - $salePrev) / $salePrev) * 100 : ($saleToday > 0 ? 100 : 0);
+        $repDeltaPct = $repPrev > 0 ? (($repToday - $repPrev) / $repPrev) * 100 : ($repToday > 0 ? 100 : 0);
+
+        $dailySpiritMetrics = [
+            'sale' => [
+                'today' => round($saleToday, 2),
+                'prev' => round($salePrev, 2),
+                'delta_pct' => round($saleDeltaPct, 1),
+                'dir' => $saleToday <=> $salePrev,
+            ],
+            'repurchase' => [
+                'today' => round($repToday, 2),
+                'prev' => round($repPrev, 2),
+                'delta_pct' => round($repDeltaPct, 1),
+                'dir' => $repToday <=> $repPrev,
+            ],
+            'date' => $this->report_date,
+            'prev_date' => $yesterdayDate,
+        ];
 
         $todayAgg = DailyReportRecord::select(
             'branches.name AS branch',
@@ -650,8 +708,8 @@ class SaleAndRepurchase extends Component
             if (!isset($entry['key'])) {
                 continue;
             }
-            // Extract branch name from "Branch (Mon d, Y)"
-            $branchName = trim(preg_replace('/\s*\([^)]*\)$/', '', $entry['key']));
+            // Prefer stored branch name to avoid display formatting issues
+            $branchName = $entry['__branch_name'] ?? trim(preg_replace('/\s*\([^)]*\)$/', '', $entry['key']));
             $today = $todayAgg->get($branchName);
             $prev = $prevAgg->get($branchName);
 
@@ -693,6 +751,7 @@ class SaleAndRepurchase extends Component
             'index_date' => $indexDate,
             'daily_branch_reports' => $branch_report,
             'daily_spirit' => $dailySpirit,
+            'daily_spirit_metrics' => $dailySpiritMetrics,
             'impSummaryData' => $impSummaryData,
             'impSummaryTotalGram' => $impSummaryTotalGram,
         ]);
