@@ -1,74 +1,82 @@
-<div x-data="{ open: true, summary: true }">
-    <x-button pink label="Add Report" @click="$openModal('addReportModal')" />
-    <x-button teal label="Export" @click="$openModal('exportModal')" />
-    @can('isAGM')
-        <x-dropdown align='left'>
-            <x-slot name="trigger">
-                <x-button icon="cog" label="Configure" sky />
-            </x-slot>
-            <x-dropdown.header label="Actions">
-                <x-dropdown.item @click="$openModal('addReportTypeModal')">New Report Type
-                </x-dropdown.item>
-            </x-dropdown.header>
-        </x-dropdown>
-    @endcan
-    <div class="mt-4">
-        <div class="flex flex-wrap w-2/4 gap-4">
+<div x-data="{ open: true, summary: true }" class="space-y-4">
+    <div class="flex flex-wrap items-center gap-2">
+        <x-button pink label="Add Report" @click="$openModal('addReportModal')" />
+        <x-button teal label="Export" @click="$openModal('exportModal')" />
+        @can('isAGM')
+            <x-dropdown align='left'>
+                <x-slot name="trigger">
+                    <x-button icon="cog" label="Configure" sky />
+                </x-slot>
+                <x-dropdown.header label="Actions">
+                    <x-dropdown.item @click="$openModal('addReportTypeModal')">New Report Type
+                    </x-dropdown.item>
+                </x-dropdown.header>
+            </x-dropdown>
+        @endcan
+    </div>
+    <div class="mt-2">
+        <div class="flex flex-wrap items-center gap-3">
+            <label for="date" class="text-sm font-medium text-slate-700 dark:text-slate-300">Report Date</label>
             <input type="date" id="date" wire:model.live='report_date'
-                class="bg-gray-50 border w-44  border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
-            <label for="date" class="text-xl text-gray-400">Report Date ရွေးချယ်ပါ</label>
+                class="w-44 rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" />
+            <span class="text-sm text-slate-500 dark:text-slate-400">Report Date ရွေးချယ်ပါ</span>
         </div>
 
-        <label class="inline-flex items-center mt-2 cursor-pointer">
+        <label class="inline-flex items-center mt-3 cursor-pointer select-none">
             <input x-model="open" type="checkbox" value="" class="sr-only peer">
             <div
-                class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
+                class="relative h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-blue-600 dark:bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 after:absolute after:top-[2px] after:start-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full">
             </div>
-            <span class="text-sm font-medium text-gray-900 ms-3 dark:text-gray-300">နေ့စဉ် ဆိုင်ခွဲများ report</span>
+            <span class="ms-3 text-sm font-medium text-slate-900 dark:text-slate-300">နေ့စဉ် ဆိုင်ခွဲများ report</span>
         </label>
     </div>
 
-    <div class="flex flex-wrap gap-2 my-4" x-show="open" x-transition>
+    <div class="flex flex-wrap gap-4 my-4" x-show="open" x-transition>
         <div>
-            <div class="p-2 border-2 border-red-700 rounded-lg">
-                <x-card title="Daily Summary">
-                    <table>
-                        <thead>
+            <x-card title="Daily Summary" class="border border-slate-200 dark:border-slate-700">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                        <thead
+                            class="text-xs uppercase bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300">
                             <tr>
                                 <th scope="col" class="px-6 py-3">Sale</th>
                                 <th scope="col" class="px-6 py-3">Repurchase</th>
-
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                             @foreach ($daily_spirit as $data)
-                                <tr class="text-lg text-gray-900">
-                                    <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
-                                    <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
+                                <tr
+                                    class="odd:bg-white even:bg-slate-50 dark:odd:bg-slate-800 dark:even:bg-slate-900/40">
+                                    <td class="px-6 py-3 font-medium text-slate-900 dark:text-slate-100">
+                                        {{ $data->total_sale ?? 0 }}</td>
+                                    <td class="px-6 py-3 font-medium text-slate-900 dark:text-slate-100">
+                                        {{ $data->total_repurchase ?? 0 }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
-                </x-card>
-            </div>
+                </div>
+            </x-card>
         </div>
 
         {{-- All branch specific report --}}
         @forelse ($daily_branch_reports as $report)
             <!-- Main Card Container -->
-            <div class="w-full max-w-2xl bg-[#1e293b] text-slate-300 rounded-2xl shadow-2xl p-6 space-y-6">
+            <div
+                class="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 text-slate-800 shadow dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 space-y-6">
 
                 <!-- Card Header -->
-                <div class="flex items-center justify-between pb-4 border-b border-slate-700">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
                     <div>
-                        <h2 class="text-xl font-bold text-white">{{ $report['key'] }}</h2>
+                        <h2 class="text-xl font-semibold">{{ $report['key'] }}</h2>
 
                         {{-- <p class="text-sm text-slate-400">
                             {{ \Carbon\Carbon::parse($report['created_at'])->format('j m y') }}</p> --}}
                     </div>
                     <!-- More Options Icon (three dots) -->
 
-                    <button class="text-slate-400 hover:text-white">
+                    <button class="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                        aria-label="More options">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -79,11 +87,11 @@
 
                 <!-- Key Metrics Section -->
                 <div>
-                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500">Key Metrics</h3>
+                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Key Metrics</h3>
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <!-- Sales KPI -->
-                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-800/50">
-                            <div class="flex items-center text-slate-400">
+                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <div class="flex items-center text-slate-500 dark:text-slate-400">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 20 20"
                                     fill="currentColor">
                                     <path
@@ -91,13 +99,37 @@
                                 </svg>
                                 <span class="text-sm">Total Sales (g)</span>
                             </div>
-                            <p class="mt-2 text-3xl font-bold text-emerald-400">
-                                {{ $report['ရွှေ (weight / g)'] + $report['Pandora (weihgt / g)'] + $report['18K (weihgt / g)'] }}
-                            </p>
+                            <div class="mt-2 flex items-baseline gap-2">
+                                <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                                    {{ $report['__metrics']['sales_gram']['today'] ?? $report['ရွှေ (weight / g)'] + $report['Pandora (weihgt / g)'] + $report['18K (weihgt / g)'] }}
+                                </p>
+                                @php($m = $report['__metrics']['sales_gram'] ?? null)
+                                @if ($m)
+                                    @if ($m['dir'] > 0)
+                                        <span
+                                            class="inline-flex items-center text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 text-xs font-medium">
+                                            <x-icon name="trending-up" class="w-4 h-4 mr-1" />
+                                            {{ number_format($m['delta_pct'], 1) }}%
+                                        </span>
+                                    @elseif ($m['dir'] < 0)
+                                        <span
+                                            class="inline-flex items-center text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-900/30 rounded-md px-2 py-0.5 text-xs font-medium">
+                                            <x-icon name="trending-down" class="w-4 h-4 mr-1" />
+                                            {{ number_format($m['delta_pct'], 1) }}%
+                                        </span>
+                                    @else
+                                        <span
+                                            class="inline-flex items-center text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-slate-900/40 rounded-md px-2 py-0.5 text-xs font-medium">
+                                            <x-icon name="minus" class="w-4 h-4 mr-1" />
+                                            0%
+                                        </span>
+                                    @endif
+                                @endif
+                            </div>
                         </div>
                         <!-- Repurchase KPI -->
-                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-800/50">
-                            <div class="flex items-center text-slate-400">
+                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <div class="flex items-center text-slate-500 dark:text-slate-400">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 20 20"
                                     fill="currentColor">
                                     <path fill-rule="evenodd"
@@ -106,12 +138,37 @@
                                 </svg>
                                 <span class="text-sm">Repurchase (g)</span>
                             </div>
-                            <p class="mt-2 text-3xl font-bold text-amber-400">{{ $report['Repurchase (weight / g )'] }}
-                            </p>
+                            <div class="mt-2 flex items-baseline gap-2">
+                                <p class="text-3xl font-bold text-amber-600 dark:text-amber-400">
+                                    {{ $report['__metrics']['repurchase_gram']['today'] ?? $report['Repurchase (weight / g )'] }}
+                                </p>
+                                @php($r = $report['__metrics']['repurchase_gram'] ?? null)
+                                @if ($r)
+                                    @if ($r['dir'] > 0)
+                                        <span
+                                            class="inline-flex items-center text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 text-xs font-medium">
+                                            <x-icon name="trending-up" class="w-4 h-4 mr-1" />
+                                            {{ number_format($r['delta_pct'], 1) }}%
+                                        </span>
+                                    @elseif ($r['dir'] < 0)
+                                        <span
+                                            class="inline-flex items-center text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-900/30 rounded-md px-2 py-0.5 text-xs font-medium">
+                                            <x-icon name="trending-down" class="w-4 h-4 mr-1" />
+                                            {{ number_format($r['delta_pct'], 1) }}%
+                                        </span>
+                                    @else
+                                        <span
+                                            class="inline-flex items-center text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-slate-900/40 rounded-md px-2 py-0.5 text-xs font-medium">
+                                            <x-icon name="minus" class="w-4 h-4 mr-1" />
+                                            0%
+                                        </span>
+                                    @endif
+                                @endif
+                            </div>
                         </div>
                         <!-- Customer KPI -->
-                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-800/50">
-                            <div class="flex items-center text-slate-400">
+                        <div class="flex flex-col justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <div class="flex items-center text-slate-500 dark:text-slate-400">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 20 20"
                                     fill="currentColor">
                                     <path
@@ -119,12 +176,12 @@
                                 </svg>
                                 <span class="text-sm">Customers In</span>
                             </div>
-                            <p class="mt-2 text-3xl font-bold text-sky-400">
+                            <p class="mt-2 text-3xl font-bold text-sky-600 dark:text-sky-400">
                                 {{ $report['Customer အဝင် ဦးရေ'] +
                                     $report['Customer (viber) အဝင်ဦးရေ'] +
                                     $report['Customer (Telegram) အဝင်ဦးရေ'] +
                                     $report['Customer (tik tok) အဝင်ဦးရေ'] +
-                                    $report['Customer (messenger)အဝင်ဦးရေ'] +
+                                    $report['Customer (messenger)အဝင်ဦးရေ'] +
                                     $report['Customer လူဝင်ဦးရေ (Pawn)'] }}
                             </p>
                         </div>
@@ -133,31 +190,35 @@
 
                 <!-- Item Breakdown Section -->
                 <div>
-                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500">Item Breakdown</h3>
+                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Item Breakdown
+                    </h3>
                     <div class="space-y-2 text-sm">
                         <!-- Header Row -->
-                        <div class="grid grid-cols-2 gap-4 px-2 font-semibold text-slate-400">
+                        <div class="grid grid-cols-2 gap-4 px-2 font-semibold text-slate-600 dark:text-slate-400">
                             <span>Item Type</span>
                             <span class="text-center">Sales (pcs / g)</span>
                             {{-- <span class="text-center">Repurchase (pcs / g / vr)</span> --}}
                         </div>
                         <!-- Data Rows -->
-                        <div class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-800/50">
-                            <span class="font-medium text-white">ရွှေ</span>
-                            <span class="text-center text-slate-300">{{ $report['ရွှေ (pcs)'] }} /
+                        <div
+                            class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <span class="font-medium">ရွှေ</span>
+                            <span class="text-center">{{ $report['ရွှေ (pcs)'] }} /
                                 {{ $report['ရွှေ (weight / g)'] }}</span>
                             {{-- <span class="text-center text-slate-300">{{ $report['Repurchase ပစ္စည်းအခုရေ'] }} / --}}
                             {{-- {{ $report['Repurchase (weight / g )'] }} / {{ $report['Repurchase အစောင်ရေ'] }}</span> --}}
                         </div>
-                        <div class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-800/50">
-                            <span class="font-medium text-white">18K</span>
-                            <span class="text-center text-slate-300">{{ $report['18K (pcs)'] }} /
+                        <div
+                            class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <span class="font-medium">18K</span>
+                            <span class="text-center">{{ $report['18K (pcs)'] }} /
                                 {{ $report['18K (weihgt / g)'] }}</span>
                             {{-- <span class="text-center text-slate-300">8 / 4.33</span> --}}
                         </div>
-                        <div class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-800/50">
-                            <span class="font-medium text-white">Pandora</span>
-                            <span class="text-center text-slate-300">{{ $report['Pandora (pcs)'] }} /
+                        <div
+                            class="grid items-center grid-cols-2 gap-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <span class="font-medium">Pandora</span>
+                            <span class="text-center">{{ $report['Pandora (pcs)'] }} /
                                 {{ $report['Pandora (weihgt / g)'] }}</span>
                             {{-- <span class="text-center text-slate-300">50 / 34.51</span> --}}
                         </div>
@@ -166,20 +227,21 @@
 
                 <!-- Pawn Activity Section -->
                 <div>
-                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500">Pawn Activity</h3>
+                    <h3 class="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Pawn Activity
+                    </h3>
                     <div class="grid grid-cols-3 gap-4 text-center">
-                        <div class="p-3 rounded-lg bg-slate-800/50">
-                            <p class="text-sm text-slate-400">New (အသစ်ဝင်)</p>
-                            <p class="mt-1 text-2xl font-bold text-white">{{ $report['အစောင်ရေ အသစ် (Pawn)'] }}</p>
+                        <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <p class="text-sm text-slate-500 dark:text-slate-400">New (အသစ်ဝင်)</p>
+                            <p class="mt-1 text-2xl font-bold">{{ $report['အစောင်ရေ အသစ် (Pawn)'] }}</p>
                         </div>
-                        <div class="p-3 rounded-lg bg-slate-800/50">
-                            <p class="text-sm text-slate-400">Redeem (အတိုးဆပ်)</p>
-                            <p class="mt-1 text-2xl font-bold text-white">
+                        <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <p class="text-sm text-slate-500 dark:text-slate-400">Redeem (အတိုးဆပ်)</p>
+                            <p class="mt-1 text-2xl font-bold">
                                 {{ $report['အတိုးသွင်း/လက်မှတ်လဲအစောင်ရေ (Pawn)'] }}</p>
                         </div>
-                        <div class="p-3 rounded-lg bg-slate-800/50">
-                            <p class="text-sm text-slate-400">အရွေးအစောင်ရေ</p>
-                            <p class="mt-1 text-2xl font-bold text-white">{{ $report['အရွေးအစောင်ရေ (Pawn)'] }}</p>
+                        <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+                            <p class="text-sm text-slate-500 dark:text-slate-400">အရွေးအစောင်ရေ</p>
+                            <p class="mt-1 text-2xl font-bold">{{ $report['အရွေးအစောင်ရေ (Pawn)'] }}</p>
                         </div>
                     </div>
                 </div>
@@ -199,19 +261,19 @@
     <hr />
 
     <div class="mt-4">
-        <div class="flex w-1/2 gap-2 mx-auto mb-4">
+        <div class="flex flex-wrap items-center gap-3 mx-auto mb-4 max-w-xl">
             <x-datetime-picker wire:model.live.debounce="start_date_summary" without-time='true' label="Start"
                 placeholder="Now" />
             <x-datetime-picker wire:model.live.debounce="end_date_summary" without-time='true' label="End"
                 placeholder="Now" />
         </div>
 
-        <label class="inline-flex items-center mt-2 cursor-pointer">
+        <label class="inline-flex items-center mt-2 cursor-pointer select-none">
             <input x-model="summary" type="checkbox" value="" class="sr-only peer">
             <div
-                class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
+                class="relative h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-blue-600 dark:bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 after:absolute after:top-[2px] after:start-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full">
             </div>
-            <span class="text-sm font-medium text-gray-900 ms-3 dark:text-gray-300">Reports အမျိုးအစားအလိုက်
+            <span class="ms-3 text-sm font-medium text-slate-900 dark:text-slate-300">Reports အမျိုးအစားအလိုက်
                 အကျဉ်းချုပ်</span>
         </label>
 
@@ -219,70 +281,76 @@
 
 
     {{-- Summarize table --}}
-    <div class="flex flex-wrap gap-2" x-show="summary" x-transition>
+    <div class="flex flex-wrap gap-4" x-show="summary" x-transition>
         <div>
-            <div class="p-2 border-2 border-red-700 rounded-lg">
-                <x-card title="Daily Summary">
-                    <table>
-                        <thead>
+            <x-card title="Daily Summary" class="border border-slate-200 dark:border-slate-700">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                        <thead
+                            class="text-xs uppercase bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300">
                             <tr>
                                 <th scope="col" class="px-6 py-3">Sale</th>
                                 <th scope="col" class="px-6 py-3">Repurchase</th>
-
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                             @foreach ($impSummaryTotalGram as $data)
-                                <tr class="text-lg text-gray-900">
-                                    <td class="px-6 py-4">{{ $data->total_sale ?? 0 }}</td>
-                                    <td class="px-6 py-4">{{ $data->total_repurchase ?? 0 }}</td>
+                                <tr
+                                    class="odd:bg-white even:bg-slate-50 dark:odd:bg-slate-800 dark:even:bg-slate-900/40">
+                                    <td class="px-6 py-3 font-medium text-slate-900 dark:text-slate-100">
+                                        {{ $data->total_sale ?? 0 }}</td>
+                                    <td class="px-6 py-3 font-medium text-slate-900 dark:text-slate-100">
+                                        {{ $data->total_repurchase ?? 0 }}</td>
                                 </tr>
                             @endforeach
-
                         </tbody>
                     </table>
-                </x-card>
-            </div>
+                </div>
+            </x-card>
         </div>
 
         @foreach ($impSummaryData as $type => $data)
-            <div class="p-2 border border-teal-400 rounded-lg">
-                <x-card title="{{ $type }}" class="border-2">
-                    <table class="text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">
-                                    Branch
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Quantity
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($data as $item)
-                                <tr
-                                    class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
-                                    <th scope="row"
-                                        class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                        {{ $item['name'] }}
+            <div class="rounded-lg">
+                <x-card title="{{ $type }}" class="border border-slate-200 dark:border-slate-700">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-slate-600 dark:text-slate-300 rtl:text-right">
+                            <thead
+                                class="text-xs uppercase bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3">
+                                        Branch
                                     </th>
-                                    <td class="px-6 py-4">
-                                        {{ $item['total'] }}
-                                    </td>
+                                    <th scope="col" class="px-6 py-3">
+                                        Quantity
+                                    </th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                                @foreach ($data as $item)
+                                    <tr
+                                        class="odd:bg-white even:bg-slate-50 dark:odd:bg-slate-800 dark:even:bg-slate-900/40">
+                                        <th scope="row"
+                                            class="px-6 py-3 font-medium text-slate-900 whitespace-nowrap dark:text-slate-100">
+                                            {{ $item['name'] }}
+                                        </th>
+                                        <td class="px-6 py-3">
+                                            {{ $item['total'] }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </x-card>
             </div>
         @endforeach
     </div>
 
-    <div class="w-full p-4 my-8 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
+    <div
+        class="w-full p-4 my-8 bg-white rounded-lg border border-slate-200 shadow dark:bg-slate-800 dark:border-slate-700 md:p-6">
         <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center">
-                <div class="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg dark:bg-gray-700 me-3">
+                <div class="flex items-center justify-center w-12 h-12 bg-slate-100 rounded-lg dark:bg-slate-700 me-3">
                     {{-- <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
                         <path
@@ -290,7 +358,7 @@
                         <path
                             d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z" />
                     </svg> --}}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-400" viewBox="0 0 20 20"
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-400" viewBox="0 0 20 20"
                         fill="currentColor">
                         <path fill-rule="evenodd"
                             d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm9 4a1 1 0 10-2 0v6a1 1 0 102 0V7zm-3 2a1 1 0 10-2 0v4a1 1 0 102 0V9zm-3 3a1 1 0 10-2 0v1a1 1 0 102 0v-1z"
@@ -298,9 +366,9 @@
                     </svg>
                 </div>
                 <div>
-                    <h5 class="pb-1 text-2xl font-bold leading-none text-gray-900 dark:text-white">
+                    <h5 class="pb-1 text-2xl font-bold leading-none text-slate-900 dark:text-white">
                         {{ 'Last 30 Days' }}</h5>
-                    <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Limited showing data</p>
+                    <p class="text-sm font-normal text-slate-500 dark:text-slate-400">Limited showing data</p>
                 </div>
             </div>
             <div class="hidden">
@@ -327,11 +395,13 @@
             </dl>
         </div> --}}
 
-        <div class="overflow-x-scroll" id="column-chart"></div>
+        <div class="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700 min-h-[320px]"
+            id="column-chart"></div>
         <div class="grid items-center justify-between grid-cols-1 border-t border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between pt-5">
                 <!-- Button -->
-                <select wire:model.live='duration_filter'>
+                <select wire:model.live='duration_filter'
+                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
                     <option value="0">Today</option>
                     <option value="1">yesterday</option>
                     <option value="7">7 days</option>
@@ -353,11 +423,12 @@
     </div>
 
     {{-- overall report types chart --}}
-    <div class="w-full p-4 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
+    <div
+        class="w-full p-4 bg-white rounded-lg border border-slate-200 shadow dark:bg-slate-800 dark:border-slate-700 md:p-6">
         <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center">
-                <div class="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg dark:bg-gray-700 me-3">
-                    <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                <div class="flex items-center justify-center w-12 h-12 bg-slate-100 rounded-lg dark:bg-slate-700 me-3">
+                    <svg class="w-6 h-6 text-slate-500 dark:text-slate-400" aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
                         <path
                             d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z" />
@@ -366,9 +437,10 @@
                     </svg>
                 </div>
                 <div>
-                    <h5 class="pb-1 text-2xl font-bold leading-none text-gray-900 dark:text-white">
+                    <h5 class="pb-1 text-2xl font-bold leading-none text-slate-900 dark:text-white">
                         __{{ '100' }}</h5>
-                    <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Overall reports of report types</p>
+                    <p class="text-sm font-normal text-slate-500 dark:text-slate-400">Overall reports of report types
+                    </p>
                 </div>
             </div>
             <div class="hidden">
@@ -383,15 +455,16 @@
                 </span>
             </div>
         </div>
-        <div id="data-series-chart"></div>
+        <div id="data-series-chart" class="min-h-[320px]"></div>
     </div>
 
     {{-- Each branch daily index --}}
-    <div class="w-full p-4 mt-8 bg-white rounded-lg shadow dark:bg-gray-800 md:p-6">
+    <div
+        class="w-full p-4 mt-8 bg-white rounded-lg border border-slate-200 shadow dark:bg-slate-800 dark:border-slate-700 md:p-6">
         <div class="flex justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center">
-                <div class="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg dark:bg-gray-700 me-3">
-                    <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                <div class="flex items-center justify-center w-12 h-12 bg-slate-100 rounded-lg dark:bg-slate-700 me-3">
+                    <svg class="w-6 h-6 text-slate-500 dark:text-slate-400" aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
                         <path
                             d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z" />
@@ -400,10 +473,10 @@
                     </svg>
                 </div>
                 <div>
-                    <h5 class="pb-1 text-2xl font-bold leading-none text-gray-900 dark:text-white">
+                    <h5 class="pb-1 text-2xl font-bold leading-none text-slate-900 dark:text-white">
                         {{-- {{ $branchOverIndex }} --}}
                     </h5>
-                    <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Total of indexs</p>
+                    <p class="text-sm font-normal text-slate-500 dark:text-slate-400">Total of indexs</p>
                 </div>
             </div>
             <div>
@@ -430,15 +503,18 @@
                 @endif
             </div>
         </div>
-        <div id="each_branch_index_data-series-chart"></div>
+        <div id="each_branch_index_data-series-chart" class="min-h-[320px]"></div>
     </div>
 
     {{-- Create a Report --}}
     <x-modal.card title="New Report" wire:model='addReportModal'>
         <div>
-            <input class="rounded-lg" type="date" wire:model.live='report_date' />
+            <input
+                class="rounded-lg border border-slate-300 bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
+                type="date" wire:model.live='report_date' />
             @can('isAGM')
-                <select wire:model.live='branch_id' class="rounded-lg">
+                <select wire:model.live='branch_id'
+                    class="rounded-lg border border-slate-300 bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                     <option value="" selected disabled>Select</option>
                     @foreach ($branches as $branch)
                         <option value="{{ $branch->id }}"> {{ ucfirst($branch->name) }}</option>
@@ -508,8 +584,8 @@
             <button class="px-4 py-2 mt-4 text-white bg-gray-900 rounded-lg hover:bg-gray-950 hover:shadow-lg"><x-icon
                     name="check" solid class="inline w-4 h-4 mr-2" />{{ __('SAVE') }}</button>
         </form>
-        <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+        <table class="w-full text-sm text-left text-slate-600 rtl:text-right dark:text-slate-300">
+            <thead class="text-xs uppercase bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300">
                 <tr>
                     <th scope="col" class="px-4 py-2">Name</th>
                     <th scope="col" class="px-4 py-2">Desc</th>
@@ -519,8 +595,8 @@
             <tbody>
                 @foreach ($types as $type)
                     <tr>
-                        <td class="px-4 py-2">{{ $type->name }}</td>
-                        <td class="px-4 py-2">{{ $type->description }}</td>
+                        <td class="px-4 py-2 text-slate-900 dark:text-slate-100">{{ $type->name }}</td>
+                        <td class="px-4 py-2 text-slate-900 dark:text-slate-100">{{ $type->description }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -529,7 +605,8 @@
 
     {{-- Export data --}}
     <x-modal.card title="Export data" wire:model='exportModal'>
-        <select wire:model='export_branch_id' class="ml-4 bg-gray-100 border rounded-lg border-gray-50">
+        <select wire:model='export_branch_id'
+            class="ml-4 rounded-lg border border-slate-300 bg-white text-slate-900 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100">
             <option value="" selected>All Branch</option>
             @foreach ($branches as $branch)
                 <option value="{{ $branch->id }}"> {{ ucfirst($branch->name) }}</option>

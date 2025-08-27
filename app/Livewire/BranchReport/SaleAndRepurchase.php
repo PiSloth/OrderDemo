@@ -568,6 +568,42 @@ class SaleAndRepurchase extends Component
 
         // dd($branch_report);
 
+        // Ensure all Blade-referenced keys exist with default 0 to avoid undefined index notices
+        $requiredKeys = array_merge([
+            // Customer totals
+            'Customer အဝင် ဦးရေ',
+            'Customer (viber) အဝင်ဦးရေ',
+            'Customer (Telegram) အဝင်ဦးရေ',
+            'Customer (tik tok) အဝင်ဦးရေ',
+            'Customer (messenger)အဝင်ဦးရေ',
+            'Customer လူဝင်ဦးရေ (Pawn)',
+            // Item breakdown (pcs / grams) and sales gram fallbacks
+            'ရွှေ (pcs)',
+            'ရွှေ (weight / g)',
+            '18K (pcs)',
+            '18K (weihgt / g)', // key spelling as used in Blade
+            'Pandora (pcs)',
+            'Pandora (weihgt / g)', // key spelling as used in Blade
+            // Repurchase grams fallback
+            'Repurchase (weight / g )',
+            // Pawn activity cards
+            'အစောင်ရေ အသစ် (Pawn)',
+            'အတိုးသွင်း/လက်မှတ်လဲအစောင်ရေ (Pawn)',
+            'အရွေးအစောင်ရေ (Pawn)',
+        ]);
+
+        foreach ($branch_report as $bKey => &$entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            foreach ($requiredKeys as $rk) {
+                if (!array_key_exists($rk, $entry)) {
+                    $entry[$rk] = 0;
+                }
+            }
+        }
+        unset($entry); // break reference
+
         $dailySpirit = DailyReportRecord::select(DB::raw(
             'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS total_sale,
             SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS total_repurchase'
@@ -577,6 +613,71 @@ class SaleAndRepurchase extends Component
             ->get();
 
         // dd($dailySpirit);
+
+        // Compute today vs yesterday deltas per branch for key KPIs (sales grams, repurchase grams)
+        $yesterdayDate = Carbon::parse($this->report_date)->subDay()->format('Y-m-d');
+
+        $todayAgg = DailyReportRecord::select(
+            'branches.name AS branch',
+            DB::raw(
+                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS today_sale_gram,' .
+                    'SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS today_repurchase_gram'
+            )
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where('daily_report_records.report_date', '=', $this->report_date)
+            ->groupBy('branches.name')
+            ->get()
+            ->keyBy('branch');
+
+        $prevAgg = DailyReportRecord::select(
+            'branches.name AS branch',
+            DB::raw(
+                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS prev_sale_gram,' .
+                    'SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS prev_repurchase_gram'
+            )
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where('daily_report_records.report_date', '=', $yesterdayDate)
+            ->groupBy('branches.name')
+            ->get()
+            ->keyBy('branch');
+
+        // Attach metrics to branch report cards
+        foreach ($branch_report as $key => $entry) {
+            if (!isset($entry['key'])) {
+                continue;
+            }
+            // Extract branch name from "Branch (Mon d, Y)"
+            $branchName = trim(preg_replace('/\s*\([^)]*\)$/', '', $entry['key']));
+            $today = $todayAgg->get($branchName);
+            $prev = $prevAgg->get($branchName);
+
+            $salesToday = (float) ($today->today_sale_gram ?? 0);
+            $salesPrev = (float) ($prev->prev_sale_gram ?? 0);
+            $repToday = (float) ($today->today_repurchase_gram ?? 0);
+            $repPrev = (float) ($prev->prev_repurchase_gram ?? 0);
+
+            $salesDeltaPct = $salesPrev > 0 ? (($salesToday - $salesPrev) / $salesPrev) * 100 : ($salesToday > 0 ? 100 : 0);
+            $repDeltaPct = $repPrev > 0 ? (($repToday - $repPrev) / $repPrev) * 100 : ($repToday > 0 ? 100 : 0);
+
+            $branch_report[$key]['__metrics'] = [
+                'sales_gram' => [
+                    'today' => round($salesToday, 2),
+                    'prev' => round($salesPrev, 2),
+                    'delta_pct' => round($salesDeltaPct, 1),
+                    'dir' => $salesToday <=> $salesPrev, // -1,0,1
+                ],
+                'repurchase_gram' => [
+                    'today' => round($repToday, 2),
+                    'prev' => round($repPrev, 2),
+                    'delta_pct' => round($repDeltaPct, 1),
+                    'dir' => $repToday <=> $repPrev,
+                ],
+            ];
+        }
 
         $all_reports = json_encode($chartData);
         $mergeCategory = json_encode($mergeCategory);

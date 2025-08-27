@@ -280,7 +280,7 @@ class MainBoard extends Component
             ->where('bpp.is_suspended', '=', 'false')
             ->groupBy('p.id', 'shapes.name', 'p.weight', 'p.length', 'uoms.name', 'pp.image')
             ->orderByDesc('total_sale')
-            ->paginate(5);
+            ->get();
 
         if ($this->props_to_link == true) {
             $orders = PsiOrder::where('branch_psi_product_id', '=', $this->branchPsiProductId)
