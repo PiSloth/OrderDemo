@@ -47,7 +47,7 @@
             </div>
         @endforeach
     </div>
-    <div class="mt-4">{{ $products->links() }}</div>
+    {{-- <div class="mt-4">{{ $products->links() }}</div> --}}
 
     <x-modal wire:model='dailySaleModal'>
         <x-card title="Daily Sale">

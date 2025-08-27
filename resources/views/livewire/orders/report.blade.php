@@ -27,16 +27,16 @@
                 placeholder="Select date end">
         </div>
     </div> --}}
-    <div class="grid grid-cols-4 gap-4 p-4 mb-4 bg-blue-100 rounded sm:grid-cols-2">
+    <div
+        class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 mb-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur">
         <x-datetime-picker label="Start Date" placeholder="Start Date" parse-format="YYYY-MM-DD HH:mm"
             wire:model.live="startDate" without-time=true />
         <x-datetime-picker label="End Date" placeholder="End Date" parse-format="YYYY-MM-DD HH:mm" wire:model.live="endDate"
             without-time=true />
     </div>
 
-
-    <div class="grid gap-4 md:grid-cols-2 sm:grid-cols-1 bg-leamon-50">
-        <div class="p-4 border rounded shadow-lg ">
+    <div class="grid gap-4 md:grid-cols-2 sm:grid-cols-1">
+        <div class="p-4 border rounded-lg shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div>
                 <x-button href="{{ route('order-branch-report') }}" class="w-full h-12" outline teal icon="chart-pie"
                     wire:navigate>Branch
@@ -54,7 +54,7 @@
                 @foreach ($branches as $item)
                     <a href="{{ route('order-branch-report', ['branch' => $item->id, 'status' => $status_id, 'st' => $startDate, 'en' => $endDate]) }}"
                         wire:navigate
-                        class="grid w-full grid-cols-2 gap-2 py-2 mb-2 uppercase border shadow-sm hover:font-bold hover:text-teal-900 hover:bg-pink-50 text-slate-500">
+                        class="grid w-full grid-cols-2 gap-2 py-2 mb-2 uppercase border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700/40 text-slate-600 dark:text-slate-300">
                         <div class="text-center">{{ $item->name }}</div>
                         <div class="text-center">{{ $item->total }}</div>
                     </a>
@@ -63,7 +63,7 @@
         </div>
 
         {{-- //With Design --}}
-        <div class="p-4 border rounded shadow-xl">
+        <div class="p-4 border rounded-lg shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div>
                 <x-button href="{{ route('order-branch-report') }}" class="w-full h-12" outline pink icon="chart-pie"
                     wire:navigate>All
@@ -81,7 +81,7 @@
                 @foreach ($prioritiesData as $item)
                     <a href="{{ route('order-branch-report', ['branch' => $item->id, 'priority' => $priority_id, 'st' => $startDate, 'en' => $endDate]) }}"
                         wire:navigate
-                        class="grid w-full grid-cols-2 gap-2 py-2 mb-2 uppercase border shadow-sm hover:font-bold hover:text-teal-900 hover:bg-pink-50 text-slate-500">
+                        class="grid w-full grid-cols-2 gap-2 py-2 mb-2 uppercase border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700/40 text-slate-600 dark:text-slate-300">
                         <div class="text-center">{{ $item->name }}</div>
                         <div class="text-center">{{ $item->total }}</div>
                     </a>
@@ -91,94 +91,99 @@
     </div>
 
     {{-- Averages --}}
-
-    <div class="grid gap-4 p-2 my-4 sm:grid-cols-1 md:grid-cols-2">
-        <ul class="">
-            <span class="text-2xl font-bold">Process တစ်ခုနှင့် တစ်ခုကြား ပျှမ်းမျှကြာချိန် (Days)</span>
+    <section class="my-6">
+        <div
+            class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-4 sm:p-6 shadow-sm">
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Process တစ်ခုနှင့် တစ်ခုကြား
+                ပျှမ်းမျှကြာချိန် (Days)</h2>
             @foreach ($average as $data)
-                <li class="grid grid-cols-2 mt-4 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span> Total Order </span>
-                    <span class="text-3xl">{{ $data->TotalCount }} <i>pcs</i></span>
-                </li>
-                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span>Add to Ack</span>
-                    <span class="text-3xl ">{{ $data->AvgAddedToAcked }}</span>
-
-                </li>
-                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span>Ack to Request </span>
-                    <span class="text-3xl ">{{ $data->AvgAckedToRequest }}</span>
-                </li>
-                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span> Request to Approve </span>
-                    <span class="text-3xl ">{{ $data->AvgRequestToApprove }}</span>
-                </li>
-                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span>Approve to Order<i>(Supplier)</i></span>
-                    <span class="text-3xl ">{{ $data->AvgApproveToOrdered }}</span>
-                </li>
-                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span>Supplier to STT </span>
-                    <span class="text-3xl ">{{ $data->AvgOrderedToArrived }}</span>
-                </li>
-                <li class="grid grid-cols-2 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span>Arrivered to Delivered </span>
-                    <span class="text-3xl "> {{ $data->AvgDeliveredToSuccess }}</span>
-                </li>
+                <ul class="mt-4 divide-y divide-gray-200 dark:divide-gray-700">
+                    <li
+                        class="flex items-center justify-between py-2 px-2 rounded-md hover:bg-gray-50/70 dark:hover:bg-gray-700/30">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Total Order</span>
+                        <span
+                            class="text-2xl sm:text-3xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ $data->TotalCount }}
+                            <i class="text-sm font-normal not-italic text-gray-500 dark:text-gray-400">pcs</i></span>
+                    </li>
+                    <li
+                        class="flex items-center justify-between py-2 px-2 rounded-md hover:bg-gray-50/70 dark:hover:bg-gray-700/30">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Add to Ack</span>
+                        <span
+                            class="text-2xl sm:text-3xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ $data->AvgAddedToAcked }}</span>
+                    </li>
+                    <li
+                        class="flex items-center justify-between py-2 px-2 rounded-md hover:bg-gray-50/70 dark:hover:bg-gray-700/30">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Ack to Request</span>
+                        <span
+                            class="text-2xl sm:text-3xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ $data->AvgAckedToRequest }}</span>
+                    </li>
+                    <li
+                        class="flex items-center justify-between py-2 px-2 rounded-md hover:bg-gray-50/70 dark:hover:bg-gray-700/30">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Request to Approve</span>
+                        <span
+                            class="text-2xl sm:text-3xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ $data->AvgRequestToApprove }}</span>
+                    </li>
+                    <li
+                        class="flex items-center justify-between py-2 px-2 rounded-md hover:bg-gray-50/70 dark:hover:bg-gray-700/30">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Approve to Order <i
+                                class="text-xs font-normal not-italic text-gray-500 dark:text-gray-400">(Supplier)</i></span>
+                        <span
+                            class="text-2xl sm:text-3xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ $data->AvgApproveToOrdered }}</span>
+                    </li>
+                    <li
+                        class="flex items-center justify-between py-2 px-2 rounded-md hover:bg-gray-50/70 dark:hover:bg-gray-700/30">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Supplier to STT</span>
+                        <span
+                            class="text-2xl sm:text-3xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ $data->AvgOrderedToArrived }}</span>
+                    </li>
+                    <li
+                        class="flex items-center justify-between py-2 px-2 rounded-md hover:bg-gray-50/70 dark:hover:bg-gray-700/30">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Arrived to Delivered</span>
+                        <span
+                            class="text-2xl sm:text-3xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ $data->AvgDeliveredToSuccess }}</span>
+                    </li>
+                </ul>
             @endforeach
-
-        </ul>
-
-        {{-- all comments by user name with count  --}}
-        {{-- <ul class="">
-            <span class="text-2xl font-bold">မဖတ်ရသေးသော Comments များ </span>
-            @foreach ($allUserComments as $item)
-                <li class="grid grid-cols-2 mt-4 mb-2 border-b cursor-pointer hover:bg-slate-100">
-                    <span> {{ $item[0] }} </span>
-                    <span class="text-3xl">{{ $item[1] }} <i></i></span>
-                </li>
-            @endforeach
-        </ul> --}}
-
-    </div>
+        </div>
+    </section>
 
     {{-- //Design with gram  --}}
-    <div class="relative my-3 overflow-x-auto">
-        <table class="w-full text-sm text-left text-gray-500 table-auto rtl:text-right dark:text-gray-400">
-            <thead class="sticky top-0 text-xs text-gray-900 uppercase dark:text-gray-400">
-                <tr>
-                    <th scope="col" class="px-6 py-3">
+    <div class="relative mt-4 overflow-auto max-h-[70vh] rounded-lg border border-gray-200 dark:border-gray-700">
+        <table class="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200 rtl:text-right">
+            <thead
+                class="text-xs uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 sticky top-0 z-10 text-gray-700 dark:text-gray-300">
+                <tr class="divide-x divide-gray-200 dark:divide-gray-700">
+                    <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                         No
                     </th>
-                    <th scope="col" class="px-6 py-3">
+                    <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                         Design
                     </th>
-                    <th scope="col" class="px-6 py-3">
+                    <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                         Weight
                     </th>
 
                     @foreach ($thBranches as $branch)
-                        <th scope="col" class="px-6 py-3">
+                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                             {{ $branch->name }}
                         </th>
                     @endforeach
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                 @foreach ($products as $product)
-                    <tr
-                        class="bg-white odd:bg-gray-50 hover:bg-black hover:text-white hover:font-bold dark:bg-gray-800">
-                        <td class="px-6 py-4">
+                    <tr class="bg-white odd:bg-gray-50 dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-4 md:px-6 py-3">
                             {{ $loop->index + 1 }}
                         </td>
-                        <th class="px-6 py-4 font-medium whitespace-nowrap dark:text-white">
+                        <th class="px-4 md:px-6 py-3 font-medium whitespace-nowrap text-gray-900 dark:text-gray-100">
                             {{ $product->design->name }}
                         </th>
-                        <td class="px-6 py-4">
+                        <td class="px-4 md:px-6 py-3">
                             {{ $product->weight }}<i> g</i>
                         </td>
                         @foreach ($thBranches as $branch)
-                            <td class="px-6 py-4">
+                            <td class="px-4 md:px-6 py-3 text-center tabular-nums">
                                 {{ $product->{'index' . $branch->id} > 0 ? $product->{'index' . $branch->id} : '-' }}
                             </td>
                         @endforeach

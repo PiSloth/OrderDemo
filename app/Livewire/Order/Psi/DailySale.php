@@ -386,7 +386,7 @@ class DailySale extends Component
                 'psi_stocks.inventory_balance',
             )
 
-            ->paginate(10);
+            ->get();
 
         $dailySale = BranchPsiProduct::select(
             'branch_psi_products.id',

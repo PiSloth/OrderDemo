@@ -19,76 +19,61 @@ class Report extends Component
     public $startDate;
     public $endDate;
 
-    protected function allComments($users){
+    protected function allComments($users)
+    {
         $commentsForAllUsers = [];
 
-        foreach($users as $userId){
+        // Avoid N+1 for user names
+        $userNames = User::whereIn('id', $users instanceof \Illuminate\Support\Collection ? $users->all() : (array) $users)
+            ->pluck('name', 'id');
 
-            $comments = Comment::leftJoin('notifications',  function ($join) use ($userId) {
-                $join->on('notifications.comment_id', '=', 'comments.id')
-                     ->where('notifications.user_id', '=', $userId);
-            })
-                ->leftJoin('orders', 'comments.order_id', 'orders.id')
-                ->leftJoin('users', 'users.id', 'comments.user_id')
-                ->select(
-
-                    'comments.id AS id',
-                    'users.name AS commentBy',
-                    'comments.order_id AS orderId',
-                    DB::raw('CASE WHEN comments.id = notifications.comment_id THEN TRUE ELSE FALSE END AS isRead
-            ')
-                )
+        foreach ($users as $userId) {
+            // Count unread comments for each user: comments on user's orders by others, without a matching notification for this user
+            $unreadCount = Comment::leftJoin('orders', 'comments.order_id', '=', 'orders.id')
+                ->leftJoin('notifications', function ($join) use ($userId) {
+                    $join->on('notifications.comment_id', '=', 'comments.id')
+                        ->where('notifications.user_id', '=', $userId);
+                })
                 ->where('orders.user_id', '=', $userId)
                 ->where('comments.user_id', '!=', $userId)
-                ->orderBy('comments.id', 'desc')
-                ->get();
+                ->whereNull('notifications.comment_id')
+                ->count();
 
-            $commentCount = $comments->where('is_read', 'false')->count();
-            $userName = User::find($userId)->name;
-
-            $result = [$userName, $commentCount];
-
-            $commentsForAllUsers[$userId] = $result;
+            $commentsForAllUsers[$userId] = [
+                $userNames[$userId] ?? 'Unknown',
+                $unreadCount,
+            ];
         }
+
         return $commentsForAllUsers;
     }
 
     public function render()
     {
-        $branchesData = Branch::select('branches.name', 'branches.id', DB::raw('count(orders.status_id) as total'))
+        $branchesData = Branch::select('branches.name', 'branches.id', DB::raw('COUNT(orders.id) AS total'))
             ->leftJoin('orders', 'branches.id', '=', 'orders.branch_id')
             ->where(function ($query) {
                 $query->where('orders.status_id', $this->status_id)
-                    ->orWhereNull('orders.status_id'); // Include null status_id as well
+                    ->orWhereNull('orders.status_id');
             })
-            //    ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
-            ->groupBy('branches.id', 'branches.name');
-
-        //Check strt date and end date
-        if ($this->startDate && $this->endDate) {
-            $branchesData = $branchesData
-                ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
-                ->get();
-        } else {
-            $branchesData = $branchesData->get();
-        }
+            ->when($this->startDate && $this->endDate, function ($q) {
+                $q->whereBetween('orders.created_at', [$this->startDate, $this->endDate]);
+            })
+            ->groupBy('branches.id', 'branches.name')
+            ->get();
 
 
-        $priorityData = Branch::select('branches.name', 'branches.id', DB::raw('count(orders.priority_id) as total'))
+        $priorityData = Branch::select('branches.name', 'branches.id', DB::raw('COUNT(orders.id) AS total'))
             ->leftJoin('orders', 'branches.id', '=', 'orders.branch_id')
             ->where(function ($query) {
                 $query->where('orders.priority_id', $this->priority_id)
-                    ->orWhereNull('orders.priority_id'); // Include null priority_id as well
+                    ->orWhereNull('orders.priority_id');
             })
-            ->groupBy('branches.id', 'branches.name');
-
-            if($this->startDate && $this->endDate){
-                $priorityData = $priorityData
-                ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
-                ->get();
-            }else{
-                $priorityData = $priorityData->get();
-            }
+            ->when($this->startDate && $this->endDate, function ($q) {
+                $q->whereBetween('orders.created_at', [$this->startDate, $this->endDate]);
+            })
+            ->groupBy('branches.id', 'branches.name')
+            ->get();
 
 
         // query data with dynamically branch id
@@ -100,47 +85,51 @@ class Report extends Component
         }
 
         $products = Order::select($select)
-            ->groupBy('design_id', 'weight', 'branch_id');
-
-        if ($this->startDate && $this->endDate) {
-            $products = $products
-                ->whereBetween('created_at', [$this->startDate, $this->endDate])->get();
-        } else {
-            $products = $products->get();
-        }
+            ->when($this->startDate && $this->endDate, function ($q) {
+                $q->whereBetween('created_at', [$this->startDate, $this->endDate]);
+            })
+            ->groupBy('design_id', 'weight', 'branch_id')
+            ->get();
 
 
         //Process leadtime average
-        $averages = DB::table('orders')
-            ->leftJoin('order_histories', 'order_histories.order_id', '=', 'orders.id')
-            ->selectRaw("
-                COUNT(DISTINCT(orders.id)) AS TotalCount,
-               CEIL(AVG(TIMESTAMPDIFF(DAY, orders.created_at, (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 3 LIMIT 1)))) AS AvgAddedToAcked,
-               CEIL(AVG(TIMESTAMPDIFF(DAY,
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 2 LIMIT 1),
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 3 LIMIT 1)))) AS AvgAckedToRequest,
-               CEIL(AVG(TIMESTAMPDIFF(DAY,
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 3 LIMIT 1),
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 4 LIMIT 1)))) AS AvgRequestToApprove,
-               CEIL(AVG(TIMESTAMPDIFF(DAY,
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 4 LIMIT 1),
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 5 LIMIT 1)))) AS AvgApproveToOrdered,
-               CEIL(AVG(TIMESTAMPDIFF(DAY,
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 5 LIMIT 1),
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 6 LIMIT 1)))) AS AvgOrderedToArrived,
-               CEIL(AVG(TIMESTAMPDIFF(DAY,
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 6 LIMIT 1),
-                   (SELECT created_at FROM order_histories WHERE order_id = orders.id AND status_id = 7 LIMIT 1)))) AS AvgDeliveredToSuccess
-           ")
-            ->whereNot('orders.status_id', 8);
-
+        // Lead-time calculation: pre-aggregate first time each status was reached per order
+        $base = DB::table('orders')->where('orders.status_id', '!=', 8);
         if ($this->startDate && $this->endDate) {
-            $averages = $averages
-                ->whereBetween('orders.created_at', [$this->startDate, $this->endDate])
-                ->get();
-        } else {
-            $averages = $averages->get();
+            $base->whereBetween('orders.created_at', [$this->startDate, $this->endDate]);
         }
+
+        $s2 = DB::table('order_histories')->select('order_id', DB::raw('MIN(created_at) AS reached_at'))
+            ->where('status_id', 2)->groupBy('order_id');
+        $s3 = DB::table('order_histories')->select('order_id', DB::raw('MIN(created_at) AS reached_at'))
+            ->where('status_id', 3)->groupBy('order_id');
+        $s4 = DB::table('order_histories')->select('order_id', DB::raw('MIN(created_at) AS reached_at'))
+            ->where('status_id', 4)->groupBy('order_id');
+        $s5 = DB::table('order_histories')->select('order_id', DB::raw('MIN(created_at) AS reached_at'))
+            ->where('status_id', 5)->groupBy('order_id');
+        $s6 = DB::table('order_histories')->select('order_id', DB::raw('MIN(created_at) AS reached_at'))
+            ->where('status_id', 6)->groupBy('order_id');
+        $s7 = DB::table('order_histories')->select('order_id', DB::raw('MIN(created_at) AS reached_at'))
+            ->where('status_id', 7)->groupBy('order_id');
+
+        $averages = DB::query()
+            ->fromSub($base, 'o')
+            ->leftJoinSub($s2, 's2', 's2.order_id', '=', 'o.id')
+            ->leftJoinSub($s3, 's3', 's3.order_id', '=', 'o.id')
+            ->leftJoinSub($s4, 's4', 's4.order_id', '=', 'o.id')
+            ->leftJoinSub($s5, 's5', 's5.order_id', '=', 'o.id')
+            ->leftJoinSub($s6, 's6', 's6.order_id', '=', 'o.id')
+            ->leftJoinSub($s7, 's7', 's7.order_id', '=', 'o.id')
+            ->selectRaw('
+                COUNT(DISTINCT o.id) AS TotalCount,
+                CEIL(AVG(TIMESTAMPDIFF(DAY, o.created_at, s2.reached_at))) AS AvgAddedToAcked,
+                CEIL(AVG(TIMESTAMPDIFF(DAY, s2.reached_at, s3.reached_at))) AS AvgAckedToRequest,
+                CEIL(AVG(TIMESTAMPDIFF(DAY, s3.reached_at, s4.reached_at))) AS AvgRequestToApprove,
+                CEIL(AVG(TIMESTAMPDIFF(DAY, s4.reached_at, s5.reached_at))) AS AvgApproveToOrdered,
+                CEIL(AVG(TIMESTAMPDIFF(DAY, s5.reached_at, s6.reached_at))) AS AvgOrderedToArrived,
+                    CEIL(AVG(TIMESTAMPDIFF(DAY, s6.reached_at, s7.reached_at))) AS AvgDeliveredToSuccess
+            ')
+            ->get();
 
         // End process leadtime average
 

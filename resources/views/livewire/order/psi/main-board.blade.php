@@ -99,7 +99,8 @@
     </div>
 
     {{-- Sticky Table  --}}
-    <div class="container mx-auto my-10 overflow-auto max-h-[70vh]">
+    <div
+        class="relative mx-auto my-6 overflow-auto max-h-[75vh] rounded-lg border border-gray-200 dark:border-gray-700">
         {{-- <div class="my-3 font-bold text-blue-500">Branch အလိုက် Signature Product များထားရှိခြင်းပြ ဇယား</div> --}}
 
         <div>
@@ -121,22 +122,23 @@
             </div>
             <table id="pageproducts"
                 class="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200 rtl:text-right">
-                <thead class="text-xs uppercase text-gray-700 dark:text-gray-300">
-                    <tr>
-                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3 w-40">
+                <thead
+                    class="text-xs uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 sticky top-0 z-10 text-gray-700 dark:text-gray-300">
+                    <tr class="divide-x divide-gray-200 dark:divide-gray-700">
+                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold w-40">
                             <span class="sr-only">Image</span>
                         </th>
-                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
+                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                             Product
                         </th>
-                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
+                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                             Weight/g
                         </th>
-                        <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
+                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                             Size
                         </th>
                         @foreach ($branches as $branch)
-                            <th scope="col" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-6 py-3">
+                            <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
                                 {{ ucfirst($branch->name) }}
                             </th>
                         @endforeach
@@ -152,21 +154,21 @@
                                     src="{{ asset('storage/' . $product->image) }}" alt="product image"
                                     @click="$openModal('productSummaryModal')" />
                             </td>
-                            <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                            <td class="px-4 md:px-6 py-3 font-semibold text-gray-900 dark:text-white">
                                 {{ $product->shape }}
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-4 md:px-6 py-3">
                                 <span>{{ $product->weight }}</span>
                             </td>
 
-                            <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                            <td class="px-4 md:px-6 py-3 font-semibold text-gray-900 dark:text-white">
                                 <div class="flex items-center">
                                     {{ $product->length }} {{ $product->uom }}
                                 </div>
                             </td>
 
                             @foreach ($branches as $branch)
-                                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                                <td class="px-4 md:px-6 py-3 font-semibold text-gray-900 dark:text-white text-center">
                                     @if ($product->{'index' . $branch->id} > 0)
                                         <a href="#"
                                             class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100 dark:hover:bg-gray-700/60"
