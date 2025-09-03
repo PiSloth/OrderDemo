@@ -154,72 +154,79 @@ class Dashboard extends Component
 
     public function render()
     {
+        $monthlyAllReportTypes = $this->getMonthlyAllReportTypes();
+        $totalIndexByMonth = $this->getTotalIndexByMonth();
+        $most_popular_summary = $this->getMostPopularSummary();
+        $most_popular_details = $this->getMostPopularDetails();
 
-        //! monthly report of report types
-        {
-            $allBranchMonthlyData = DailyReportRecord::select('branches.name AS branch', 'daily_reports.name AS type', DB::raw('SUM(daily_report_records.number) AS result'))
-                ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-                ->whereMonth('daily_report_records.report_date',  $this->month_filter) //
-                ->whereYear('daily_report_records.report_date',  $this->year_filter) //
-                ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
-                ->groupBy('branches.name', 'daily_reports.name', 'daily_reports.id')
-                ->orderBy('branches.name')
-                ->orderBy('daily_reports.id')
-                ->get();
-
-
-            $monthlyAllReportTypes = [];
-
-            foreach ($allBranchMonthlyData as $data) {
-                $key = $data->type;
-                $branch = ucfirst($data->branch);
-
-                if (!isset($monthlyAllReportTypes[$key][$branch])) {
-                    $monthlyAllReportTypes[$key][$branch] = [];
-                }
-                $monthlyAllReportTypes[$key][$branch] = [
-                    $data->result,
-                ];
-            }
-        }
-
-        $selfComparation = DailyReportRecord::select('branches.name AS branch', 'daily_reports.name AS type')
-            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+        // Sale gram data for last 1 month
+        $startDate = Carbon::now()->subMonth()->startOfDay();
+        $endDate = Carbon::now()->endOfDay();
+        $records = DailyReportRecord::select('daily_report_records.report_date', DB::raw('SUM(daily_report_records.number) as sale_gram'))
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where('daily_reports.is_sale_gram', true)
+            ->whereBetween('daily_report_records.report_date', [$startDate, $endDate])
+            ->groupBy('daily_report_records.report_date')
+            ->orderBy('daily_report_records.report_date')
+            ->get();
+
+        $dates = $records->pluck('report_date')->map(fn($d) => Carbon::parse($d)->format('Y-m-d'))->toArray();
+        $saleGramData = $records->pluck('sale_gram')->toArray();
+
+        return view('livewire.branch-report.dashboard', [
+            'monthlyAllReportTypes' => $monthlyAllReportTypes,
+            'branches' => Branch::orderBy('name')->get(),
+            'indexs' => $totalIndexByMonth,
+            'most_popular_details' => $most_popular_details,
+            'most_popular_summary' => $most_popular_summary,
+            'dates' => $dates,
+            'saleGramData' => $saleGramData,
+        ]);
+    }
+
+    private function getMonthlyAllReportTypes()
+    {
+        $records = DailyReportRecord::select(
+            'branches.name AS branch',
+            'daily_reports.name AS type',
+            DB::raw('SUM(daily_report_records.number) AS result')
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->whereMonth('daily_report_records.report_date', $this->month_filter)
+            ->whereYear('daily_report_records.report_date', $this->year_filter)
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->groupBy('branches.name', 'daily_reports.name', 'daily_reports.id')
+            ->orderBy('branches.name')
             ->orderBy('daily_reports.id')
             ->get();
 
-        // dd($monthlyAllReportTypes);
+        $result = [];
+        foreach ($records as $data) {
+            $result[$data->type][ucfirst($data->branch)] = [$data->result];
+        }
+        return $result;
+    }
 
+    private function getTotalIndexByMonth()
+    {
+        return DailyReportRecord::select(
+            'branches.name AS branch',
+            DB::raw(
+                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS total_gram,
+                     SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number ELSE 0 END) AS total_quantity'
+            )
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->whereMonth('daily_report_records.report_date', $this->index_month_filter)
+            ->whereYear('daily_report_records.report_date', $this->index_year_filter)
+            ->groupBy('branches.name')
+            ->get();
+    }
 
-
-        //Branch index count Monthly
-
-
-
-        //! PSI Most popular sale
-        // $most_popular = DB::table('real_sales as rs')
-        //     ->select('s.name as shape', 'p.length', 'p.weight', 'uoms.name as uom', DB::raw('SUM(rs.qty) AS sale'))
-        //     ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
-        //     ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
-        //     ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
-        //     ->leftJoin('shapes as s', 's.id', 'p.shape_id')
-        //     ->leftJoin('branches as b', 'b.id', 'bpsi.branch_id')
-        //     ->where(function ($query) {
-        //         $query->whereMonth('rs.sale_date', $this->popular_month_filter)
-        //             ->whereYear('rs.sale_date', $this->popular_year_filter);
-        //     })
-        //     ->when($this->branch_id, function ($query) {
-        //         return $query->where('b.id', $this->branch_id);
-        //     })
-        //     ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight')
-        //     ->orderByRaw('SUM(rs.qty)' . $this->ac)
-        //     ->limit($this->limit)
-        //     ->get();
-
-
-        //! PSI Most popular sale
-        $most_popular_summary = DB::table('real_sales as rs')
+    private function getMostPopularSummary()
+    {
+        return DB::table('real_sales as rs')
             ->select(
                 's.name as shape',
                 'p.length',
@@ -236,11 +243,14 @@ class Dashboard extends Component
                 return $query->where('bpsi.branch_id', $this->branch_id);
             })
             ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight')
-            ->orderByDesc('total_sale') // Order by total sale DESC
+            ->orderByDesc('total_sale')
             ->limit($this->limit)
             ->get();
+    }
 
-        $most_popular_details = DB::table('real_sales as rs')
+    private function getMostPopularDetails()
+    {
+        return DB::table('real_sales as rs')
             ->select(
                 's.name as shape',
                 'p.length',
@@ -259,51 +269,7 @@ class Dashboard extends Component
                 return $query->where('bpsi.branch_id', $this->branch_id);
             })
             ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight', 'b.name')
-            ->orderByDesc('branch_sale') // Order by branch sale DESC
-            // ->limit($this->limit)
+            ->orderByDesc('branch_sale')
             ->get();
-
-        // dd($most_popular_details);
-
-
-        //! index by daily records
-        $totalIndexByMonth =  DailyReportRecord::select(
-            'branches.name AS branch',
-            DB::raw(
-                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number  ELSE 0 END) AS total_gram,
-                SUM(CASE WHEN daily_reports.is_sale_quantity = true THEN daily_report_records.number  ELSE 0 END) AS total_quantity'
-            )
-        )
-            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
-            ->where(function ($query) {
-                $query->whereMonth('daily_report_records.report_date', $this->index_month_filter)
-                    ->whereYear('daily_report_records.report_date', $this->index_year_filter);
-            })
-            ->groupBy('branches.name')
-            ->get();
-
-
-
-        //Index by psi
-
-
-        //Branch Entrace counts
-
-        //All branch specific dayily
-
-        //All branch monthly comparation
-
-        //self branch cpomparation [monthly, daily]
-
-
-        return view('livewire.branch-report.dashboard', [
-            'monthlyAllReportTypes' => $monthlyAllReportTypes,
-            'branches' => Branch::orderBy('name')->get(),
-            // 'sales' => $most_popular,
-            'indexs' => $totalIndexByMonth,
-            'most_popular_details' => $most_popular_details,
-            'most_popular_summary' => $most_popular_summary,
-        ]);
     }
 }

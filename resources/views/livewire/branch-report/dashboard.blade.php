@@ -18,7 +18,6 @@
                 $progress = ($achieved / (int) $target) * 100; // Ensure max 100%
             @endphp
 
-
             <div x-data="{ progress: 0 }" x-init="setTimeout(() => { progress = {{ $progress }} }, 300)" class="mb-2">
                 <!-- Branch Name -->
                 <h2 class="mb-3 text-lg font-bold text-center text-gray-700 dark:text-gray-200">{{ ucfirst($branch) }}
@@ -79,6 +78,9 @@
             @endforeach
         </div>
     </div>
+
+    {{-- Sale Gram Line Chart --}}
+    @include('livewire.branch-report.sale-gram-chart')
 
     <!-- All branch report detail -->
     <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
