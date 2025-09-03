@@ -1,15 +1,15 @@
-<div>
+<div class="space-y-8">
     {{-- index --}}
-    <div class="my-4 shadow-xl">
-        <div class="w-1/2 mx-auto mb-4">
+    <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+        <div class="mb-4">
             <x-datetime-picker wire:model.live.debounce="index_date_filter" without-time='true' label="Date"
                 placeholder="Now" />
         </div>
-        <div class="mb-4">
-            <span> Report at - {{ \Carbon\Carbon::parse($index_date_filter)->format('M, Y') }}</span>
+        <div class="mb-4 text-gray-700 dark:text-gray-200">
+            <span>Report at - {{ \Carbon\Carbon::parse($index_date_filter)->format('M, Y') }}</span>
         </div>
 
-        <div class="p-4 border border-gray-200 rounded">
+        <div class="p-4 border border-gray-200 rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
             @php
                 $branch = 'All Branches';
                 $target = array_sum($monthly_target);
@@ -18,24 +18,28 @@
                 $progress = ($achieved / (int) $target) * 100; // Ensure max 100%
             @endphp
 
+
             <div x-data="{ progress: 0 }" x-init="setTimeout(() => { progress = {{ $progress }} }, 300)" class="mb-2">
                 <!-- Branch Name -->
-                <h2 class="mb-3 text-lg font-bold text-center text-gray-700">{{ ucfirst($branch) }}</h2>
+                <h2 class="mb-3 text-lg font-bold text-center text-gray-700 dark:text-gray-200">{{ ucfirst($branch) }}
+                </h2>
 
                 <!-- Achieved & Target -->
                 <div class="flex items-center justify-between mb-2">
-                    <span class="font-semibold text-gray-600">Achieved: {{ number_format($achieved) }}</span>
-                    <span class="font-semibold text-gray-600">Target: {{ number_format($target) }}</span>
+                    <span class="font-semibold text-gray-600 dark:text-gray-300">Achieved:
+                        {{ number_format($achieved) }}</span>
+                    <span class="font-semibold text-gray-600 dark:text-gray-300">Target:
+                        {{ number_format($target) }}</span>
                 </div>
 
                 <!-- Progress Bar -->
-                <div class="relative w-full h-6 bg-gray-200 rounded-full">
-                    <div class="h-6 text-sm font-bold text-center text-white transition-all duration-700 bg-red-500 rounded-full"
+                <div class="relative w-full h-6 bg-gray-200 rounded-full dark:bg-gray-700">
+                    <div class="h-6 text-sm font-bold text-center text-white transition-all duration-700 bg-red-500 rounded-full dark:bg-red-700"
                         :style="'width:' + Math.min(progress, 100) + '%; max-width: 100%'">
                         <span x-text="progress.toFixed(0) + '%'"></span>
                     </div>
                     <div x-show="progress > 100" class="absolute inset-0 flex items-end justify-end">
-                        <span class="text-xs font-bold text-red-600">🔥 Over Target!</span>
+                        <span class="text-xs font-bold text-red-600 dark:text-red-400">🔥 Over Target!</span>
                     </div>
                 </div>
             </div>
@@ -50,22 +54,25 @@
 
                 <div x-data="{ progress: 0 }" x-init="setTimeout(() => { progress = {{ $progress }} }, 300)" class="mb-2">
                     <!-- Branch Name -->
-                    <h2 class="mb-3 text-lg font-bold text-center text-gray-700">{{ ucfirst($item->branch) }}</h2>
+                    <h2 class="mb-3 text-lg font-bold text-center text-gray-700 dark:text-gray-200">
+                        {{ ucfirst($item->branch) }}</h2>
 
                     <!-- Achieved & Target -->
                     <div class="flex items-center justify-between mb-2">
-                        <span class="font-semibold text-gray-600">Achieved: {{ number_format($achieved) }}</span>
-                        <span class="font-semibold text-gray-600">Target: {{ number_format($target) }}</span>
+                        <span class="font-semibold text-gray-600 dark:text-gray-300">Achieved:
+                            {{ number_format($achieved) }}</span>
+                        <span class="font-semibold text-gray-600 dark:text-gray-300">Target:
+                            {{ number_format($target) }}</span>
                     </div>
 
                     <!-- Progress Bar -->
-                    <div class="relative w-full h-6 bg-gray-200 rounded-full">
-                        <div class="h-6 text-sm font-bold text-center text-white transition-all duration-700 bg-green-500 rounded-full"
+                    <div class="relative w-full h-6 bg-gray-200 rounded-full dark:bg-gray-700">
+                        <div class="h-6 text-sm font-bold text-center text-white transition-all duration-700 bg-green-500 rounded-full dark:bg-green-700"
                             :style="'width:' + Math.min(progress, 100) + '%; max-width: 100%'">
                             <span x-text="progress.toFixed(0) + '%'"></span>
                         </div>
                         <div x-show="progress > 100" class="absolute inset-0 flex items-end justify-end">
-                            <span class="text-xs font-bold text-red-600">🔥 Over Target!</span>
+                            <span class="text-xs font-bold text-red-600 dark:text-red-400">🔥 Over Target!</span>
                         </div>
                     </div>
                 </div>
@@ -73,67 +80,71 @@
         </div>
     </div>
 
-    <!-- All branch report detial -->
-    <div class="p-2 my-4 shadow-xls">
-        <div class="w-1/2 mx-auto mb-4">
+    <!-- All branch report detail -->
+    <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+        <div class="mb-4">
             <x-datetime-picker wire:model.live.debounce="report_types_date_filter" without-time='true' label="Date"
                 placeholder="Now" />
         </div>
 
-        <div>Report at - {{ \Carbon\Carbon::parse($report_types_date_filter)->format('M, Y') }}</div>
+        <div class="mb-4 text-gray-700 dark:text-gray-200">Report at -
+            {{ \Carbon\Carbon::parse($report_types_date_filter)->format('M, Y') }}</div>
         @if ($monthlyAllReportTypes)
-            <table class="w-full mt-2 text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+            <table
+                class="w-full mt-2 text-sm text-left text-gray-700 bg-white rounded-lg dark:text-gray-200 dark:bg-gray-800">
+                <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
                         <th scope="col" class="px-2 py-1">Type Name</th>
-                        @foreach (array_keys($monthlyAllReportTypes['ရွှေ (weight / g)']) as $branchName)
+                        @foreach (array_keys($monthlyAllReportTypes['ho'] ?? ($monthlyAllReportTypes['ရွှေ (weight / g)'] ?? [])) as $branchName)
                             <th scope="col" class="px-2 py-1">{{ $branchName }}</th>
                         @endforeach
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($monthlyAllReportTypes as $typeName => $branchData)
-                        <tr class="odd:bg-white even:bg-gray-100">
-                            <td class=" md:px-4 md:py-2">{{ $typeName }}</td>
+                        <tr class="odd:bg-white even:bg-gray-100 dark:odd:bg-gray-900 dark:even:bg-gray-800">
+                            <td class="md:px-4 md:py-2">{{ $typeName }}</td>
                             @foreach ($branchData as $values)
-                                <td class=" md:px-4 md:py-2">{{ $values[0] ?? 0 }}</td> {{-- Display value or 0 if empty --}}
+                                <td class="md:px-4 md:py-2">{{ $values[0] ?? 0 }}</td>
                             @endforeach
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         @else
-            <div class="p-2 mt-4 text-red-300 rounded-full bg-gray-50">No data found yet</div>
+            <div class="p-2 mt-4 text-red-300 rounded-full bg-gray-50 dark:bg-gray-900">No data found yet</div>
         @endif
     </div>
 
-    {{-- specific Rport type --}}
-    <div class="my-4 shadow-xl">
-        <div class="flex w-1/2 gap-2 mx-auto mb-4">
+    {{-- specific Report type --}}
+    <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+        <div class="flex w-full gap-2 mx-auto mb-4 md:w-1/2">
             <div>
                 <x-datetime-picker wire:model.live.debounce="specific_date_filter" without-time='true' label="Date"
                     placeholder="Now" />
             </div>
             <div class="flex flex-col">
-                <label for="specific_branch">Branch</label>
+                <label for="specific_branch" class="text-gray-700 dark:text-gray-200">Branch</label>
                 <select id="specific_branch_id" wire:model.live='specific_branch_id'
-                    class="bg-gray-100 border rounded-lg border-gray-50">
+                    class="text-gray-700 bg-gray-100 border rounded-lg dark:bg-gray-900 border-gray-50 dark:border-gray-700 dark:text-gray-200">
                     <option value="" selected>All Branch</option>
                     @foreach ($branches as $branch)
                         <option value="{{ $branch->id }}"> {{ ucfirst($branch->name) }}</option>
                     @endforeach
                 </select>
             </div>
-            <span class="mt-8 text-blue-600 cursor-pointer hover:underline hover:text-red-900"
+            <span
+                class="mt-8 text-blue-600 cursor-pointer dark:text-blue-400 hover:underline hover:text-red-900 dark:hover:text-red-400"
                 wire:click='specificDateFilterOfReportType'>Generate</span>
         </div>
 
-        <table class="w-full mt-2 text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+        <table
+            class="w-full mt-2 text-sm text-left text-gray-700 bg-white rounded-lg dark:text-gray-200 dark:bg-gray-800">
+            <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
                     <th scope="col" class="px-2 py-1">Type Name</th>
-                    @foreach (array_keys($dailyAllReportTypes['ရွှေ (weight / g)']) as $branchName)
-                        <th class="cursor-pointer hover:text-red-500"
+                    @foreach (array_keys($dailyAllReportTypes['ရွှေ (weight / g)'] ?? []) as $branchName)
+                        <th class="cursor-pointer hover:text-red-500 dark:hover:text-red-400"
                             wire:click='removeKeyFromSelectedArray("{{ $branchName }}")' scope="col"
                             class="px-2 py-1">{{ str_replace('Branch', 'B', $branchName) }}</th>
                     @endforeach
@@ -141,10 +152,10 @@
             </thead>
             <tbody>
                 @foreach ($dailyAllReportTypes as $typeName => $branchData)
-                    <tr class="odd:bg-white even:bg-gray-100">
-                        <td class=" md:px-4 md:py-2">{{ $typeName }}</td>
+                    <tr class="odd:bg-white even:bg-gray-100 dark:odd:bg-gray-900 dark:even:bg-gray-800">
+                        <td class="md:px-4 md:py-2">{{ $typeName }}</td>
                         @foreach ($branchData as $values)
-                            <td class=" md:px-4 md:py-2">{{ $values[0] ?? 0 }}</td>
+                            <td class="md:px-4 md:py-2">{{ $values[0] ?? 0 }}</td>
                         @endforeach
                     </tr>
                 @endforeach
@@ -215,31 +226,29 @@
         </table>
     </div> --}}
 
-    {{-- pupular with detail --}}
-    <div class="my-4 shadow-lg">
-        <div class="flex w-1/2 gap-2 mx-auto mb-4">
+    {{-- popular with detail --}}
+    <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+        <div class="flex w-full gap-2 mx-auto mb-4 md:w-1/2">
             <x-datetime-picker wire:model.live.debounce="popular_start_date_filter" without-time='true' label="Date"
                 placeholder="Now" />
             <x-datetime-picker wire:model.live.debounce="popular_end_date_filter" without-time='true' label="Date"
                 placeholder="Now" />
         </div>
-        <div class="mb-4">
-            <span> Report duration - <storng class="font-mono text-blue-500">
+        <div class="mb-4 text-gray-700 dark:text-gray-200">
+            <span>Report duration - <strong class="font-mono text-blue-500 dark:text-blue-400">
                     {{ \Carbon\Carbon::parse($popular_start_date_filter)->format('j-M-y') }}
                     |
-                    {{ \Carbon\Carbon::parse($popular_end_date_filter)->format('j-M-y') }}</storng>
+                    {{ \Carbon\Carbon::parse($popular_end_date_filter)->format('j-M-y') }}</strong>
             </span>
-            <select wire:model.live='branch_id' class="bg-gray-100 border rounded-lg border-gray-50">
+            <select wire:model.live='branch_id'
+                class="text-gray-700 bg-gray-100 border rounded-lg dark:bg-gray-900 border-gray-50 dark:border-gray-700 dark:text-gray-200">
                 <option value="" selected>All Branch</option>
                 @foreach ($branches as $branch)
                     <option value="{{ $branch->id }}"> {{ ucfirst($branch->name) }}</option>
                 @endforeach
             </select>
-            {{-- <select wire:model.live='ac' class="bg-gray-100 border rounded-lg border-gray-50">
-                <option value="desc" selected>အမြင့်ဆုံး</option>
-                <option value="asc">အနိမ့်ဆုံး</option>
-            </select> --}}
-            <select wire:model.live='limit' class="bg-gray-100 border rounded-lg border-gray-50">
+            <select wire:model.live='limit'
+                class="text-gray-700 bg-gray-100 border rounded-lg dark:bg-gray-900 border-gray-50 dark:border-gray-700 dark:text-gray-200">
                 <option value="5" selected>5</option>
                 <option value="7">7</option>
                 <option value="10">10</option>
@@ -248,19 +257,18 @@
             </select>
         </div>
 
-        <table class="w-full border-collapse table-auto">
+        <table class="w-full bg-white border-collapse rounded-lg table-auto dark:bg-gray-800">
             <thead>
-                <tr class="text-left bg-gray-200">
+                <tr class="text-left bg-gray-200 dark:bg-gray-700">
                     <th class="p-2 border">Rank</th>
                     <th class="p-2 border">Shape</th>
                     <th class="p-2 border">Total Sale</th>
-                    {{-- <th class="p-2 border">Details</th> --}}
                 </tr>
             </thead>
             <tbody>
                 @foreach ($most_popular_summary as $index => $summary)
-                    <tr class="{{ $index % 2 == 0 ? 'bg-gray-100' : '' }}">
-                        <td class="px-4 py-2 font-bold border border-gray-300">
+                    <tr class="{{ $index % 2 == 0 ? 'bg-gray-100 dark:bg-gray-900' : 'bg-white dark:bg-gray-800' }}">
+                        <td class="px-4 py-2 font-bold border border-gray-300 dark:border-gray-700">
                             @if ($index == 0)
                                 👑
                             @elseif ($index == 1)
@@ -271,19 +279,20 @@
                                 {{ $index + 1 }}
                             @endif
                         </td>
-                        <td class="px-4 py-2 font-bold border border-gray-300">{{ $summary->shape }}
-                            <i>{{ $summary->weight }}g/{{ $summary->length }}
-                                {{ $summary->uom }} </i>
+                        <td class="px-4 py-2 font-bold border border-gray-300 dark:border-gray-700">
+                            {{ $summary->shape }}
+                            <i>{{ $summary->weight }}g/{{ $summary->length }} {{ $summary->uom }} </i>
                         </td>
-                        <td class="px-4 py-2 font-bold border border-gray-300">
+                        <td class="px-4 py-2 font-bold border border-gray-300 dark:border-gray-700">
                             {{ number_format($summary->total_sale) }}
                         </td>
                     </tr>
-                    <tr class="">
+                    <tr>
                         <td colspan="5" class="align-top">
                             <details class="w-full">
-                                <summary class="text-sm text-blue-400 cursor-pointer">view details</summary>
-                                <div class="p-4 mb-2 rounded-lg shadow-md">
+                                <summary class="text-sm text-blue-400 cursor-pointer dark:text-blue-300">view details
+                                </summary>
+                                <div class="p-4 mb-2 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900">
                                     <ul>
                                         @foreach ($most_popular_details as $detail)
                                             @if (
@@ -292,9 +301,9 @@
                                                     $detail->weight === $summary->weight &&
                                                     $detail->uom === $summary->uom)
                                                 <li class="flex justify-between shadow-sm">
-                                                    <sapn class="p-2">{{ $detail->branch }}
-                                                    </sapn>
-                                                    <span class="p-2 text-right text-slate-800 ">
+                                                    <span
+                                                        class="p-2 text-gray-700 dark:text-gray-200">{{ $detail->branch }}</span>
+                                                    <span class="p-2 text-right text-slate-800 dark:text-slate-200">
                                                         {{ number_format($detail->branch_sale) }} </span>
                                                 </li>
                                             @endif
