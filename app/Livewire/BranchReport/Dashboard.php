@@ -165,7 +165,7 @@ class Dashboard extends Component
         $records = DailyReportRecord::select('daily_report_records.report_date', DB::raw('SUM(daily_report_records.number) as sale_gram'))
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->where('daily_reports.is_sale_gram', true)
-            ->whereBetween('daily_report_records.report_date', [$startDate, $endDate])
+            // ->whereBetween('daily_report_records.report_date', [$startDate, $endDate])
             ->groupBy('daily_report_records.report_date')
             ->orderBy('daily_report_records.report_date')
             ->get();
@@ -182,7 +182,9 @@ class Dashboard extends Component
             'dates' => $dates,
             'saleGramData' => $saleGramData,
         ]);
+        dd($saleGramData);
     }
+
 
     private function getMonthlyAllReportTypes()
     {

@@ -96,7 +96,7 @@ class OrderHistory extends Component
                 $order->grade->name,
                 $order->status->name,
                 $order->fetchRemarkByStatus(4), // Approve status
-                $order->fetchArrivalDAte(6), // Approve status
+                date_format($order->fetchArrivalDAte(6), 'F j, Y'), // arrival date
                 $order->arqty,
                 $order->closeqty,
                 $order->fetchRemarkByStatus(8), // cancle remark
