@@ -76,9 +76,10 @@ class OrderHistory extends Component
                 'ပစ္စည်းအမျိုးအစား',
                 'Status',
                 'Approve remark',
-                'Arrival Date',
+                'Supplier Date',
                 'Arrival Quantity',
                 'Branch Recieved qty',
+                'Branch Recieved Date',
                 'Cancle Remark',
             ]);
 
@@ -96,9 +97,10 @@ class OrderHistory extends Component
                 $order->grade->name,
                 $order->status->name,
                 $order->fetchRemarkByStatus(4), // Approve status
-                date_format($order->fetchArrivalDAte(6), 'F j, Y'), // arrival date
+                $order->fetchArrivalDate(6), // arrival date
                 $order->arqty,
                 $order->closeqty,
+                $order->fetchArrivalDate(7), // branch received date
                 $order->fetchRemarkByStatus(8), // cancle remark
             ]);
         }

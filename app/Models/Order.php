@@ -85,7 +85,12 @@ class Order extends Model
             ->where('status_id', $statusId)
             ->first();
 
-        return $data ? $data->created_at : null;
+        if ($data) {
+            $date = date_format($data->created_at, 'F j, Y');
+        }
+
+
+        return $data ? $date : null;
     }
 
     // public function fetchCancleRemark($statusId)
