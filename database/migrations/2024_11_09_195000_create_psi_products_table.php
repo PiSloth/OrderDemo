@@ -22,7 +22,7 @@ return new class extends Migration
             $table->foreignId('quality_id')->constrained();
             $table->foreignId('design_id')->constrained();
             $table->foreignId('manufacture_technique_id')->constrained();
-            $table->string('reference')->nullable();
+            $table->string('remark')->nullable();
             $table->boolean('is_suspended')->default(false);
             $table->timestamps();
         });

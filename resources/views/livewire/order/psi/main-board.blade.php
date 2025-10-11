@@ -116,29 +116,29 @@
                         </svg>
                     </div>
                     <input type="text" wire:model.live="shape_detail" id="table-search"
-                        class="block w-full sm:w-80 pt-2 text-sm text-gray-900 border border-gray-300 rounded-lg ps-10 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        class="block w-full pt-2 text-sm text-gray-900 border border-gray-300 rounded-lg sm:w-80 ps-10 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                         placeholder="Search for items">
                 </div>
             </div>
             <table id="pageproducts"
-                class="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200 rtl:text-right">
+                class="min-w-full text-sm text-left text-gray-700 table-auto dark:text-gray-200 rtl:text-right">
                 <thead
-                    class="text-xs uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 sticky top-0 z-10 text-gray-700 dark:text-gray-300">
+                    class="sticky top-0 z-10 text-xs text-gray-700 uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 dark:text-gray-300">
                     <tr class="divide-x divide-gray-200 dark:divide-gray-700">
-                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold w-40">
+                        <th scope="col" class="w-40 px-4 py-3 font-semibold md:px-6">
                             <span class="sr-only">Image</span>
                         </th>
-                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
+                        <th scope="col" class="px-4 py-3 font-semibold md:px-6">
                             Product
                         </th>
-                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
+                        <th scope="col" class="px-4 py-3 font-semibold md:px-6">
                             Weight/g
                         </th>
-                        <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
+                        <th scope="col" class="px-4 py-3 font-semibold md:px-6">
                             Size
                         </th>
                         @foreach ($branches as $branch)
-                            <th scope="col" class="px-4 md:px-6 py-3 font-semibold">
+                            <th scope="col" class="px-4 py-3 font-semibold md:px-6">
                                 {{ ucfirst($branch->name) }}
                             </th>
                         @endforeach
@@ -148,27 +148,27 @@
                     @foreach ($products as $product)
                         <tr
                             class="bg-white border-b odd:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60">
-                            <td class="p-4 w-40">
+                            <td class="w-40 p-4">
                                 <img wire:click='initializeProductId({{ $product->id }})'
-                                    class="w-32 max-w-full max-h-full md:w-32 cursor-help rounded-md"
+                                    class="w-32 max-w-full max-h-full rounded-md md:w-32 cursor-help"
                                     src="{{ asset('storage/' . $product->image) }}" alt="product image"
                                     @click="$openModal('productSummaryModal')" />
                             </td>
-                            <td class="px-4 md:px-6 py-3 font-semibold text-gray-900 dark:text-white">
+                            <td class="px-4 py-3 font-semibold text-gray-900 md:px-6 dark:text-white">
                                 {{ $product->shape }}
                             </td>
-                            <td class="px-4 md:px-6 py-3">
+                            <td class="px-4 py-3 md:px-6">
                                 <span>{{ $product->weight }}</span>
                             </td>
 
-                            <td class="px-4 md:px-6 py-3 font-semibold text-gray-900 dark:text-white">
+                            <td class="px-4 py-3 font-semibold text-gray-900 md:px-6 dark:text-white">
                                 <div class="flex items-center">
                                     {{ $product->length }} {{ $product->uom }}
                                 </div>
                             </td>
 
                             @foreach ($branches as $branch)
-                                <td class="px-4 md:px-6 py-3 font-semibold text-gray-900 dark:text-white text-center">
+                                <td class="px-4 py-3 font-semibold text-center text-gray-900 md:px-6 dark:text-white">
                                     @if ($product->{'index' . $branch->id} > 0)
                                         <a href="#"
                                             class="flex flex-col items-center content-center gap-1 px-2 py-1 hover:rounded hover:bg-gray-100 dark:hover:bg-gray-700/60"
@@ -229,6 +229,7 @@
                 </div>
             @endforeach
         </div> --}}
+        <x-button flat label="Edit Product" href="{{ route('edit_product', ['selected' => $productIdFilter]) }}" />
         <div class="my-2 text-xl text-teal-500">{{ $productSummary['remark'] ?? '-' }}</div>
         @can('isAGM')
             <x-input class="w-1/2 my-2" wire:model='remark' wire:keydown.enter='updateRemark'

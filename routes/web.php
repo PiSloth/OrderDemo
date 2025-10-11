@@ -28,6 +28,7 @@ use App\Livewire\Order\Psi\MainBoard;
 use App\Livewire\Order\Psi\OrderDetail;
 use App\Livewire\Order\Psi\OutOfStockAnalysis;
 use App\Livewire\Order\Psi\PhotoShooting;
+use App\Livewire\Order\Psi\ProductEdit;
 use App\Livewire\Order\Psi\PsiOrderHsitory;
 use App\Livewire\Order\Psi\PsiProductSupplier;
 use App\Livewire\Order\Psi\Report as PsiReport;
@@ -95,6 +96,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
     Route::get('/psi/oos', OutOfStockAnalysis::class)->name('oos');
     Route::get('/psi/branch/sotckupdate', StockUpdate::class)->name('stock-update');
+    Route::get('/edit/product', ProductEdit::class)->name('edit_product');
 });
 
 Route::middleware(['auth'])->prefix('report')->group(function () {

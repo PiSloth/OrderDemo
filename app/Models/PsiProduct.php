@@ -48,4 +48,9 @@ class PsiProduct extends Model
     {
         return $this->belongsTo(ManufactureTechnique::class);
     }
+
+    public function branchProducts()
+    {
+        return $this->hasMany(BranchPsiProduct::class);
+    }
 }
