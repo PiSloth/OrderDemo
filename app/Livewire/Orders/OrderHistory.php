@@ -79,6 +79,7 @@ class OrderHistory extends Component
                 'Supplier Date',
                 'Arrival Quantity',
                 'Branch Recieved qty',
+                'Branch Received Remark',
                 'Branch Recieved Date',
                 'Cancle Remark',
             ]);
@@ -100,6 +101,7 @@ class OrderHistory extends Component
                 $order->fetchArrivalDate(6), // arrival date
                 $order->arqty,
                 $order->closeqty,
+                $order->fetchRemarkByStatus(7), // Approve status
                 $order->fetchArrivalDate(7), // branch received date
                 $order->fetchRemarkByStatus(8), // cancle remark
             ]);

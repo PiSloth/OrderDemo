@@ -47,6 +47,7 @@ class Dashboard extends Component
         'branch 4' => 1589,
         'branch 5' => 3011,
         'branch 6' => 800,
+        'branch 7' => 1589,
         'online sale' => 2258,
         'ho' => 0,
     ];
