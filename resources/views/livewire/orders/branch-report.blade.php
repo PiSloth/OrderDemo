@@ -7,75 +7,55 @@
         </article>
         {{-- <h2 class="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">Order Reports
         </h2> --}}
-        <div class="gap-x-4 lg:flex lg:items-center lg:justify-between my-4b">
-            <div
-                class="gap-4 mt-6 space-y-4 sm:flex sm:items-center sm:space-y-0 lg:mt-0 lg:justify-end dark:text-gray-200">
-
-
+        <div class="gap-x-4 lg:flex lg:items-center lg:justify-between my-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6 lg:mt-0 dark:text-gray-200">
                 <select id="branches" wire:model.live="branchFilter"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
                     <option selected value="0">Filter by Branch</option>
-
                     @foreach ($branches as $branch)
                         <option value="{{ $branch->id }}">{{ ucfirst($branch->name) }}</option>
                     @endforeach
                 </select>
 
                 <select id="quality" wire:model.live="qualityFilter"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
                     <option selected value="0">Filter by Quality</option>
-
                     @foreach ($qualities as $quality)
                         <option value="{{ $quality->id }}">{{ $quality->name }}</option>
                     @endforeach
                 </select>
 
                 <select id="statuses" wire:model.live="statusFilter"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
                     <option selected value="0">Filter by Status</option>
-
                     @foreach ($statuses as $status)
                         <option value="{{ $status->id }}">{{ $status->name }}</option>
                     @endforeach
                 </select>
 
                 <select id="grades" wire:model.live="gradeFilter"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
                     <option selected value="0">Filter by Grade</option>
-
                     @foreach ($grades as $grade)
                         <option value="{{ $grade->id }}">{{ $grade->name }}</option>
                     @endforeach
                 </select>
 
                 <select id="priorities" wire:model.live="priorityFilter"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
                     <option selected value="0">Filter by Priority</option>
-
                     @foreach ($priorities as $priority)
                         <option value="{{ $priority->id }}">{{ $priority->name }}</option>
                     @endforeach
                 </select>
 
                 <select id="designs" wire:model.live="designFilter"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
-                    <option selected value="0">Filter by design</option>
-
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
+                    <option selected value="0">Filter by Design</option>
                     @foreach ($designs as $design)
                         <option value="{{ $design->id }}">{{ $design->name }}</option>
                     @endforeach
                 </select>
-
-                {{-- <select id="Duration" wire:model.live="durationFilter"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200">
-                    <option selected value="0">Filter by duration</option>
-                    <option value="1">1 month ago</option>
-                    <option value="2">2 months agi</option>
-                    <option value="3">3 months ago</option>
-                    <option value="4">4 months ago</option>
-                    <option value="6">6 months ago</option>
-                    <option value="8">8 months ago</option>
-                </select> --}}
             </div>
         </div>
         {{-- end filter section   --}}

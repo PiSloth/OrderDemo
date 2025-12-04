@@ -27,15 +27,16 @@ class BranchReport extends Component
     use Actions;
     use WithPagination;
 
+    #[Url(as: 'grade')]
     public $gradeFilter = 0;
 
     #[Url(as: 'priority')]
     public $priorityFilter = 0;
 
-    #[Url(as: 'status', keep: false)]
+    #[Url(as: 'status')]
     public $statusFilter;
 
-    #[Url(as: 'branch', keep: false)]
+    #[Url(as: 'branch')]
     public $branchFilter;
 
     #[Url(as: 'st')]
@@ -44,12 +45,15 @@ class BranchReport extends Component
     #[Url(as: 'en')]
     public $endDate;
 
+    #[Url(as: 'design')]
     public $designFilter = 0;
 
     public $durationFilter = 0;
 
+    #[Url(as: 'detail')]
     public $detailFilter;
 
+    #[Url(as: 'quality')]
     public $qualityFilter;
 
     public $designName;
