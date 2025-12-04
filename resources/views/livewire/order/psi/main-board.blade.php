@@ -229,7 +229,7 @@
                 </div>
             @endforeach
         </div> --}}
-        <x-button flat label="Edit Product" href="{{ route('edit_product', ['selected' => $productIdFilter]) }}" />
+        <x-button  red icon="pencil" label="Edit Product" href="{{ route('edit_product', ['selected' => $productIdFilter]) }}" />
         <div class="my-2 text-xl text-teal-500">{{ $productSummary['remark'] ?? '-' }}</div>
         @can('isAGM')
             <x-input class="w-1/2 my-2" wire:model='remark' wire:keydown.enter='updateRemark'
@@ -250,7 +250,7 @@
                 </div>
             </div>
 
-            <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 ">
+            <table class="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400 overflow-x-auto">
                 <thead>
                     <tr class="p-1 border border-gray-300">
                         <th scope="col" class="px-6 py-3">
@@ -260,13 +260,13 @@
                             Focus
                         </th>
                         <th scope="col" class="px-6 py-3">
-                            Avg Sale
+                            Avg Sale (qty)
                         </th>
                         <th scope="col" class="px-6 py-3">
-                            Balance
+                            Balance (qty)
                         </th>
                         <th scope="col" class="px-6 py-3">
-                            Remaining to Sale
+                            Stock Duration (Days)
                         </th>
                         <th scope="col" class="px-6 py-3">
                             To Order Due Date
@@ -274,26 +274,29 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($productSummary['branches'] as $data)
+                    @forelse ($productSummary['branches'] as $data)
                         <tr
                             class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
-                            <td class="px-6 py-3 uppercase">
+                            <td class="px-6 py-3 uppercase" title="Branch location">
                                 {{ $data['branch_name'] }}
                             </td>
-                            @php
-                                $avg_sale = $data['avg_sales'] > 0 ? $data['avg_sales'] : 1;
-                                $remaining_days = $data['balance'] / $avg_sale;
-                            @endphp
-                            <td class="px-6 py-4">{{ $data['latest_focus_qty'] }}</td>
-                            <td class="px-6 py-4">{{ (int) $data['avg_sales'] }}</td>
-                            <td class="px-6 py-4">{{ $data['balance'] }}</td>
-                            <td class="px-6 py-4">{{ (int) $remaining_days }} <small>days</small></td>
-
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4" title="Latest focus quantity">{{ $data['latest_focus_qty'] ?? 0 }}</td>
+                            <td class="px-6 py-4" title="Average daily sales">{{ number_format($data['avg_sales']) }}</td>
+                            <td class="px-6 py-4" title="Current inventory balance">{{ number_format($data['balance']) }}</td>
+                            <td class="px-6 py-4 {{ $data['remaining_days'] !== null && $data['remaining_days'] < 7 ? 'text-red-500 font-bold' : '' }}" title="Days until stock depletion">
+                                {!! $data['remaining_days'] !== null ? $data['remaining_days'] . ' <small>days</small>' : 'N/A' !!}
+                            </td>
+                            <td class="px-6 py-4" title="Next reorder due date">
                                 {{ \Carbon\Carbon::parse($data['due_date'])->format('(D) d-M-Y') }}
                             </td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                No branch data available for this product.
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
             <article

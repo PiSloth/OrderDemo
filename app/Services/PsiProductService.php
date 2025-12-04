@@ -124,14 +124,17 @@ class PsiProductService
                 'remark' => $group->max('remark'),
                 'total_focus_quantity' => $group->sum('latest_focus_qty'),
                 'branches' => $group->map(function ($item) {
+                    $avg_sale = (int) $item->avg_sale_qty;
+                    $remaining_days = $avg_sale > 0 ? (int) ($item->inventory_balance / $avg_sale) : null;
                     return [
                         'branch_psi_product_id' => $item->branch_psi_product_id,
                         'branch_id' => $item->branch_id,
                         'branch_name' => $item->name,
                         'latest_focus_qty' => $item->latest_focus_qty,
-                        'avg_sales' => $item->avg_sale_qty,
+                        'avg_sales' => $avg_sale,
                         'balance' => $item->inventory_balance,
                         'due_date' => $item->reorder_due_date,
+                        'remaining_days' => $remaining_days,
                     ];
                 })->values(),
                 'overall_avg_sale_qty' => $group->avg('avg_sale_qty')
