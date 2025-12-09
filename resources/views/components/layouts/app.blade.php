@@ -26,8 +26,6 @@
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
 
-
-
     <main class="">
         @include('components.layouts.parts.header')
         @include('components.layouts.parts.aside')
