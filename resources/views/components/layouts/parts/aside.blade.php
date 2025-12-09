@@ -1,8 +1,15 @@
 <aside id="asidebar"
     class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0"
+    x-bind:class="{ 'translate-x-0': asideOpen }"
     aria-label="Sidenav">
     <div
         class="h-full px-3 py-5 overflow-y-auto bg-white border-r border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+        <!-- Close button -->
+        <button @click="$parent.asideOpen = false" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none lg:hidden">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
         <ul class="space-y-2">
             <li>
                 <a href="{{ route('order-report') }}"
