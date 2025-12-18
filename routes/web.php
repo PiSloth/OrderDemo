@@ -35,6 +35,8 @@ use App\Livewire\Order\Psi\Report as PsiReport;
 use App\Livewire\Order\Psi\SaleLoss;
 use App\Livewire\Order\Psi\StockReceivedByBranch;
 use App\Livewire\Orders\OrderHistory as OrdersOrderHistory;
+use App\Livewire\Todo\Config as TodoConfig;
+use App\Livewire\Todo\TaskComments;
 use App\Models\Order;
 use App\Models\OrderHistory;
 use App\Models\PsiPrice;
@@ -94,7 +96,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/shooting', PhotoShooting::class)->name('shooting');
     Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
     Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
-    Route::get('/psi/oos', OutOfStockAnalysis::class)->name('oos');
+    Route::get('/psi/oos', OutOfStockAnalysis::class)->name('psi_oos');
     Route::get('/psi/branch/sotckupdate', StockUpdate::class)->name('stock-update');
     Route::get('/edit/product', ProductEdit::class)->name('edit_product');
 });
@@ -112,6 +114,41 @@ Route::middleware(['can:isAuthorized'])->group(function () {
     // Route::get('/order/list', Orderlists::class)->name('ord_list');
     Route::get('/noti', Notification::class)->name('notification');
     Route::get('/addsupplier', Supplier::class)->name('addsupplier');
+});
+
+Route::middleware(['auth'])->prefix('todo')->group(function () {
+    Route::get('/dashboard', App\Livewire\Todo\Dashboard::class)->name('todo.dashboard');
+    Route::get('/config', TodoConfig::class)->name('todo_config');
+    Route::get('/list', App\Livewire\Todo\TodoList::class)->name('todo_list');
+    Route::get('/comments/{taskId}', TaskComments::class)->name('task_comments');
+    Route::get('/notifications', App\Livewire\Todo\Notifications::class)->name('notifications');
+});
+
+// API Routes for notifications
+Route::middleware(['auth'])->prefix('api')->group(function () {
+    Route::post('/task-notifications/check', function (Illuminate\Http\Request $request) {
+        $lastCheck = $request->input('last_check');
+        $userId = auth()->id();
+
+        $newNotifications = \App\Models\TaskNotification::forUser($userId)
+            ->where('created_at', '>', $lastCheck)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'title' => $notification->title,
+                    'message' => $notification->message,
+                    'type' => $notification->type,
+                    'created_at' => $notification->created_at->toISOString(),
+                ];
+            });
+
+        return response()->json([
+            'notifications' => $newNotifications,
+            'count' => $newNotifications->count()
+        ]);
+    });
 });
 
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');

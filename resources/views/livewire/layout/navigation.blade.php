@@ -30,6 +30,22 @@ $logout = function (Logout $logout) {
                     <x-nav-link :href="route('ord_list')" :active="request()->routeIs('ord_list')" wire:navigate>
                         {{ __('Orders') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('todo_list')" :active="request()->routeIs('todo_list')" wire:navigate>
+                        {{ __('Todo') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('notifications')" :active="request()->routeIs('notifications')" wire:navigate>
+                        <span class="relative">
+                            {{ __('Notifications') }}
+                            @php
+                                $unreadCount = \App\Models\TaskNotification::forUser(auth()->id())->unread()->count();
+                            @endphp
+                            @if($unreadCount > 0)
+                                <span class="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                                    {{ $unreadCount > 99 ? '99+' : $unreadCount }}
+                                </span>
+                            @endif
+                        </span>
+                    </x-nav-link>
                 </div>
             </div>
 

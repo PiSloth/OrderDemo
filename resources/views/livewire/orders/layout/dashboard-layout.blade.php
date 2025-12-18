@@ -1,4 +1,4 @@
-<div x-data="{ asideOpen: false }">
+<div>
     @include('components.layouts.parts.header')
 
     @include('components.layouts.parts.aside')

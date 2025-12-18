@@ -13,6 +13,7 @@ use App\Models\PsiStock;
 use App\Services\PsiProductService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 use WireUi\Traits\Actions;
@@ -210,6 +211,7 @@ class MainBoard extends Component
         $this->reset('remark');
     }
 
+    // #[Layout('components.layouts.simple')]
     public function render()
     {
         $branches = Branch::orderBy('name')->get();
