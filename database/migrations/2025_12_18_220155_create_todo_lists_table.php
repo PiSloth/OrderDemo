@@ -19,8 +19,8 @@ return new class extends Migration
             $table->timestamp('due_date');
             $table->foreignId('assigned_user_id')->constrained('users')->nullable();
             $table->foreignId('created_by_user_id')->constrained('users');
-            $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
             $table->foreignId('requested_by_branch_id')->constrained('branches')->onDelete('cascade');
+            $table->foreignId('requested_by_department_id')->constrained('departments')->onDelete('cascade');
             $table->softDeletes();
             $table->timestamps();
         });

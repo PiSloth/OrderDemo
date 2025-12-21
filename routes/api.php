@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Designs;
 use App\Http\Controllers\Api\Psi\HashTagController;
 use App\Http\Controllers\Api\Qualities;
 use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\Users;
 use App\Http\Controllers\DesignController;
 use App\Http\Controllers\Psi\Api\ShapeController;
 use App\Models\Design;
@@ -27,6 +28,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::get('/designs', Designs\Index::class)->name('designs.index');
 Route::get('/qualities', Qualities\Index::class)->name('qualities.index');
+Route::get('/users', Users\Index::class)->name('users.index');
 Route::get('/suppliers', SupplierController::class)->name('suppliers');
 Route::get('/shapes', ShapeController::class)->name('psi.shapes');
 Route::get('/hashtags', HashTagController::class)->name('hashtag');

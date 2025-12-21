@@ -64,7 +64,10 @@
                                 <button wire:click="openNegotiationModal({{ $comment->id }})" class="text-sm text-blue-600 hover:text-blue-800">
                                     Propose Counter-Offer
                                 </button>
-                                <button wire:click="acceptActionStep({{ $comment->id }})" class="text-sm text-green-600 hover:text-green-800">
+                                <button 
+                                    wire:click="acceptActionStep({{ $comment->id }})" 
+                                    wire:confirm="{{ $comment->created_at > $comment->todoList->due_date ? 'Accepting this action step will mark the task as FAILED because the request was created after the due date. Are you sure?' : 'Are you sure you want to accept this action step?' }}"
+                                    class="text-sm text-green-600 hover:text-green-800">
                                     Accept
                                 </button>
                                 <button wire:click="rejectActionStep({{ $comment->id }})" class="text-sm text-red-600 hover:text-red-800">
@@ -74,7 +77,10 @@
                         @endif
                     @else
                         <!-- Regular action step - anyone can respond -->
-                        <button wire:click="acceptActionStep({{ $comment->id }})" class="text-sm text-green-600 hover:text-green-800">
+                        <button 
+                            wire:click="acceptActionStep({{ $comment->id }})" 
+                            wire:confirm="{{ $comment->created_at > $comment->todoList->due_date ? 'Accepting this action step will mark the task as FAILED because the request was created after the due date. Are you sure?' : 'Are you sure you want to accept this action step?' }}"
+                            class="text-sm text-green-600 hover:text-green-800">
                             Accept
                         </button>
                         <button wire:click="rejectActionStep({{ $comment->id }})" class="text-sm text-red-600 hover:text-red-800">

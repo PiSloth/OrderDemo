@@ -9,10 +9,13 @@ class Department extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'location_id'];
+    protected $fillable = ['name'];
 
-    public function location()
+    /**
+     * Get the users that belong to this department.
+     */
+    public function users()
     {
-        return $this->belongsTo(Location::class);
+        return $this->hasMany(User::class);
     }
 }

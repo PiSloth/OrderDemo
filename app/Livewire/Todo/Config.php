@@ -57,10 +57,8 @@ class Config extends Component
     // Properties for Department
     public $departments;
     public $newDepartmentName = '';
-    public $newDepartmentLocationId = '';
     public $editingDepartmentId = null;
     public $editingDepartmentName = '';
-    public $editingDepartmentLocationId = '';
 
     // Properties for TodoDueTime
     public $dueTimes;
@@ -86,7 +84,7 @@ class Config extends Component
         $this->statuses = TodoStatus::all();
         $this->locations = Location::all();
         $this->branches = Branch::all();
-        $this->departments = Department::with('location')->get();
+        $this->departments = Department::all();
         $this->dueTimes = TodoDueTime::with('category', 'priority')->get();
     }
 
@@ -332,14 +330,11 @@ class Config extends Component
     {
         $this->validate([
             'newDepartmentName' => 'required|string|max:255',
-            'newDepartmentLocationId' => 'required|exists:locations,id',
         ]);
         Department::create([
             'name' => $this->newDepartmentName,
-            'location_id' => $this->newDepartmentLocationId,
         ]);
         $this->newDepartmentName = '';
-        $this->newDepartmentLocationId = '';
         $this->loadData();
         session()->flash('message', 'Department Created');
     }
@@ -349,22 +344,18 @@ class Config extends Component
         $department = Department::find($id);
         $this->editingDepartmentId = $id;
         $this->editingDepartmentName = $department->name;
-        $this->editingDepartmentLocationId = $department->location_id;
     }
 
     public function updateDepartment()
     {
         $this->validate([
             'editingDepartmentName' => 'required|string|max:255',
-            'editingDepartmentLocationId' => 'required|exists:locations,id',
         ]);
         Department::find($this->editingDepartmentId)->update([
             'name' => $this->editingDepartmentName,
-            'location_id' => $this->editingDepartmentLocationId,
         ]);
         $this->editingDepartmentId = null;
         $this->editingDepartmentName = '';
-        $this->editingDepartmentLocationId = '';
         $this->loadData();
         session()->flash('message', 'Department Edited');
     }
@@ -479,7 +470,6 @@ class Config extends Component
     {
         $this->editingDepartmentId = null;
         $this->editingDepartmentName = '';
-        $this->editingDepartmentLocationId = '';
     }
 
     public function cancelDueTime()

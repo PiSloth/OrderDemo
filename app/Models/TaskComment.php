@@ -72,6 +72,20 @@ class TaskComment extends Model
             $this->action_data['type'] === 'due_date_change';
     }
 
+    public function isStatusChangeRequest(): bool
+    {
+        return $this->isActionStep() &&
+            isset($this->action_data['type']) &&
+            $this->action_data['type'] === 'status_change';
+    }
+
+    public function isResolverChangeRequest(): bool
+    {
+        return $this->isActionStep() &&
+            isset($this->action_data['type']) &&
+            $this->action_data['type'] === 'resolver_change';
+    }
+
     public function isInNegotiation(): bool
     {
         return $this->isDueDateChangeRequest() &&
@@ -111,18 +125,61 @@ class TaskComment extends Model
 
     public function canUserRespond(int $userId): bool
     {
-        if (!$this->isDueDateChangeRequest()) {
+        if (!$this->isDueDateChangeRequest() && !$this->isStatusChangeRequest() && !$this->isResolverChangeRequest()) {
+            return false;
+        }
+
+        $user = User::find($userId);
+        if (!$user) {
             return false;
         }
 
         $task = $this->todoList;
+        if (!$task) {
+            return false;
+        }
+
+        $requester = $this->user;
 
         // Task assignee or creator can respond to initial requests (if not the requester)
         $canApprove = $task->assigned_user_id === $userId || $task->created_by_user_id === $userId;
 
         // If assignee and creator are the same person (solo task), allow self-management
-        if ($task->assigned_user_id === $task->created_by_user_id) {
-            return $task->assigned_user_id === $userId;
+        if ($task->assigned_user_id === $task->created_by_user_id && $task->assigned_user_id === $userId) {
+            $canApprove = true;
+        }
+
+        if ($this->isDueDateChangeRequest() || $this->isStatusChangeRequest()) {
+            // For due date and status changes, users from the task creator's department can approve
+            if ($task->createdByUser && $task->createdByUser->department_id) {
+                if ($user->department_id !== $task->createdByUser->department_id) {
+                    return false;
+                }
+
+                $canApprove = true;
+            }
+
+            if (!$this->isInNegotiation() && $this->user_id === $userId) {
+                return false;
+            }
+
+            if ($this->isStatusChangeRequest() && $this->user_id === $userId) {
+                return false;
+            }
+        }
+
+        if ($this->isResolverChangeRequest()) {
+            $targetUserId = $this->action_data['new_assigned_user_id'] ?? null;
+            if ($targetUserId) {
+                $targetUser = User::find($targetUserId);
+                if ($targetUser && $targetUser->department_id) {
+                    if ($user->department_id !== $targetUser->department_id) {
+                        return false;
+                    }
+
+                    $canApprove = true;
+                }
+            }
         }
 
         if ($this->isInNegotiation()) {
@@ -130,11 +187,6 @@ class TaskComment extends Model
             // Original requester can respond if they're not the last proposer
             $lastProposer = $this->getNegotiatorUserId();
             return $canApprove || ($lastProposer !== $userId && $this->user_id === $userId);
-        }
-
-        // Prevent the requester from approving their own initial request
-        if ($this->user_id === $userId) {
-            return false;
         }
 
         // Task assignee or creator can respond to initial requests (if not the requester)

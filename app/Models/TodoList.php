@@ -17,8 +17,7 @@ class TodoList extends Model
         'due_date',
         'assigned_user_id',
         'created_by_user_id',
-        'location_id',
-        'department_id',
+        'requested_by_department_id',
         'requested_by_branch_id',
     ];
 
@@ -46,11 +45,6 @@ class TodoList extends Model
         return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
-    public function location()
-    {
-        return $this->belongsTo(Location::class);
-    }
-
     public function requestedByBranch()
     {
         return $this->belongsTo(Branch::class, 'requested_by_branch_id');
@@ -58,7 +52,7 @@ class TodoList extends Model
 
     public function department()
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsTo(Department::class, 'requested_by_department_id');
     }
 
     public function comments()
@@ -69,5 +63,13 @@ class TodoList extends Model
     public function topLevelComments()
     {
         return $this->comments()->whereNull('parent_id');
+    }
+
+    /**
+     * Get the location through the department relationship.
+     */
+    public function getLocationAttribute()
+    {
+        return $this->department?->location;
     }
 }

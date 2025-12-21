@@ -22,6 +22,21 @@
                 </a>
             </li>
 
+            <!-- Todo Dashboard quick link (highlighted) -->
+            <li class="mt-3">
+                @php $active = request()->routeIs('todo-dashboard') || request()->is('todo-dashboard'); @endphp
+                <a wire:navigate href="{{ route('todo.dashboard') }}"
+                    class="flex items-center justify-center p-2 text-base font-semibold rounded-lg transition-shadow {{ $active ? 'ring-2 ring-red-300' : '' }}"
+                    style="background: linear-gradient(90deg, #dc2626 0%, #f43f5e 100%); color: white;"
+                    title="New: Todo Dashboard">
+                    <!-- Yellow horn / megaphone icon -->
+                    {{-- <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true">
+                        <path d="M3 11v2a1 1 0 001 1h2v2a1 1 0 001 1h1v-8H6a1 1 0 00-1 1zm16-3.5a1 1 0 00-1 1V9a8 8 0 01-8 8H9v1a1 1 0 001 1h1a3 3 0 006 0h1a1 1 0 001-1v-7.5a1 1 0 00-1-1h-2z" fill="#FBBF24" />
+                    </svg> --}}
+                    <span class="ml-1 text-white">Todo Dashboard</span>
+                </a>
+            </li>
+
             {{-- <li>
                 <a wire:navigate href="{{ route('psi_product') }}"
                     class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">

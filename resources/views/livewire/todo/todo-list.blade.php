@@ -20,85 +20,105 @@
             </div>
 
             <div x-show="!$wire.isFormCollapsed" x-transition class="px-6 pb-6">
-                <form wire:submit.prevent="createTask" class="space-y-4">
-                    <div class="grid grid-cols-1 gap-4">
-                        <!-- Job Title (Due Time) - Full width -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Job Title</label>
-                            <x-select
-                                wire:model="selectedDueTimeId"
-                                placeholder="Search and select job title"
-                                :options="$this->formattedDueTimes"
-                                option-label="name"
-                                option-value="id"
-                                searchable
-                                class="mt-1"
-                            />
-                            @error('selectedDueTimeId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                        </div>
-
-                        <!-- Selection boxes in 2 columns -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <!-- Requested By Branch -->
+                <form wire:submit.prevent="createTask" class="space-y-6">
+                    <!-- Job Title Section -->
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-tasks mr-2 text-gray-600"></i>
+                            Task Details
+                        </h3>
+                        <div class="space-y-4">
+                            <!-- Job Title (Due Time) -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Requested By Branch</label>
-                                <select wire:model="requestedByBranchId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">Select Branch</option>
-                                    @foreach($branches as $branch)
-                                        <option value="{{ $branch->id }}">{{ ucfirst($branch->name) }}</option>
-                                    @endforeach
-                                </select>
-                                @error('requestedByBranchId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                                <label class="block text-sm font-medium text-gray-700">Job Title</label>
+                                <x-select
+                                    wire:model="selectedDueTimeId"
+                                    placeholder="Search and select job title"
+                                    :options="$this->formattedDueTimes"
+                                    option-label="name"
+                                    option-value="id"
+                                    searchable
+                                    class="mt-1"
+                                />
+                                @error('selectedDueTimeId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- Location -->
+                            <!-- Task Description -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Location</label>
-                                <select wire:model="locationId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">Select Location</option>
-                                    @foreach($locations as $location)
-                                        <option value="{{ $location->id }}">{{ $location->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('locationId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                                <label class="block text-sm font-medium text-gray-700">Task Description</label>
+                                <textarea wire:model="task" rows="3" placeholder="Enter task description" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                                @error('task') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                             </div>
-
-                            <!-- Department -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Department</label>
-                                <select wire:model="departmentId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">Select Department</option>
-                                    @foreach($departments as $department)
-                                        <option value="{{ $department->id }}">{{ $department->name }} ({{ $department->location->name ?? 'N/A' }})</option>
-                                    @endforeach
-                                </select>
-                                @error('departmentId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                            </div>
-
-                            <!-- Assigned User -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Assigned User (Optional)</label>
-                                <select wire:model="assignedUserId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">Select User</option>
-                                    @foreach($users as $user)
-                                        <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('assignedUserId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
-
-                        <!-- Task - Full width -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Task</label>
-                            <textarea wire:model="task" rows="4" placeholder="Enter task description" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
-                            @error('task') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                         </div>
                     </div>
 
+                    <!-- Request Flow -->
+                    <div class="relative">
+                        <!-- Request By and Request To Sections Side by Side -->
+                        <div class="flex flex-col lg:flex-row gap-6 items-center">
+                            <!-- Request By Section -->
+                            <div class="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg flex-1 w-full lg:w-auto">
+                                <h3 class="text-md font-semibold text-blue-800 mb-3 flex items-center">
+                                    <i class="fas fa-user-tag mr-2 text-blue-600"></i>
+                                    Request By
+                                </h3>
+                                <div class="grid grid-cols-1 gap-4">
+                                    <!-- Requested By Branch -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-blue-700">Branch</label>
+                                        <select wire:model="requestedByBranchId" class="mt-1 block w-full border-blue-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white">
+                                            <option value="">Select Branch</option>
+                                            @foreach($branches as $branch)
+                                                <option value="{{ $branch->id }}">{{ ucfirst($branch->name) }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('requestedByBranchId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Arrow Connector - Hidden on mobile, visible on desktop -->
+                            <div class="hidden lg:flex flex-col items-center justify-center px-4">
+                                <div class="flex items-center space-x-2 text-gray-500">
+                                    <i class="fas fa-arrow-right text-2xl text-indigo-500"></i>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1 font-medium">Forward To</div>
+                            </div>
+
+                            <!-- Request To Section -->
+                            <div class="bg-green-50 border-2 border-green-200 p-4 rounded-lg flex-1 w-full lg:w-auto">
+                                <h3 class="text-md font-semibold text-green-800 mb-3 flex items-center">
+                                    <i class="fas fa-user-check mr-2 text-green-600"></i>
+                                    Assign To
+                                </h3>
+                                <div class="grid grid-cols-1 gap-4">
+                                    <!-- Assigned User -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-green-700">တာဝန်ခံ</label>
+                                        <x-select wire:model.live="assignedUserId" placeholder="Choose a user"
+                                            :async-data="route('users.index')" option-label="name" option-value="id"
+                                            class="bg-white" />
+                                        @error('assignedUserId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mobile Arrow Connector - Visible only on mobile -->
+                        <div class="flex lg:hidden justify-center my-4">
+                            <div class="flex items-center space-x-2 text-gray-500">
+                                <div class="w-8 h-0.5 bg-gray-300"></div>
+                                <i class="fas fa-arrow-down text-xl"></i>
+                                <div class="w-8 h-0.5 bg-gray-300"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
                     <div class="flex justify-end">
-                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
-                            Add Task
+                        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                            <i class="fas fa-plus mr-2"></i>
+                            Create Task
                         </button>
                     </div>
                 </form>
@@ -138,12 +158,15 @@
                     <!-- Status Filter -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-                        <select wire:model.live="filterStatusId" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                            <option value="">All Statuses</option>
-                            @foreach($statuses as $status)
-                                <option value="{{ $status->id }}">{{ $status->status }}</option>
-                            @endforeach
-                        </select>
+                        <x-select
+                            wire:model.live="selectedStatusIds"
+                            placeholder="Select statuses"
+                            multiselect
+                            searchable
+                            :options="$this->statusOptions"
+                            option-label="name"
+                            option-value="id"
+                        />
                     </div>
 
                     <!-- Sort By -->
@@ -159,12 +182,6 @@
 
                 <!-- Controls Row -->
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-200">
-                    <!-- Daily Tasks Toggle -->
-                    <label class="flex items-center text-sm">
-                        <input type="checkbox" wire:model.live="showDailyTasks" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        <span class="ml-2 text-gray-700">Show Daily Tasks Only</span>
-                    </label>
-
                     <!-- Clear Filters -->
                     <button wire:click="clearFilters" class="w-full sm:w-auto px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm font-medium transition-colors duration-200">
                         Clear Filters
@@ -175,406 +192,331 @@
 
         <!-- Todo Tasks List -->
         <div class="bg-white shadow rounded-lg p-6">
-            <div class="mb-4">
-                <nav class="flex flex-wrap gap-2 sm:gap-4">
-                    <button 
-                        wire:click="$set('activeTab', 'active')" 
-                        :class="activeTab === 'active' ? 'bg-indigo-600 text-white px-3 sm:px-4 py-2 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded text-sm'"
-                    >
-                        Active Tasks
-                    </button>
-                    <button 
-                        wire:click="$set('activeTab', 'archived')" 
-                        :class="activeTab === 'archived' ? 'bg-indigo-600 text-white px-3 sm:px-4 py-2 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded text-sm'"
-                    >
-                        Archived Tasks
-                    </button>
-                </nav>
-            </div>
 
-            <!-- View Style Toggle -->
-            <div class="mb-4 flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-0">
-                <div class="flex items-center justify-center sm:justify-end space-x-2">
-                    <span class="text-sm text-gray-600">View:</span>
-                    <div class="flex rounded-md overflow-hidden border border-gray-300">
+            <!-- View Toggle -->
+            <div class="mb-4 flex justify-between items-center">
+                <h2 class="text-lg font-medium">Tasks</h2>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
                         <button 
-                            wire:click="toggleViewStyle" 
-                            :class="$wire.viewStyle === 'card' ? 'bg-indigo-600 text-white px-3 py-1 text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 text-sm'"
+                            wire:click="toggleViewMode" 
+                            class="px-3 py-1 text-sm rounded {{ $viewMode === 'list' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}"
                         >
-                            Card
+                            List View
                         </button>
                         <button 
-                            wire:click="toggleViewStyle" 
-                            :class="$wire.viewStyle === 'table' ? 'bg-indigo-600 text-white px-3 py-1 text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 text-sm'"
+                            wire:click="toggleViewMode" 
+                            class="px-3 py-1 text-sm rounded {{ $viewMode === 'calendar' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}"
                         >
-                            Table
+                            Calendar View
                         </button>
                     </div>
                 </div>
             </div>
 
-            @if($activeTab === 'active')
-                <h2 class="text-lg font-medium mb-4">Active Todo Tasks</h2>
-                @if($todoLists->count() > 0)
-                    @if($viewStyle === 'card')
-                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                            @foreach($todoLists as $todo)
-                                <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
-                                    <!-- Header with Job Title and Status -->
-                                    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-3">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex-1 min-w-0">
-                                                <h3 class="text-lg font-bold text-white mb-1 truncate">
-                                                {{ $todo->dueTime->category->name ?? 'N/A' }}
-                                            </h3>
-                                            <p class="text-indigo-100 text-xs">
-                                                Priority: {{ $todo->dueTime->priority->level ?? 'N/A' }} • {{ $todo->dueTime->duration }}h
-                                            </p>
+            <!-- List View -->
+            @if($viewMode === 'list')
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @forelse($todoLists as $task)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ Str::limit($task->task, 50) }}
                                         </div>
-                                        <div class="ml-2 flex-shrink-0">
-                                            @if($todo->status)
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold {{ $this->getStatusBadgeClasses($todo->status) }}">
-                                                    {{ $todo->status->status }}
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
-                                                    Not Set
-                                                </span>
-                                            @endif
+                                        <div class="text-sm text-gray-500">
+                                            {{ $task->dueTime->category->name ?? 'N/A' }}
                                         </div>
-                                    </div>
-                                </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            {{ $task->dueTime->priority->level ?? 'N/A' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if($task->status)
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $this->getStatusBadgeClasses($task->status) }}">
+                                                {{ $task->status->status }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-500">Not Set</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if($task->department)
+                                            <div class="text-sm text-gray-900">{{ $task->department->name }}</div>
+                                        @elseif($task->requestedByBranch)
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                {{ $task->requestedByBranch->name }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-500">Not Set</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if($task->location)
+                                            <span class="text-sm text-gray-900">{{ $task->location->name }}</span>
+                                        @else
+                                            <span class="text-gray-500">Not Set</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {{ $task->assignedUser->name ?? 'Not Assigned' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {{ $task->due_date ? $task->due_date->format('M d, Y H:i') : 'Not Set' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button wire:click="openTaskCommentsModal({{ $task->id }})" class="text-indigo-600 hover:text-indigo-900 mr-2">View</button>
+                                        @if($task->status && in_array($task->status->status, ['Completed', 'Successed', 'Done']))
+                                            <button wire:click="archiveTask({{ $task->id }})" class="text-orange-600 hover:text-orange-900">Archive</button>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                                        No tasks found matching the current filters.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            @endif
 
-                                <!-- Main Content -->
-                                <div class="p-4">
-                                    <!-- Task Description -->
-                                    <div class="mb-3">
-                                        <h4 class="text-lg font-semibold text-gray-900 mb-2">Task Details</h4>
-                                        <p class="text-gray-700 leading-relaxed">{{ $todo->task }}</p>
-                                    </div>
-
-                                    <!-- Job Description (Highlighted) -->
-                                    @if($todo->dueTime->description)
-                                        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">
-                                            <div class="flex">
-                                                <div class="flex-shrink-0">
-                                                    <svg class="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                                                    </svg>
-                                                </div>
-                                                <div class="ml-3">
-                                                    <p class="text-sm font-medium text-amber-800">Job Description</p>
-                                                    <p class="mt-1 text-sm text-amber-700">{{ $todo->dueTime->description }}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <!-- Request Branch (Highlighted) -->
-                                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
-                                        <div class="flex">
-                                            <div class="flex-shrink-0">
-                                                <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm3 2a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
-                                                </svg>
-                                            </div>
-                                            <div class="ml-3">
-                                                <p class="text-sm font-medium text-blue-800">Requested By Branch</p>
-                                                <p class="mt-1 text-sm text-blue-700 font-semibold">{{ $todo->requestedByBranch->name ?? 'N/A' }}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Task Details Grid (Compact) -->
-                                    <div class="grid grid-cols-2 gap-2 text-xs">
-                                        <div class="bg-gray-50 p-2 rounded">
-                                            <span class="font-medium text-gray-600 block">Due</span>
-                                            <span class="text-gray-900">{{ $todo->due_date->format('M d, H:i') }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-2 rounded">
-                                            <span class="font-medium text-gray-600 block">Assigned</span>
-                                            <span class="text-gray-900">{{ strlen($todo->assignedUser->name ?? 'Not Assigned') > 10 ? substr($todo->assignedUser->name ?? 'Not Assigned', 0, 10) . '...' : $todo->assignedUser->name ?? 'Not Assigned' }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-2 rounded">
-                                            <span class="font-medium text-gray-600 block">Created</span>
-                                            <span class="text-gray-900">{{ strlen($todo->createdByUser->name) > 10 ? substr($todo->createdByUser->name, 0, 10) . '...' : $todo->createdByUser->name }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-2 rounded">
-                                            <span class="font-medium text-gray-600 block">Location</span>
-                                            <span class="text-gray-900">{{ $todo->location->name }} / {{ $todo->department->name ?? 'N/A' }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Actions Footer -->
-                                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                                    <div class="flex justify-between items-center">
-                                        <a href="{{ route('task_comments', $todo->id) }}" class="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors duration-200">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03 8 9-8s9 3.582 9 8z"></path>
-                                            </svg>
-                                            {{ $todo->comments->count() }}
-                                        </a>
-
-                                        <div class="flex space-x-1">
-                                            @if(!$todo->status)
-                                                <button wire:click="closeTask({{ $todo->id }})" class="inline-flex items-center px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors duration-200">
-                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                    </svg>
-                                                    Close
-                                                </button>
-                                            @else
-                                                <button wire:click="archiveTask({{ $todo->id }})" class="inline-flex items-center px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors duration-200">
-                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
-                                                    </svg>
-                                                    Archive
-                                                </button>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            <!-- Calendar View -->
+            @if($viewMode === 'calendar')
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-medium">Calendar View - Tasks by Due Date</h2>
+                        <!-- Month Selector Dropdown -->
+                        <div class="flex items-center space-x-2">
+                            <label for="month-selector" class="text-sm font-medium text-gray-700">Filter by Month:</label>
+                            <select 
+                                id="month-selector"
+                                wire:change="changeMonth($event.target.value)"
+                                class="block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                            >
+                                @foreach($monthsWithTasks as $monthKey => $monthData)
+                                    <option value="{{ $monthKey }}" {{ $monthKey === $selectedMonth ? 'selected' : '' }}>
+                                        {{ $monthData['label'] }} ({{ $monthData['count'] }} tasks)
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="grid grid-cols-7 gap-1 mb-2">
+                        @php
+                            $daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                        @endphp
+                        @foreach($daysOfWeek as $day)
+                            <div class="text-center font-semibold text-gray-600 py-2">{{ $day }}</div>
                         @endforeach
                     </div>
-                    @else
-                        <!-- Table View -->
-                        <div class="overflow-x-auto -mx-4 sm:mx-0">
-                            <div class="inline-block min-w-full align-middle">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Branch</th>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description / Priority</th>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        @foreach($todoLists as $todo)
-                                            <tr class="hover:bg-gray-50">
-                                                <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm font-medium text-gray-900">
-                                                        {{ $todo->dueTime->category->name ?? 'N/A' }}
-                                                    </div>
-                                                    <div class="text-sm text-gray-500">
-                                                        {{ $todo->dueTime->priority->level ?? 'N/A' }}
-                                                    </div>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm text-gray-900 font-semibold">
-                                                        {{ $todo->requestedByBranch->name ?? 'N/A' }}
-                                                    </div>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-4 max-w-xs">
-                                                    <div class="text-sm text-gray-900">
-                                                        {{ $todo->dueTime->description ?? 'No description' }}
-                                                    </div>
-                                                    <div class="text-sm text-gray-500">
-                                                        Priority: {{ $todo->dueTime->priority->level ?? 'N/A' }} • Duration: {{ $todo->dueTime->duration }}h
-                                                    </div>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                                                        <a href="{{ route('task_comments', $todo->id) }}" class="text-blue-600 hover:text-blue-900 text-xs sm:text-sm">
-                                                            Comments ({{ $todo->comments->count() }})
-                                                        </a>
-                                                        @if(!$todo->status)
-                                                            <button wire:click="closeTask({{ $todo->id }})" class="text-green-600 hover:text-green-900 text-xs sm:text-sm">
-                                                                Close
-                                                            </button>
-                                                        @else
-                                                            <button wire:click="archiveTask({{ $todo->id }})" class="text-red-600 hover:text-red-900 text-xs sm:text-sm">
-                                                                Archive
-                                                            </button>
-                                                        @endif
-                                                    </div>
-                                                </td>
-                                            </tr>
+                    
+                    @php
+                        $calendarStartDate = \Carbon\Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
+                        $currentDate = $calendarStartDate->copy();
+                        $endDate = $calendarStartDate->copy()->endOfMonth();
+                        $firstDayOfWeek = $calendarStartDate->dayOfWeek;
+                    @endphp
+                    
+                    <div class="grid grid-cols-7 gap-1">
+                        <!-- Empty cells for days before the first day of the month -->
+                        @for($i = 0; $i < $firstDayOfWeek; $i++)
+                            <div class="h-24 bg-gray-100 rounded"></div>
+                        @endfor
+                        
+                        <!-- Days of the month -->
+                        @while($currentDate->lte($endDate))
+                            @php
+                                $dateKey = $currentDate->format('Y-m-d');
+                                $isToday = $currentDate->isToday();
+                                $hasTasks = isset($calendarTasks[$dateKey]) && count($calendarTasks[$dateKey]) > 0;
+                            @endphp
+                            <div class="h-24 bg-white border border-gray-200 rounded p-1 {{ $isToday ? 'bg-blue-50 border-blue-300' : '' }}">
+                                <div class="text-xs font-medium text-gray-600 mb-1">{{ $currentDate->format('j') }}</div>
+                                @if($hasTasks)
+                                    <div class="space-y-1">
+                                        @foreach($calendarTasks[$dateKey] as $categoryId => $categoryData)
+                                            <button 
+                                                wire:click="selectCategory('{{ $dateKey }}', {{ $categoryId }})"
+                                                class="w-full text-left text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-1 py-0.5 rounded truncate"
+                                                title="{{ $categoryData['name'] }}: {{ $categoryData['count'] }} tasks"
+                                            >
+                                                {{ $categoryData['name'] }} ({{ $categoryData['count'] }})
+                                            </button>
                                         @endforeach
-                                    </tbody>
-                                </table>
+                                    </div>
+                                @endif
                             </div>
-                        </div>
-                    @endif
-                @else
-                    <p class="text-gray-500 text-center py-8">No active todo tasks found. Create your first task above!</p>
-                @endif
-            @else
-                <h2 class="text-lg font-medium mb-4">Archived Todo Tasks History</h2>
-                @if($archivedTasks->count() > 0)
-                    @if($viewStyle === 'card')
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            @foreach($archivedTasks as $todo)
-                                <div class="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden opacity-75">
-                                    <!-- Header with Job Title and Status -->
-                                    <div class="bg-gradient-to-r from-gray-500 to-gray-600 px-6 py-4">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex-1">
-                                                <h3 class="text-xl font-bold text-white mb-1">
-                                                {{ $todo->dueTime->category->name ?? 'N/A' }}
-                                            </h3>
-                                            <p class="text-gray-200 text-sm">
-                                                Priority: {{ $todo->dueTime->priority->level ?? 'N/A' }} • Duration: {{ $todo->dueTime->duration }}h
-                                            </p>
-                                        </div>
-                                        <div class="ml-4">
-                                            @if($todo->status)
-                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ $this->getStatusBadgeClasses($todo->status) }}">
-                                                    {{ $todo->status->status }}
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
-                                                    Not Set
-                                                </span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Main Content -->
-                                <div class="p-6">
-                                    <!-- Task Description -->
-                                    <div class="mb-3">
-                                        <h4 class="text-lg font-semibold text-gray-900 mb-2">Task Details</h4>
-                                        <p class="text-gray-700 leading-relaxed">{{ $todo->task }}</p>
-                                    </div>
-
-                                    <!-- Job Description (Highlighted) -->
-                                    @if($todo->dueTime->description)
-                                        <div class="bg-amber-50 border-l-4 border-amber-400 p-3 mb-3">
-                                            <div class="flex">
-                                                <div class="flex-shrink-0">
-                                                    <svg class="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                                                    </svg>
-                                                </div>
-                                                <div class="ml-3">
-                                                    <p class="text-sm font-medium text-amber-800">Job Description</p>
-                                                    <p class="mt-1 text-sm text-amber-700">{{ $todo->dueTime->description }}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <!-- Request Branch (Highlighted) -->
-                                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
-                                        <div class="flex">
-                                            <div class="flex-shrink-0">
-                                                <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm3 2a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
-                                                </svg>
-                                            </div>
-                                            <div class="ml-3">
-                                                <p class="text-sm font-medium text-blue-800">Requested By Branch</p>
-                                                <p class="mt-1 text-sm text-blue-700 font-semibold">{{ $todo->requestedByBranch->name ?? 'N/A' }}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Task Details Grid -->
-                                    <div class="grid grid-cols-2 gap-4 text-sm">
-                                        <div class="bg-gray-50 p-3 rounded-lg">
-                                            <span class="font-medium text-gray-600 block">Due Date</span>
-                                            <span class="text-gray-900">{{ $todo->due_date->format('M d, Y H:i') }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-3 rounded-lg">
-                                            <span class="font-medium text-gray-600 block">Assigned To</span>
-                                            <span class="text-gray-900">{{ $todo->assignedUser->name ?? 'Not Assigned' }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-3 rounded-lg">
-                                            <span class="font-medium text-gray-600 block">Created By</span>
-                                            <span class="text-gray-900">{{ $todo->createdByUser->name }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-3 rounded-lg">
-                                            <span class="font-medium text-gray-600 block">Location</span>
-                                            <span class="text-gray-900">{{ $todo->location->name }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-3 rounded-lg">
-                                            <span class="font-medium text-gray-600 block">Department</span>
-                                            <span class="text-gray-900">{{ $todo->department->name ?? 'N/A' }}</span>
-                                        </div>
-                                        <div class="bg-gray-50 p-3 rounded-lg">
-                                            <span class="font-medium text-gray-600 block">Archived Date</span>
-                                            <span class="text-gray-900">{{ $todo->deleted_at ? $todo->deleted_at->format('M d, Y H:i') : 'N/A' }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Actions Footer -->
-                                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                                    <div class="flex justify-end">
-                                        <button wire:click="restoreTask({{ $todo->id }})" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                                            </svg>
-                                            Unarchive
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
+                            @php $currentDate = $currentDate->addDay(); @endphp
+                        @endwhile
                     </div>
-                    @else
-                        <!-- Table View for Archived Tasks -->
-                        <div class="overflow-x-auto -mx-4 sm:mx-0">
-                            <div class="inline-block min-w-full align-middle">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Branch</th>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description / Priority</th>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Archived Date</th>
-                                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        @foreach($archivedTasks as $todo)
-                                            <tr class="hover:bg-gray-50 opacity-75">
-                                                <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm font-medium text-gray-900">
-                                                        {{ $todo->dueTime->category->name ?? 'N/A' }}
-                                                    </div>
-                                                    <div class="text-sm text-gray-500">
-                                                        {{ $todo->dueTime->priority->level ?? 'N/A' }}
-                                                    </div>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm text-gray-900 font-semibold">
-                                                        {{ $todo->requestedByBranch->name ?? 'N/A' }}
-                                                    </div>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-4 max-w-xs">
-                                                    <div class="text-sm text-gray-900">
-                                                        {{ $todo->dueTime->description ?? 'No description' }}
-                                                    </div>
-                                                    <div class="text-sm text-gray-500">
-                                                        Priority: {{ $todo->dueTime->priority->level ?? 'N/A' }} • Duration: {{ $todo->dueTime->duration }}h
-                                                    </div>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm text-gray-900">
-                                                        {{ $todo->deleted_at ? $todo->deleted_at->format('M d, Y H:i') : 'N/A' }}
-                                                    </div>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <button wire:click="restoreTask({{ $todo->id }})" class="text-blue-600 hover:text-blue-900 text-xs sm:text-sm">
-                                                        Unarchive
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    @endif
-                @else
-                    <p class="text-gray-500 text-center py-8">No archived tasks found.</p>
-                @endif
+                </div>
             @endif
         </div>
-    </div>
+
+    <!-- Category Tasks Modal -->
+    @if($selectedDate && $selectedCategory)
+        @php
+            $dateKey = is_string($selectedDate) ? $selectedDate : ($selectedDate ? $selectedDate->format('Y-m-d') : null);
+            $categoryKey = (int)$selectedCategory;
+            $categoryExists = $dateKey && isset($calendarTasks[$dateKey]) && isset($calendarTasks[$dateKey][$categoryKey]);
+        @endphp
+        @if($categoryExists)
+            <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="category-modal">
+                <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">
+                                Tasks for {{ \Carbon\Carbon::parse($dateKey)->format('F j, Y') }} - 
+                                {{ $calendarTasks[$dateKey][$categoryKey]['name'] ?? 'Unknown Category' }}
+                            </h3>
+                            <button wire:click="closeCategoryModal" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @forelse($calendarTasks[$dateKey][$categoryKey]['tasks'] ?? [] as $task)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    {{ Str::limit($task->task, 50) }}
+                                                </div>
+                                                <div class="text-sm text-gray-500">
+                                                    {{ $task->dueTime->category->name ?? 'N/A' }}
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    {{ $task->dueTime->priority->level ?? 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                @if($task->status)
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $this->getStatusBadgeClasses($task->status) }}">
+                                                        {{ $task->status->status }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-gray-500">Not Set</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                @if($task->department)
+                                                    <div class="text-sm text-gray-900">{{ $task->department->name }}</div>
+                                                @elseif($task->requestedByBranch)
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        {{ $task->requestedByBranch->name }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-gray-500">Not Set</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                @if($task->location)
+                                                    <span class="text-sm text-gray-900">{{ $task->location->name }}</span>
+                                                @else
+                                                    <span class="text-gray-500">Not Set</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $task->assignedUser->name ?? 'Not Assigned' }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <button wire:click="openTaskCommentsModal({{ $task->id }})" class="text-indigo-600 hover:text-indigo-900">View Details</button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                                No tasks found for this date and category.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="flex justify-end mt-4">
+                            <button wire:click="closeCategoryModal" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @else
+            <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="error-modal">
+                <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <p class="text-gray-700 mb-4">The data for this date could not be found. This might happen if the data was updated. Please close and try again.</p>
+                        <button wire:click="closeCategoryModal" class="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endif
+    <!-- Task Comments Modal -->
+    @if($showTaskCommentsModal)
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="task-comments-modal" wire:ignore>
+            <div class="relative min-h-screen w-full bg-white" wire:ignore.self>
+                <div class="flex items-center justify-between p-4 border-b bg-gray-50">
+                    <h3 class="text-lg font-medium text-gray-900">Task Comments</h3>
+                    <button wire:click="closeTaskCommentsModal" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-6 max-h-screen overflow-y-auto">
+                    <!-- Debug info -->
+                    {{-- <div class="mb-4 p-2 bg-yellow-100 text-yellow-800 text-sm">
+                        Debug: selectedTaskId = {{ $selectedTaskId ?? 'null' }}, showTaskCommentsModal = {{ $showTaskCommentsModal ? 'true' : 'false' }}
+                    </div> --}}
+                    
+                    @if($selectedTaskId)
+                        <livewire:todo.task-comments :taskId="$selectedTaskId" :isModal="true" :key="'task-comments-modal-' . $selectedTaskId" />
+                    @else
+                        <div class="text-center py-8 text-gray-500">Select a task to view comments...</div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
+
+

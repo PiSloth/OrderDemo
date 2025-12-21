@@ -92,5 +92,10 @@ class DatabaseSeeder extends Seeder
             'position_id' => 1,
             'branch_id' => 1,
         ]);
+
+        // Seed departments and user-department relationships
+        $this->call([
+            DepartmentSeeder::class,
+        ]);
     }
 }

@@ -269,16 +269,9 @@
                     <form wire:submit.prevent="createDepartment" class="mb-4 space-y-2">
                         <div class="flex space-x-2">
                             <input type="text" wire:model="newDepartmentName" placeholder="Department Name" class="flex-1 rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                            <select wire:model="newDepartmentLocationId" class="flex-1 border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                <option value="">Select Location</option>
-                                @foreach($locations as $location)
-                                    <option value="{{ $location->id }}">{{ $location->name }}</option>
-                                @endforeach
-                            </select>
                             <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-r-md hover:bg-indigo-700">Add</button>
                         </div>
                         @error('newDepartmentName') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                        @error('newDepartmentLocationId') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </form>
 
                     <!-- List Departments -->
@@ -288,19 +281,12 @@
                                 @if($editingDepartmentId == $department->id)
                                     <form wire:submit.prevent="updateDepartment" class="flex flex-1 space-x-2">
                                         <input type="text" wire:model="editingDepartmentName" class="flex-1 rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                        <select wire:model="editingDepartmentLocationId" class="flex-1 border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                            <option value="">Select Location</option>
-                                            @foreach($locations as $location)
-                                                <option value="{{ $location->id }}" {{ $location->id == $editingDepartmentLocationId ? 'selected' : '' }}>{{ $location->name }}</option>
-                                            @endforeach
-                                        </select>
                                         <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded-r-md hover:bg-green-700 mr-2">Save</button>
                                         <button type="button" wire:click="cancelDepartment" class="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">Cancel</button>
                                     </form>
                                 @else
                                     <div>
                                         <span class="font-medium">{{ $department->name }}</span>
-                                        <p class="text-sm text-gray-600">Location: {{ $department->location->name ?? 'N/A' }}</p>
                                     </div>
                                     <div>
                                         <button wire:click="editDepartment({{ $department->id }})" class="text-indigo-600 hover:text-indigo-900 mr-2">Edit</button>

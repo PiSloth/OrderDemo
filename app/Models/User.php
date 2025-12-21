@@ -22,7 +22,10 @@ class User extends Authenticatable
         'email',
         'password',
         'position_id',
-        'branch_id'
+        'branch_id',
+        'department_id',
+        'location_id',
+        'suspended'
     ];
 
     /**
@@ -62,5 +65,65 @@ class User extends Authenticatable
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+    public function psiProducts()
+    {
+        return $this->hasMany(PsiProduct::class);
+    }
+
+    public function psiPrices()
+    {
+        return $this->hasMany(PsiPrice::class);
+    }
+
+    public function psiOrders()
+    {
+        return $this->hasMany(PsiOrder::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function realSales()
+    {
+        return $this->hasMany(RealSale::class);
+    }
+
+    public function stockTransactions()
+    {
+        return $this->hasMany(StockTransaction::class);
+    }
+
+    public function dailyReportRecords()
+    {
+        return $this->hasMany(DailyReportRecord::class);
+    }
+
+    public function assignedTodos()
+    {
+        return $this->hasMany(TodoList::class, 'assigned_user_id');
+    }
+
+    public function createdTodos()
+    {
+        return $this->hasMany(TodoList::class, 'created_by_user_id');
+    }
+
+    public function taskComments()
+    {
+        return $this->hasMany(TaskComment::class);
     }
 }

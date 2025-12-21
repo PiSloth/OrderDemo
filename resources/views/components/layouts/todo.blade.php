@@ -22,6 +22,9 @@
             <div class="flex justify-between h-16">
                 <div class="flex">
                     <div class="flex-shrink-0 flex items-center">
+                        <a href="{{ route('report-dashboard') }}" wire:navigate>
+                        <x-icon black name="home" class="w-6 h-6 mr-2 hover:text-gray-700 dark:hover:text-gray-300 hover:cursor-pointer" />
+                        </a>
                         <h1 class="text-xl font-bold text-gray-900">Todo Management</h1>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
@@ -64,6 +67,79 @@
     <wireui:scripts />
     @wireUiScripts
     @livewireScripts
+
+    <script>
+        document.addEventListener('livewire:navigated', () => {
+            // Listen for copy-to-clipboard events from Livewire
+            Livewire.on('copy-to-clipboard', (data) => {
+                copyToClipboard(data.url);
+            });
+        });
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                // Use the Clipboard API when available and in secure context
+                navigator.clipboard.writeText(text).then(function() {
+                    showCopySuccess();
+                }).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    fallbackCopyTextToClipboard(text);
+                });
+            } else {
+                // Fallback for older browsers or non-secure contexts
+                fallbackCopyTextToClipboard(text);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            console.log('fallbackCopyTextToClipboard called with:', text);
+            
+            var textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Avoid scrolling to bottom
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                var successful = document.execCommand('copy');
+                console.log('execCommand result:', successful);
+                if (successful) {
+                    showCopySuccess();
+                } else {
+                    console.error('Fallback: Copy command was unsuccessful');
+                    alert('Failed to copy URL. Please copy manually: ' + text);
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+                alert('Failed to copy URL. Please copy manually: ' + text);
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function showCopySuccess() {
+            console.log('Showing success message');
+            // Create a temporary success message
+            var notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50';
+            notification.textContent = 'URL copied to clipboard!';
+            document.body.appendChild(notification);
+
+            // Remove the notification after 3 seconds
+            setTimeout(function() {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+    </script>
 </body>
 
 </html>
