@@ -282,6 +282,155 @@
         <div id="target-vs-actual-line-chart" class="w-full" wire:ignore></div>
     </div>
 
+    {{-- Target vs Actual Summary Table --}}
+    <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+        <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200 mb-4">Monthly Target vs Actual Summary</h3>
+
+        <div class="mb-4" wire:ignore x-data="{
+            dateFrom: @entangle('target_actual_from').live,
+            dateTo: @entangle('target_actual_to').live,
+            picker: null,
+            initPicker() {
+                if (!window.flatpickr) {
+                    setTimeout(() => this.initPicker(), 100);
+                    return;
+                }
+                if (!this.$refs.range) {
+                    setTimeout(() => this.initPicker(), 50);
+                    return;
+                }
+                if (this.$refs.range._flatpickr) {
+                    return;
+                }
+
+                const alpine = this;
+
+                this.picker = window.flatpickr(this.$refs.range, {
+                    mode: 'range',
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'M d, Y',
+                    altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
+                    defaultDate: (alpine.dateFrom && alpine.dateTo) ? [alpine.dateFrom, alpine.dateTo] : null,
+                    allowInput: true,
+                    appendTo: document.body,
+                    onReady(selectedDates, dateStr, instance) {
+                        try {
+                            if (instance && instance.calendarContainer) {
+                                instance.calendarContainer.style.zIndex = '9999';
+                            }
+                        } catch (e) {}
+
+                        try {
+                            if (instance && instance.altInput) {
+                                instance.altInput.placeholder = 'Select date range';
+                            }
+                        } catch (e) {}
+                    },
+                    onChange(selectedDates, dateStr, instance) {
+                        if (!selectedDates || selectedDates.length === 0 || !dateStr || String(dateStr).trim() === '') {
+                            alpine.dateFrom = '';
+                            alpine.dateTo = '';
+                            $wire.set('target_actual_from', '');
+                            $wire.set('target_actual_to', '');
+                            return;
+                        }
+
+                        if (selectedDates.length < 2) {
+                            return;
+                        }
+
+                        const start = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        const end = instance.formatDate(selectedDates[1], 'Y-m-d');
+                        alpine.dateFrom = start;
+                        alpine.dateTo = end;
+                        $wire.set('target_actual_from', start);
+                        $wire.set('target_actual_to', end);
+                    }
+                });
+            },
+        }" x-init="$nextTick(() => initPicker())">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date Range</label>
+            <input x-ref="range" type="text" class="w-full" placeholder="Select date range" />
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-700 bg-white rounded-lg dark:text-gray-200 dark:bg-gray-800">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col" class="px-3 py-2">Branch Name</th>
+                        <th scope="col" class="px-3 py-2 text-right">Target Gram</th>
+                        <th scope="col" class="px-3 py-2 text-right">Actual Gram</th>
+                        <th scope="col" class="px-3 py-2 text-right">Gap Gram</th>
+                        <th scope="col" class="px-3 py-2 text-right">Shortfall Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                        $totals = $targetVsActualTable['totals'] ?? null;
+                        $rows = $targetVsActualTable['rows'] ?? [];
+
+                        $totalPercent = $totals['percent'] ?? null;
+                        $totalIsUp = is_null($totalPercent) ? null : ($totalPercent >= 0);
+                    @endphp
+
+                    {{-- Grand total row --}}
+                    <tr class="font-semibold bg-gray-100 dark:bg-gray-900">
+                        <td class="px-3 py-2">Grand Total</td>
+                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['target_gram'] ?? 0)) }}</td>
+                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['actual_gram'] ?? 0)) }}</td>
+                        @php
+                            $tg = (float) ($totals['gap_gram'] ?? 0);
+                            $tgClass = $tg >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                        @endphp
+                        <td class="px-3 py-2 text-right {{ $tgClass }}">{{ number_format($tg) }}</td>
+                        <td class="px-3 py-2 text-right">
+                            @if (is_null($totalPercent))
+                                <span class="text-gray-400">-</span>
+                            @else
+                                <span class="{{ $totalIsUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
+                                    {{ $totalIsUp ? '↑' : '↓' }} {{ number_format(abs((float) $totalPercent), 1) }}%
+                                </span>
+                            @endif
+                        </td>
+                    </tr>
+
+                    @foreach ($rows as $row)
+                        @php
+                            $target = (float) ($row['target_gram'] ?? 0);
+                            $actual = (float) ($row['actual_gram'] ?? 0);
+                            $gap = (float) ($row['gap_gram'] ?? 0);
+                            $percent = $row['percent'] ?? null;
+                            $isUp = is_null($percent) ? null : ((float) $percent >= 0);
+                            $gapClass = $gap >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                        @endphp
+                        <tr class="odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900">
+                            <td class="px-3 py-2">{{ ucfirst($row['branch_name'] ?? '-') }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format($target) }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format($actual) }}</td>
+                            <td class="px-3 py-2 text-right {{ $gapClass }}">{{ number_format($gap) }}</td>
+                            <td class="px-3 py-2 text-right">
+                                @if (is_null($percent))
+                                    <span class="text-gray-400">-</span>
+                                @else
+                                    <span class="{{ $isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
+                                        {{ $isUp ? '↑' : '↓' }} {{ number_format(abs((float) $percent), 1) }}%
+                                    </span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+
+                    @if (empty($rows))
+                        <tr>
+                            <td colspan="5" class="px-3 py-4 text-center text-gray-500 dark:text-gray-400">No target/actual data for selected range.</td>
+                        </tr>
+                    @endif
+                </tbody>
+            </table>
+        </div>
+    </div>
+
       <!-- All branch report detail -->
     <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
         <div class="mb-4">

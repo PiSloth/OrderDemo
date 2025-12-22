@@ -56,6 +56,10 @@ class Dashboard extends Component
     public $sale_compare_mode = 'prev_period'; // prev_period | yoy | none
     public $sale_compare_branch_ids = [];
 
+    // Target vs Actual summary table (date range)
+    public $target_actual_from;
+    public $target_actual_to;
+
 
     public function mount()
     {
@@ -78,6 +82,9 @@ class Dashboard extends Component
 
         $this->calendar_month = Carbon::now()->month;
         $this->calendar_year = Carbon::now()->year;
+
+        $this->target_actual_from = Carbon::now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d');
+        $this->target_actual_to = Carbon::now()->format('Y-m-d');
 
         // Default: this month-to-date vs previous period
         $this->sale_compare_from = Carbon::now()->startOfMonth()->format('Y-m-d');
@@ -337,6 +344,7 @@ class Dashboard extends Component
 
         $calendarData = $this->getCalendarData();
         $targetVsActualData = $this->getTargetVsActualData();
+        $targetVsActualTable = $this->getTargetVsActualTableData();
         $saleCompareChart = $this->getSaleCompareChartData();
 
         return view('livewire.branch-report.dashboard', [
@@ -351,9 +359,138 @@ class Dashboard extends Component
             'saleGramData' => $saleGramData,
             'calendarData' => $calendarData,
             'targetVsActualData' => $targetVsActualData,
+            'targetVsActualTable' => $targetVsActualTable,
             'saleCompareChart' => $saleCompareChart,
         ]);
         dd($saleGramData);
+    }
+
+    private function getTargetVsActualTableData()
+    {
+        $start = $this->target_actual_from ? Carbon::parse($this->target_actual_from)->startOfDay() : Carbon::create((int) $this->calendar_year, (int) $this->calendar_month, 1)->startOfMonth();
+        $end = $this->target_actual_to ? Carbon::parse($this->target_actual_to)->endOfDay() : Carbon::create((int) $this->calendar_year, (int) $this->calendar_month, 1)->endOfMonth();
+
+        if ($end->lt($start)) {
+            [$start, $end] = [$end, $start];
+        }
+
+        $segments = [];
+        $cursor = $start->copy()->startOfMonth();
+        while ($cursor->lte($end)) {
+            $year = (int) $cursor->year;
+            $month = (int) $cursor->month;
+
+            $segmentStartDay = ($year === (int) $start->year && $month === (int) $start->month) ? (int) $start->day : 1;
+            $segmentEndDay = ($year === (int) $end->year && $month === (int) $end->month) ? (int) $end->day : (int) $cursor->daysInMonth;
+
+            $segments[] = [
+                'year' => $year,
+                'month' => $month,
+                'startDay' => $segmentStartDay,
+                'endDay' => $segmentEndDay,
+            ];
+
+            $cursor->addMonth();
+        }
+
+        $targetRows = BranchTarget::select(
+            'branches.id AS branch_id',
+            'branches.name AS branch_name',
+            DB::raw('SUM(branch_targets.target_gram) AS target_gram')
+        )
+            ->leftJoin('branches', 'branches.id', 'branch_targets.branch_id')
+            ->where(function ($q) use ($segments) {
+                foreach ($segments as $i => $seg) {
+                    $qMethod = $i === 0 ? 'where' : 'orWhere';
+                    $q->{$qMethod}(function ($sq) use ($seg) {
+                        $sq->where('branch_targets.year', $seg['year'])
+                            ->where('branch_targets.month', $seg['month'])
+                            ->whereBetween('branch_targets.day', [$seg['startDay'], $seg['endDay']]);
+                    });
+                }
+            })
+            ->groupBy('branches.id', 'branches.name')
+            ->get();
+
+        $actualRows = DailyReportRecord::select(
+            'branches.id AS branch_id',
+            'branches.name AS branch_name',
+            DB::raw('SUM(daily_report_records.number) AS actual_gram')
+        )
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->where('daily_reports.is_sale_gram', true)
+            ->whereBetween('daily_report_records.report_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->groupBy('branches.id', 'branches.name')
+            ->get();
+
+        $targetsById = [];
+        $namesById = [];
+        foreach ($targetRows as $row) {
+            if (!$row->branch_id) {
+                continue;
+            }
+            $targetsById[(int) $row->branch_id] = (float) ($row->target_gram ?? 0);
+            $namesById[(int) $row->branch_id] = (string) ($row->branch_name ?? '');
+        }
+
+        $actualById = [];
+        foreach ($actualRows as $row) {
+            if (!$row->branch_id) {
+                continue;
+            }
+            $actualById[(int) $row->branch_id] = (float) ($row->actual_gram ?? 0);
+            $namesById[(int) $row->branch_id] = (string) ($row->branch_name ?? '');
+        }
+
+        $branchIds = array_values(array_unique(array_merge(array_keys($targetsById), array_keys($actualById))));
+
+        // Ensure consistent ordering by branch name
+        usort($branchIds, function ($a, $b) use ($namesById) {
+            return strnatcasecmp($namesById[$a] ?? '', $namesById[$b] ?? '');
+        });
+
+        $rows = [];
+        $totalTarget = 0.0;
+        $totalActual = 0.0;
+
+        foreach ($branchIds as $branchId) {
+            $target = (float) ($targetsById[$branchId] ?? 0);
+            $actual = (float) ($actualById[$branchId] ?? 0);
+            $gap = $actual - $target;
+
+            $percent = null;
+            if ($target > 0) {
+                $percent = (($actual - $target) / $target) * 100;
+            }
+
+            $rows[] = [
+                'branch_name' => ucfirst($namesById[$branchId] ?? ('Branch #' . $branchId)),
+                'target_gram' => $target,
+                'actual_gram' => $actual,
+                'gap_gram' => $gap,
+                'percent' => $percent,
+            ];
+
+            $totalTarget += $target;
+            $totalActual += $actual;
+        }
+
+        $totalGap = $totalActual - $totalTarget;
+        $totalPercent = null;
+        if ($totalTarget > 0) {
+            $totalPercent = (($totalActual - $totalTarget) / $totalTarget) * 100;
+        }
+
+        return [
+            'totals' => [
+                'target_gram' => $totalTarget,
+                'actual_gram' => $totalActual,
+                'gap_gram' => $totalGap,
+                'percent' => $totalPercent,
+            ],
+            'rows' => $rows,
+        ];
     }
 
     private function getIndexChartData()

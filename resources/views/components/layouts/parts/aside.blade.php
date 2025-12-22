@@ -47,7 +47,7 @@
 
             <li>
                 @php $active = request()->routeIs('report-dashboard'); @endphp
-                <a wire:navigate href="{{ route('report-dashboard') }}"
+                <a href="{{ route('report-dashboard') }}"
                     class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
                     <x-icon name="chart-bar"
                         class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
