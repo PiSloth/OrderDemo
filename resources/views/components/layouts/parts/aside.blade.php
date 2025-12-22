@@ -25,7 +25,7 @@
             <!-- Todo Dashboard quick link (highlighted) -->
             <li class="mt-3">
                 @php $active = request()->routeIs('todo-dashboard') || request()->is('todo-dashboard'); @endphp
-                <a wire:navigate href="{{ route('todo.dashboard') }}"
+                <a href="{{ route('todo.dashboard') }}"
                     class="flex items-center justify-center p-2 text-base font-semibold rounded-lg transition-shadow {{ $active ? 'ring-2 ring-red-300' : '' }}"
                     style="background: linear-gradient(90deg, #dc2626 0%, #f43f5e 100%); color: white;"
                     title="New: Todo Dashboard">

@@ -45,6 +45,7 @@ class Config extends Component
     public $color;
     public $department_id;
     public $location_id;
+    public $is_jewelry_shop = false;
 
     // User management properties
     public $showCreateUserModal = false;
@@ -74,6 +75,7 @@ class Config extends Component
     public $editingQualityName = '';
     public $editingBranchId = null;
     public $editingBranchName = '';
+    public $editingBranchIsJewelryShop = false;
     public $editingGradeId = null;
     public $editingGradeName = '';
     public $editingPriorityId = null;
@@ -242,8 +244,10 @@ class Config extends Component
     {
         Branch::create([
             'name' => $this->branch,
+            'is_jewelry_shop' => $this->is_jewelry_shop,
         ]);
         $this->reset('branch');
+        $this->reset('is_jewelry_shop');
     }
 
     public function create_grade()
@@ -552,6 +556,7 @@ class Config extends Component
         $branch = Branch::find($id);
         $this->editingBranchId = $id;
         $this->editingBranchName = $branch->name;
+        $this->editingBranchIsJewelryShop = $branch->is_jewelry_shop;
     }
 
     public function updateBranch()
@@ -561,9 +566,11 @@ class Config extends Component
         ]);
         Branch::find($this->editingBranchId)->update([
             'name' => $this->editingBranchName,
+            'is_jewelry_shop' => $this->editingBranchIsJewelryShop,
         ]);
         $this->editingBranchId = null;
         $this->editingBranchName = '';
+        $this->editingBranchIsJewelryShop = false;
         session()->flash('message', 'Branch updated successfully!');
     }
 
@@ -571,6 +578,7 @@ class Config extends Component
     {
         $this->editingBranchId = null;
         $this->editingBranchName = '';
+        $this->editingBranchIsJewelryShop = false;
     }
 
     public function editGrade($id)

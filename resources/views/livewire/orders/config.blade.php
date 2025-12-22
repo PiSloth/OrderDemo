@@ -314,8 +314,12 @@
 
                     <!-- Add New Branch -->
                     <form wire:submit.prevent="create_branch" class="mb-4">
-                        <div class="flex space-x-2">
+                        <div class="flex space-x-2 items-center">
                             <input type="text" wire:model="branch" placeholder="Branch Name" class="flex-1 rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <label class="flex items-center">
+                                <input type="checkbox" wire:model="is_jewelry_shop" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                <span class="ml-2 text-sm text-gray-700">Jewelry Shop</span>
+                            </label>
                             <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-r-md hover:bg-indigo-700">Add</button>
                         </div>
                         @error('branch') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
@@ -326,13 +330,17 @@
                         @foreach($branches as $br)
                             <li class="flex items-center justify-between p-2 bg-gray-50 rounded">
                                 @if($editingBranchId == $br->id)
-                                    <form wire:submit.prevent="updateBranch" class="flex flex-1 space-x-2">
+                                    <form wire:submit.prevent="updateBranch" class="flex flex-1 space-x-2 items-center">
                                         <input type="text" wire:model="editingBranchName" class="flex-1 rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" wire:model="editingBranchIsJewelryShop" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                            <span class="ml-2 text-sm text-gray-700">Jewelry Shop</span>
+                                        </label>
                                         <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded-r-md hover:bg-green-700 mr-2">Save</button>
                                         <button type="button" wire:click="cancelEditBranch" class="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">Cancel</button>
                                     </form>
                                 @else
-                                    <span>{{ $br->name }}</span>
+                                    <span>{{ $br->name }} @if($br->is_jewelry_shop) <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Jewelry Shop</span> @endif</span>
                                     <div>
                                         <button wire:click="editBranch({{ $br->id }})" class="text-indigo-600 hover:text-indigo-900 mr-2">Edit</button>
                                         <button wire:click="confirmDeleteBranch({{ $br->id }})" class="text-red-600 hover:text-red-900">Delete</button>
