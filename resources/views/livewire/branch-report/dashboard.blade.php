@@ -265,8 +265,8 @@
                     <div class="font-semibold {{ $isToday ? 'text-blue-600 dark:text-blue-400' : ($dayData['actual_gram'] >= $dayData['target_gram'] && $dayData['target_gram'] > 0 ? 'text-green-600 dark:text-green-400' : '') }}">{{ $dayData['day'] }}</div>
                     @if($dayData['target_gram'] > 0 || $dayData['actual_gram'] > 0)
                         <div class="text-xs flex justify-between items-center">
-                            <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-1 py-0.5 rounded text-xs font-medium">T: {{ number_format($dayData['target_gram']) }}</span>
-                            <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-1 py-0.5 rounded text-xs font-medium">A: {{ number_format($dayData['actual_gram']) }}</span>
+                            <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-1 py-0.5 rounded text-xs font-medium">T: {{ number_format((float) $dayData['target_gram'], 2) }}</span>
+                            <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-1 py-0.5 rounded text-xs font-medium">A: {{ number_format((float) $dayData['actual_gram'], 2) }}</span>
                         </div>
                     @else
                         <div class="text-xs text-gray-400">-</div>
@@ -377,13 +377,13 @@
                     {{-- Grand total row --}}
                     <tr class="font-semibold bg-gray-100 dark:bg-gray-900">
                         <td class="px-3 py-2">Grand Total</td>
-                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['target_gram'] ?? 0)) }}</td>
-                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['actual_gram'] ?? 0)) }}</td>
+                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['target_gram'] ?? 0), 2) }}</td>
+                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['actual_gram'] ?? 0), 2) }}</td>
                         @php
                             $tg = (float) ($totals['gap_gram'] ?? 0);
                             $tgClass = $tg >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
                         @endphp
-                        <td class="px-3 py-2 text-right {{ $tgClass }}">{{ number_format($tg) }}</td>
+                        <td class="px-3 py-2 text-right {{ $tgClass }}">{{ number_format($tg, 2) }}</td>
                         <td class="px-3 py-2 text-right">
                             @if (is_null($totalPercent))
                                 <span class="text-gray-400">-</span>
@@ -406,9 +406,9 @@
                         @endphp
                         <tr class="odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900">
                             <td class="px-3 py-2">{{ ucfirst($row['branch_name'] ?? '-') }}</td>
-                            <td class="px-3 py-2 text-right">{{ number_format($target) }}</td>
-                            <td class="px-3 py-2 text-right">{{ number_format($actual) }}</td>
-                            <td class="px-3 py-2 text-right {{ $gapClass }}">{{ number_format($gap) }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format($target, 2) }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format($actual, 2) }}</td>
+                            <td class="px-3 py-2 text-right {{ $gapClass }}">{{ number_format($gap, 2) }}</td>
                             <td class="px-3 py-2 text-right">
                                 @if (is_null($percent))
                                     <span class="text-gray-400">-</span>
@@ -635,6 +635,19 @@
             const initialChartData = @json($targetVsActualData ?? ['categories' => [], 'series' => []]);
             const initialSaleCompareData = @json($saleCompareChart ?? ['categories' => [], 'series' => []]);
 
+            function formatTwoDecimals(val) {
+                if (val === null || typeof val === 'undefined') {
+                    return '';
+                }
+
+                const num = Number(val);
+                if (Number.isNaN(num)) {
+                    return '';
+                }
+
+                return num.toFixed(2);
+            }
+
             function renderIndexBarChart(chartData) {
                 if (typeof window.ApexCharts === 'undefined') {
                     return;
@@ -667,11 +680,6 @@
                     series: series,
                     xaxis: {
                         categories: categories,
-                        labels: {
-                            formatter: function (val) {
-                                return Math.round(val);
-                            }
-                        }
                     },
                     yaxis: {
                         labels: {
@@ -682,11 +690,6 @@
                     tooltip: {
                         shared: true,
                         intersect: false,
-                        y: {
-                            formatter: function (val) {
-                                return Math.round(val);
-                            }
-                        }
                     },
                 };
 
@@ -733,13 +736,17 @@
                         min: 0,
                         forceNiceScale: true,
                         labels: {
-                            formatter: function (val) {
-                                return Math.round(val);
-                            }
-                        }
+                            formatter: formatTwoDecimals,
+                        },
                     },
                     grid: { strokeDashArray: 4 },
-                    tooltip: { shared: true, intersect: false },
+                    tooltip: {
+                        shared: true,
+                        intersect: false,
+                        y: {
+                            formatter: formatTwoDecimals,
+                        },
+                    },
                 };
 
                 if (window.targetVsActualLineChart) {
@@ -795,13 +802,17 @@
                         min: 0,
                         forceNiceScale: true,
                         labels: {
-                            formatter: function (val) {
-                                return Math.round(val);
-                            }
-                        }
+                            formatter: formatTwoDecimals,
+                        },
                     },
                     grid: { strokeDashArray: 4 },
-                    tooltip: { shared: true, intersect: false },
+                    tooltip: {
+                        shared: true,
+                        intersect: false,
+                        y: {
+                            formatter: formatTwoDecimals,
+                        },
+                    },
                 };
 
                 if (window.saleCompareLineChart) {

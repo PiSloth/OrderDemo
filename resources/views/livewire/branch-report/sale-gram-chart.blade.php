@@ -6,6 +6,19 @@
 @push('scripts')
     <script>
         document.addEventListener('livewire:load', function() {
+            function formatTwoDecimals(val) {
+                if (val === null || typeof val === 'undefined') {
+                    return '';
+                }
+
+                const num = Number(val);
+                if (Number.isNaN(num)) {
+                    return '';
+                }
+
+                return num.toFixed(2);
+            }
+
             var options = {
                 chart: {
                     type: 'line',
@@ -27,7 +40,15 @@
                 yaxis: {
                     title: {
                         text: 'Sale Gram'
-                    }
+                    },
+                    labels: {
+                        formatter: formatTwoDecimals,
+                    },
+                },
+                tooltip: {
+                    y: {
+                        formatter: formatTwoDecimals,
+                    },
                 },
                 colors: ['#3b82f6'],
                 stroke: {
