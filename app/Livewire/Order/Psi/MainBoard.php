@@ -13,7 +13,6 @@ use App\Models\PsiStock;
 use App\Services\PsiProductService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 use WireUi\Traits\Actions;
@@ -32,11 +31,19 @@ class MainBoard extends Component
     public $shape_detail;
     public $productIdFilter;
     public $selectedTag = []; // Holds selected Tag IDs
-    public $selectedTagNames = []; // Holds selected category names
     public $xSelectInput; //wireui selection input
     public $hashtag_id;
     public $filter_hashtag_id;
-    private $duration_filter;
+
+    // Persisted filter state (must be public for Livewire hydration)
+    public $duration_filter;
+
+    // WireUI modal states used in the Blade (avoid dynamic properties)
+    public $productSummaryModal = false;
+    public $psiProduct = false;
+    public $defaultModal = false;
+    public $orderModal = false;
+
     protected $psiProductService;
 
     public function boot(PsiProductService $psiProductService)
@@ -48,6 +55,11 @@ class MainBoard extends Component
     {
         $this->productId = $productId;
         $this->branchId = $branchId;
+    }
+
+    public function updatingShapeDetail()
+    {
+        $this->resetPage();
     }
 
     //filter with tags
@@ -66,7 +78,7 @@ class MainBoard extends Component
             ];
         } else {
             $this->notification([
-                'title' => 'Alerady added!',
+                'title' => 'Already added!',
                 'description' => 'filter added to this.',
                 'icon' => 'success'
             ]);
@@ -141,9 +153,20 @@ class MainBoard extends Component
         $this->productId = $pId;
         $this->branchId = $bId;
 
-        $this->branchPsiProductId = BranchPsiProduct::where('branch_id', '=', $bId)
-            ->where('psi_product_id', '=', $pId)
-            ->first()->id;
+        $branchPsiProductId = BranchPsiProduct::where('branch_id', $bId)
+            ->where('psi_product_id', $pId)
+            ->value('id');
+
+        if (!$branchPsiProductId) {
+            $this->notification([
+                'title' => 'Not found',
+                'description' => 'This product is not registered for the selected branch yet.',
+                'icon' => 'error'
+            ]);
+            return;
+        }
+
+        $this->branchPsiProductId = (int) $branchPsiProductId;
 
         $this->orderCount = PsiOrder::where('psi_orders.psi_status_id', '<', 10)
             ->where('psi_orders.branch_psi_product_id', '=', $this->branchPsiProductId)
@@ -166,7 +189,7 @@ class MainBoard extends Component
         ]);
         DB::transaction(function () {
 
-            $porductCreate = BranchPsiProduct::create([
+            $productCreate = BranchPsiProduct::create([
                 'remark' => $this->remark,
                 'psi_product_id' => $this->productId,
                 'branch_id' => $this->branchId,
@@ -174,7 +197,7 @@ class MainBoard extends Component
             ]);
 
             PsiStock::create([
-                'branch_psi_product_id' => $porductCreate->id,
+                'branch_psi_product_id' => $productCreate->id,
                 'inventory_balance' => 0,
             ]);
         });
@@ -193,7 +216,7 @@ class MainBoard extends Component
 
     public function durationFilter($time)
     {
-        $this->duration_filter = Carbon::now()->subDay($time)->format('Y-m-d');
+        $this->duration_filter = Carbon::now()->subDays((int) $time)->format('Y-m-d');
     }
 
     //? product remark add
@@ -203,6 +226,15 @@ class MainBoard extends Component
             'remark' => 'required',
         ]);
         $product = PsiProduct::find($this->productIdFilter);
+
+        if (!$product) {
+            $this->notification([
+                'title' => 'Not found',
+                'description' => 'Product not found.',
+                'icon' => 'error'
+            ]);
+            return;
+        }
 
         $product->update([
             'remark' => $this->remark
@@ -215,42 +247,35 @@ class MainBoard extends Component
     public function render()
     {
         $branches = Branch::orderBy('name')->get();
-        $producutWithEachBranch = $this->psiProductService->getProductsForMainBoard($this->shape_detail);
+        $productWithEachBranch = $this->psiProductService->getProductsForMainBoard($this->shape_detail);
 
-        if ($this->props_to_link == true) {
-            $orders = PsiOrder::where('branch_psi_product_id', '=', $this->branchPsiProductId)
-                ->get();
+        $orders = [];
+        if ($this->props_to_link === true && $this->branchPsiProductId) {
+            $orders = PsiOrder::where('branch_psi_product_id', $this->branchPsiProductId)->get();
             $this->props_to_link = false;
-        } else {
-            $orders = [];
         }
 
-        $jobs = PhotoShooting::where('photo_shooting_status_id', '<', 6)->get()->count();
+        $jobs = PhotoShooting::where('photo_shooting_status_id', '<', 6)->count();
         $jobsBr = PsiOrder::where('psi_status_id', '=', 8)->count();
 
-        $structuredData = $this->psiProductService->getStructuredDataForPsiProducts();
+        $defaultProductSummary = [
+            'weight' => 0,
+            'image' => 0,
+            'detail' => 'loading...',
+            'branches' => [],
+        ];
 
+        $productSummary = $defaultProductSummary;
         if ($this->productIdFilter) {
-            $productSummary = $structuredData->get($this->productIdFilter, [
-                'weight' => 0,
-                'image' => 0,
-                'detail' => 'loading...',
-                'branches' => []
-            ]);
-        } else {
-            $productSummary = [
-                'weight' => 0,
-                'image' => 0,
-                'detail' => 'loading...',
-                'branches' => []
-            ];
+            $structuredData = $this->psiProductService->getStructuredDataForPsiProducts();
+            $productSummary = $structuredData->get($this->productIdFilter, $defaultProductSummary);
         }
 
         $branch_sales = $this->psiProductService->getBranchSales($this->duration_filter);
         $data = json_encode($branch_sales->pluck('total', 'name')->all());
 
         return view('livewire.order.psi.main-board', [
-            'products' => $producutWithEachBranch,
+            'products' => $productWithEachBranch,
             'productSummary' => $productSummary,
             'branches' => $branches,
             'psiOrders' => $orders,

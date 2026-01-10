@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\CustomLogout;
+use App\Http\Controllers\Document\EmailListExportController;
 use App\Livewire\BranchReport\Dashboard as BranchReportDashboard;
 use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
 use App\Livewire\ManufactureCost;
+use App\Livewire\Document\EmailList as DocumentEmailList;
 use App\Livewire\Order\Psi\Branch\StockUpdate;
 use App\Livewire\Orders\Config;
 use App\Livewire\Orders\AddOrder;
@@ -68,21 +70,38 @@ Route::view('profile', 'profile')
 require __DIR__ . '/auth.php';
 
 Route::view('/', 'welcome')->name('welcome');
-Route::get('/config', Config::class)
-    ->middleware('can:isSuperAdmin')
-    ->name('config');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/order/detail/', PerOrder::class)->name('per_order');
-    Route::get('/order/branch-report/', BranchReport::class)->name('order-branch-report');
-    Route::get('/order/report', Report::class)->name('order-report');
+    Route::get('/config', Config::class)
+        ->middleware('can:isSuperAdmin')
+        ->name('config');
     Route::get('/dologout', [CustomLogout::class, 'doLogout'])->name('doLogout');
     Route::get('/help', Help::class)->name('help');
-    Route::get('/order/dashboard', OrderDashboard::class)->name('order-dashboard');
-    Route::get('/supplier/dashboard', SupplierDashboard::class)->name('supplier-dashboard');
+});
+
+Route::middleware(['auth'])->prefix('document')->name('document.')->group(function () {
+    Route::get('email-list', DocumentEmailList::class)->name('email-list');
+    Route::get('email-list/export', EmailListExportController::class)->name('email-list.export');
+});
+
+
+
+Route::middleware(['auth'])->prefix('order')->group(function () {
+    Route::get('/order/detail/', PerOrder::class)->name('per_order');
+    Route::get('/orders', BranchReport::class)->name('order-branch-report');
+    Route::get('/dashboard', OrderDashboard::class)->name('order-dashboard');
+    Route::get('/order/dashboard', Report::class)->name('order-report');
     Route::get('/manufacture/costing', ManufactureCost::class)->name('manufacture-costing');
     Route::get('/comment/history', CommentHistory::class)->name('comment-history');
-    Route::get('/order/histories', OrdersOrderHistory::class)->name('order_histories');
+    Route::get('/order/export', OrdersOrderHistory::class)->name('order-export');
+
+    Route::get('/add-order', AddOrder::class)->name('add_order');
+    Route::get('/chats', PoolChat::class)->name('chat');
+    // Route::get('/order/list', Orderlists::class)->name('ord_list');
+    Route::get('/messages', Notification::class)->name('notification');
+    Route::get('/addsupplier', Supplier::class)->name('addsupplier');
+    // Route::get('/order/dashboard', OrderDashboard::class)->name('order-dashboard');
+    // Route::get('/supplier/dashboard', SupplierDashboard::class)->name('supplier-dashboard');
 });
 
 Route::middleware(['auth'])->prefix('psi')->group(function () {
@@ -97,24 +116,17 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
     Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
     Route::get('/psi/oos', OutOfStockAnalysis::class)->name('psi_oos');
-    Route::get('/psi/branch/sotckupdate', StockUpdate::class)->name('stock-update');
+    Route::get('/psi/branch/stockupdate', StockUpdate::class)->name('stock-update');
     Route::get('/edit/product', ProductEdit::class)->name('edit_product');
+    Route::get('/report', PsiReport::class)->name('psi-report');
 });
 
-Route::middleware(['auth'])->prefix('report')->group(function () {
-    Route::get('/sale-repurchase', SaleAndRepurchase::class)->name('sale_repurchase');
-    Route::get('/psi', PsiReport::class)->name('psi-report');
-    Route::get('/dashboard', BranchReportDashboard::class)->name('report-dashboard');
+
+Route::middleware(['auth'])->prefix('performance')->group(function () {
+    Route::get('/branch-score', SaleAndRepurchase::class)->name('sale_repurchase');
+    Route::get('/sale-dashboard', BranchReportDashboard::class)->name('report-dashboard');
 });
 
-Route::middleware(['can:isAuthorized'])->group(function () {
-
-    Route::get('/add-order', AddOrder::class)->name('add_order');
-    Route::get('/chats', PoolChat::class)->name('chat');
-    // Route::get('/order/list', Orderlists::class)->name('ord_list');
-    Route::get('/noti', Notification::class)->name('notification');
-    Route::get('/addsupplier', Supplier::class)->name('addsupplier');
-});
 
 Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::get('/dashboard', App\Livewire\Todo\Dashboard::class)->name('todo.dashboard');

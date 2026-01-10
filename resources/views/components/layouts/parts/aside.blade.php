@@ -2,6 +2,31 @@
     class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0"
     x-bind:class="{ 'translate-x-0': asideOpen }"
     aria-label="Sidenav">
+    @php
+        $orderGroupActive = request()->routeIs('add_order')
+            || request()->routeIs('order-dashboard')
+            || request()->routeIs('order-report')
+            || request()->routeIs('chat')
+            || request()->routeIs('comment-history')
+            || request()->routeIs('addsupplier');
+
+        $psiGroupActive = request()->routeIs('mainboard')
+            || request()->routeIs('oos')
+            || request()->routeIs('daily_sale')
+            || request()->routeIs('psi-report');
+
+        $performanceGroupActive = request()->routeIs('sale_repurchase')
+            || request()->routeIs('report-dashboard');
+
+        $todoGroupActive = request()->routeIs('todo.dashboard')
+            || request()->routeIs('todo_list');
+
+        $documentGroupActive = request()->routeIs('document.email-list');
+
+        $linkBase = 'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
+        $linkActive = 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white';
+        $linkInactive = 'text-slate-700 dark:text-slate-200';
+    @endphp
     <div
         class="h-full px-3 py-5 overflow-y-auto bg-white border-r border-slate-200 dark:bg-slate-800 dark:border-slate-700">
         <!-- Close button -->
@@ -12,7 +37,7 @@
         </button>
         <ul class="space-y-2">
             <li>
-                <a href="{{ route('order-report') }}"
+                <a href="{{ route('order-dashboard') }}"
                     class="flex items-center p-2 text-center text-slate-900 rounded-lg dark:text-white">
                     <img src="{{ url('images/logo.png') }}" alt="STT Logo" class="w-12 h-10 mr-4 bg-white rounded-md">
                     <div>
@@ -22,143 +47,249 @@
                 </a>
             </li>
 
-            <!-- Todo Dashboard quick link (highlighted) -->
-            <li class="mt-3">
-                @php $active = request()->routeIs('todo-dashboard') || request()->is('todo-dashboard'); @endphp
-                <a href="{{ route('todo.dashboard') }}"
-                    class="flex items-center justify-center p-2 text-base font-semibold rounded-lg transition-shadow {{ $active ? 'ring-2 ring-red-300' : '' }}"
-                    style="background: linear-gradient(90deg, #dc2626 0%, #f43f5e 100%); color: white;"
-                    title="New: Todo Dashboard">
-                    <!-- Yellow horn / megaphone icon -->
-                    {{-- <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true">
-                        <path d="M3 11v2a1 1 0 001 1h2v2a1 1 0 001 1h1v-8H6a1 1 0 00-1 1zm16-3.5a1 1 0 00-1 1V9a8 8 0 01-8 8H9v1a1 1 0 001 1h1a3 3 0 006 0h1a1 1 0 001-1v-7.5a1 1 0 00-1-1h-2z" fill="#FBBF24" />
-                    </svg> --}}
-                    <span class="ml-1 text-white">Todo Dashboard</span>
-                </a>
-            </li>
+             <!-- Performance Group -->
+            <li x-data="{ open: {{ $performanceGroupActive ? 'true' : 'false' }} }" class="mt-2">
+                <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <span class="flex items-center">
+                        <x-icon name="trending-up" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Performance</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                </button>
 
-            {{-- <li>
-                <a wire:navigate href="{{ route('psi_product') }}"
-                    class="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                    <img src="{{ url('images/chart-icon.png') }}" alt="chart-icon" class="w-6 h-6">
-                    <span class="ml-3">PSI Product</span>
-                </a>
-            </li> --}}
-
-            <li>
-                @php $active = request()->routeIs('report-dashboard'); @endphp
-                <a href="{{ route('report-dashboard') }}"
-                    class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                    <x-icon name="chart-bar"
-                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                    <span class="ml-3">Dashboard</span>
-                </a>
-            </li>
-            <li>
-                @php $active = request()->routeIs('mainboard'); @endphp
-                <a wire:navigate href="{{ route('mainboard') }}"
-                    class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                    <x-icon name="view-grid"
-                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                    <span class="ml-3">PSI Dashboard</span>
-                </a>
-            </li>
-
-            <li class="group">
-                @php $active = request()->routeIs('sale_repurchase'); @endphp
-                <a wire:navigate href="{{ route('sale_repurchase') }}"
-                    class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                    <x-icon name="trending-up"
-                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                    <span class="ml-3">Branches Scores</span>
-                </a>
-            </li>
-            <li class="group">
-                @php $active = request()->routeIs('order_histories'); @endphp
-                <a wire:navigate href="{{ route('order_histories') }}"
-                    class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                    <x-icon name="clock"
-                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                    <span class="ml-3">Order History</span>
-                </a>
-            </li>
-
-            <li class="group">
-                @php $active = request()->routeIs('order-report'); @endphp
-                <a wire:navigate href="{{ route('order-report') }}"
-                    class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-707 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                    <x-icon name="clipboard-list"
-                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                    <span class="ml-3">Orders</span>
-                </a>
-            </li>
-
-            @can('isAuthorized')
-                <li class="group">
-                    @php $active = request()->routeIs('add_order'); @endphp
-                    <a wire:navigate href="{{ route('add_order') }}"
-                        class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                        <x-icon name="document-add"
-                            class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                        <span class="ml-3">Add Order</span>
-                    </a>
-                </li>
-                <li class="group">
-                    @php $active = request()->routeIs('chat'); @endphp
-                    <a wire:navigate href="{{ route('chat') }}"
-                        class="relative flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                        <x-icon name="chat-alt-2"
-                            class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                        <span class="ml-3">i-Meeting</span>
-                        <span
-                            class="absolute inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bottom-5 left-28 text-primary-800 bg-primary-100 dark:bg-primary-200 dark:text-primary-800">
-
-                            @can('isAGM')
-                                {{ $agmMeetingCount }}
-                            @else
-                                {{ $relevantMeetingCount }}
-                            @endcan
-
-                        </span>
-                    </a>
-                </li>
-
-                <li class="group">
-                    @php $active = request()->routeIs('comment-history'); @endphp
-                    <a wire:navigate href="{{ route('comment-history') }}"
-                        class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                        <x-icon name="annotation"
-                            class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                        <span class="ml-3">Comments</span>
-                    </a>
-                </li>
-
-                @can('isPurchaser')
+                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                    @php $active = request()->routeIs('sale_repurchase'); @endphp
                     <li>
-                        @php $active = request()->is('addsupplier'); @endphp
-                        <a wire:navigate href="/addsupplier"
-                            class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                            <x-icon name="cog"
+                        <a wire:navigate href="{{ route('sale_repurchase') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="trending-up"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                            <span class="ml-3">Supplier Config</span>
+                            <span class="ml-3">Daily Scores</span>
                         </a>
                     </li>
-                @endcan
 
-
-
-                @can('isSuperAdmin')
+                    @php $active = request()->routeIs('report-dashboard'); @endphp
                     <li>
-                        @php $active = request()->routeIs('config'); @endphp
-                        <a wire:navigate href="{{ route('config') }}"
-                            class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                            <x-icon name="cog"
+                        <a wire:navigate href="{{ route('report-dashboard') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="chart-pie"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                            <span class="ml-3">Super Config</span>
+                            <span class="ml-3">Sale</span>
                         </a>
                     </li>
-                @endcan
-            @endcan
+                </ul>
+            </li>
+
+            <!-- Order Group -->
+            <li x-data="{ open: {{ $orderGroupActive ? 'true' : 'false' }} }" class="mt-3">
+                <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <span class="flex items-center">
+                        <x-icon name="clipboard-list" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Order</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                </button>
+
+                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                    @can('isAuthorized')
+                        @php $active = request()->routeIs('add_order'); @endphp
+                        <li>
+                            <a wire:navigate href="{{ route('add_order') }}"
+                                class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <x-icon name="document-add"
+                                    class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                                <span class="ml-3">Add Order</span>
+                            </a>
+                        </li>
+                    @endcan
+
+                    @php $active = request()->routeIs('order-dashboard'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('order-dashboard') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="desktop-computer"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Summary</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('order-report'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('order-report') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="chart-bar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Dashboard</span>
+                        </a>
+                    </li>
+{{-- 
+                    @php $active = request()->routeIs('order-export'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('order-export') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="download"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Export</span>
+                        </a>
+                    </li> --}}
+
+                    @can('isAuthorized')
+                        @php $active = request()->routeIs('chat'); @endphp
+                        <li>
+                            <a wire:navigate href="{{ route('chat') }}"
+                                class="relative {{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <x-icon name="chat-alt-2"
+                                    class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                                <span class="ml-3">i-Meeting</span>
+                                <span
+                                    class="absolute inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full top-1.5 right-2 text-primary-800 bg-primary-100 dark:bg-primary-200 dark:text-primary-800">
+                                    @can('isAGM')
+                                        {{ $agmMeetingCount }}
+                                    @else
+                                        {{ $relevantMeetingCount }}
+                                    @endcan
+                                </span>
+                            </a>
+                        </li>
+
+                        @php $active = request()->routeIs('comment-history'); @endphp
+                        <li>
+                            <a wire:navigate href="{{ route('comment-history') }}"
+                                class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <x-icon name="annotation"
+                                    class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                                <span class="ml-3">Comments</span>
+                            </a>
+                        </li>
+
+                        @can('isPurchaser')
+                            @php $active = request()->routeIs('addsupplier'); @endphp
+                            <li>
+                                <a wire:navigate href="{{ route('addsupplier') }}"
+                                    class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                    <x-icon name="cog"
+                                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                                    <span class="ml-3">Supplier Config</span>
+                                </a>
+                            </li>
+                        @endcan
+                    @endcan
+                </ul>
+            </li>
+
+            <!-- PSI Group -->
+            <li x-data="{ open: {{ $psiGroupActive ? 'true' : 'false' }} }" class="mt-2">
+                <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <span class="flex items-center">
+                        <x-icon name="view-grid" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">PSI</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                </button>
+
+                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                    @php $active = request()->routeIs('mainboard'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('mainboard') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="view-grid"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Mainboard</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('oos'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('oos') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="exclamation" class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">OoS</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('daily_sale'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('daily_sale') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="calendar" class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Daily Sale</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('psi-report'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('psi-report') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="chart-bar" class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">PSI Report</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+           
+
+            <!-- Todo Group -->
+            <li x-data="{ open: {{ $todoGroupActive ? 'true' : 'false' }} }" class="mt-2">
+                <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <span class="flex items-center">
+                        <x-icon name="check-circle" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Todo</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                </button>
+
+                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                    @php $active = request()->routeIs('todo.dashboard'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('todo.dashboard') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="chart-bar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Dashboard</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('todo_list'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('todo_list') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="clipboard-list"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Task List</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- Document Group -->
+            <li x-data="{ open: {{ $documentGroupActive ? 'true' : 'false' }} }" class="mt-2">
+                <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <span class="flex items-center">
+                        <x-icon name="folder" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Document</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                </button>
+
+                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                    @php $active = request()->routeIs('document.email-list'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('document.email-list') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="mail"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Email List</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
         </ul>
         <ul class="pt-5 mt-5 space-y-2 border-t border-slate-200 dark:border-slate-700">
             <li>
@@ -179,16 +310,17 @@
                 </a>
             </li>
 
-            {{-- dashboard button  --}}
-            <li>
-                @php $active = request()->routeIs('order-dashboard'); @endphp
-                <a href="{{ route('order-dashboard') }}"
-                    class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
-                    <x-icon name="desktop-computer"
-                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                    <span class="ml-3">Order Dashboard</span>
-                </a>
-            </li>
+            @can('isSuperAdmin')
+                <li>
+                    @php $active = request()->routeIs('config'); @endphp
+                    <a wire:navigate href="{{ route('config') }}"
+                        class="flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group {{ $active ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200' }}">
+                        <x-icon name="cog"
+                            class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                        <span class="ml-3">Super Config</span>
+                    </a>
+                </li>
+            @endcan
         </ul>
     </div>
 </aside>
