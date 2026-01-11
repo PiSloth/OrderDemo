@@ -21,6 +21,8 @@
         "@tailwindcss/aspect-ratio": "^0.4.2",
         "@tailwindcss/typography": "^0.5.10",
         "apexcharts": "^3.44.0",
-        "flatpickr": "^4.6.13"
+        "flatpickr": "^4.6.13",
+        "quill": "^2.0.3",
+        "quill-better-table": "^1.2.10"
     }
 }

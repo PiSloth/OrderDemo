@@ -21,7 +21,8 @@
         $todoGroupActive = request()->routeIs('todo.dashboard')
             || request()->routeIs('todo_list');
 
-        $documentGroupActive = request()->routeIs('document.email-list');
+        $documentGroupActive = request()->routeIs('document.email-list')
+            || request()->routeIs('document.library.*');
 
         $linkBase = 'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
         $linkActive = 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white';
@@ -285,6 +286,16 @@
                             <x-icon name="mail"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
                             <span class="ml-3">Email List</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('document.library.*'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('document.library.index') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="document-text"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Library</span>
                         </a>
                     </li>
                 </ul>

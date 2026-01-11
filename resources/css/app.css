@@ -5,3 +5,12 @@
 [x-cloak] {
 	display: none !important;
 }
+
+.prose-document {
+	max-width: none;
+}
+
+.ql-container {
+	min-height: 260px;
+}
+

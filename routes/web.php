@@ -1,12 +1,16 @@
 <?php
 
 use App\Http\Controllers\CustomLogout;
+use App\Http\Controllers\Document\CompanyDocumentImageController;
 use App\Http\Controllers\Document\EmailListExportController;
 use App\Livewire\BranchReport\Dashboard as BranchReportDashboard;
 use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
 use App\Livewire\ManufactureCost;
 use App\Livewire\Document\EmailList as DocumentEmailList;
+use App\Livewire\Document\Library\Browser as DocumentLibraryBrowser;
+use App\Livewire\Document\Library\Create as DocumentLibraryCreate;
+use App\Livewire\Document\Library\Edit as DocumentLibraryEdit;
 use App\Livewire\Order\Psi\Branch\StockUpdate;
 use App\Livewire\Orders\Config;
 use App\Livewire\Orders\AddOrder;
@@ -82,6 +86,12 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth'])->prefix('document')->name('document.')->group(function () {
     Route::get('email-list', DocumentEmailList::class)->name('email-list');
     Route::get('email-list/export', EmailListExportController::class)->name('email-list.export');
+
+    Route::get('library', DocumentLibraryBrowser::class)->name('library.index');
+    Route::post('library/upload-image', [CompanyDocumentImageController::class, 'store'])->name('library.upload-image');
+    Route::get('library/create', DocumentLibraryCreate::class)->name('library.create');
+    Route::get('library/{document}', DocumentLibraryBrowser::class)->name('library.show');
+    Route::get('library/{document}/edit', DocumentLibraryEdit::class)->name('library.edit');
 });
 
 

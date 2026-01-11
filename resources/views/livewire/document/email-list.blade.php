@@ -364,8 +364,8 @@
                                 class="inline-flex items-center justify-center w-10 h-10 border rounded-md dark:border-slate-600"
                                 :class="isCopied('copy-to') ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
                                 title="Copy">
-                                <span x-show="!isCopied('copy-to')"><x-icon name="clipboard-list" class="w-5 h-5" /></span>
-                                <span x-show="isCopied('copy-to')"><x-icon name="check-circle" class="w-5 h-5" /></span>
+                                <span x-show="!isCopied('copy-to')"><x-icon name="duplicate" class="w-5 h-5" /></span>
+                                <span x-show="isCopied('copy-to')"><x-icon name="share" class="w-5 h-5" /></span>
                             </button>
                             <button type="button" wire:click="clearTo"
                                 class="px-3 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
@@ -401,8 +401,8 @@
                                 class="inline-flex items-center justify-center w-10 h-10 border rounded-md dark:border-slate-600"
                                 :class="isCopied('copy-cc') ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
                                 title="Copy">
-                                <span x-show="!isCopied('copy-cc')"><x-icon name="clipboard-list" class="w-5 h-5" /></span>
-                                <span x-show="isCopied('copy-cc')"><x-icon name="check-circle" class="w-5 h-5" /></span>
+                                <span x-show="!isCopied('copy-cc')"><x-icon name="duplicate" class="w-5 h-5" /></span>
+                                <span x-show="isCopied('copy-cc')"><x-icon name="share" class="w-5 h-5" /></span>
                             </button>
                             <button type="button" wire:click="clearCc"
                                 class="px-3 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
@@ -449,8 +449,8 @@
                                         class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
                                         :class="isCopied('copy-email-{{ $row->id }}') ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
                                         title="Copy">
-                                        <span x-show="!isCopied('copy-email-{{ $row->id }}')"><x-icon name="clipboard-list" class="w-4 h-4" /></span>
-                                        <span x-show="isCopied('copy-email-{{ $row->id }}')"><x-icon name="check-circle" class="w-4 h-4" /></span>
+                                        <span x-show="!isCopied('copy-email-{{ $row->id }}')"><x-icon name="duplicate" class="w-4 h-4" /></span>
+                                        <span x-show="isCopied('copy-email-{{ $row->id }}')"><x-icon name="share" class="w-4 h-4" /></span>
                                     </button>
                                 </div>
                             </td>
