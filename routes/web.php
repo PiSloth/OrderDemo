@@ -97,17 +97,17 @@ Route::middleware(['auth'])->prefix('document')->name('document.')->group(functi
 
 
 Route::middleware(['auth'])->prefix('order')->group(function () {
-    Route::get('/order/detail/', PerOrder::class)->name('per_order');
+    Route::get('/detail/', PerOrder::class)->name('per_order');
     Route::get('/orders', BranchReport::class)->name('order-branch-report');
     Route::get('/dashboard', OrderDashboard::class)->name('order-dashboard');
     Route::get('/order/dashboard', Report::class)->name('order-report');
     Route::get('/manufacture/costing', ManufactureCost::class)->name('manufacture-costing');
     Route::get('/comment/history', CommentHistory::class)->name('comment-history');
-    Route::get('/order/export', OrdersOrderHistory::class)->name('order-export');
+    Route::get('/export', OrdersOrderHistory::class)->name('order-export');
 
     Route::get('/add-order', AddOrder::class)->name('add_order');
     Route::get('/chats', PoolChat::class)->name('chat');
-    // Route::get('/order/list', Orderlists::class)->name('ord_list');
+    Route::get('/order/list', Orderlists::class)->name('ord_list');
     Route::get('/messages', Notification::class)->name('notification');
     Route::get('/addsupplier', Supplier::class)->name('addsupplier');
     // Route::get('/order/dashboard', OrderDashboard::class)->name('order-dashboard');

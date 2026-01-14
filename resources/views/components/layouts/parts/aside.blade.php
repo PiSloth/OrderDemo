@@ -8,6 +8,7 @@
             || request()->routeIs('order-report')
             || request()->routeIs('chat')
             || request()->routeIs('comment-history')
+            || request()->routeIs('order-export')
             || request()->routeIs('addsupplier');
 
         $psiGroupActive = request()->routeIs('mainboard')
@@ -125,7 +126,7 @@
                             <span class="ml-3">Dashboard</span>
                         </a>
                     </li>
-{{-- 
+
                     @php $active = request()->routeIs('order-export'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('order-export') }}"
@@ -134,7 +135,7 @@
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
                             <span class="ml-3">Export</span>
                         </a>
-                    </li> --}}
+                    </li>
 
                     @can('isAuthorized')
                         @php $active = request()->routeIs('chat'); @endphp
