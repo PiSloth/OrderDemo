@@ -38,17 +38,52 @@ class MainBoard extends Component
     // Persisted filter state (must be public for Livewire hydration)
     public $duration_filter;
 
+    // Monthly sales report filter (null/empty = all branches)
+    public $monthly_branch_id = '';
+
+    // Monthly sales report: how many months to show
+    public $monthly_months = 6;
+
+    // Metric selector for reports: qty | grams | index
+    public $report_metric = 'qty';
+
+    // Date range compare (Flatpickr range mode)
+    public $sale_range_from = '';
+    public $sale_range_to = '';
+    public $sale_compare_mode = 'last_month'; // prev | last_month | custom
+    public $sale_compare_from = '';
+    public $sale_compare_to = '';
+
     // WireUI modal states used in the Blade (avoid dynamic properties)
     public $productSummaryModal = false;
     public $psiProduct = false;
     public $defaultModal = false;
     public $orderModal = false;
+    public $rangeManualModal = false;
 
     protected $psiProductService;
 
     public function boot(PsiProductService $psiProductService)
     {
         $this->psiProductService = $psiProductService;
+    }
+
+    public function mount(): void
+    {
+        if (!$this->monthly_months) {
+            $this->monthly_months = 6;
+        }
+
+        // Default Range A = previous 7 days (including today)
+        if (!$this->sale_range_from || !$this->sale_range_to) {
+            $this->sale_range_to = Carbon::now()->format('Y-m-d');
+            $this->sale_range_from = Carbon::now()->subDays(6)->format('Y-m-d');
+        }
+
+        // Default compare = last month same days
+        if (!$this->sale_compare_mode) {
+            $this->sale_compare_mode = 'last_month';
+        }
     }
 
     public function setBranchPsiProduct($productId, $branchId)
@@ -274,6 +309,28 @@ class MainBoard extends Component
         $branch_sales = $this->psiProductService->getBranchSales($this->duration_filter);
         $data = json_encode($branch_sales->pluck('total', 'name')->all());
 
+        $monthsToShow = max(1, min(24, (int) $this->monthly_months));
+
+        $monthlyReport = $this->psiProductService->getMonthlyProductSalesReport(
+            $this->monthly_branch_id !== '' ? (int) $this->monthly_branch_id : null,
+            $monthsToShow
+        );
+
+        $rangeCompare = null;
+        if ($this->sale_range_from && $this->sale_range_to) {
+            $branchId = $this->monthly_branch_id !== '' ? (int) $this->monthly_branch_id : null;
+            $useCustom = $this->sale_compare_mode === 'custom' && $this->sale_compare_from && $this->sale_compare_to;
+
+            $rangeCompare = $this->psiProductService->getProductSalesDateRangeCompare(
+                $this->sale_range_from,
+                $this->sale_range_to,
+                $branchId,
+                $useCustom ? $this->sale_compare_from : null,
+                $useCustom ? $this->sale_compare_to : null,
+                (string) $this->sale_compare_mode
+            );
+        }
+
         return view('livewire.order.psi.main-board', [
             'products' => $productWithEachBranch,
             'productSummary' => $productSummary,
@@ -283,6 +340,8 @@ class MainBoard extends Component
             'jobs4Br' => $jobsBr,
             'sales' => $data,
             'branch_sales' => $branch_sales,
+            'monthlyReport' => $monthlyReport,
+            'rangeCompare' => $rangeCompare,
         ]);
     }
 }

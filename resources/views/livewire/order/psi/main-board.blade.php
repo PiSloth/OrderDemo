@@ -1,6 +1,6 @@
 <div>
     <div class="flex flex-wrap gap-4">
-        <x-button href="{{ route('oos') }}" label="OoS" negative icon="view-grid-add" wire:navigate />
+        {{-- <x-button href="{{ route('oos') }}" label="OoS" negative icon="view-grid-add" wire:navigate /> --}}
         <x-button href="{{ route('psi_product') }}" label="new PSI Product" green icon="view-grid-add" wire:navigate />
         <x-button href="{{ route('psi-report') }}" label="report" teal icon="view-grid-add" wire:navigate />
         <x-button href="{{ route('stock-update') }}" label="Stock" positive icon="truck" wire:navigate />
@@ -97,6 +97,713 @@
         @endphp
 
     </div>
+
+    {{-- Monthly Actual Sale Report (months selectable) --}}
+    <div class="my-6">
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div class="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="text-lg font-semibold text-gray-900 dark:text-white">Monthly Actual Sale</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-300">Last {{ (int) ($monthly_months ?? 6) }} months by product</div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-200">Branch</label>
+                    <select wire:model.live="monthly_branch_id"
+                        class="block w-56 border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        <option value="">All branches</option>
+                        @foreach ($branches as $b)
+                            <option value="{{ $b->id }}">{{ $b->name }}</option>
+                        @endforeach
+                    </select>
+
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-200">Metric</label>
+                    <select wire:model.live="report_metric"
+                        class="block w-44 border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        <option value="qty">Quantity</option>
+                        <option value="grams">Total grams</option>
+                        <option value="index">Index</option>
+                    </select>
+
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-200">Months</label>
+                    <select wire:model.live="monthly_months"
+                        class="block w-24 border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        <option value="3">3</option>
+                        <option value="6">6</option>
+                        <option value="9">9</option>
+                        <option value="12">12</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="px-4 pb-4">
+                <details class="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                    <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                        အသုံးပြုပုံ (Manual)
+                    </summary>
+                    <div class="px-4 pb-4 text-sm text-gray-700 dark:text-gray-200 space-y-2">
+                        <div>
+                            <span class="font-semibold">Branch Filter</span> — “All branches” ဆိုရင် ဆိုင်ခွဲအားလုံးရဲ့ sale ကိုပေါင်းပြမယ်။ ဆိုင်ခွဲတစ်ခုရွေးရင် အဲဒီ branch ရဲ့ sale ပဲပြမယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">Metric</span> — Quantity / Total grams / Index ကိုရွေးပြီး ဇယားထဲက amount တွေကို အဲဒီ metric အတိုင်းတွက်ပြပါတယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">Months Filter</span> — နောက်ဆုံး ဘယ်နှစ်လ (3/6/9/12) ကိုပြမလဲ ရွေးနိုင်ပါတယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">Column (Months)</span> — လက်ရှိလမှ နောက်ဆုံး <span class="font-semibold">{{ (int) ($monthly_months ?? 6) }} လ</span> အတွင်း Product တစ်ခုချင်းစီရဲ့ Monthly Actual Sale (qty) ကိုပြထားပါတယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">အရောင်အလင်းပြ (Highlight)</span> — အစိမ်းနု cell က အဲဒီ Product အတွက် “အမြင့်ဆုံး (Highest)” လ ဖြစ်ပါတယ်။ အနီနု cell က “အနိမ့်ဆုံး (Lowest)” လ ဖြစ်ပါတယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">Highest / Lowest</span> — ဘယ်လမှာ အများဆုံး/အနည်းဆုံးဖြစ်လဲ + amount ကို အကွက်အခြားအဖြစ် ပြထားပါတယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">Focus</span> — Product ရဲ့ Focus Qty (သတ်မှတ်ထားတဲ့ focus) ကို Metric အလိုက်တွက်ပြထားပါတယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">Current (Situation)</span> — လက်ရှိလ sale qty ကိုပြပြီး၊ အရင်လနဲ့ယှဉ်ပြီး <span class="font-semibold">Up / Down / Flat</span> + % ပြထားပါတယ်။
+                        </div>
+                        <div>
+                            <span class="font-semibold">Current vs Focus</span> — လက်ရှိလ Actual − Focus ကိုပြပြီး <span class="font-semibold">Above / Below / On focus</span> ဆိုပြီး status ပြထားပါတယ်။
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="overflow-auto max-h-[60vh]">
+                @php
+                    $metric = $report_metric ?? 'qty';
+
+                    $metricDecimals = in_array($metric, ['grams', 'index'], true) ? 2 : 0;
+
+                    $metricLabel = match ($metric) {
+                        'grams' => 'grams',
+                        'index' => 'index',
+                        default => 'qty',
+                    };
+
+                    $calcMetric = function (float $qty, float $weight) use ($metric): float {
+                        $grams = $qty * max(0, $weight);
+                        return match ($metric) {
+                            'grams' => $grams,
+                            'index' => ($qty * 0.4) + ($grams * 0.6),
+                            default => $qty,
+                        };
+                    };
+
+                    $monthLabelByKey = [];
+                    foreach (($monthlyReport['months'] ?? []) as $m) {
+                        $monthLabelByKey[$m['key']] = $m['label'];
+                    }
+
+                    $monthKeys = array_map(fn($m) => $m['key'], ($monthlyReport['months'] ?? []));
+                    $currentKey = !empty($monthKeys) ? $monthKeys[count($monthKeys) - 1] : null;
+                    $prevKey = count($monthKeys) >= 2 ? $monthKeys[count($monthKeys) - 2] : null;
+
+                    $totalsByMonth = [];
+                    foreach ($monthKeys as $k) $totalsByMonth[$k] = 0.0;
+                    $totalFocus = 0.0;
+
+                    foreach (($monthlyReport['rows'] ?? []) as $r) {
+                        $w = (float) ($r['weight'] ?? 0);
+                        $fq = (float) ($r['focus_qty'] ?? 0);
+                        $totalFocus += $calcMetric($fq, $w);
+                        foreach ($monthKeys as $k) {
+                            $totalsByMonth[$k] += $calcMetric((float) (($r['sales'][$k] ?? 0)), $w);
+                        }
+                    }
+
+                    $totalMaxKey = null;
+                    $totalMinKey = null;
+                    $totalMaxAmount = null;
+                    $totalMinAmount = null;
+                    foreach ($monthKeys as $k) {
+                        $amt = (float) ($totalsByMonth[$k] ?? 0);
+                        if ($totalMaxAmount === null || $amt > $totalMaxAmount) { $totalMaxAmount = $amt; $totalMaxKey = $k; }
+                        if ($totalMinAmount === null || $amt < $totalMinAmount) { $totalMinAmount = $amt; $totalMinKey = $k; }
+                    }
+
+                    $totalCurrent = $currentKey ? (float) ($totalsByMonth[$currentKey] ?? 0) : 0.0;
+                    $totalPrev = $prevKey ? (float) ($totalsByMonth[$prevKey] ?? 0) : 0.0;
+                    $totalTrend = $totalCurrent <=> $totalPrev;
+                    $totalDelta = $totalCurrent - $totalPrev;
+                    $totalDeltaPct = $totalPrev > 0 ? ($totalDelta / $totalPrev) * 100.0 : ($totalCurrent > 0 ? 100.0 : 0.0);
+                    $totalTrendText = $totalTrend > 0 ? 'Up' : ($totalTrend < 0 ? 'Down' : 'Flat');
+                    $totalTrendClass = $totalTrend > 0
+                        ? 'text-emerald-700 dark:text-emerald-300'
+                        : ($totalTrend < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+                @endphp
+
+                <table class="min-w-full text-sm text-left text-gray-700 dark:text-gray-200">
+                    <thead class="sticky top-0 z-10 text-xs uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 dark:text-gray-300">
+                        <tr class="divide-x divide-gray-200 dark:divide-gray-700">
+                            <th class="px-4 py-3 font-semibold">Product</th>
+                            @foreach (($monthlyReport['months'] ?? []) as $m)
+                                <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">{{ $m['label'] }}</th>
+                            @endforeach
+                            <th class="px-3 py-3 font-semibold whitespace-nowrap">Focus ({{ $metricLabel }})</th>
+                            <th class="px-3 py-3 font-semibold whitespace-nowrap">Highest</th>
+                            <th class="px-3 py-3 font-semibold whitespace-nowrap">Lowest</th>
+                            <th class="px-3 py-3 font-semibold whitespace-nowrap">Current</th>
+                            <th class="px-3 py-3 font-semibold whitespace-nowrap">Current vs Focus</th>
+                        </tr>
+
+                        <tr class="divide-x divide-gray-200 dark:divide-gray-700 bg-white/60 dark:bg-gray-900/40">
+                            <th class="px-4 py-2 font-semibold text-gray-900 dark:text-white">Grand Total</th>
+                            @foreach (($monthlyReport['months'] ?? []) as $m)
+                                @php
+                                    $mk = $m['key'];
+                                    $amt = (float) ($totalsByMonth[$mk] ?? 0);
+                                    $cellClass = $mk === $totalMaxKey
+                                        ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                                        : ($mk === $totalMinKey ? 'bg-red-50 dark:bg-red-900/20' : '');
+                                @endphp
+                                <th class="px-3 py-2 text-right tabular-nums {{ $cellClass }}">{{ number_format($amt, $metricDecimals) }}</th>
+                            @endforeach
+                            <th class="px-3 py-2 tabular-nums">{{ number_format($totalFocus, $metricDecimals) }}</th>
+                            <th class="px-3 py-2 whitespace-nowrap">
+                                <span class="font-medium">{{ $monthLabelByKey[$totalMaxKey] ?? ($totalMaxKey ?? '-') }}</span>
+                                <span class="text-gray-500 dark:text-gray-400">({{ number_format((float) ($totalMaxAmount ?? 0), $metricDecimals) }})</span>
+                            </th>
+                            <th class="px-3 py-2 whitespace-nowrap">
+                                <span class="font-medium">{{ $monthLabelByKey[$totalMinKey] ?? ($totalMinKey ?? '-') }}</span>
+                                <span class="text-gray-500 dark:text-gray-400">({{ number_format((float) ($totalMinAmount ?? 0), $metricDecimals) }})</span>
+                            </th>
+                            <th class="px-3 py-2 whitespace-nowrap">
+                                <div class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ number_format($totalCurrent, $metricDecimals) }}</div>
+                                <div class="text-xs {{ $totalTrendClass }}">
+                                    {{ $totalTrendText }}
+                                    @if ($totalPrev > 0)
+                                        ({{ number_format($totalDeltaPct, 1) }}%)
+                                    @elseif ($totalCurrent > 0)
+                                        (+100%)
+                                    @else
+                                        (0%)
+                                    @endif
+                                </div>
+                            </th>
+                            @php
+                                $totalFocusDiff = (float) $totalCurrent - (float) $totalFocus;
+                                $totalFocusTrendText = $totalFocusDiff > 0 ? 'Above' : ($totalFocusDiff < 0 ? 'Below' : 'On');
+                                $totalFocusTrendClass = $totalFocusDiff > 0
+                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                    : ($totalFocusDiff < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+                            @endphp
+                            <th class="px-3 py-2 whitespace-nowrap">
+                                <div class="font-semibold tabular-nums {{ $totalFocusTrendClass }}">
+                                    {{ $totalFocusDiff >= 0 ? '+' : '' }}{{ number_format($totalFocusDiff, $metricDecimals) }}
+                                </div>
+                                <div class="text-xs {{ $totalFocusTrendClass }}">{{ $totalFocusTrendText }} focus</div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        @forelse (($monthlyReport['rows'] ?? []) as $row)
+                            @php
+                                $weight = (float) ($row['weight'] ?? 0);
+                                $focusQty = (float) ($row['focus_qty'] ?? 0);
+
+                                $rowMaxKey = null;
+                                $rowMinKey = null;
+                                $rowMaxAmount = null;
+                                $rowMinAmount = null;
+                                foreach (($monthlyReport['months'] ?? []) as $m) {
+                                    $mk = $m['key'];
+                                    $amt = $calcMetric((float) (($row['sales'][$mk] ?? 0)), $weight);
+                                    if ($rowMaxAmount === null || $amt > $rowMaxAmount) { $rowMaxAmount = $amt; $rowMaxKey = $mk; }
+                                    if ($rowMinAmount === null || $amt < $rowMinAmount) { $rowMinAmount = $amt; $rowMinKey = $mk; }
+                                }
+
+                                $current = $currentKey ? $calcMetric((float) (($row['sales'][$currentKey] ?? 0)), $weight) : 0.0;
+                                $prev = $prevKey ? $calcMetric((float) (($row['sales'][$prevKey] ?? 0)), $weight) : 0.0;
+                                $trend = $current <=> $prev;
+                                $delta = $current - $prev;
+                                $deltaPct = $prev > 0 ? ($delta / $prev) * 100.0 : ($current > 0 ? 100.0 : 0.0);
+
+                                $trendText = $trend > 0 ? 'Up' : ($trend < 0 ? 'Down' : 'Flat');
+                                $trendClass = $trend > 0
+                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                    : ($trend < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+
+                                $focusAmount = (float) $calcMetric($focusQty, $weight);
+                                $focusDiff = (float) $current - $focusAmount;
+                                $focusTrendText = $focusDiff > 0 ? 'Above' : ($focusDiff < 0 ? 'Below' : 'On');
+                                $focusTrendClass = $focusDiff > 0
+                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                    : ($focusDiff < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+                            @endphp
+                            <tr class="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                                <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                                    {{ $row['product'] ?? '-' }}
+                                </td>
+
+                                @foreach (($monthlyReport['months'] ?? []) as $m)
+                                    @php
+                                        $mk = $m['key'];
+                                        $amount = (float) $calcMetric((float) (($row['sales'][$mk] ?? 0)), $weight);
+                                        $cellClass = $mk === $rowMaxKey
+                                            ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                                            : ($mk === $rowMinKey ? 'bg-red-50 dark:bg-red-900/20' : '');
+                                    @endphp
+                                    <td class="px-3 py-3 text-right tabular-nums {{ $cellClass }}">
+                                        {{ number_format($amount, $metricDecimals) }}
+                                    </td>
+                                @endforeach
+
+                                <td class="px-3 py-3 whitespace-nowrap tabular-nums">
+                                    {{ number_format($focusAmount, $metricDecimals) }}
+                                </td>
+
+                                <td class="px-3 py-3 whitespace-nowrap">
+                                    <span class="font-medium">
+                                        {{ $monthLabelByKey[$rowMaxKey] ?? ($rowMaxKey ?? '-') }}
+                                    </span>
+                                    <span class="text-gray-500 dark:text-gray-400">({{ number_format((float) ($rowMaxAmount ?? 0), $metricDecimals) }})</span>
+                                </td>
+                                <td class="px-3 py-3 whitespace-nowrap">
+                                    <span class="font-medium">
+                                        {{ $monthLabelByKey[$rowMinKey] ?? ($rowMinKey ?? '-') }}
+                                    </span>
+                                    <span class="text-gray-500 dark:text-gray-400">({{ number_format((float) ($rowMinAmount ?? 0), $metricDecimals) }})</span>
+                                </td>
+                                <td class="px-3 py-3 whitespace-nowrap">
+                                    <div class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ number_format($current, $metricDecimals) }}</div>
+                                    <div class="text-xs {{ $trendClass }}">
+                                        {{ $trendText }}
+                                        @if ($prev > 0)
+                                            ({{ number_format($deltaPct, 1) }}%)
+                                        @elseif ($current > 0)
+                                            (+100%)
+                                        @else
+                                            (0%)
+                                        @endif
+                                    </div>
+                                </td>
+
+                                <td class="px-3 py-3 whitespace-nowrap">
+                                    <div class="font-semibold tabular-nums {{ $focusTrendClass }}">
+                                        {{ $focusDiff >= 0 ? '+' : '' }}{{ number_format($focusDiff, $metricDecimals) }}
+                                    </div>
+                                    <div class="text-xs {{ $focusTrendClass }}">{{ $focusTrendText }} focus</div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="11" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-300">
+                                    No sales data for the selected period.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {{-- Custom Date Range Compare (Flatpickr) --}}
+    <div class="my-6">
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div class="p-4">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <div class="text-lg font-semibold text-gray-900 dark:text-white">Date Range Compare</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-300">Compare actual sale totals by product</div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <x-button
+                            sm
+                            teal
+                            flat
+                            icon="information-circle"
+                            label="အသုံးပြုပုံ"
+                            x-on:click="$openModal('rangeManualModal')"
+                        />
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                        <div class="sm:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Branch</label>
+                            <select wire:model.live="monthly_branch_id"
+                                class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                <option value="">All branches</option>
+                                @foreach ($branches as $b)
+                                    <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="sm:col-span-2" wire:ignore>
+                            <div
+                                x-data="{
+                                    from: @entangle('sale_range_from').live,
+                                    to: @entangle('sale_range_to').live,
+                                    picker: null,
+                                    initPicker() {
+                                        if (!window.flatpickr) { setTimeout(() => this.initPicker(), 100); return; }
+                                        if (!this.$refs.rangeA) { setTimeout(() => this.initPicker(), 50); return; }
+                                        if (this.$refs.rangeA._flatpickr) return;
+
+                                        const alpine = this;
+                                        this.picker = window.flatpickr(this.$refs.rangeA, {
+                                            mode: 'range',
+                                            dateFormat: 'Y-m-d',
+                                            altInput: true,
+                                            altFormat: 'M d, Y',
+                                            altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
+                                            defaultDate: (alpine.from && alpine.to) ? [alpine.from, alpine.to] : null,
+                                            allowInput: true,
+                                            appendTo: document.body,
+                                            onReady(selectedDates, dateStr, instance) {
+                                                try { instance.calendarContainer.style.zIndex = '9999'; } catch (e) {}
+                                                try { instance.altInput.placeholder = 'Select range A'; } catch (e) {}
+                                            },
+                                            onChange(selectedDates, dateStr, instance) {
+                                                if (!selectedDates || selectedDates.length === 0 || !dateStr || String(dateStr).trim() === '') {
+                                                    alpine.from = '';
+                                                    alpine.to = '';
+                                                    $wire.set('sale_range_from', '');
+                                                    $wire.set('sale_range_to', '');
+                                                    return;
+                                                }
+                                                if (selectedDates.length < 2) return;
+                                                const start = instance.formatDate(selectedDates[0], 'Y-m-d');
+                                                const end = instance.formatDate(selectedDates[1], 'Y-m-d');
+                                                alpine.from = start;
+                                                alpine.to = end;
+                                                $wire.set('sale_range_from', start);
+                                                $wire.set('sale_range_to', end);
+                                            }
+                                        });
+                                    }
+                                }"
+                                x-init="$nextTick(() => initPicker())"
+                            >
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Range A</label>
+                                <input x-ref="rangeA" type="text" class="w-full" placeholder="Select range" />
+                            </div>
+                        </div>
+
+                        <div class="sm:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Compare</label>
+                            <select wire:model.live="sale_compare_mode"
+                                class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                <option value="last_month">Last month (same days)</option>
+                                <option value="prev">Previous period</option>
+                                <option value="custom">Custom range</option>
+                            </select>
+                        </div>
+
+                        <div class="sm:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Metric</label>
+                            <select wire:model.live="report_metric"
+                                class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                <option value="qty">Quantity</option>
+                                <option value="grams">Total grams</option>
+                                <option value="index">Index</option>
+                            </select>
+                        </div>
+
+                        <div class="sm:col-span-2" wire:ignore>
+                            <div
+                                x-data="{
+                                    mode: @entangle('sale_compare_mode').live,
+                                    from: @entangle('sale_compare_from').live,
+                                    to: @entangle('sale_compare_to').live,
+                                    picker: null,
+                                    initPicker() {
+                                        if (!window.flatpickr) { setTimeout(() => this.initPicker(), 100); return; }
+                                        if (!this.$refs.rangeB) { setTimeout(() => this.initPicker(), 50); return; }
+                                        if (this.$refs.rangeB._flatpickr) return;
+
+                                        const alpine = this;
+                                        this.picker = window.flatpickr(this.$refs.rangeB, {
+                                            mode: 'range',
+                                            dateFormat: 'Y-m-d',
+                                            altInput: true,
+                                            altFormat: 'M d, Y',
+                                            altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
+                                            defaultDate: (alpine.from && alpine.to) ? [alpine.from, alpine.to] : null,
+                                            allowInput: true,
+                                            appendTo: document.body,
+                                            onReady(selectedDates, dateStr, instance) {
+                                                try { instance.calendarContainer.style.zIndex = '9999'; } catch (e) {}
+                                                try { instance.altInput.placeholder = 'Select range B'; } catch (e) {}
+                                            },
+                                            onChange(selectedDates, dateStr, instance) {
+                                                if (!selectedDates || selectedDates.length === 0 || !dateStr || String(dateStr).trim() === '') {
+                                                    alpine.from = '';
+                                                    alpine.to = '';
+                                                    $wire.set('sale_compare_from', '');
+                                                    $wire.set('sale_compare_to', '');
+                                                    return;
+                                                }
+                                                if (selectedDates.length < 2) return;
+                                                const start = instance.formatDate(selectedDates[0], 'Y-m-d');
+                                                const end = instance.formatDate(selectedDates[1], 'Y-m-d');
+                                                alpine.from = start;
+                                                alpine.to = end;
+                                                $wire.set('sale_compare_from', start);
+                                                $wire.set('sale_compare_to', end);
+                                            }
+                                        });
+                                    }
+                                }"
+                                x-init="$nextTick(() => initPicker())"
+                                x-show="mode === 'custom'"
+                                style="display:none"
+                            >
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Range B</label>
+                                <input x-ref="rangeB" type="text" class="w-full" placeholder="Select range" />
+                            </div>
+
+                            <div
+                                x-show="@entangle('sale_compare_mode').live === 'last_month'"
+                                class="text-xs text-gray-500 dark:text-gray-400 pt-6"
+                                style="display:none"
+                            >
+                                Range B auto = last month (same days)
+                            </div>
+
+                            <div
+                                x-show="@entangle('sale_compare_mode').live === 'prev'"
+                                class="text-xs text-gray-500 dark:text-gray-400 pt-6"
+                                style="display:none"
+                            >
+                                Range B auto = previous period
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                    Tip: Default Range A = last 7 days. Default compare = last month (same days). Focus A/B = focus per-day × days.
+                </div>
+            </div>
+
+            @if ($rangeCompare)
+                <div class="px-4 pb-4 text-sm text-gray-700 dark:text-gray-200">
+                    <span class="font-semibold">Range A:</span> {{ $rangeCompare['rangeA']['from'] }} → {{ $rangeCompare['rangeA']['to'] }}
+                    <span class="mx-2 text-gray-300">|</span>
+                    <span class="font-semibold">Range B:</span> {{ $rangeCompare['rangeB']['from'] }} → {{ $rangeCompare['rangeB']['to'] }}
+                </div>
+
+                <div class="overflow-auto max-h-[60vh]">
+                    @php
+                        $metric = $report_metric ?? 'qty';
+
+                        $metricDecimals = in_array($metric, ['grams', 'index'], true) ? 2 : 0;
+
+                        $rangeDays = function (?string $from, ?string $to): int {
+                            if (!$from || !$to) return 0;
+                            try {
+                                $s = \Carbon\Carbon::parse($from);
+                                $e = \Carbon\Carbon::parse($to);
+                                if ($e->lt($s)) return 0;
+                                return $s->diffInDays($e) + 1;
+                            } catch (\Throwable $t) {
+                                return 0;
+                            }
+                        };
+
+                        $daysA = $rangeDays($rangeCompare['rangeA']['from'] ?? null, $rangeCompare['rangeA']['to'] ?? null);
+                        $daysB = $rangeDays($rangeCompare['rangeB']['from'] ?? null, $rangeCompare['rangeB']['to'] ?? null);
+
+                        $metricLabel = match ($metric) {
+                            'grams' => 'grams',
+                            'index' => 'index',
+                            default => 'qty',
+                        };
+                        $calcMetric = function (float $qty, float $weight) use ($metric): float {
+                            $grams = $qty * max(0, $weight);
+                            return match ($metric) {
+                                'grams' => $grams,
+                                'index' => ($qty * 0.4) + ($grams * 0.6),
+                                default => $qty,
+                            };
+                        };
+
+                        $totalA = 0.0;
+                        $totalB = 0.0;
+                        $totalFocusA = 0.0;
+                        $totalFocusB = 0.0;
+                        foreach (($rangeCompare['rows'] ?? []) as $r) {
+                            $w = (float) ($r['weight'] ?? 0);
+                            $totalA += $calcMetric((float) ($r['a'] ?? 0), $w);
+                            $totalB += $calcMetric((float) ($r['b'] ?? 0), $w);
+
+                            $fq = (float) ($r['focus_qty'] ?? 0);
+                            $totalFocusA += $calcMetric($fq * max(0, $daysA), $w);
+                            $totalFocusB += $calcMetric($fq * max(0, $daysB), $w);
+                        }
+                        $totalDelta = $totalA - $totalB;
+                        $totalTrend = $totalA <=> $totalB;
+                        $totalPct = $totalB > 0 ? ($totalDelta / $totalB) * 100.0 : ($totalA > 0 ? 100.0 : 0.0);
+                        $totalTrendText = $totalTrend > 0 ? 'Up' : ($totalTrend < 0 ? 'Down' : 'Flat');
+                        $totalTrendClass = $totalTrend > 0
+                            ? 'text-emerald-700 dark:text-emerald-300'
+                            : ($totalTrend < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+                    @endphp
+
+                    <table class="min-w-full text-sm text-left text-gray-700 dark:text-gray-200">
+                        <thead class="sticky top-0 z-10 text-xs uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 dark:text-gray-300">
+                            <tr class="divide-x divide-gray-200 dark:divide-gray-700">
+                                <th class="px-4 py-3 font-semibold">Product</th>
+                                <th class="px-3 py-3 font-semibold whitespace-nowrap">Focus A ({{ $metricLabel }})</th>
+                                <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Range A</th>
+                                <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">A vs Focus</th>
+                                <th class="px-3 py-3 font-semibold whitespace-nowrap">Focus B ({{ $metricLabel }})</th>
+                                <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Range B</th>
+                                <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Δ</th>
+                                <th class="px-3 py-3 font-semibold whitespace-nowrap">Situation</th>
+                            </tr>
+
+                            <tr class="divide-x divide-gray-200 dark:divide-gray-700 bg-white/60 dark:bg-gray-900/40">
+                                <th class="px-4 py-2 font-semibold text-gray-900 dark:text-white">Grand Total</th>
+                                <th class="px-3 py-2 tabular-nums">{{ number_format($totalFocusA, $metricDecimals) }}</th>
+                                <th class="px-3 py-2 text-right tabular-nums">{{ number_format($totalA, $metricDecimals) }}</th>
+                                @php
+                                    $totalAFocusDiff = (float) $totalA - (float) $totalFocusA;
+                                    $totalAFocusTrendText = $totalAFocusDiff > 0 ? 'Above' : ($totalAFocusDiff < 0 ? 'Below' : 'On');
+                                    $totalAFocusTrendClass = $totalAFocusDiff > 0
+                                        ? 'text-emerald-700 dark:text-emerald-300'
+                                        : ($totalAFocusDiff < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+                                @endphp
+                                <th class="px-3 py-2 text-right tabular-nums {{ $totalAFocusTrendClass }}">
+                                    {{ $totalAFocusDiff >= 0 ? '+' : '' }}{{ number_format($totalAFocusDiff, $metricDecimals) }}
+                                </th>
+                                <th class="px-3 py-2 tabular-nums">{{ number_format($totalFocusB, $metricDecimals) }}</th>
+                                <th class="px-3 py-2 text-right tabular-nums">{{ number_format($totalB, $metricDecimals) }}</th>
+                                <th class="px-3 py-2 text-right tabular-nums {{ $totalTrendClass }}">
+                                    {{ $totalDelta >= 0 ? '+' : '' }}{{ number_format($totalDelta, $metricDecimals) }}
+                                </th>
+                                <th class="px-3 py-2 whitespace-nowrap">
+                                    <span class="font-semibold {{ $totalTrendClass }}">{{ $totalTrendText }}</span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">({{ number_format($totalPct, 1) }}%)</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            @foreach ($rangeCompare['rows'] as $row)
+                                @php
+                                    $trend = (int) ($row['trend'] ?? 0);
+                                    $weight = (float) ($row['weight'] ?? 0);
+                                    $focusQty = (float) ($row['focus_qty'] ?? 0);
+
+                                    $a = (float) $calcMetric((float) ($row['a'] ?? 0), $weight);
+                                    $b = (float) $calcMetric((float) ($row['b'] ?? 0), $weight);
+                                    $delta = $a - $b;
+                                    $pct = $b > 0 ? ($delta / $b) * 100.0 : ($a > 0 ? 100.0 : 0.0);
+
+                                    $trendText = $trend > 0 ? 'Up' : ($trend < 0 ? 'Down' : 'Flat');
+                                    $trendClass = $trend > 0
+                                        ? 'text-emerald-700 dark:text-emerald-300'
+                                        : ($trend < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+                                @endphp
+                                <tr class="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                                    <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                                        {{ $row['product'] ?? '-' }}
+                                    </td>
+                                    <td class="px-3 py-3 whitespace-nowrap tabular-nums">
+                                        @php
+                                            $focusAQty = (float) $focusQty * max(0, $daysA);
+                                            $focusBQty = (float) $focusQty * max(0, $daysB);
+
+                                            $focusAAmount = (float) $calcMetric($focusAQty, $weight);
+                                            $focusBAmount = (float) $calcMetric($focusBQty, $weight);
+
+                                            $aFocusDiff = (float) $a - $focusAAmount;
+                                            $aFocusTrendClass = $aFocusDiff > 0
+                                                ? 'text-emerald-700 dark:text-emerald-300'
+                                                : ($aFocusDiff < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
+                                        @endphp
+                                        {{ number_format($focusAAmount, $metricDecimals) }}
+                                    </td>
+                                    <td class="px-3 py-3 text-right tabular-nums">{{ number_format($a, $metricDecimals) }}</td>
+                                    <td class="px-3 py-3 text-right tabular-nums {{ $aFocusTrendClass }}">
+                                        {{ $aFocusDiff >= 0 ? '+' : '' }}{{ number_format($aFocusDiff, $metricDecimals) }}
+                                    </td>
+                                    <td class="px-3 py-3 whitespace-nowrap tabular-nums">{{ number_format($focusBAmount, $metricDecimals) }}</td>
+                                    <td class="px-3 py-3 text-right tabular-nums">{{ number_format($b, $metricDecimals) }}</td>
+                                    <td class="px-3 py-3 text-right tabular-nums {{ $trendClass }}">
+                                        {{ $delta >= 0 ? '+' : '' }}{{ number_format($delta, $metricDecimals) }}
+                                    </td>
+                                    <td class="px-3 py-3 whitespace-nowrap">
+                                        <span class="font-semibold {{ $trendClass }}">{{ $trendText }}</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                                            ({{ number_format($pct, 1) }}%)
+                                        </span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="px-4 pb-4 text-sm text-gray-500 dark:text-gray-300">
+                    Select Range A to see comparison.
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <x-modal.card title="Range Report Manual (အသုံးပြုပုံ)" blur wire:model="rangeManualModal">
+        <div class="space-y-3 text-sm text-gray-700 dark:text-gray-200">
+            <div>
+                <div class="font-semibold">Default Setting (ပုံမှန်)</div>
+                <div class="mt-1">
+                    Range A = လက်ရှိနေ့အပါအဝင် နောက်ဆုံး <span class="font-semibold">၇ ရက်</span>
+                    (ဥပမာ: Today နှင့် အရင် ၆ ရက်)
+                </div>
+                <div>
+                    Compare = <span class="font-semibold">Last month (same days)</span>
+                    (ဥပမာ: Jan 14–20 ကို Dec 14–20 နဲ့ ယှဉ်မယ်)
+                </div>
+            </div>
+
+            <div>
+                <div class="font-semibold">How to Use</div>
+                <ol class="list-decimal pl-5 space-y-1">
+                    <li>Branch ကို “All branches” (စုစုပေါင်း) သို့မဟုတ် Branch တစ်ခုရွေးပါ</li>
+                    <li>Range A ကို ရက်ကွက် (date range) ရွေးပါ (Flatpickr)</li>
+                    <li>Metric (Quantity / grams / index) ကိုရွေးပါ</li>
+                    <li>Compare ကို ရွေးပါ:
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            - Last month (same days): အဲဒီ range ကို လွန်ခဲ့တဲ့လတူညီတဲ့နေ့တွေကိုယှဉ်
+                            <br>- Previous period: Range A မတိုင်ခင် အလျားတူကာလကိုယှဉ်
+                            <br>- Custom range: Range B ကိုကိုယ်တိုင်ရွေး
+                        </div>
+                    </li>
+                </ol>
+            </div>
+
+            <div>
+                <div class="font-semibold">Table Meaning</div>
+                <div class="mt-1">
+                    <span class="font-semibold">Range A</span> = ရွေးထားတဲ့ကာလအတွင်း total sale (Metric အလိုက်)
+                    ၊ <span class="font-semibold">Range B</span> = ယှဉ်လို့ရတဲ့ကာလ total sale (Metric အလိုက်)
+                </div>
+                <div>
+                    <span class="font-semibold">Focus A</span> / <span class="font-semibold">Focus B</span> = Focus qty (per-day) × Range days ကို Metric အလိုက်တွက်ပြထားတာပါ
+                </div>
+                <div>
+                    <span class="font-semibold">A vs Focus</span> = Range A − Focus A
+                </div>
+                <div>
+                    <span class="font-semibold">Δ</span> = Range A − Range B ၊ <span class="font-semibold">Situation</span> = Up/Down/Flat + %
+                </div>
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="flex justify-end gap-x-3">
+                <x-button flat label="Close" x-on:click="close" />
+            </div>
+        </x-slot>
+    </x-modal.card>
 
     {{-- Sticky Table  --}}
     <div

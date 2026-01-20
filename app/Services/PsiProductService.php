@@ -156,4 +156,321 @@ class PsiProductService
             ->groupBy('branches.name')
             ->get();
     }
+
+    /**
+     * Monthly actual sales (qty) per product for the last N months.
+     *
+     * @return array{months: array<int, array{key: string, label: string}>, rows: array<int, array<string, mixed>>}
+     */
+    public function getMonthlyProductSalesReport(?int $branchId = null, int $months = 6): array
+    {
+        $months = max(1, min(24, (int) $months));
+
+        $monthsMeta = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $m = Carbon::now()->startOfMonth()->subMonths($i);
+            $monthsMeta[] = [
+                'key' => $m->format('Y-m'),
+                'label' => $m->format('M Y'),
+            ];
+        }
+
+        $startDate = Carbon::now()->startOfMonth()->subMonths($months - 1);
+
+        // Build a month key expression that works across common DB drivers.
+        $driver = DB::connection()->getDriverName();
+        $monthKeyExpr = match ($driver) {
+            'pgsql' => "TO_CHAR(DATE_TRUNC('month', rs.created_at), 'YYYY-MM')",
+            'sqlite' => "strftime('%Y-%m', rs.created_at)",
+            default => "DATE_FORMAT(rs.created_at, '%Y-%m')", // mysql/mariadb
+        };
+
+        // All active products (for rows, even if sales are 0).
+        $products = DB::table('psi_products as p')
+            ->leftJoin('shapes', 'shapes.id', '=', 'p.shape_id')
+            ->leftJoin('uoms', 'uoms.id', '=', 'p.uom_id')
+            ->select([
+                'p.id',
+                'p.weight',
+                'p.length',
+                'p.is_suspended',
+                DB::raw('COALESCE(shapes.name, "-") as shape'),
+                DB::raw('COALESCE(uoms.name, "") as uom'),
+            ])
+            ->where('p.is_suspended', '=', 'false')
+            ->orderBy('shapes.name')
+            ->orderBy('p.weight')
+            ->get();
+
+        // Latest focus qty per branch_psi_product_id, aggregated to product.
+        $latestFocusSub = DB::table('focus_sales')
+            ->select('branch_psi_product_id', DB::raw('MAX(id) as latest_focus_id'))
+            ->groupBy('branch_psi_product_id');
+
+        $focusByProduct = DB::table('psi_products as p')
+            ->leftJoin('branch_psi_products as bpp', 'bpp.psi_product_id', '=', 'p.id')
+            ->leftJoinSub($latestFocusSub, 'lf', function ($join) {
+                $join->on('lf.branch_psi_product_id', '=', 'bpp.id');
+            })
+            ->leftJoin('focus_sales as fs_latest', 'fs_latest.id', '=', 'lf.latest_focus_id')
+            ->where('p.is_suspended', '=', 'false')
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->groupBy('p.id')
+            ->select([
+                'p.id as psi_product_id',
+                DB::raw('SUM(COALESCE(fs_latest.qty, 0)) as focus_qty'),
+            ])
+            ->pluck('focus_qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+
+        $sums = DB::table('real_sales as rs')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'rs.branch_psi_product_id')
+            ->join('psi_products as p', 'p.id', '=', 'bpp.psi_product_id')
+            ->where('rs.created_at', '>=', $startDate)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->select([
+                'p.id as psi_product_id',
+                DB::raw($monthKeyExpr . ' as month_key'),
+                DB::raw('SUM(rs.qty) as total_qty'),
+            ])
+            ->groupBy('p.id', DB::raw($monthKeyExpr))
+            ->get();
+
+        $sumIndex = [];
+        foreach ($sums as $row) {
+            $pid = (int) $row->psi_product_id;
+            $mk = (string) $row->month_key;
+            $sumIndex[$pid][$mk] = (float) $row->total_qty;
+        }
+
+        $monthKeys = array_map(fn($m) => $m['key'], $monthsMeta);
+        $currentKey = end($monthKeys) ?: Carbon::now()->format('Y-m');
+        $prevKey = $months >= 2 ? $monthKeys[count($monthKeys) - 2] : null;
+
+        $rows = [];
+        foreach ($products as $p) {
+            $pid = (int) $p->id;
+            $weight = (float) ($p->weight ?? 0);
+
+            $labelParts = [trim((string) $p->shape)];
+            if (!empty($p->weight)) {
+                $labelParts[] = trim((string) $p->weight) . 'g';
+            }
+            if (!empty($p->length)) {
+                $labelParts[] = trim((string) $p->length) . ' ' . trim((string) $p->uom);
+            }
+            $productLabel = trim(implode(' · ', array_filter($labelParts)));
+
+            $salesByMonth = [];
+            $maxAmount = null;
+            $maxMonth = null;
+            $minAmount = null;
+            $minMonth = null;
+
+            foreach ($monthKeys as $mk) {
+                $amount = (float) ($sumIndex[$pid][$mk] ?? 0);
+                $salesByMonth[$mk] = $amount;
+
+                if ($maxAmount === null || $amount > $maxAmount) {
+                    $maxAmount = $amount;
+                    $maxMonth = $mk;
+                }
+                if ($minAmount === null || $amount < $minAmount) {
+                    $minAmount = $amount;
+                    $minMonth = $mk;
+                }
+            }
+
+            $currentAmount = (float) ($salesByMonth[$currentKey] ?? 0);
+            $prevAmount = $prevKey ? (float) ($salesByMonth[$prevKey] ?? 0) : 0.0;
+            $delta = $currentAmount - $prevAmount;
+            $deltaPct = $prevAmount > 0 ? ($delta / $prevAmount) * 100.0 : ($currentAmount > 0 ? 100.0 : 0.0);
+
+            $rows[] = [
+                'psi_product_id' => $pid,
+                'product' => $productLabel !== '' ? $productLabel : ('Product #' . $pid),
+                'weight' => $weight,
+                'focus_qty' => (float) ($focusByProduct[$pid] ?? 0),
+                'sales' => $salesByMonth,
+                'max' => ['month' => $maxMonth, 'amount' => (float) ($maxAmount ?? 0)],
+                'min' => ['month' => $minMonth, 'amount' => (float) ($minAmount ?? 0)],
+                'current' => $currentAmount,
+                'prev' => $prevAmount,
+                'delta' => $delta,
+                'delta_pct' => $deltaPct,
+                'trend' => $currentAmount <=> $prevAmount, // -1,0,1
+            ];
+        }
+
+        // Sort by current month desc (most relevant), then product label.
+        usort($rows, function ($a, $b) {
+            $c = ($b['current'] ?? 0) <=> ($a['current'] ?? 0);
+            if ($c !== 0) return $c;
+            return strcmp((string) ($a['product'] ?? ''), (string) ($b['product'] ?? ''));
+        });
+
+        return [
+            'months' => $monthsMeta,
+            'rows' => $rows,
+        ];
+    }
+
+    /**
+     * Sum actual sales (qty) per product in a date range.
+     *
+     * @return array<int, float> keyed by psi_product_id
+     */
+    public function getProductSalesTotalsByDateRange(string $from, string $to, ?int $branchId = null): array
+    {
+        $start = Carbon::parse($from)->startOfDay();
+        $end = Carbon::parse($to)->endOfDay();
+
+        return DB::table('real_sales as rs')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'rs.branch_psi_product_id')
+            ->join('psi_products as p', 'p.id', '=', 'bpp.psi_product_id')
+            ->whereBetween('rs.created_at', [$start, $end])
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->select([
+                'p.id as psi_product_id',
+                DB::raw('SUM(rs.qty) as total_qty'),
+            ])
+            ->groupBy('p.id')
+            ->pluck('total_qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+    }
+
+    /**
+     * Compare sales between two date ranges per product.
+     *
+     * @return array{rangeA: array{from:string,to:string}, rangeB: array{from:string,to:string}, rows: array<int, array<string,mixed>>}
+     */
+    public function getProductSalesDateRangeCompare(
+        string $from,
+        string $to,
+        ?int $branchId = null,
+        ?string $compareFrom = null,
+        ?string $compareTo = null,
+        string $compareMode = 'prev'
+    ): array {
+        $aFrom = Carbon::parse($from)->startOfDay();
+        $aTo = Carbon::parse($to)->endOfDay();
+
+        if ($compareMode === 'custom') {
+            if (!$compareFrom || !$compareTo) {
+                // If user selected custom but didn't provide dates, fall back to prev.
+                $compareMode = 'prev';
+            }
+        }
+
+        if ($compareMode === 'custom' && $compareFrom && $compareTo) {
+            $bFrom = Carbon::parse($compareFrom)->startOfDay();
+            $bTo = Carbon::parse($compareTo)->endOfDay();
+        } elseif ($compareMode === 'last_month') {
+            // Same calendar days, previous month.
+            // Use NoOverflow to avoid invalid dates (e.g., Mar 31 -> Feb 28).
+            $bFrom = (clone $aFrom)->subMonthNoOverflow()->startOfDay();
+            $bTo = (clone $aTo)->subMonthNoOverflow()->endOfDay();
+        } else {
+            // Previous period with same length.
+            $days = max(1, $aFrom->diffInDays($aTo) + 1);
+            $bTo = (clone $aFrom)->subDay()->endOfDay();
+            $bFrom = (clone $bTo)->subDays($days - 1)->startOfDay();
+        }
+
+        $products = DB::table('psi_products as p')
+            ->leftJoin('shapes', 'shapes.id', '=', 'p.shape_id')
+            ->leftJoin('uoms', 'uoms.id', '=', 'p.uom_id')
+            ->select([
+                'p.id',
+                'p.weight',
+                'p.length',
+                DB::raw("COALESCE(shapes.name, '-') as shape"),
+                DB::raw("COALESCE(uoms.name, '') as uom"),
+            ])
+            ->where('p.is_suspended', '=', 'false')
+            ->orderBy('shapes.name')
+            ->orderBy('p.weight')
+            ->get();
+
+        // Focus qty aggregated to product (latest per branch_psi_product_id).
+        $latestFocusSub = DB::table('focus_sales')
+            ->select('branch_psi_product_id', DB::raw('MAX(id) as latest_focus_id'))
+            ->groupBy('branch_psi_product_id');
+
+        $focusByProduct = DB::table('psi_products as p')
+            ->leftJoin('branch_psi_products as bpp', 'bpp.psi_product_id', '=', 'p.id')
+            ->leftJoinSub($latestFocusSub, 'lf', function ($join) {
+                $join->on('lf.branch_psi_product_id', '=', 'bpp.id');
+            })
+            ->leftJoin('focus_sales as fs_latest', 'fs_latest.id', '=', 'lf.latest_focus_id')
+            ->where('p.is_suspended', '=', 'false')
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->groupBy('p.id')
+            ->select([
+                'p.id as psi_product_id',
+                DB::raw('SUM(COALESCE(fs_latest.qty, 0)) as focus_qty'),
+            ])
+            ->pluck('focus_qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+
+        $totalsA = $this->getProductSalesTotalsByDateRange($aFrom->format('Y-m-d'), $aTo->format('Y-m-d'), $branchId);
+        $totalsB = $this->getProductSalesTotalsByDateRange($bFrom->format('Y-m-d'), $bTo->format('Y-m-d'), $branchId);
+
+        $rows = [];
+        foreach ($products as $p) {
+            $pid = (int) $p->id;
+            $weight = (float) ($p->weight ?? 0);
+
+            $labelParts = [trim((string) $p->shape)];
+            if (!empty($p->weight)) {
+                $labelParts[] = trim((string) $p->weight) . 'g';
+            }
+            if (!empty($p->length)) {
+                $labelParts[] = trim((string) $p->length) . ' ' . trim((string) $p->uom);
+            }
+
+            $productLabel = trim(implode(' · ', array_filter($labelParts)));
+
+            $a = (float) ($totalsA[$pid] ?? 0);
+            $b = (float) ($totalsB[$pid] ?? 0);
+            $delta = $a - $b;
+            $pct = $b > 0 ? ($delta / $b) * 100.0 : ($a > 0 ? 100.0 : 0.0);
+
+            $rows[] = [
+                'psi_product_id' => $pid,
+                'product' => $productLabel !== '' ? $productLabel : ('Product #' . $pid),
+                'weight' => $weight,
+                'focus_qty' => (float) ($focusByProduct[$pid] ?? 0),
+                'a' => $a,
+                'b' => $b,
+                'delta' => $delta,
+                'delta_pct' => $pct,
+                'trend' => $a <=> $b,
+            ];
+        }
+
+        // Show biggest movers first (absolute delta), then rangeA total.
+        usort($rows, function ($x, $y) {
+            $dx = abs((float) ($x['delta'] ?? 0));
+            $dy = abs((float) ($y['delta'] ?? 0));
+            $c = $dy <=> $dx;
+            if ($c !== 0) return $c;
+            return ((float) ($y['a'] ?? 0)) <=> ((float) ($x['a'] ?? 0));
+        });
+
+        return [
+            'rangeA' => [
+                'from' => $aFrom->format('Y-m-d'),
+                'to' => $aTo->format('Y-m-d'),
+            ],
+            'rangeB' => [
+                'from' => $bFrom->format('Y-m-d'),
+                'to' => $bTo->format('Y-m-d'),
+            ],
+            'rows' => $rows,
+        ];
+    }
 }
