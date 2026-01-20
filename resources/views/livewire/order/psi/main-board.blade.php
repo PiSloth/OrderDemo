@@ -203,6 +203,15 @@
                     $currentKey = !empty($monthKeys) ? $monthKeys[count($monthKeys) - 1] : null;
                     $prevKey = count($monthKeys) >= 2 ? $monthKeys[count($monthKeys) - 2] : null;
 
+                    $focusDays = 0;
+                    if ($currentKey) {
+                        try {
+                            $focusDays = \Carbon\Carbon::createFromFormat('Y-m', $currentKey)->daysInMonth;
+                        } catch (\Throwable $t) {
+                            $focusDays = 0;
+                        }
+                    }
+
                     $totalsByMonth = [];
                     foreach ($monthKeys as $k) $totalsByMonth[$k] = 0.0;
                     $totalFocus = 0.0;
@@ -210,7 +219,7 @@
                     foreach (($monthlyReport['rows'] ?? []) as $r) {
                         $w = (float) ($r['weight'] ?? 0);
                         $fq = (float) ($r['focus_qty'] ?? 0);
-                        $totalFocus += $calcMetric($fq, $w);
+                        $totalFocus += $calcMetric($fq * max(0, $focusDays), $w);
                         foreach ($monthKeys as $k) {
                             $totalsByMonth[$k] += $calcMetric((float) (($r['sales'][$k] ?? 0)), $w);
                         }
@@ -328,7 +337,7 @@
                                     ? 'text-emerald-700 dark:text-emerald-300'
                                     : ($trend < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-300');
 
-                                $focusAmount = (float) $calcMetric($focusQty, $weight);
+                                $focusAmount = (float) $calcMetric($focusQty * max(0, $focusDays), $weight);
                                 $focusDiff = (float) $current - $focusAmount;
                                 $focusTrendText = $focusDiff > 0 ? 'Above' : ($focusDiff < 0 ? 'Below' : 'On');
                                 $focusTrendClass = $focusDiff > 0
@@ -381,7 +390,7 @@
                                             (0%)
                                         @endif
                                     </div>
-                                </td>
+                                        {{-- <span class="font-semibold">Focus</span> — Focus Qty က <span class="font-semibold">တစ်နေ့စာ focus</span> ဖြစ်ပါတယ်။ ဒီဇယားမှာ Focus column ကို <span class="font-semibold">လက်ရှိလရဲ့ ရက်အရေအတွက် × တစ်နေ့စာ focus</span> အတိုင်းတွက်ပြထားပါတယ်။ --}}
 
                                 <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="font-semibold tabular-nums {{ $focusTrendClass }}">
