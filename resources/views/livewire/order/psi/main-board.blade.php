@@ -938,21 +938,22 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Branch</label>
-                            <select wire:model.live="stockout_branch_id"
-                                class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                                <option value="">All branches</option>
-                                @foreach ($branches as $b)
-                                    <option value="{{ $b->id }}">{{ $b->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                    <div class="flex flex-col gap-2 items-end">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Branch</label>
+                                <select wire:model.live="stockout_branch_id"
+                                    class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                    <option value="">All branches</option>
+                                    @foreach ($branches as $b)
+                                        <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                        <div wire:ignore>
-                            <div
-                                x-data="{
+                            <div wire:ignore>
+                                <div
+                                    x-data="{
                                     month: @entangle('stockout_month').live,
                                     picker: null,
                                     initPicker() {
@@ -987,13 +988,42 @@
                             >
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Month</label>
                                 <input x-ref="month" type="text" class="w-full" placeholder="Select month" />
-                            </div>
+                        </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <x-button
+                                sm
+                                positive
+                                icon="download"
+                                label="Export Excel"
+                                wire:click="exportStockoutMonthlyReport"
+                                wire:loading.attr="disabled"
+                            />
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="overflow-auto max-h-[60vh]">
+                @php
+                    $stockoutTotals = [
+                        'opening' => 0.0,
+                        'refill' => 0.0,
+                        'sale' => 0.0,
+                        'closing' => 0.0,
+                        'zero_days' => 0,
+                        'loss_index' => 0.0,
+                    ];
+                    foreach (($stockoutReport['rows'] ?? []) as $r) {
+                        $stockoutTotals['opening'] += (float) ($r['opening'] ?? 0);
+                        $stockoutTotals['refill'] += (float) ($r['refill'] ?? 0);
+                        $stockoutTotals['sale'] += (float) ($r['sale'] ?? 0);
+                        $stockoutTotals['closing'] += (float) ($r['closing'] ?? 0);
+                        $stockoutTotals['zero_days'] += (int) ($r['zero_days'] ?? 0);
+                        $stockoutTotals['loss_index'] += (float) ($r['loss_index'] ?? 0);
+                    }
+                @endphp
                 <table class="min-w-full text-sm text-left text-gray-700 dark:text-gray-200">
                     <thead class="sticky top-0 z-10 text-xs uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 dark:text-gray-300">
                         <tr class="divide-x divide-gray-200 dark:divide-gray-700">
@@ -1004,7 +1034,20 @@
                             <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Sales</th>
                             <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Closing</th>
                             <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">0-stock days</th>
+                            <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Loss index</th>
                             <th class="px-4 py-3 font-semibold whitespace-nowrap">0-stock intervals</th>
+                        </tr>
+
+                        <tr class="divide-x divide-gray-200 dark:divide-gray-700 bg-white/60 dark:bg-gray-900/40">
+                            <th class="px-4 py-2 font-semibold text-gray-900 dark:text-white">Grand Total</th>
+                            <th class="px-4 py-2"></th>
+                            <th class="px-3 py-2 text-right tabular-nums">{{ number_format((float) ($stockoutTotals['opening'] ?? 0), 0) }}</th>
+                            <th class="px-3 py-2 text-right tabular-nums">{{ number_format((float) ($stockoutTotals['refill'] ?? 0), 0) }}</th>
+                            <th class="px-3 py-2 text-right tabular-nums">{{ number_format((float) ($stockoutTotals['sale'] ?? 0), 0) }}</th>
+                            <th class="px-3 py-2 text-right tabular-nums">{{ number_format((float) ($stockoutTotals['closing'] ?? 0), 0) }}</th>
+                            <th class="px-3 py-2 text-right tabular-nums">{{ (int) ($stockoutTotals['zero_days'] ?? 0) }}</th>
+                            <th class="px-3 py-2 text-right tabular-nums">{{ number_format((float) ($stockoutTotals['loss_index'] ?? 0), 2) }}</th>
+                            <th class="px-4 py-2">-</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -1021,6 +1064,11 @@
                                         {{ (int) ($r['zero_days'] ?? 0) }}
                                     </span>
                                 </td>
+                                <td class="px-3 py-3 text-right tabular-nums">
+                                    <span class="font-semibold {{ ((float) ($r['loss_index'] ?? 0)) > 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-200' }}">
+                                        {{ number_format((float) ($r['loss_index'] ?? 0), 2) }}
+                                    </span>
+                                </td>
                                 <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
                                     @php $intervals = $r['zero_intervals'] ?? []; @endphp
                                     @if (is_array($intervals) && count($intervals) > 0)
@@ -1032,7 +1080,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-300">
+                                <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-300">
                                     No data for selected month.
                                 </td>
                             </tr>

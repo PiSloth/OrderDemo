@@ -55,19 +55,26 @@ class PsiProductService
 
         $actualByDay = array_fill_keys($labels, 0.0);
 
+        $driver = DB::connection()->getDriverName();
+        $dayExpr = match ($driver) {
+            'pgsql' => "TO_CHAR(rs.sale_date::date, 'YYYY-MM-DD')",
+            'sqlite' => "strftime('%Y-%m-%d', rs.sale_date)",
+            default => "DATE_FORMAT(rs.sale_date, '%Y-%m-%d')",
+        };
+
         // Actual sales grouped by day + product.
         $salesRows = DB::table('real_sales as rs')
             ->join('branch_psi_products as bpp', 'bpp.id', '=', 'rs.branch_psi_product_id')
             ->join('psi_products as p', 'p.id', '=', 'bpp.psi_product_id')
-            ->whereBetween('rs.created_at', [$start, $end])
+            ->whereBetween('rs.sale_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
             ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
             ->select([
-                DB::raw('DATE(rs.created_at) as day'),
+                DB::raw($dayExpr . ' as day'),
                 'p.id as psi_product_id',
                 'p.weight as weight',
                 DB::raw('SUM(rs.qty) as qty'),
             ])
-            ->groupBy(DB::raw('DATE(rs.created_at)'), 'p.id', 'p.weight')
+            ->groupBy(DB::raw($dayExpr), 'p.id', 'p.weight')
             ->get();
 
         foreach ($salesRows as $r) {
@@ -147,6 +154,13 @@ class PsiProductService
         $from = (clone $m)->startOfMonth();
         $to = (clone $m)->endOfMonth();
 
+        // If the user is viewing the current month, don't project into future days.
+        // Cap the report range to today so 0-stock intervals end at today.
+        $now = Carbon::now();
+        if ($m->isSameMonth($now)) {
+            $to = $now->copy()->endOfDay();
+        }
+
         $driver = DB::connection()->getDriverName();
         $dayExpr = match ($driver) {
             'pgsql' => "TO_CHAR(st.created_at::date, 'YYYY-MM-DD')",
@@ -187,6 +201,29 @@ class PsiProductService
         }
 
         $productIds = $currentBalances->keys()->map(fn($v) => (int) $v)->values()->all();
+
+        // Focus qty aggregated to product (latest per branch_psi_product_id). Focus qty is PER-DAY.
+        $latestFocusSub = DB::table('focus_sales')
+            ->select('branch_psi_product_id', DB::raw('MAX(id) as latest_focus_id'))
+            ->groupBy('branch_psi_product_id');
+
+        $focusByProduct = DB::table('psi_products as p')
+            ->leftJoin('branch_psi_products as bpp', 'bpp.psi_product_id', '=', 'p.id')
+            ->leftJoinSub($latestFocusSub, 'lf', function ($join) {
+                $join->on('lf.branch_psi_product_id', '=', 'bpp.id');
+            })
+            ->leftJoin('focus_sales as fs_latest', 'fs_latest.id', '=', 'lf.latest_focus_id')
+            ->where('p.is_suspended', '=', 'false')
+            ->whereIn('p.id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->groupBy('p.id')
+            ->select([
+                'p.id as psi_product_id',
+                DB::raw('SUM(COALESCE(fs_latest.qty, 0)) as focus_qty'),
+            ])
+            ->pluck('focus_qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
 
         // Sales after a given date are used to reconstruct opening/closing.
         $salesAfterStart = DB::table('real_sales as rs')
@@ -312,6 +349,9 @@ class PsiProductService
             $pid = (int) $pid;
             $currentBalance = (float) ($meta->current_balance ?? 0);
 
+            $weight = (float) ($meta->weight ?? 0);
+            $focusQtyPerDay = (float) ($focusByProduct[$pid] ?? 0);
+
             $saleAfterStart = (float) ($salesAfterStart[$pid] ?? 0);
             $saleAfterEnd = (float) ($salesAfterEnd[$pid] ?? 0);
             $stockAfterStart = (float) ($stockChangeAfterStart[$pid] ?? 0);
@@ -339,6 +379,11 @@ class PsiProductService
                     $zeroDays[] = $d;
                 }
             }
+
+            $lossDays = count($zeroDays);
+            $lossQty = $focusQtyPerDay * $lossDays;
+            $lossGrams = $lossQty * max(0, $weight);
+            $lossIndex = ($lossQty * 0.4) + ($lossGrams * 0.6);
 
             // Build intervals from zero days.
             $intervals = [];
@@ -379,6 +424,10 @@ class PsiProductService
                 'closing' => (float) $closing,
                 'zero_days' => count($zeroDays),
                 'zero_intervals' => $intervals,
+                'focus_qty_per_day' => (float) $focusQtyPerDay,
+                'loss_qty' => (float) $lossQty,
+                'loss_grams' => (float) $lossGrams,
+                'loss_index' => (float) $lossIndex,
             ];
         }
 

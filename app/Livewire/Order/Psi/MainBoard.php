@@ -12,9 +12,11 @@ use App\Models\PsiProduct;
 use App\Models\PsiStock;
 use App\Services\PsiProductService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Spatie\SimpleExcel\SimpleExcelWriter;
 use WireUi\Traits\Actions;
 
 class MainBoard extends Component
@@ -125,6 +127,61 @@ class MainBoard extends Component
             $branchId,
             $metric
         );
+    }
+
+    public function exportStockoutMonthlyReport()
+    {
+        $month = (string) ($this->stockout_month ?: Carbon::now()->format('Y-m'));
+        $branchId = $this->stockout_branch_id !== '' ? (int) $this->stockout_branch_id : null;
+
+        $report = $this->psiProductService->getMonthlyStockoutReport($month, $branchId);
+
+        $safeMonth = preg_replace('/[^0-9\-]/', '', $month) ?: Carbon::now()->format('Y-m');
+        $filename = 'stockout-monthly-' . $safeMonth . ($branchId ? ('-branch-' . $branchId) : '-all') . '.xlsx';
+
+        $tmpDir = storage_path('app/tmp');
+        File::ensureDirectoryExists($tmpDir);
+        $tmpPath = $tmpDir . DIRECTORY_SEPARATOR . uniqid('stockout_', true) . '.xlsx';
+
+        $writer = SimpleExcelWriter::create($tmpPath);
+        $writer->addHeader([
+            'Product',
+            'Remark',
+            'Opening',
+            'Refill',
+            'Sales',
+            'Closing',
+            '0-stock days',
+            '0-stock intervals',
+            'Focus/day (qty)',
+            'Loss qty',
+            'Loss grams',
+            'Loss index',
+        ]);
+
+        foreach (($report['rows'] ?? []) as $r) {
+            $intervals = $r['zero_intervals'] ?? [];
+            $intervalText = is_array($intervals) ? implode(' | ', $intervals) : (string) $intervals;
+
+            $writer->addRow([
+                (string) ($r['product'] ?? ''),
+                (string) ($r['remark'] ?? ''),
+                (float) ($r['opening'] ?? 0),
+                (float) ($r['refill'] ?? 0),
+                (float) ($r['sale'] ?? 0),
+                (float) ($r['closing'] ?? 0),
+                (int) ($r['zero_days'] ?? 0),
+                $intervalText,
+                (float) ($r['focus_qty_per_day'] ?? 0),
+                (float) ($r['loss_qty'] ?? 0),
+                (float) ($r['loss_grams'] ?? 0),
+                (float) ($r['loss_index'] ?? 0),
+            ]);
+        }
+
+        $writer->close();
+
+        return response()->download($tmpPath, $filename)->deleteFileAfterSend(true);
     }
 
     public function setBranchPsiProduct($productId, $branchId)
