@@ -10,6 +10,394 @@ use Illuminate\Support\Facades\DB;
 
 class PsiProductService
 {
+    /**
+     * Daily series for line chart: Actual vs Focus.
+     *
+     * Notes:
+     * - Focus qty is treated as PER-DAY focus.
+     * - Focus line is constant across days (latest focus).
+     *
+     * @return array{labels: array<int,string>, actual: array<int,float>, focus: array<int,float>}
+     */
+    public function getDailyFocusActualSeries(string $from, string $to, ?int $branchId = null, string $metric = 'qty'): array
+    {
+        $start = Carbon::parse($from)->startOfDay();
+        $end = Carbon::parse($to)->endOfDay();
+        if ($end->lt($start)) {
+            [$start, $end] = [$end, $start];
+        }
+
+        // Keep charts reasonable (max 93 days).
+        $maxDays = 93;
+        $days = max(1, $start->diffInDays($end) + 1);
+        if ($days > $maxDays) {
+            $end = (clone $start)->addDays($maxDays - 1)->endOfDay();
+        }
+
+        $metric = in_array($metric, ['qty', 'grams', 'index'], true) ? $metric : 'qty';
+
+        $calcMetric = function (float $qty, float $weight) use ($metric): float {
+            $grams = $qty * max(0, $weight);
+            return match ($metric) {
+                'grams' => $grams,
+                'index' => ($qty * 0.4) + ($grams * 0.6),
+                default => $qty,
+            };
+        };
+
+        // Build labels.
+        $labels = [];
+        $cursor = (clone $start)->startOfDay();
+        while ($cursor->lte($end)) {
+            $labels[] = $cursor->format('Y-m-d');
+            $cursor->addDay();
+        }
+
+        $actualByDay = array_fill_keys($labels, 0.0);
+
+        // Actual sales grouped by day + product.
+        $salesRows = DB::table('real_sales as rs')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'rs.branch_psi_product_id')
+            ->join('psi_products as p', 'p.id', '=', 'bpp.psi_product_id')
+            ->whereBetween('rs.created_at', [$start, $end])
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->select([
+                DB::raw('DATE(rs.created_at) as day'),
+                'p.id as psi_product_id',
+                'p.weight as weight',
+                DB::raw('SUM(rs.qty) as qty'),
+            ])
+            ->groupBy(DB::raw('DATE(rs.created_at)'), 'p.id', 'p.weight')
+            ->get();
+
+        foreach ($salesRows as $r) {
+            $day = (string) ($r->day ?? '');
+            if ($day === '' || !array_key_exists($day, $actualByDay)) {
+                continue;
+            }
+            $qty = (float) ($r->qty ?? 0);
+            $weight = (float) ($r->weight ?? 0);
+            $actualByDay[$day] += $calcMetric($qty, $weight);
+        }
+
+        // Focus per-day totals (latest focus).
+        $latestFocusSub = DB::table('focus_sales')
+            ->select('branch_psi_product_id', DB::raw('MAX(id) as latest_focus_id'))
+            ->groupBy('branch_psi_product_id');
+
+        $focusRows = DB::table('psi_products as p')
+            ->leftJoin('branch_psi_products as bpp', 'bpp.psi_product_id', '=', 'p.id')
+            ->leftJoinSub($latestFocusSub, 'lf', function ($join) {
+                $join->on('lf.branch_psi_product_id', '=', 'bpp.id');
+            })
+            ->leftJoin('focus_sales as fs_latest', 'fs_latest.id', '=', 'lf.latest_focus_id')
+            ->where('p.is_suspended', '=', 'false')
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->groupBy('p.id', 'p.weight')
+            ->select([
+                'p.id as psi_product_id',
+                'p.weight as weight',
+                DB::raw('SUM(COALESCE(fs_latest.qty, 0)) as focus_qty'),
+            ])
+            ->get();
+
+        $focusTotalPerDay = 0.0;
+        foreach ($focusRows as $r) {
+            $qty = (float) ($r->focus_qty ?? 0);
+            $weight = (float) ($r->weight ?? 0);
+            $focusTotalPerDay += $calcMetric($qty, $weight);
+        }
+
+        $actual = [];
+        $focus = [];
+        foreach ($labels as $d) {
+            $actual[] = (float) ($actualByDay[$d] ?? 0);
+            $focus[] = (float) $focusTotalPerDay;
+        }
+
+        return [
+            'labels' => $labels,
+            'actual' => $actual,
+            'focus' => $focus,
+        ];
+    }
+
+    /**
+     * Monthly stock-out report.
+     *
+     * Definitions:
+     * - Opening balance: balance at start of month before any movements on day 1.
+     * - Refill amount: sum of stock-in transactions during the month.
+     * - Closing balance: balance at end of month after all movements.
+     * - Stock-out days: days where end-of-day balance <= 0.
+     *
+     * Assumptions:
+     * - `psi_stocks.inventory_balance` is the current balance (now).
+     * - Historical balances can be reconstructed by reversing `stock_transactions` (signed by type) and `real_sales`.
+     *
+     * @return array{range: array{from:string,to:string,month:string}, rows: array<int, array<string,mixed>>}
+     */
+    public function getMonthlyStockoutReport(string $month, ?int $branchId = null): array
+    {
+        // month can be 'YYYY-MM' or a date string; normalize.
+        $m = preg_match('/^\d{4}-\d{2}$/', $month)
+            ? Carbon::createFromFormat('Y-m', $month)->startOfMonth()
+            : Carbon::parse($month)->startOfMonth();
+
+        $from = (clone $m)->startOfMonth();
+        $to = (clone $m)->endOfMonth();
+
+        $driver = DB::connection()->getDriverName();
+        $dayExpr = match ($driver) {
+            'pgsql' => "TO_CHAR(st.created_at::date, 'YYYY-MM-DD')",
+            'sqlite' => "strftime('%Y-%m-%d', st.created_at)",
+            default => "DATE_FORMAT(st.created_at, '%Y-%m-%d')",
+        };
+
+        // Current balances (now) per product.
+        $currentBalances = DB::table('psi_stocks as ps')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'ps.branch_psi_product_id')
+            ->join('psi_products as p', 'p.id', '=', 'bpp.psi_product_id')
+            ->leftJoin('shapes', 'shapes.id', '=', 'p.shape_id')
+            ->leftJoin('uoms', 'uoms.id', '=', 'p.uom_id')
+            ->where('p.is_suspended', '=', 'false')
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->groupBy('p.id', 'p.remark', 'p.weight', 'p.length', DB::raw('COALESCE(shapes.name, "-")'), DB::raw('COALESCE(uoms.name, "")'))
+            ->select([
+                'p.id as psi_product_id',
+                'p.remark as product_remark',
+                'p.weight',
+                'p.length',
+                DB::raw('COALESCE(shapes.name, "-") as shape'),
+                DB::raw('COALESCE(uoms.name, "") as uom'),
+                DB::raw('SUM(ps.inventory_balance) as current_balance'),
+            ])
+            ->get()
+            ->keyBy('psi_product_id');
+
+        if ($currentBalances->isEmpty()) {
+            return [
+                'range' => [
+                    'from' => $from->format('Y-m-d'),
+                    'to' => $to->format('Y-m-d'),
+                    'month' => $from->format('Y-m'),
+                ],
+                'rows' => [],
+            ];
+        }
+
+        $productIds = $currentBalances->keys()->map(fn($v) => (int) $v)->values()->all();
+
+        // Sales after a given date are used to reconstruct opening/closing.
+        $salesAfterStart = DB::table('real_sales as rs')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'rs.branch_psi_product_id')
+            ->whereIn('bpp.psi_product_id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->where('rs.sale_date', '>=', $from->format('Y-m-d'))
+            ->select(['bpp.psi_product_id', DB::raw('SUM(rs.qty) as qty')])
+            ->groupBy('bpp.psi_product_id')
+            ->pluck('qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+
+        $salesAfterEnd = DB::table('real_sales as rs')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'rs.branch_psi_product_id')
+            ->whereIn('bpp.psi_product_id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->where('rs.sale_date', '>', $to->format('Y-m-d'))
+            ->select(['bpp.psi_product_id', DB::raw('SUM(rs.qty) as qty')])
+            ->groupBy('bpp.psi_product_id')
+            ->pluck('qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+
+        // Signed stock change after start (>= start) and after end (> endOfDay).
+        $stockChangeAfterStart = DB::table('stock_transactions as st')
+            ->join('stock_transaction_types as stt', 'stt.id', '=', 'st.stock_transaction_type_id')
+            ->join('psi_stocks as ps', 'ps.id', '=', 'st.psi_stock_id')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'ps.branch_psi_product_id')
+            ->whereIn('bpp.psi_product_id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->where('st.created_at', '>=', $from)
+            ->select([
+                'bpp.psi_product_id',
+                DB::raw('SUM(CASE WHEN stt.is_stockin = 1 THEN st.qty ELSE -st.qty END) as qty'),
+            ])
+            ->groupBy('bpp.psi_product_id')
+            ->pluck('qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+
+        $stockChangeAfterEnd = DB::table('stock_transactions as st')
+            ->join('stock_transaction_types as stt', 'stt.id', '=', 'st.stock_transaction_type_id')
+            ->join('psi_stocks as ps', 'ps.id', '=', 'st.psi_stock_id')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'ps.branch_psi_product_id')
+            ->whereIn('bpp.psi_product_id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->where('st.created_at', '>', $to)
+            ->select([
+                'bpp.psi_product_id',
+                DB::raw('SUM(CASE WHEN stt.is_stockin = 1 THEN st.qty ELSE -st.qty END) as qty'),
+            ])
+            ->groupBy('bpp.psi_product_id')
+            ->pluck('qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+
+        // Refills within month (stock-in only).
+        $refills = DB::table('stock_transactions as st')
+            ->join('stock_transaction_types as stt', 'stt.id', '=', 'st.stock_transaction_type_id')
+            ->join('psi_stocks as ps', 'ps.id', '=', 'st.psi_stock_id')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'ps.branch_psi_product_id')
+            ->whereIn('bpp.psi_product_id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->whereBetween('st.created_at', [$from, $to])
+            ->where('stt.is_stockin', '=', 1)
+            ->select(['bpp.psi_product_id', DB::raw('SUM(st.qty) as qty')])
+            ->groupBy('bpp.psi_product_id')
+            ->pluck('qty', 'psi_product_id')
+            ->map(fn($v) => (float) $v)
+            ->all();
+
+        // Daily sales in month.
+        $dailySales = DB::table('real_sales as rs')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'rs.branch_psi_product_id')
+            ->whereIn('bpp.psi_product_id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->whereBetween('rs.sale_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->select(['bpp.psi_product_id', 'rs.sale_date', DB::raw('SUM(rs.qty) as qty')])
+            ->groupBy('bpp.psi_product_id', 'rs.sale_date')
+            ->get();
+
+        $dailySalesIndex = [];
+        foreach ($dailySales as $r) {
+            $pid = (int) $r->psi_product_id;
+            $day = (string) $r->sale_date;
+            $dailySalesIndex[$pid][$day] = (float) $r->qty;
+        }
+
+        // Daily signed stock changes in month.
+        $dailyTx = DB::table('stock_transactions as st')
+            ->join('stock_transaction_types as stt', 'stt.id', '=', 'st.stock_transaction_type_id')
+            ->join('psi_stocks as ps', 'ps.id', '=', 'st.psi_stock_id')
+            ->join('branch_psi_products as bpp', 'bpp.id', '=', 'ps.branch_psi_product_id')
+            ->whereIn('bpp.psi_product_id', $productIds)
+            ->when($branchId, fn($q) => $q->where('bpp.branch_id', '=', $branchId))
+            ->whereBetween('st.created_at', [$from, $to])
+            ->select([
+                'bpp.psi_product_id',
+                DB::raw($dayExpr . ' as day'),
+                DB::raw('SUM(CASE WHEN stt.is_stockin = 1 THEN st.qty ELSE -st.qty END) as qty'),
+            ])
+            ->groupBy('bpp.psi_product_id', DB::raw($dayExpr))
+            ->get();
+
+        $dailyTxIndex = [];
+        foreach ($dailyTx as $r) {
+            $pid = (int) $r->psi_product_id;
+            $day = (string) $r->day;
+            $dailyTxIndex[$pid][$day] = (float) $r->qty;
+        }
+
+        // Pre-build list of days in month.
+        $days = [];
+        $cursor = (clone $from);
+        while ($cursor->lte($to)) {
+            $days[] = $cursor->format('Y-m-d');
+            $cursor->addDay();
+        }
+
+        $rows = [];
+        foreach ($currentBalances as $pid => $meta) {
+            $pid = (int) $pid;
+            $currentBalance = (float) ($meta->current_balance ?? 0);
+
+            $saleAfterStart = (float) ($salesAfterStart[$pid] ?? 0);
+            $saleAfterEnd = (float) ($salesAfterEnd[$pid] ?? 0);
+            $stockAfterStart = (float) ($stockChangeAfterStart[$pid] ?? 0);
+            $stockAfterEnd = (float) ($stockChangeAfterEnd[$pid] ?? 0);
+
+            // balanceAt(startOfMonth) = now - stockAfterStart + salesAfterStart
+            $opening = $currentBalance - $stockAfterStart + $saleAfterStart;
+            // balanceAt(endOfMonth) = now - stockAfterEnd + salesAfterEnd
+            $closing = $currentBalance - $stockAfterEnd + $saleAfterEnd;
+
+            $balance = $opening;
+            $zeroDays = [];
+            $saleInRange = 0.0;
+            $txInRangeSigned = 0.0;
+            foreach ($days as $d) {
+                $tx = (float) ($dailyTxIndex[$pid][$d] ?? 0);
+                $sale = (float) ($dailySalesIndex[$pid][$d] ?? 0);
+
+                $txInRangeSigned += $tx;
+                $saleInRange += $sale;
+
+                $balance += $tx;
+                $balance -= $sale;
+                if ($balance <= 0) {
+                    $zeroDays[] = $d;
+                }
+            }
+
+            // Build intervals from zero days.
+            $intervals = [];
+            if (!empty($zeroDays)) {
+                $startD = $zeroDays[0];
+                $prevD = $zeroDays[0];
+                for ($i = 1; $i < count($zeroDays); $i++) {
+                    $curr = $zeroDays[$i];
+                    $prev = Carbon::parse($prevD);
+                    $expected = $prev->addDay()->format('Y-m-d');
+                    if ($curr !== $expected) {
+                        $len = Carbon::parse($startD)->diffInDays(Carbon::parse($prevD)) + 1;
+                        $intervals[] = $startD === $prevD ? "$startD ($len day)" : "$startD ~ $prevD ($len days)";
+                        $startD = $curr;
+                    }
+                    $prevD = $curr;
+                }
+                $len = Carbon::parse($startD)->diffInDays(Carbon::parse($prevD)) + 1;
+                $intervals[] = $startD === $prevD ? "$startD ($len day)" : "$startD ~ $prevD ($len days)";
+            }
+
+            $labelParts = [trim((string) ($meta->shape ?? '-'))];
+            if (!empty($meta->weight)) {
+                $labelParts[] = trim((string) $meta->weight) . 'g';
+            }
+            if (!empty($meta->length)) {
+                $labelParts[] = trim((string) $meta->length) . ' ' . trim((string) ($meta->uom ?? ''));
+            }
+            $productLabel = trim(implode(' · ', array_filter($labelParts)));
+
+            $rows[] = [
+                'psi_product_id' => $pid,
+                'product' => $productLabel !== '' ? $productLabel : ('Product #' . $pid),
+                'remark' => (string) ($meta->product_remark ?? ''),
+                'opening' => (float) $opening,
+                'refill' => (float) ($refills[$pid] ?? 0),
+                'sale' => (float) $saleInRange,
+                'closing' => (float) $closing,
+                'zero_days' => count($zeroDays),
+                'zero_intervals' => $intervals,
+            ];
+        }
+
+        usort($rows, function ($a, $b) {
+            $c = ((int) ($b['zero_days'] ?? 0)) <=> ((int) ($a['zero_days'] ?? 0));
+            if ($c !== 0) return $c;
+            return ((float) ($b['sale'] ?? 0)) <=> ((float) ($a['sale'] ?? 0));
+        });
+
+        return [
+            'range' => [
+                'from' => $from->format('Y-m-d'),
+                'to' => $to->format('Y-m-d'),
+                'month' => $from->format('Y-m'),
+            ],
+            'rows' => $rows,
+        ];
+    }
+
     public function getProductsForMainBoard($shape_detail)
     {
         $branches = Branch::orderBy('name')->get();

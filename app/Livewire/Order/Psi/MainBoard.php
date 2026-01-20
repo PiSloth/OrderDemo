@@ -54,6 +54,16 @@ class MainBoard extends Component
     public $sale_compare_from = '';
     public $sale_compare_to = '';
 
+    // Focus vs Actual line chart (custom range; default current month)
+    public $focus_chart_from = '';
+    public $focus_chart_to = '';
+    public $focus_chart_branch_id = '';
+    public $focus_chart_metric = 'qty';
+
+    // Stock-out monthly report
+    public $stockout_month = ''; // YYYY-MM
+    public $stockout_branch_id = '';
+
     // WireUI modal states used in the Blade (avoid dynamic properties)
     public $productSummaryModal = false;
     public $psiProduct = false;
@@ -74,6 +84,20 @@ class MainBoard extends Component
             $this->monthly_months = 6;
         }
 
+        // Default focus chart range = current month to date
+        if (!$this->focus_chart_from || !$this->focus_chart_to) {
+            $this->focus_chart_from = Carbon::now()->startOfMonth()->format('Y-m-d');
+            $this->focus_chart_to = Carbon::now()->format('Y-m-d');
+        }
+
+        if (!$this->focus_chart_metric) {
+            $this->focus_chart_metric = 'qty';
+        }
+
+        if (!$this->stockout_month) {
+            $this->stockout_month = Carbon::now()->format('Y-m');
+        }
+
         // Default Range A = previous 7 days (including today)
         if (!$this->sale_range_from || !$this->sale_range_to) {
             $this->sale_range_to = Carbon::now()->format('Y-m-d');
@@ -84,6 +108,23 @@ class MainBoard extends Component
         if (!$this->sale_compare_mode) {
             $this->sale_compare_mode = 'last_month';
         }
+    }
+
+    public function focusActualChartData(): array
+    {
+        if (!$this->focus_chart_from || !$this->focus_chart_to) {
+            return ['labels' => [], 'actual' => [], 'focus' => []];
+        }
+
+        $branchId = $this->focus_chart_branch_id !== '' ? (int) $this->focus_chart_branch_id : null;
+        $metric = (string) ($this->focus_chart_metric ?: 'qty');
+
+        return $this->psiProductService->getDailyFocusActualSeries(
+            (string) $this->focus_chart_from,
+            (string) $this->focus_chart_to,
+            $branchId,
+            $metric
+        );
     }
 
     public function setBranchPsiProduct($productId, $branchId)
@@ -331,6 +372,11 @@ class MainBoard extends Component
             );
         }
 
+        $stockoutReport = $this->psiProductService->getMonthlyStockoutReport(
+            (string) ($this->stockout_month ?: Carbon::now()->format('Y-m')),
+            $this->stockout_branch_id !== '' ? (int) $this->stockout_branch_id : null
+        );
+
         return view('livewire.order.psi.main-board', [
             'products' => $productWithEachBranch,
             'productSummary' => $productSummary,
@@ -342,6 +388,7 @@ class MainBoard extends Component
             'branch_sales' => $branch_sales,
             'monthlyReport' => $monthlyReport,
             'rangeCompare' => $rangeCompare,
+            'stockoutReport' => $stockoutReport,
         ]);
     }
 }

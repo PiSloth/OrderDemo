@@ -370,6 +370,9 @@ class DailySale extends Component
                 return $query->whereBranchId($this->branch_id);
             })
 
+            ->whereNotNull('psi_stocks.inventory_balance')
+            ->where('psi_stocks.inventory_balance', '>', 0)
+
             ->where('shapes.name', 'like', '%' . $this->detail . '%')
             ->where('branch_psi_products.is_suspended', '=', 'false')
             // ->orderBy('real_sales.qty', 'desc')

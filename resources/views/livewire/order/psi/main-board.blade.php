@@ -759,6 +759,290 @@
         </div>
     </div>
 
+    {{-- Focus vs Actual (Line Chart) --}}
+    <div class="my-6">
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div class="p-4">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <div class="text-lg font-semibold text-gray-900 dark:text-white">Focus vs Actual (Line Chart)</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-300">Custom date range (default: current month)</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Branch</label>
+                            <select wire:model.live="focus_chart_branch_id"
+                                class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                <option value="">All branches</option>
+                                @foreach ($branches as $b)
+                                    <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Metric</label>
+                            <select wire:model.live="focus_chart_metric"
+                                class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                <option value="qty">Quantity</option>
+                                <option value="grams">Total grams</option>
+                                <option value="index">Index</option>
+                            </select>
+                        </div>
+
+                        <div wire:ignore>
+                            <div
+                                x-data="{
+                                    from: @entangle('focus_chart_from').live,
+                                    to: @entangle('focus_chart_to').live,
+                                    picker: null,
+                                    initPicker() {
+                                        if (!window.flatpickr) { setTimeout(() => this.initPicker(), 100); return; }
+                                        if (!this.$refs.range) { setTimeout(() => this.initPicker(), 50); return; }
+                                        if (this.$refs.range._flatpickr) return;
+
+                                        const alpine = this;
+                                        this.picker = window.flatpickr(this.$refs.range, {
+                                            mode: 'range',
+                                            dateFormat: 'Y-m-d',
+                                            altInput: true,
+                                            altFormat: 'M d, Y',
+                                            altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
+                                            defaultDate: (alpine.from && alpine.to) ? [alpine.from, alpine.to] : null,
+                                            allowInput: true,
+                                            appendTo: document.body,
+                                            onReady(selectedDates, dateStr, instance) {
+                                                try { instance.calendarContainer.style.zIndex = '9999'; } catch (e) {}
+                                                try { instance.altInput.placeholder = 'Select date range'; } catch (e) {}
+                                            },
+                                            onChange(selectedDates, dateStr, instance) {
+                                                if (!selectedDates || selectedDates.length === 0 || !dateStr || String(dateStr).trim() === '') {
+                                                    alpine.from = '';
+                                                    alpine.to = '';
+                                                    $wire.set('focus_chart_from', '');
+                                                    $wire.set('focus_chart_to', '');
+                                                    return;
+                                                }
+                                                if (selectedDates.length < 2) return;
+                                                const start = instance.formatDate(selectedDates[0], 'Y-m-d');
+                                                const end = instance.formatDate(selectedDates[1], 'Y-m-d');
+                                                alpine.from = start;
+                                                alpine.to = end;
+                                                $wire.set('focus_chart_from', start);
+                                                $wire.set('focus_chart_to', end);
+                                            }
+                                        });
+                                    }
+                                }"
+                                x-init="$nextTick(() => initPicker())"
+                            >
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date Range</label>
+                                <input x-ref="range" type="text" class="w-full" placeholder="Select range" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 pb-4" wire:ignore>
+                <div
+                    x-data="{
+                        from: @entangle('focus_chart_from').live,
+                        to: @entangle('focus_chart_to').live,
+                        branch: @entangle('focus_chart_branch_id').live,
+                        metric: @entangle('focus_chart_metric').live,
+                        chart: null,
+                        loading: false,
+                        decimalsFor(metric) { return metric === 'qty' ? 0 : 2; },
+                        fmt(val) {
+                            const d = this.decimalsFor(this.metric);
+                            const num = Number(val ?? 0);
+                            return isFinite(num) ? num.toFixed(d) : '0';
+                        },
+                        async load() {
+                            this.loading = true;
+                            try {
+                                const payload = await $wire.call('focusActualChartData');
+                                const labels = (payload && payload.labels) ? payload.labels : [];
+                                const actual = (payload && payload.actual) ? payload.actual : [];
+                                const focus = (payload && payload.focus) ? payload.focus : [];
+
+                                if (this.chart) {
+                                    this.chart.updateOptions({
+                                        xaxis: { categories: labels },
+                                        yaxis: { labels: { formatter: (v) => this.fmt(v) } },
+                                        tooltip: { y: { formatter: (v) => this.fmt(v) } },
+                                    }, false, true);
+                                    this.chart.updateSeries([
+                                        { name: 'Actual', data: actual },
+                                        { name: 'Focus (per-day)', data: focus },
+                                    ], true);
+                                }
+                            } catch (e) {
+                                console.error('focusActualChartData failed', e);
+                            } finally {
+                                this.loading = false;
+                            }
+                        },
+                        initChart() {
+                            if (!window.ApexCharts) return;
+                            this.chart = new window.ApexCharts(this.$refs.chart, {
+                                chart: { type: 'line', height: 340, toolbar: { show: true } },
+                                stroke: { curve: 'smooth', width: 3 },
+                                dataLabels: { enabled: false },
+                                series: [
+                                    { name: 'Actual', data: [] },
+                                    { name: 'Focus (per-day)', data: [] },
+                                ],
+                                colors: ['#2563eb', '#f59e0b'],
+                                xaxis: { categories: [] },
+                                yaxis: { labels: { formatter: (v) => this.fmt(v) } },
+                                tooltip: { y: { formatter: (v) => this.fmt(v) } },
+                                legend: { position: 'top' },
+                            });
+                            this.chart.render();
+                        },
+                        init() {
+                            this.initChart();
+                            this.load();
+
+                            this.$watch('from', () => this.load());
+                            this.$watch('to', () => this.load());
+                            this.$watch('branch', () => this.load());
+                            this.$watch('metric', () => this.load());
+                        }
+                    }"
+                    x-init="init()"
+                    class="rounded-md border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900"
+                >
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">Daily totals</div>
+                        <div x-show="loading" class="text-xs text-gray-500 dark:text-gray-400" style="display:none">Loading…</div>
+                    </div>
+                    <div x-ref="chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Stock-out Monthly Report --}}
+    <div class="my-6">
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div class="p-4">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <div class="text-lg font-semibold text-gray-900 dark:text-white">Stock-out Monthly Report</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-300">
+                            {{ $stockoutReport['range']['from'] ?? '' }} → {{ $stockoutReport['range']['to'] ?? '' }}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Branch</label>
+                            <select wire:model.live="stockout_branch_id"
+                                class="block w-full border rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                <option value="">All branches</option>
+                                @foreach ($branches as $b)
+                                    <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div wire:ignore>
+                            <div
+                                x-data="{
+                                    month: @entangle('stockout_month').live,
+                                    picker: null,
+                                    initPicker() {
+                                        if (!window.flatpickr || !window.monthSelectPlugin) { setTimeout(() => this.initPicker(), 100); return; }
+                                        if (!this.$refs.month) { setTimeout(() => this.initPicker(), 50); return; }
+                                        if (this.$refs.month._flatpickr) return;
+
+                                        const alpine = this;
+                                        this.picker = window.flatpickr(this.$refs.month, {
+                                            dateFormat: 'Y-m',
+                                            altInput: true,
+                                            altFormat: 'F Y',
+                                            altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
+                                            defaultDate: alpine.month ? (alpine.month + '-01') : null,
+                                            plugins: [
+                                                window.monthSelectPlugin({
+                                                    shorthand: true,
+                                                    dateFormat: 'Y-m',
+                                                    altFormat: 'F Y',
+                                                })
+                                            ],
+                                            onChange(selectedDates, dateStr, instance) {
+                                                const v = String(dateStr || '').trim();
+                                                if (!v) return;
+                                                alpine.month = v;
+                                                $wire.set('stockout_month', v);
+                                            }
+                                        });
+                                    }
+                                }"
+                                x-init="$nextTick(() => initPicker())"
+                            >
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Month</label>
+                                <input x-ref="month" type="text" class="w-full" placeholder="Select month" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-auto max-h-[60vh]">
+                <table class="min-w-full text-sm text-left text-gray-700 dark:text-gray-200">
+                    <thead class="sticky top-0 z-10 text-xs uppercase bg-gray-50/80 backdrop-blur supports-backdrop-blur:backdrop-blur-sm dark:bg-gray-800/80 dark:text-gray-300">
+                        <tr class="divide-x divide-gray-200 dark:divide-gray-700">
+                            <th class="px-4 py-3 font-semibold">Product</th>
+                            <th class="px-4 py-3 font-semibold">Remark</th>
+                            <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Opening</th>
+                            <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Refill</th>
+                            <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Sales</th>
+                            <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">Closing</th>
+                            <th class="px-3 py-3 font-semibold text-right whitespace-nowrap">0-stock days</th>
+                            <th class="px-4 py-3 font-semibold whitespace-nowrap">0-stock intervals</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        @forelse (($stockoutReport['rows'] ?? []) as $r)
+                            <tr class="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                                <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{{ $r['product'] ?? '-' }}</td>
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $r['remark'] ?? '' }}</td>
+                                <td class="px-3 py-3 text-right tabular-nums">{{ number_format((float) ($r['opening'] ?? 0), 0) }}</td>
+                                <td class="px-3 py-3 text-right tabular-nums">{{ number_format((float) ($r['refill'] ?? 0), 0) }}</td>
+                                <td class="px-3 py-3 text-right tabular-nums">{{ number_format((float) ($r['sale'] ?? 0), 0) }}</td>
+                                <td class="px-3 py-3 text-right tabular-nums">{{ number_format((float) ($r['closing'] ?? 0), 0) }}</td>
+                                <td class="px-3 py-3 text-right tabular-nums">
+                                    <span class="font-semibold {{ ((int) ($r['zero_days'] ?? 0)) > 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-200' }}">
+                                        {{ (int) ($r['zero_days'] ?? 0) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
+                                    @php $intervals = $r['zero_intervals'] ?? []; @endphp
+                                    @if (is_array($intervals) && count($intervals) > 0)
+                                        {{ implode(' | ', $intervals) }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-300">
+                                    No data for selected month.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <x-modal.card title="Range Report Manual (အသုံးပြုပုံ)" blur wire:model="rangeManualModal">
         <div class="space-y-3 text-sm text-gray-700 dark:text-gray-200">
             <div>
