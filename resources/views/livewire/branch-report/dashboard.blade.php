@@ -425,7 +425,17 @@
 
     {{-- Target vs Actual Line Chart --}}
     <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
-        <h2 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Target vs Actual Sales ({{ \Carbon\Carbon::create($calendar_year, $calendar_month)->format('F Y') }})</h2>
+        <div class="flex flex-col gap-3 mb-4 md:flex-row md:items-end md:justify-between">
+            <h2 class="text-xl font-bold text-gray-700 dark:text-gray-200">Target vs Actual Sales ({{ \Carbon\Carbon::create($calendar_year, $calendar_month)->format('F Y') }})</h2>
+
+            <div class="w-full md:w-44">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Metric</label>
+                <select wire:model.live="target_vs_actual_metric" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <option value="gram">Gram</option>
+                    <option value="pcs">Pcs</option>
+                </select>
+            </div>
+        </div>
         <div id="target-vs-actual-line-chart" class="w-full" wire:ignore></div>
     </div>
 
@@ -705,7 +715,8 @@
     <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
         <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200 mb-4">Monthly Target vs Actual Summary</h3>
 
-        <div class="mb-4" wire:ignore x-data="{
+        <div class="grid grid-cols-1 gap-3 mb-4 md:grid-cols-3 md:items-end">
+            <div class="md:col-span-2" wire:ignore x-data="{
             dateFrom: @entangle('target_actual_from').live,
             dateTo: @entangle('target_actual_to').live,
             picker: null,
@@ -769,18 +780,33 @@
                 });
             },
         }" x-init="$nextTick(() => initPicker())">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date Range</label>
-            <input x-ref="range" type="text" class="w-full" placeholder="Select date range" />
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date Range</label>
+                <input x-ref="range" type="text" class="w-full" placeholder="Select date range" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Metric</label>
+                <select wire:model.live="target_actual_metric" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <option value="gram">Gram</option>
+                    <option value="pcs">Pcs</option>
+                </select>
+                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Switch target/actual between gram and pcs.</div>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
+            @php
+                $metric = $targetVsActualTable['metric'] ?? 'gram';
+                $metricLabel = $metric === 'pcs' ? 'Pcs' : 'Gram';
+                $decimals = ($metric === 'pcs') ? 0 : 2;
+            @endphp
             <table class="w-full text-sm text-left text-gray-700 bg-white rounded-lg dark:text-gray-200 dark:bg-gray-800">
                 <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
                         <th scope="col" class="px-3 py-2">Branch Name</th>
-                        <th scope="col" class="px-3 py-2 text-right">Target Gram</th>
-                        <th scope="col" class="px-3 py-2 text-right">Actual Gram</th>
-                        <th scope="col" class="px-3 py-2 text-right">Gap Gram</th>
+                        <th scope="col" class="px-3 py-2 text-right">Target {{ $metricLabel ?? 'Gram' }}</th>
+                        <th scope="col" class="px-3 py-2 text-right">Actual {{ $metricLabel ?? 'Gram' }}</th>
+                        <th scope="col" class="px-3 py-2 text-right">Gap {{ $metricLabel ?? 'Gram' }}</th>
                         <th scope="col" class="px-3 py-2 text-right">Shortfall Percentage</th>
                     </tr>
                 </thead>
@@ -796,13 +822,13 @@
                     {{-- Grand total row --}}
                     <tr class="font-semibold bg-gray-100 dark:bg-gray-900">
                         <td class="px-3 py-2">Grand Total</td>
-                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['target_gram'] ?? 0), 2) }}</td>
-                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['actual_gram'] ?? 0), 2) }}</td>
+                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['target'] ?? 0), $decimals) }}</td>
+                        <td class="px-3 py-2 text-right">{{ number_format((float) ($totals['actual'] ?? 0), $decimals) }}</td>
                         @php
-                            $tg = (float) ($totals['gap_gram'] ?? 0);
+                            $tg = (float) ($totals['gap'] ?? 0);
                             $tgClass = $tg >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
                         @endphp
-                        <td class="px-3 py-2 text-right {{ $tgClass }}">{{ number_format($tg, 2) }}</td>
+                        <td class="px-3 py-2 text-right {{ $tgClass }}">{{ number_format($tg, $decimals) }}</td>
                         <td class="px-3 py-2 text-right">
                             @if (is_null($totalPercent))
                                 <span class="text-gray-400">-</span>
@@ -816,18 +842,18 @@
 
                     @foreach ($rows as $row)
                         @php
-                            $target = (float) ($row['target_gram'] ?? 0);
-                            $actual = (float) ($row['actual_gram'] ?? 0);
-                            $gap = (float) ($row['gap_gram'] ?? 0);
+                            $target = (float) ($row['target'] ?? 0);
+                            $actual = (float) ($row['actual'] ?? 0);
+                            $gap = (float) ($row['gap'] ?? 0);
                             $percent = $row['percent'] ?? null;
                             $isUp = is_null($percent) ? null : ((float) $percent >= 0);
                             $gapClass = $gap >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
                         @endphp
                         <tr class="odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900">
                             <td class="px-3 py-2">{{ ucfirst($row['branch_name'] ?? '-') }}</td>
-                            <td class="px-3 py-2 text-right">{{ number_format($target, 2) }}</td>
-                            <td class="px-3 py-2 text-right">{{ number_format($actual, 2) }}</td>
-                            <td class="px-3 py-2 text-right {{ $gapClass }}">{{ number_format($gap, 2) }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format($target, $decimals) }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format($actual, $decimals) }}</td>
+                            <td class="px-3 py-2 text-right {{ $gapClass }}">{{ number_format($gap, $decimals) }}</td>
                             <td class="px-3 py-2 text-right">
                                 @if (is_null($percent))
                                     <span class="text-gray-400">-</span>
@@ -1100,6 +1126,23 @@
                 return num.toFixed(2);
             }
 
+            function formatByMetric(val, metric) {
+                if (metric === 'pcs') {
+                    if (val === null || typeof val === 'undefined') {
+                        return '';
+                    }
+
+                    const num = Number(val);
+                    if (Number.isNaN(num)) {
+                        return '';
+                    }
+
+                    return String(Math.round(num));
+                }
+
+                return formatTwoDecimals(val);
+            }
+
             function isDarkMode() {
                 return document.documentElement.classList.contains('dark');
             }
@@ -1265,6 +1308,7 @@
 
                 const categories = (chartData && chartData.categories) ? chartData.categories : [];
                 const series = (chartData && chartData.series) ? chartData.series : [];
+                const metric = (chartData && chartData.metric) ? chartData.metric : 'gram';
 
                 const theme = getChartThemeOptions();
 
@@ -1290,7 +1334,9 @@
                         min: 0,
                         forceNiceScale: true,
                         labels: {
-                            formatter: formatTwoDecimals,
+                            formatter: function (val) {
+                                return formatByMetric(val, metric);
+                            },
                         },
                     },
                     grid: { strokeDashArray: 4, borderColor: theme.gridBorderColor },
@@ -1298,7 +1344,9 @@
                         shared: true,
                         intersect: false,
                         y: {
-                            formatter: formatTwoDecimals,
+                            formatter: function (val) {
+                                return formatByMetric(val, metric);
+                            },
                         },
                         theme: theme.tooltipTheme,
                     },

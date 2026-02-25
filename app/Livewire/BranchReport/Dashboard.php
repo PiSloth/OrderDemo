@@ -65,9 +65,13 @@ class Dashboard extends Component
     public $sale_compare_branch_ids = [];
     public $sale_compare_metric = 'gram'; // gram | pcs
 
+    // Target vs Actual line chart (month-based)
+    public $target_vs_actual_metric = 'gram'; // gram | pcs
+
     // Target vs Actual summary table (date range)
     public $target_actual_from;
     public $target_actual_to;
+    public $target_actual_metric = 'gram'; // gram | pcs
 
     // Avg remaining daily target (month-based, as-of today)
     public $avg_target_branch_id;
@@ -161,6 +165,19 @@ class Dashboard extends Component
         $allowed = ['gram', 'pcs'];
         $this->sale_compare_metric = in_array($this->sale_compare_metric, $allowed, true) ? $this->sale_compare_metric : 'gram';
         $this->dispatch('sale-compare-chart-updated', chart: $this->getSaleCompareChartData());
+    }
+
+    public function updatedTargetVsActualMetric()
+    {
+        $allowed = ['gram', 'pcs'];
+        $this->target_vs_actual_metric = in_array($this->target_vs_actual_metric, $allowed, true) ? $this->target_vs_actual_metric : 'gram';
+        $this->dispatch('target-vs-actual-chart-updated', chart: $this->getTargetVsActualData());
+    }
+
+    public function updatedTargetActualMetric()
+    {
+        $allowed = ['gram', 'pcs'];
+        $this->target_actual_metric = in_array($this->target_actual_metric, $allowed, true) ? $this->target_actual_metric : 'gram';
     }
 
     public function setSaleCompareMode($mode)
@@ -942,10 +959,16 @@ class Dashboard extends Component
             $cursor->addMonth();
         }
 
+        $metric = $this->target_actual_metric === 'pcs' ? 'pcs' : 'gram';
+
+        $targetSumExpr = $metric === 'pcs'
+            ? 'SUM(branch_targets.target_pcs)'
+            : 'SUM(branch_targets.target_gram)';
+
         $targetRows = BranchTarget::select(
             'branches.id AS branch_id',
             'branches.name AS branch_name',
-            DB::raw('SUM(branch_targets.target_gram) AS target_gram')
+            DB::raw($targetSumExpr . ' AS target')
         )
             ->leftJoin('branches', 'branches.id', 'branch_targets.branch_id')
             ->where(function ($q) use ($segments) {
@@ -961,14 +984,16 @@ class Dashboard extends Component
             ->groupBy('branches.id', 'branches.name')
             ->get();
 
+        $actualFlag = $metric === 'pcs' ? 'daily_reports.is_sale_quantity' : 'daily_reports.is_sale_gram';
+
         $actualRows = DailyReportRecord::select(
             'branches.id AS branch_id',
             'branches.name AS branch_name',
-            DB::raw('SUM(daily_report_records.number) AS actual_gram')
+            DB::raw('SUM(daily_report_records.number) AS actual')
         )
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-            ->where('daily_reports.is_sale_gram', true)
+            ->where($actualFlag, true)
             ->whereBetween('daily_report_records.report_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
             ->groupBy('branches.id', 'branches.name')
             ->get();
@@ -979,7 +1004,7 @@ class Dashboard extends Component
             if (!$row->branch_id) {
                 continue;
             }
-            $targetsById[(int) $row->branch_id] = (float) ($row->target_gram ?? 0);
+            $targetsById[(int) $row->branch_id] = (float) ($row->target ?? 0);
             $namesById[(int) $row->branch_id] = (string) ($row->branch_name ?? '');
         }
 
@@ -988,7 +1013,7 @@ class Dashboard extends Component
             if (!$row->branch_id) {
                 continue;
             }
-            $actualById[(int) $row->branch_id] = (float) ($row->actual_gram ?? 0);
+            $actualById[(int) $row->branch_id] = (float) ($row->actual ?? 0);
             $namesById[(int) $row->branch_id] = (string) ($row->branch_name ?? '');
         }
 
@@ -1015,9 +1040,9 @@ class Dashboard extends Component
 
             $rows[] = [
                 'branch_name' => ucfirst($namesById[$branchId] ?? ('Branch #' . $branchId)),
-                'target_gram' => $target,
-                'actual_gram' => $actual,
-                'gap_gram' => $gap,
+                'target' => $target,
+                'actual' => $actual,
+                'gap' => $gap,
                 'percent' => $percent,
             ];
 
@@ -1032,10 +1057,11 @@ class Dashboard extends Component
         }
 
         return [
+            'metric' => $metric,
             'totals' => [
-                'target_gram' => $totalTarget,
-                'actual_gram' => $totalActual,
-                'gap_gram' => $totalGap,
+                'target' => $totalTarget,
+                'actual' => $totalActual,
+                'gap' => $totalGap,
                 'percent' => $totalPercent,
             ],
             'rows' => $rows,
@@ -1215,6 +1241,11 @@ class Dashboard extends Component
         $start = Carbon::create($this->calendar_year, $this->calendar_month, 1)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
+        $metric = $this->target_vs_actual_metric === 'pcs' ? 'pcs' : 'gram';
+        $targetCol = $metric === 'pcs' ? 'target_pcs' : 'target_gram';
+        $actualFlag = $metric === 'pcs' ? 'daily_reports.is_sale_quantity' : 'daily_reports.is_sale_gram';
+        $metricLabel = $metric === 'pcs' ? 'pcs' : 'g';
+
         $categories = [];
         $targets = [];
         $actuals = [];
@@ -1223,11 +1254,11 @@ class Dashboard extends Component
             $target = BranchTarget::where('year', $date->year)
                 ->where('month', $date->month)
                 ->where('day', $date->day)
-                ->sum('target_gram');
+                ->sum($targetCol);
 
             $actual = DailyReportRecord::where('report_date', $date->format('Y-m-d'))
                 ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
-                ->where('daily_reports.is_sale_gram', true)
+                ->where($actualFlag, true)
                 ->sum('daily_report_records.number');
 
             $categories[] = $date->format('M j');
@@ -1236,14 +1267,15 @@ class Dashboard extends Component
         }
 
         return [
+            'metric' => $metric,
             'categories' => $categories,
             'series' => [
                 [
-                    'name' => 'Target (g)',
+                    'name' => 'Target (' . $metricLabel . ')',
                     'data' => $targets,
                 ],
                 [
-                    'name' => 'Actual (g)',
+                    'name' => 'Actual (' . $metricLabel . ')',
                     'data' => $actuals,
                 ],
             ],

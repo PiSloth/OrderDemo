@@ -38,8 +38,7 @@
                 <div>
                     <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">Daily Summary</h3>
                     <p class="text-xs text-slate-500 dark:text-slate-400">
-                        {{ \Carbon\Carbon::parse($daily_spirit_metrics['date'])->format('M j, Y') }} vs
-                        {{ \Carbon\Carbon::parse($daily_spirit_metrics['prev_date'])->format('M j, Y') }}</p>
+                        {{ \Carbon\Carbon::parse($daily_spirit_metrics['date'])->format('M j, Y') }} vs Target</p>
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-4 px-5 pb-5">
@@ -51,19 +50,19 @@
                         <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                             {{ number_format($sm['today'] ?? ($daily_spirit[0]->total_sale ?? 0), 2) }}</div>
                         @if ($sm)
-                            @if ($sm['dir'] > 0)
+                            @if (!is_null($sm['delta_pct']) && $sm['dir'] > 0)
                                 <span
                                     class="inline-flex items-center text-emerald-700 bg-emerald-100/80 dark:text-emerald-300 dark:bg-emerald-900/40 rounded-md px-2 py-0.5 text-xs font-medium">
                                     <x-icon name="trending-up" class="w-4 h-4 mr-1" />
                                     {{ number_format($sm['delta_pct'], 1) }}%
                                 </span>
-                            @elseif ($sm['dir'] < 0)
+                            @elseif (!is_null($sm['delta_pct']) && $sm['dir'] < 0)
                                 <span
                                     class="inline-flex items-center text-rose-700 bg-rose-100/80 dark:text-rose-300 dark:bg-rose-900/40 rounded-md px-2 py-0.5 text-xs font-medium">
                                     <x-icon name="trending-down" class="w-4 h-4 mr-1" />
                                     {{ number_format($sm['delta_pct'], 1) }}%
                                 </span>
-                            @else
+                            @elseif (!is_null($sm['delta_pct']))
                                 <span
                                     class="inline-flex items-center text-slate-600 bg-slate-100/80 dark:text-slate-300 dark:bg-slate-900/50 rounded-md px-2 py-0.5 text-xs font-medium">
                                     <x-icon name="minus" class="w-4 h-4 mr-1" />
@@ -72,8 +71,13 @@
                             @endif
                         @endif
                     </div>
-                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Prev:
-                        {{ number_format($sm['prev'] ?? 0, 2) }}</div>
+                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Target:
+                        @if (($sm['target'] ?? 0) > 0)
+                            {{ number_format($sm['target'], 2) }}
+                        @else
+                            <span class="text-slate-400">-</span>
+                        @endif
+                    </div>
                 </div>
 
                 @php($rm = $daily_spirit_metrics['repurchase'] ?? null)
@@ -83,30 +87,8 @@
                     <div class="mt-1 flex items-baseline gap-2">
                         <div class="text-2xl font-bold text-amber-600 dark:text-amber-400">
                             {{ number_format($rm['today'] ?? ($daily_spirit[0]->total_repurchase ?? 0), 2) }}</div>
-                        @if ($rm)
-                            @if ($rm['dir'] > 0)
-                                <span
-                                    class="inline-flex items-center text-emerald-700 bg-emerald-100/80 dark:text-emerald-300 dark:bg-emerald-900/40 rounded-md px-2 py-0.5 text-xs font-medium">
-                                    <x-icon name="trending-up" class="w-4 h-4 mr-1" />
-                                    {{ number_format($rm['delta_pct'], 1) }}%
-                                </span>
-                            @elseif ($rm['dir'] < 0)
-                                <span
-                                    class="inline-flex items-center text-rose-700 bg-rose-100/80 dark:text-rose-300 dark:bg-rose-900/40 rounded-md px-2 py-0.5 text-xs font-medium">
-                                    <x-icon name="trending-down" class="w-4 h-4 mr-1" />
-                                    {{ number_format($rm['delta_pct'], 1) }}%
-                                </span>
-                            @else
-                                <span
-                                    class="inline-flex items-center text-slate-600 bg-slate-100/80 dark:text-slate-300 dark:bg-slate-900/50 rounded-md px-2 py-0.5 text-xs font-medium">
-                                    <x-icon name="minus" class="w-4 h-4 mr-1" />
-                                    0%
-                                </span>
-                            @endif
-                        @endif
                     </div>
-                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Prev:
-                        {{ number_format($rm['prev'] ?? 0, 2) }}</div>
+                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Target: <span class="text-slate-400">-</span></div>
                 </div>
             </div>
         </div>
@@ -149,25 +131,32 @@
                                 </p>
                                 @php($m = $report['__metrics']['sales_gram'] ?? null)
                                 @if ($m)
-                                    @if ($m['dir'] > 0)
+                                    @if (!is_null($m['delta_pct']) && $m['dir'] > 0)
                                         <span
                                             class="inline-flex items-center text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 text-xs font-medium shrink-0 whitespace-nowrap">
                                             <x-icon name="trending-up" class="w-4 h-4 mr-1" />
                                             {{ number_format($m['delta_pct'], 1) }}%
                                         </span>
-                                    @elseif ($m['dir'] < 0)
+                                    @elseif (!is_null($m['delta_pct']) && $m['dir'] < 0)
                                         <span
                                             class="inline-flex items-center text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-900/30 rounded-md px-2 py-0.5 text-xs font-medium shrink-0 whitespace-nowrap">
                                             <x-icon name="trending-down" class="w-4 h-4 mr-1" />
                                             {{ number_format($m['delta_pct'], 1) }}%
                                         </span>
-                                    @else
+                                    @elseif (!is_null($m['delta_pct']))
                                         <span
                                             class="inline-flex items-center text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-slate-900/40 rounded-md px-2 py-0.5 text-xs font-medium shrink-0 whitespace-nowrap">
                                             <x-icon name="minus" class="w-4 h-4 mr-1" />
                                             0%
                                         </span>
                                     @endif
+                                @endif
+                            </div>
+                            <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Target:
+                                @if (($m['target'] ?? 0) > 0)
+                                    {{ number_format((float) $m['target'], 2) }}
+                                @else
+                                    <span class="text-slate-400">-</span>
                                 @endif
                             </div>
                         </div>
@@ -187,29 +176,8 @@
                                 <p class="text-2xl font-bold text-amber-600 dark:text-amber-400 shrink-0 leading-none">
                                     {{ $report['__metrics']['repurchase_gram']['today'] ?? $report['Repurchase (weight / g )'] }}
                                 </p>
-                                @php($r = $report['__metrics']['repurchase_gram'] ?? null)
-                                @if ($r)
-                                    @if ($r['dir'] > 0)
-                                        <span
-                                            class="inline-flex items-center text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 text-xs font-medium shrink-0 whitespace-nowrap">
-                                            <x-icon name="trending-up" class="w-4 h-4 mr-1" />
-                                            {{ number_format($r['delta_pct'], 1) }}%
-                                        </span>
-                                    @elseif ($r['dir'] < 0)
-                                        <span
-                                            class="inline-flex items-center text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-900/30 rounded-md px-2 py-0.5 text-xs font-medium shrink-0 whitespace-nowrap">
-                                            <x-icon name="trending-down" class="w-4 h-4 mr-1" />
-                                            {{ number_format($r['delta_pct'], 1) }}%
-                                        </span>
-                                    @else
-                                        <span
-                                            class="inline-flex items-center text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-slate-900/40 rounded-md px-2 py-0.5 text-xs font-medium shrink-0 whitespace-nowrap">
-                                            <x-icon name="minus" class="w-4 h-4 mr-1" />
-                                            0%
-                                        </span>
-                                    @endif
-                                @endif
                             </div>
+                            <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Target: <span class="text-slate-400">-</span></div>
                         </div>
                         <!-- Customer KPI -->
                         <div class="flex flex-col justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900/40">

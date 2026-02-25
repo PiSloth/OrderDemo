@@ -3,6 +3,7 @@
 namespace App\Livewire\BranchReport;
 
 use App\Models\Branch;
+use App\Models\BranchTarget;
 use App\Models\DailyReport;
 use App\Models\DailyReportRecord;
 use Carbon\Carbon;
@@ -569,6 +570,7 @@ class SaleAndRepurchase extends Component
                 $branch_report[$key]['key'] = $key; // for display
                 // store original branch name for reliable lookups later
                 $branch_report[$key]['__branch_name'] = $data->branch->name;
+                $branch_report[$key]['__branch_id'] = (int) $data->branch_id;
             }
 
             if (! isset($branch_report[$key][$data->dailyReport->name])) {
@@ -636,47 +638,57 @@ class SaleAndRepurchase extends Component
 
         // dd($dailySpirit);
 
-        // Compute today vs yesterday deltas per branch for key KPIs (sales grams, repurchase grams)
-        $yesterdayDate = Carbon::parse($this->report_date)->subDay()->format('Y-m-d');
+        $reportDate = Carbon::parse($this->report_date);
 
-        // Compute overall (all branches) today vs yesterday totals for Sale/Repurchase grams
-        $dailySpiritPrev = DailyReportRecord::select(DB::raw(
-            'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS total_sale,
-            SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS total_repurchase'
-        ))
-            ->where('daily_report_records.report_date', '=', $yesterdayDate)
-            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
-            ->first();
+        // Daily targets (sale grams) for the selected date
+        $targetRows = BranchTarget::query()
+            ->select('branch_id', 'target_gram')
+            ->where('year', (int) $reportDate->year)
+            ->where('month', (int) $reportDate->month)
+            ->where('day', (int) $reportDate->day)
+            ->get();
+
+        $targetGramByBranchId = [];
+        $totalTargetGram = 0.0;
+        foreach ($targetRows as $tr) {
+            $bid = (int) $tr->branch_id;
+            $val = (float) ($tr->target_gram ?? 0);
+            $targetGramByBranchId[$bid] = $val;
+            $totalTargetGram += $val;
+        }
 
         $todayTotals = $dailySpirit->first();
 
         $saleToday = (float) ($todayTotals->total_sale ?? 0);
-        $salePrev = (float) ($dailySpiritPrev->total_sale ?? 0);
         $repToday = (float) ($todayTotals->total_repurchase ?? 0);
-        $repPrev = (float) ($dailySpiritPrev->total_repurchase ?? 0);
 
-        $saleDeltaPct = $salePrev > 0 ? (($saleToday - $salePrev) / $salePrev) * 100 : ($saleToday > 0 ? 100 : 0);
-        $repDeltaPct = $repPrev > 0 ? (($repToday - $repPrev) / $repPrev) * 100 : ($repToday > 0 ? 100 : 0);
+        $saleDeltaPct = null;
+        $saleDir = 0;
+        if ($totalTargetGram > 0) {
+            $saleDeltaPct = (($saleToday - $totalTargetGram) / $totalTargetGram) * 100.0;
+            $saleDir = $saleToday <=> $totalTargetGram;
+        }
 
         $dailySpiritMetrics = [
             'sale' => [
                 'today' => round($saleToday, 2),
-                'prev' => round($salePrev, 2),
-                'delta_pct' => round($saleDeltaPct, 1),
-                'dir' => $saleToday <=> $salePrev,
+                'target' => round($totalTargetGram, 2),
+                'delta_pct' => is_null($saleDeltaPct) ? null : round((float) $saleDeltaPct, 1),
+                'dir' => $saleDir,
             ],
             'repurchase' => [
                 'today' => round($repToday, 2),
-                'prev' => round($repPrev, 2),
-                'delta_pct' => round($repDeltaPct, 1),
-                'dir' => $repToday <=> $repPrev,
+                'target' => null,
+                'delta_pct' => null,
+                'dir' => 0,
             ],
             'date' => $this->report_date,
-            'prev_date' => $yesterdayDate,
+            'prev_date' => null,
         ];
 
         $todayAgg = DailyReportRecord::select(
             'branches.name AS branch',
+            'daily_report_records.branch_id AS branch_id',
             DB::raw(
                 'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS today_sale_gram,' .
                     'SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS today_repurchase_gram'
@@ -685,21 +697,7 @@ class SaleAndRepurchase extends Component
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->where('daily_report_records.report_date', '=', $this->report_date)
-            ->groupBy('branches.name')
-            ->get()
-            ->keyBy('branch');
-
-        $prevAgg = DailyReportRecord::select(
-            'branches.name AS branch',
-            DB::raw(
-                'SUM(CASE WHEN daily_reports.is_sale_gram = true THEN daily_report_records.number ELSE 0 END) AS prev_sale_gram,' .
-                    'SUM(CASE WHEN daily_reports.is_repurchase_gram = true THEN daily_report_records.number ELSE 0 END) AS prev_repurchase_gram'
-            )
-        )
-            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
-            ->where('daily_report_records.report_date', '=', $yesterdayDate)
-            ->groupBy('branches.name')
+            ->groupBy('branches.name', 'daily_report_records.branch_id')
             ->get()
             ->keyBy('branch');
 
@@ -711,28 +709,32 @@ class SaleAndRepurchase extends Component
             // Prefer stored branch name to avoid display formatting issues
             $branchName = $entry['__branch_name'] ?? trim(preg_replace('/\s*\([^)]*\)$/', '', $entry['key']));
             $today = $todayAgg->get($branchName);
-            $prev = $prevAgg->get($branchName);
 
             $salesToday = (float) ($today->today_sale_gram ?? 0);
-            $salesPrev = (float) ($prev->prev_sale_gram ?? 0);
             $repToday = (float) ($today->today_repurchase_gram ?? 0);
-            $repPrev = (float) ($prev->prev_repurchase_gram ?? 0);
 
-            $salesDeltaPct = $salesPrev > 0 ? (($salesToday - $salesPrev) / $salesPrev) * 100 : ($salesToday > 0 ? 100 : 0);
-            $repDeltaPct = $repPrev > 0 ? (($repToday - $repPrev) / $repPrev) * 100 : ($repToday > 0 ? 100 : 0);
+            $branchId = (int) ($entry['__branch_id'] ?? 0);
+            $salesTarget = (float) ($targetGramByBranchId[$branchId] ?? 0);
+
+            $salesDeltaPct = null;
+            $salesDir = 0;
+            if ($salesTarget > 0) {
+                $salesDeltaPct = (($salesToday - $salesTarget) / $salesTarget) * 100.0;
+                $salesDir = $salesToday <=> $salesTarget;
+            }
 
             $branch_report[$key]['__metrics'] = [
                 'sales_gram' => [
                     'today' => round($salesToday, 2),
-                    'prev' => round($salesPrev, 2),
-                    'delta_pct' => round($salesDeltaPct, 1),
-                    'dir' => $salesToday <=> $salesPrev, // -1,0,1
+                    'target' => round($salesTarget, 2),
+                    'delta_pct' => is_null($salesDeltaPct) ? null : round((float) $salesDeltaPct, 1),
+                    'dir' => $salesDir, // -1,0,1
                 ],
                 'repurchase_gram' => [
                     'today' => round($repToday, 2),
-                    'prev' => round($repPrev, 2),
-                    'delta_pct' => round($repDeltaPct, 1),
-                    'dir' => $repToday <=> $repPrev,
+                    'target' => null,
+                    'delta_pct' => null,
+                    'dir' => 0,
                 ],
             ];
         }
