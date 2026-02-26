@@ -26,6 +26,10 @@ use App\Livewire\Orders\PoolChat;
 use App\Livewire\Orders\Report;
 use App\Livewire\Orders\Supplier;
 use App\Livewire\SupplierDashboard;
+use App\Livewire\Jewelry\Purchasing\Dashboard as JewelryPurchasingDashboard;
+use App\Livewire\Jewelry\Purchasing\Groups\Index as JewelryGroupsIndex;
+use App\Livewire\Jewelry\Purchasing\Groups\Show as JewelryGroupsShow;
+use App\Http\Controllers\Jewelry\JewelryTemplateController;
 use App\Livewire\Order\Psi\CrateProduct;
 use App\Livewire\Order\Psi\CreateProduct;
 use App\Livewire\Order\Psi\DailySale;
@@ -144,6 +148,21 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::get('/list', App\Livewire\Todo\TodoList::class)->name('todo_list');
     Route::get('/comments/{taskId}', TaskComments::class)->name('task_comments');
     Route::get('/notifications', App\Livewire\Todo\Notifications::class)->name('notifications');
+});
+
+Route::middleware(['auth'])->prefix('office-asset')->group(function () {
+    Route::get('/', App\Livewire\OfficeAssetManager::class)->name('office-asset.index');
+});
+
+Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function () {
+    Route::get('/dashboard', JewelryPurchasingDashboard::class)->name('dashboard');
+
+    Route::get('/template', [JewelryTemplateController::class, 'download'])->name('template');
+
+    Route::prefix('groups')->name('groups.')->group(function () {
+        Route::get('/', JewelryGroupsIndex::class)->name('index');
+        Route::get('/{group}', JewelryGroupsShow::class)->name('show');
+    });
 });
 
 // API Routes for notifications
