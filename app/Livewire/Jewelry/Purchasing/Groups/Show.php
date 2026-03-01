@@ -4,6 +4,7 @@ namespace App\Livewire\Jewelry\Purchasing\Groups;
 
 use App\Models\BatchNumberAndGroup;
 use App\Models\GroupNumber;
+use App\Models\GroupNumberComment;
 use App\Models\JewelryItem;
 use Carbon\Carbon;
 use Livewire\Attributes\Layout;
@@ -26,6 +27,8 @@ class Show extends Component
     public $importFile;
     public array $importErrors = [];
     public int $importedCount = 0;
+
+    public string $commentContent = '';
 
     /** @var array<int,bool> */
     public array $batchPostState = [];
@@ -150,6 +153,38 @@ class Show extends Component
         ]);
     }
 
+    public function registerItem(int $itemId): void
+    {
+        $item = JewelryItem::query()
+            ->where('group_number_id', $this->group->id)
+            ->findOrFail($itemId);
+
+        if ((bool) $item->is_register) {
+            return;
+        }
+
+        $item->update([
+            'is_register' => true,
+            'register_by_id' => auth()->id(),
+        ]);
+    }
+
+    public function addComment(): void
+    {
+        $validated = $this->validate([
+            'commentContent' => ['required', 'string', 'max:2000'],
+        ]);
+
+        GroupNumberComment::create([
+            'group_number_id' => $this->group->id,
+            'user_id' => auth()->id(),
+            'content' => trim((string) $validated['commentContent']),
+        ]);
+
+        $this->commentContent = '';
+        session()->flash('success', 'Comment added.');
+    }
+
     public function import(): void
     {
         $this->resetValidation();
@@ -183,7 +218,18 @@ class Show extends Component
         $this->importFile = null;
         $this->syncBatchPostState();
 
-        session()->flash('success', "Imported {$this->importedCount} items.");
+        $groups = $result['groups'] ?? [];
+        $newGroups = array_values(array_filter($groups, fn($g) => !empty($g['is_new'])));
+        $primaryInserted = (int) ($result['primary_group_inserted'] ?? $this->importedCount);
+
+        if (count($newGroups) > 0) {
+            $numbers = array_map(fn($g) => (string) ($g['number'] ?? ''), $newGroups);
+            $numbers = array_values(array_filter($numbers, fn($v) => $v !== ''));
+            $suffix = empty($numbers) ? '' : (' New groups: ' . implode(', ', $numbers));
+            session()->flash('success', "Imported {$this->importedCount} items across " . count($groups) . " groups. This group received {$primaryInserted}." . $suffix);
+        } else {
+            session()->flash('success', "Imported {$this->importedCount} items.");
+        }
     }
 
     private function syncBatchPostState(): void
@@ -300,10 +346,14 @@ class Show extends Component
                 'count' => (int) $rows->count(),
                 'product_name' => (string) ($rows->first()->product_name ?? ''),
                 'quality' => (string) ($rows->first()->quality ?? ''),
+                'gold_weight' => (float) $rows->sum(fn($r) => (float) $r->gold_weight),
                 'total_weight' => (float) $rows->sum(fn($r) => (float) $r->total_weight),
-                'l_gram' => (float) $rows->sum(fn($r) => (float) $r->l_gram),
-                'l_mmk' => (int) $rows->sum(fn($r) => (int) $r->l_mmk),
-                'kyauk_gram' => (float) $rows->sum(fn($r) => (float) $r->kyauk_gram),
+                'goldsmith_deduction' => (float) $rows->sum(fn($r) => (float) $r->goldsmith_deduction),
+                'goldsmith_labor_fee' => (int) $rows->sum(fn($r) => (int) $r->goldsmith_labor_fee),
+                'kyauk_weight' => (float) $rows->sum(fn($r) => (float) $r->kyauk_weight),
+                'stone_price' => (int) $rows->sum(fn($r) => (int) ($r->stone_price ?? 0)),
+                'profit_loss' => (float) $rows->sum(fn($r) => (float) ($r->profit_loss ?? 0)),
+                'profit_labor_fee' => (int) $rows->sum(fn($r) => (int) ($r->profit_labor_fee ?? 0)),
                 'is_post' => (bool) ($batchLinks[$batchId]->is_post ?? false),
             ];
         }
@@ -328,6 +378,12 @@ class Show extends Component
         $group = $this->group->fresh(['purchaseBy']);
         $mins = $group->durationMinutes();
 
+        $comments = GroupNumberComment::query()
+            ->where('group_number_id', $this->group->id)
+            ->with(['user:id,name'])
+            ->latest('id')
+            ->get();
+
         return view('livewire.jewelry.purchasing.groups.show', [
             'group' => $group,
             'items' => $items,
@@ -337,6 +393,7 @@ class Show extends Component
             'durationMinutes' => $mins,
             'gradeLabel' => $group->skillGradeLabel(),
             'gradeValue' => $group->calculatedSkillGrade(),
+            'comments' => $comments,
         ]);
     }
 }

@@ -17,13 +17,25 @@ return new class extends Migration
 
             $table->string('product_name');
             $table->string('quality');
-            $table->string('barcode')->unique();
+
+            // Gold-only weight (optional for backward compatibility).
+            $table->decimal('gold_weight', 12, 3)->nullable();
+
+            // If provided, barcode should be unique per item.
+            $table->string('barcode')->nullable()->unique();
 
             // Use decimals for stable equality checks during batching.
             $table->decimal('total_weight', 12, 3);
-            $table->decimal('l_gram', 12, 3);
-            $table->unsignedInteger('l_mmk');
-            $table->decimal('kyauk_gram', 12, 3);
+
+            // Renamed fields (previously: kyauk_gram, l_gram, l_mmk)
+            $table->decimal('kyauk_weight', 12, 3);
+            $table->decimal('goldsmith_deduction', 12, 3);
+            $table->unsignedInteger('goldsmith_labor_fee');
+
+            // Additional money fields.
+            $table->unsignedBigInteger('stone_price')->nullable();
+            $table->decimal('profit_loss', 18, 2)->nullable();
+            $table->unsignedBigInteger('profit_labor_fee')->nullable();
 
             // Batch IDs are generated per-group during import.
             $table->unsignedInteger('batch_id')->nullable();

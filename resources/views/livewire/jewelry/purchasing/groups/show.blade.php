@@ -1,5 +1,6 @@
 <div x-data="{
     importOpen: false,
+    commentsOpen: false,
     viewMode: @js((string) ($group->purchase_status ?? '') === 'done' || (bool) ($group->is_purchase ?? false) ? 'items' : 'batch'),
     startTs: null,
     finishTs: null,
@@ -68,6 +69,10 @@
             Back
         </a>
 
+        @php
+            $isRunning = !empty($group->started_at) && empty($group->finished_at);
+            $commentCount = is_countable($comments ?? null) ? count($comments) : 0;
+        @endphp
         <div class="flex items-center gap-2">
             {{-- <button type="button" @click="importOpen = true"
                 class="inline-flex items-center px-3 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
@@ -75,9 +80,30 @@
                 Import Excel
             </button> --}}
 
-            <button type="button" wire:click="start"
-                class="px-3 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
-                Start
+            <button type="button" @click="commentsOpen = true"
+                class="relative inline-flex items-center justify-center w-10 h-10 border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                aria-label="Open comments">
+                <x-icon name="annotation" class="w-5 h-5" />
+                @if ($commentCount > 0)
+                    <span
+                        class="absolute -top-1.5 -right-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">
+                        {{ $commentCount }}
+                    </span>
+                @endif
+            </button>
+
+            <button type="button" wire:click="start" @disabled($isRunning) @class([
+                'px-3 py-2 text-sm font-medium border rounded-md inline-flex items-center gap-2' => true,
+                'border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700' => !$isRunning,
+                'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200 cursor-default' => $isRunning,
+            ])>
+                @if ($isRunning)
+                    <span class="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
+                    <span>Running</span>
+                    <span class="text-xs font-semibold">⚡</span>
+                @else
+                    <span>Start</span>
+                @endif
             </button>
             <button type="button" wire:click="finish" @disabled(empty($canFinish)) @class([
                 'px-3 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-200' => true,
@@ -94,6 +120,64 @@
             {{ session('success') }}
         </div>
     @endif
+
+    <!-- Comments Modal -->
+    <div x-show="commentsOpen" x-cloak class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/50" @click="commentsOpen = false"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div class="text-base font-semibold text-slate-900 dark:text-white">Comments</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-300">Group {{ $group->number }}</div>
+                    </div>
+                    <button type="button" @click="commentsOpen = false"
+                        class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label="Close comments modal">
+                        <x-icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div class="p-4">
+                    <form wire:submit.prevent="addComment" class="space-y-2">
+                        <textarea wire:model.live="commentContent" rows="3"
+                            class="block w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+                            placeholder="Write a comment..."></textarea>
+                        @error('commentContent')
+                            <p class="text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
+                                Add Comment
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4 max-h-[55vh] space-y-3 overflow-auto">
+                        @forelse (($comments ?? []) as $c)
+                            <div class="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="text-sm font-medium text-slate-900 dark:text-white">
+                                        {{ $c->user?->name ?? '—' }}
+                                    </div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-300">
+                                        {{ $c->created_at?->format('Y-m-d H:i') ?? '' }}
+                                    </div>
+                                </div>
+                                <div class="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
+                                    {{ (string) ($c->content ?? '') }}
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-sm text-slate-500 dark:text-slate-300">No comments yet.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Info & Action Section -->
     @php
@@ -208,14 +292,22 @@
 
                 <form wire:submit.prevent="import" class="p-4 space-y-4">
                     <div class="text-sm text-slate-600 dark:text-slate-200">
-                        Required columns: <span class="font-medium">product_name</span>, <span
-                            class="font-medium">quality</span>,
-                        <span class="font-medium">total_weight</span>, <span class="font-medium">l_gram</span>, <span
-                            class="font-medium">l_mmk</span>, <span class="font-medium">kyauk_gram</span>.
-                        Optional: <span class="font-medium">barcode</span>, <span class="font-medium">Batch
-                            Number</span>. If blank, batch IDs are auto-generated by matching the 6 fields above.
-                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-300">Limits: max 12 unique batch IDs and
-                            120 total items per group.</div>
+                        Required columns: <span class="font-medium">Branch ID</span>, <span
+                            class="font-medium">Product
+                            Name</span>, <span class="font-medium">Quality</span>,
+                        <span class="font-medium">Total Weight</span>, <span
+                            class="font-medium">ပန်းထိမ်အလျော့တွက်</span>,
+                        <span class="font-medium">ပန်းထိမ် လက်ခ</span>, <span class="font-medium">ကျောက်ချိန်</span>.
+                        Optional: <span class="font-medium">Barcode</span>, <span class="font-medium">Gold
+                            Weight</span>,
+                        <span class="font-medium">ကျောက်ဖိုး</span>, <span class="font-medium">အမြတ်အလျော့</span>,
+                        <span class="font-medium">အမြတ်လက်ခ</span>, <span class="font-medium">Batch Number</span>. If
+                        blank,
+                        batch IDs are auto-generated by matching the 7 fields above.
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-300">Limits: max 12 unique batch IDs
+                            and
+                            120 total items per group. If exceeded, the system will auto-create new group(s) and
+                            continue importing.</div>
                     </div>
 
                     <div>
@@ -224,7 +316,8 @@
                         @error('importFile')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
-                        <div wire:loading wire:target="importFile" class="mt-2 text-sm text-slate-500">Uploading…</div>
+                        <div wire:loading wire:target="importFile" class="mt-2 text-sm text-slate-500">Uploading…
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-end gap-2">
@@ -338,13 +431,16 @@
                             Total Weight</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
-                            L Gram</th>
+                            ပန်းထိမ်အလျော့တွက်</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
-                            L MMK</th>
+                            ပန်းထိမ် လက်ခ</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
-                            Kyauk Gram</th>
+                            ကျောက်ချိန်</th>
+                        <th
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            ကျောက်ဖိုး</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300">
                             Post</th>
@@ -360,9 +456,9 @@
                         @endphp
                         <tr @class([
                             'bg-slate-100/60 dark:bg-slate-900/60' => !$isPosted,
-                            'bg-green-100 dark:bg-green-900/20 text-green-900 dark:text-green-200 line-through' => $isPosted,
+                            'bg-green-100 dark:bg-green-900/20 text-green-900 dark:text-green-200' => $isPosted,
                         ])>
-                            <td class="px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white">
+                            <td class="px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white select-none">
                                 <div class="flex items-center gap-2">
                                     <span>#{{ $bId }}</span>
                                     {{-- <button type="button"
@@ -373,13 +469,14 @@
                                         <span x-show="!isCopied('copy-{{ $bKey }}-id')"><x-icon name="duplicate" class="w-4 h-4" /></span>
                                         <span x-show="isCopied('copy-{{ $bKey }}-id')"><x-icon name="share" class="w-4 h-4" /></span>
                                     </button> --}}
-                                    <span
-                                        class="text-xs text-slate-500 dark:text-slate-300">({{ (int) $batch['count'] }}
-                                        items)</span>
                                 </div>
                             </td>
 
                             <td class="px-4 py-3 text-sm text-slate-900 dark:text-white">
+                                @php
+                                    $bCountValue = (int) ($batch['count'] ?? 0);
+                                    $bCountLabel = (string) $bCountValue;
+                                @endphp
                                 <div class="flex items-center gap-2">
                                     <span class="font-medium">{{ $batch['product_name'] }}</span>
                                     <button type="button"
@@ -394,97 +491,144 @@
                                         <span x-show="isCopied('copy-{{ $bKey }}-pn')"><x-icon name="share"
                                                 class="w-4 h-4" /></span>
                                     </button>
+
+                                    <button type="button"
+                                        @click="copyText(@js($bCountLabel)); markCopied('copy-{{ $bKey }}-cnt')"
+                                        class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+                                        title="Copy">
+                                        <span>{{ $bCountValue }} items</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5"
+                                            :class="isCopied('copy-{{ $bKey }}-cnt') ?
+                                                'text-green-700 dark:text-green-300' :
+                                                'text-slate-600 dark:text-slate-200'">
+                                            <span x-show="!isCopied('copy-{{ $bKey }}-cnt')"><x-icon
+                                                    name="duplicate" class="w-4 h-4" /></span>
+                                            <span x-show="isCopied('copy-{{ $bKey }}-cnt')"><x-icon
+                                                    name="share" class="w-4 h-4" /></span>
+                                        </span>
+                                    </button>
                                 </div>
                             </td>
 
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
                                 <div class="flex items-center gap-2">
                                     <span>{{ $batch['quality'] }}</span>
-
                                 </div>
                             </td>
 
                             @php
                                 $bw =
                                     $batch['total_weight'] == 0 ? '' : number_format((float) $batch['total_weight'], 3);
-                                $blg = $batch['l_gram'] == 0 ? '' : number_format((float) $batch['l_gram'], 3);
-                                $bmmk = $batch['l_mmk'] == 0 ? '' : (int) $batch['l_mmk'];
-                                $bkg = $batch['kyauk_gram'] == 0 ? '' : number_format((float) $batch['kyauk_gram'], 3);
+                                $bded =
+                                    ($batch['goldsmith_deduction'] ?? 0) == 0
+                                        ? ''
+                                        : number_format((float) $batch['goldsmith_deduction'], 3);
+                                $blabor =
+                                    ($batch['goldsmith_labor_fee'] ?? 0) == 0
+                                        ? ''
+                                        : (int) $batch['goldsmith_labor_fee'];
+                                $bkg =
+                                    ($batch['kyauk_weight'] ?? 0) == 0
+                                        ? ''
+                                        : number_format((float) $batch['kyauk_weight'], 3);
+                                $bstone = ($batch['stone_price'] ?? 0) == 0 ? '' : (int) $batch['stone_price'];
                             @endphp
 
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $bw }}</span>
+                                @if ($bw !== '')
                                     <button type="button"
-                                        @click="copyText(@js($bw)); markCopied('copy-{{ $bKey }}-tw')"
-                                        class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
+                                        @click="copyText(@js($bw)); markCopied('copy-{{ $bKey }}-tw'); $wire.set('batchPostState.{{ $bId }}', true)"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
                                         :class="isCopied('copy-{{ $bKey }}-tw') ?
                                             'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
                                             'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
                                         title="Copy">
-                                        <span x-show="!isCopied('copy-{{ $bKey }}-tw')"><x-icon
-                                                name="duplicate" class="w-4 h-4" /></span>
-                                        <span x-show="isCopied('copy-{{ $bKey }}-tw')"><x-icon name="share"
-                                                class="w-4 h-4" /></span>
+                                        <span>{{ $bw }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $bKey }}-tw')"><x-icon
+                                                    name="duplicate" class="w-4 h-4" /></span>
+                                            <span x-show="isCopied('copy-{{ $bKey }}-tw')"><x-icon
+                                                    name="share" class="w-4 h-4" /></span>
+                                        </span>
                                     </button>
-                                </div>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $blg }}</span>
-                                    @if ($blg !== '')
-                                        <button type="button"
-                                            @click="copyText(@js($blg)); markCopied('copy-{{ $bKey }}-lg')"
-                                            class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
-                                            :class="isCopied('copy-{{ $bKey }}-lg') ?
-                                                'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
-                                                'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
-                                            title="Copy">
-                                            <span x-show="!isCopied('copy-{{ $bKey }}-lg')"><x-icon
+                                @if ($bded !== '')
+                                    <button type="button"
+                                        @click="copyText(@js($bded)); markCopied('copy-{{ $bKey }}-ded')"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $bKey }}-ded') ?
+                                            'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                                            'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
+                                        title="Copy">
+                                        <span>{{ $bded }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $bKey }}-ded')"><x-icon
                                                     name="duplicate" class="w-4 h-4" /></span>
-                                            <span x-show="isCopied('copy-{{ $bKey }}-lg')"><x-icon
+                                            <span x-show="isCopied('copy-{{ $bKey }}-ded')"><x-icon
                                                     name="share" class="w-4 h-4" /></span>
-                                        </button>
-                                    @endif
-                                </div>
+                                        </span>
+                                    </button>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $bmmk }}</span>
-                                    @if ($bmmk !== '')
-                                        <button type="button"
-                                            @click="copyText(@js($bmmk)); markCopied('copy-{{ $bKey }}-mmk')"
-                                            class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
-                                            :class="isCopied('copy-{{ $bKey }}-mmk') ?
-                                                'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
-                                                'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
-                                            title="Copy">
-                                            <span x-show="!isCopied('copy-{{ $bKey }}-mmk')"><x-icon
+                                @if ($blabor !== '')
+                                    <button type="button"
+                                        @click="copyText(@js($blabor)); markCopied('copy-{{ $bKey }}-labor')"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $bKey }}-labor') ?
+                                            'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                                            'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
+                                        title="Copy">
+                                        <span>{{ $blabor }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $bKey }}-labor')"><x-icon
                                                     name="duplicate" class="w-4 h-4" /></span>
-                                            <span x-show="isCopied('copy-{{ $bKey }}-mmk')"><x-icon
+                                            <span x-show="isCopied('copy-{{ $bKey }}-labor')"><x-icon
                                                     name="share" class="w-4 h-4" /></span>
-                                        </button>
-                                    @endif
-                                </div>
+                                        </span>
+                                    </button>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $bkg }}</span>
-                                    @if ($bkg !== '')
-                                        <button type="button"
-                                            @click="copyText(@js($bkg)); markCopied('copy-{{ $bKey }}-kg')"
-                                            class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
-                                            :class="isCopied('copy-{{ $bKey }}-kg') ?
-                                                'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
-                                                'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
-                                            title="Copy">
+                                @if ($bkg !== '')
+                                    <button type="button"
+                                        @click="copyText(@js($bkg)); markCopied('copy-{{ $bKey }}-kg')"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $bKey }}-kg') ?
+                                            'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                                            'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
+                                        title="Copy">
+                                        <span>{{ $bkg }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
                                             <span x-show="!isCopied('copy-{{ $bKey }}-kg')"><x-icon
                                                     name="duplicate" class="w-4 h-4" /></span>
                                             <span x-show="isCopied('copy-{{ $bKey }}-kg')"><x-icon
                                                     name="share" class="w-4 h-4" /></span>
-                                        </button>
-                                    @endif
-                                </div>
+                                        </span>
+                                    </button>
+                                @endif
+                            </td>
+
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                                @if ($bstone !== '')
+                                    <button type="button"
+                                        @click="copyText(@js($bstone)); markCopied('copy-{{ $bKey }}-stone')"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $bKey }}-stone') ?
+                                            'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                                            'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
+                                        title="Copy">
+                                        <span>{{ $bstone }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $bKey }}-stone')"><x-icon
+                                                    name="duplicate" class="w-4 h-4" /></span>
+                                            <span x-show="isCopied('copy-{{ $bKey }}-stone')"><x-icon
+                                                    name="share" class="w-4 h-4" /></span>
+                                        </span>
+                                    </button>
+                                @endif
                             </td>
 
                             <td class="px-4 py-3 text-center">
@@ -519,13 +663,25 @@
                             Total Weight</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
-                            L Gram</th>
+                            ကျောက်ချိန်</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
-                            L MMK</th>
+                            ပန်းထိမ်အလျော့တွက်</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
-                            Kyauk Gram</th>
+                            ပန်းထိမ် လက်ခ</th>
+                        <th
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            ကျောက်ဖိုး</th>
+                        <th
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            အမြတ်အလျော့</th>
+                        <th
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            အမြတ်လက်ခ</th>
+                        <th
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            Barcode</th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300">
                             Register</th>
@@ -542,7 +698,7 @@
                         <tr @class([
                             'bg-green-100 dark:bg-green-900/20 text-green-900 dark:text-green-200' => $isRegistered,
                         ])>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 select-none">
                                 <div class="flex items-center gap-2">
                                     <span>#{{ $itemBatchId }}</span>
 
@@ -572,84 +728,90 @@
                                 </div>
                             </td>
                             @php
+                                $ibc = (string) ($item->barcode ?? '');
                                 $itw = $item->total_weight == 0 ? '' : number_format((float) $item->total_weight, 3);
-                                $ilg = $item->l_gram == 0 ? '' : number_format((float) $item->l_gram, 3);
-                                $immk = $item->l_mmk == 0 ? '' : (int) $item->l_mmk;
-                                $ikg = $item->kyauk_gram == 0 ? '' : number_format((float) $item->kyauk_gram, 3);
+                                $ikg = $item->kyauk_weight == 0 ? '' : number_format((float) $item->kyauk_weight, 3);
+                                $ided =
+                                    $item->goldsmith_deduction == 0
+                                        ? ''
+                                        : number_format((float) $item->goldsmith_deduction, 3);
+                                $ilabor = $item->goldsmith_labor_fee == 0 ? '' : (int) $item->goldsmith_labor_fee;
+                                $istone = empty($item->stone_price) ? '' : (int) $item->stone_price;
+                                $ipl =
+                                    ($item->profit_loss ?? 0) == 0 ? '' : number_format((float) $item->profit_loss, 2);
+                                $iprofitLabor = empty($item->profit_labor_fee) ? '' : (int) $item->profit_labor_fee;
                             @endphp
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $itw }}</span>
+                                <span>{{ $itw }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                                <span>{{ $ikg }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                                <span>{{ $ided }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                                <span>{{ $ilabor }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                                <span>{{ $istone }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                                @if ($ipl !== '')
                                     <button type="button"
-                                        @click="copyText(@js($itw)); markCopied('copy-{{ $iKey }}-tw')"
-                                        class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
-                                        :class="isCopied('copy-{{ $iKey }}-tw') ?
+                                        @click="copyText(@js($ipl)); markCopied('copy-{{ $iKey }}-pl')"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $iKey }}-pl') ?
                                             'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
                                             'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
                                         title="Copy">
-                                        <span x-show="!isCopied('copy-{{ $iKey }}-tw')"><x-icon
-                                                name="duplicate" class="w-4 h-4" /></span>
-                                        <span x-show="isCopied('copy-{{ $iKey }}-tw')"><x-icon name="share"
-                                                class="w-4 h-4" /></span>
+                                        <span>{{ $ipl }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $iKey }}-pl')"><x-icon
+                                                    name="duplicate" class="w-4 h-4" /></span>
+                                            <span x-show="isCopied('copy-{{ $iKey }}-pl')"><x-icon
+                                                    name="share" class="w-4 h-4" /></span>
+                                        </span>
                                     </button>
-                                </div>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $ilg }}</span>
-                                    @if ($ilg !== '')
-                                        <button type="button"
-                                            @click="copyText(@js($ilg)); markCopied('copy-{{ $iKey }}-lg')"
-                                            class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
-                                            :class="isCopied('copy-{{ $iKey }}-lg') ?
-                                                'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
-                                                'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
-                                            title="Copy">
-                                            <span x-show="!isCopied('copy-{{ $iKey }}-lg')"><x-icon
+                                @if ($iprofitLabor !== '')
+                                    <button type="button"
+                                        @click="copyText(@js($iprofitLabor)); markCopied('copy-{{ $iKey }}-plf')"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $iKey }}-plf') ?
+                                            'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                                            'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
+                                        title="Copy">
+                                        <span>{{ $iprofitLabor }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $iKey }}-plf')"><x-icon
                                                     name="duplicate" class="w-4 h-4" /></span>
-                                            <span x-show="isCopied('copy-{{ $iKey }}-lg')"><x-icon
+                                            <span x-show="isCopied('copy-{{ $iKey }}-plf')"><x-icon
                                                     name="share" class="w-4 h-4" /></span>
-                                        </button>
-                                    @endif
-                                </div>
+                                        </span>
+                                    </button>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $immk }}</span>
-                                    @if ($immk !== '')
-                                        <button type="button"
-                                            @click="copyText(@js($immk)); markCopied('copy-{{ $iKey }}-mmk')"
-                                            class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
-                                            :class="isCopied('copy-{{ $iKey }}-mmk') ?
-                                                'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
-                                                'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
-                                            title="Copy">
-                                            <span x-show="!isCopied('copy-{{ $iKey }}-mmk')"><x-icon
+                                @if ($ibc !== '')
+                                    <button type="button"
+                                        @click="copyText(@js($ibc)); markCopied('copy-{{ $iKey }}-bc'); $wire.registerItem({{ (int) $item->id }})"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $iKey }}-bc') ?
+                                            'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                                            'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
+                                        title="Copy">
+                                        <span>{{ $ibc }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $iKey }}-bc')"><x-icon
                                                     name="duplicate" class="w-4 h-4" /></span>
-                                            <span x-show="isCopied('copy-{{ $iKey }}-mmk')"><x-icon
+                                            <span x-show="isCopied('copy-{{ $iKey }}-bc')"><x-icon
                                                     name="share" class="w-4 h-4" /></span>
-                                        </button>
-                                    @endif
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>{{ $ikg }}</span>
-                                    @if ($ikg !== '')
-                                        <button type="button"
-                                            @click="copyText(@js($ikg)); markCopied('copy-{{ $iKey }}-kg')"
-                                            class="inline-flex items-center justify-center w-8 h-8 border rounded-md dark:border-slate-600"
-                                            :class="isCopied('copy-{{ $iKey }}-kg') ?
-                                                'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
-                                                'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
-                                            title="Copy">
-                                            <span x-show="!isCopied('copy-{{ $iKey }}-kg')"><x-icon
-                                                    name="duplicate" class="w-4 h-4" /></span>
-                                            <span x-show="isCopied('copy-{{ $iKey }}-kg')"><x-icon
-                                                    name="share" class="w-4 h-4" /></span>
-                                        </button>
-                                    @endif
-                                </div>
+                                        </span>
+                                    </button>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <input type="checkbox" class="rounded border-slate-300" @checked($item->is_register)

@@ -23,25 +23,31 @@ class JewelryTemplateController
             'Branch ID',
             'Product Name',
             'Quality',
+            'Gold Weight',
             'Barcode',
             'Total Weight',
-            'L Gram',
-            'L MMK',
-            'Kyauk Gram',
-            'Batch Number',
+            'ကျောက်ချိန်',
+            'ပန်းထိမ်အလျော့တွက်',
+            'ပန်းထိမ် လက်ခ',
+            'ကျောက်ဖိုး',
+            'အမြတ်အလျော့',
+            'အမြတ်လက်ခ',
         ]));
 
         // Sample row (Batch Number intentionally blank)
         $writer->addRow(Row::fromValues([
             1,
             'Gold Ring',
-            '22K',
-            'A1001',
+            '၁၅ ပဲရည်',
+            5.25,
+            'GAR26011',
             5.75,
+            0.5,
             1.2,
             150000,
-            0.5,
-            null,
+            200000,
+            0.12,
+            10000,
         ]));
 
         $rulesSheet = $writer->addNewSheetAndMakeItCurrent();
@@ -54,12 +60,15 @@ class JewelryTemplateController
             'Branch ID',
             'Product Name',
             'Quality',
+            'Gold Weight',
             'Barcode',
             'Total Weight',
-            'L Gram',
-            'L MMK',
-            'Kyauk Gram',
-            'Batch Number',
+            'ကျောက်ချိန်',
+            'ပန်းထိမ်အလျော့တွက်',
+            'ပန်းထိမ် လက်ခ',
+            'ကျောက်ဖိုး',
+            'အမြတ်အလျော့',
+            'အမြတ်လက်ခ',
         ]));
         $writer->addRow(Row::fromValues(['']));
         $writer->addRow(Row::fromValues(['Branch ID column:']));
@@ -69,12 +78,7 @@ class JewelryTemplateController
         $writer->addRow(Row::fromValues(['']));
         $writer->addRow(Row::fromValues(['Unique Logic (Auto-batching fingerprint):']));
         $writer->addRow(Row::fromValues([
-            'Rows with identical Branch ID, Product Name, Quality, Total Weight, L Gram, L MMK, and Kyauk Gram will be grouped into the same batch upon upload.',
-        ]));
-        $writer->addRow(Row::fromValues(['']));
-        $writer->addRow(Row::fromValues(['Batch Number column:']));
-        $writer->addRow(Row::fromValues([
-            'This column must exist. Leave it empty to let the system auto-calculate batch IDs based on the 6 matching fields above.',
+            'Rows with identical Branch ID, Product Name, Quality, Total Weight, ပန်းထိမ်အလျော့တွက်, ပန်းထိမ် လက်ခ, and ကျောက်ချိန် will be grouped into the same batch upon upload.',
         ]));
         $writer->addRow(Row::fromValues(['']));
         $writer->addRow(Row::fromValues(['Barcode:']));
@@ -86,7 +90,7 @@ class JewelryTemplateController
         $writer->addRow(Row::fromValues(['']));
         $writer->addRow(Row::fromValues(['Implementation tip (fingerprint example):']));
         $writer->addRow(Row::fromValues([
-            '$fingerprint = branch_id . product_name . quality . total_weight . l_gram . l_mmk . kyauk_gram;',
+            '$fingerprint = branch_id . product_name . quality . total_weight . goldsmith_deduction . goldsmith_labor_fee . kyauk_weight;',
         ]));
 
         $writer->close();

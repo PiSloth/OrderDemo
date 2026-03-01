@@ -1,4 +1,4 @@
-<div x-data="{ importOpen: false }" x-on:jewelry-import-success.window="importOpen = false" class="space-y-6">
+<div x-data="{ importOpen: false, categoryOpen: false, mappingOpen: false }" x-on:jewelry-import-success.window="importOpen = false" class="space-y-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-xl font-semibold text-slate-900 dark:text-white">Jewelry Groups</h1>
@@ -29,6 +29,18 @@
                 Import Excel
             </button>
 
+            <button type="button" @click="categoryOpen = true"
+                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+                <x-icon name="collection" class="w-4 h-4 mr-2" />
+                Categories
+            </button>
+
+            <button type="button" @click="mappingOpen = true"
+                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+                <x-icon name="link" class="w-4 h-4 mr-2" />
+                Map Category
+            </button>
+
             <a wire:navigate href="{{ route('jewelry.dashboard') }}"
                 class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
                 <x-icon name="chart-pie" class="w-4 h-4 mr-2" />
@@ -54,6 +66,156 @@
         </div>
     @endif
 
+    <!-- Category Modal -->
+    <div x-show="categoryOpen" x-cloak class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/50" @click="categoryOpen = false"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div class="text-base font-semibold text-slate-900 dark:text-white">Product Categories</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-300">Create, edit, delete categories.</div>
+                    </div>
+                    <button type="button" @click="categoryOpen = false"
+                        class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label="Close category modal">
+                        <x-icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <form wire:submit.prevent="{{ $editing_category_id ? 'updateCategory' : 'createCategory' }}"
+                        class="grid gap-3 sm:grid-cols-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">Category
+                                Name</label>
+                            <input type="text" wire:model.live="category_name"
+                                class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200" />
+                            @error('category_name')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="sm:col-span-1 flex items-end justify-end gap-2">
+                            @if ($editing_category_id)
+                                <button type="button" wire:click="cancelEditCategory"
+                                    class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+                            @endif
+                            <button type="submit"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
+                                {{ $editing_category_id ? 'Update' : 'Create' }}
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-slate-500 dark:text-slate-300">
+                                    <th class="py-2 pr-4">Name</th>
+                                    <th class="py-2 pr-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                                @forelse(($categories ?? []) as $cat)
+                                    <tr>
+                                        <td class="py-2 pr-4 text-slate-900 dark:text-white">
+                                            {{ (string) ($cat->name ?? '') }}
+                                        </td>
+                                        <td class="py-2 pr-4 text-right">
+                                            <button type="button"
+                                                wire:click="editCategory({{ (int) ($cat->id ?? 0) }})"
+                                                class="px-3 py-1.5 text-xs font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Edit</button>
+                                            <button type="button"
+                                                wire:click="deleteCategory({{ (int) ($cat->id ?? 0) }})"
+                                                class="ml-2 px-3 py-1.5 text-xs font-medium border rounded-md border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/20">Delete</button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="2" class="py-3 text-slate-500 dark:text-slate-300">No categories
+                                            yet.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product -> Category Mapping Modal -->
+    <div x-show="mappingOpen" x-cloak class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/50" @click="mappingOpen = false"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div class="text-base font-semibold text-slate-900 dark:text-white">Map Item Name → Category
+                        </div>
+                        <div class="text-sm text-slate-500 dark:text-slate-300">Sets category for all items with the
+                            selected product name{{ !is_null($branchId) ? ' (in this branch)' : '' }}.</div>
+                    </div>
+                    <button type="button" @click="mappingOpen = false"
+                        class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label="Close mapping modal">
+                        <x-icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <form wire:submit.prevent="saveProductCategoryMapping" class="grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">Item
+                                Name</label>
+                            <input type="text" list="product-name-options" wire:model.live="mapping_product_name"
+                                placeholder="Type to search item name…"
+                                class="mt-1 block h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200" />
+                            <datalist id="product-name-options">
+                                @foreach ($productNames ?? [] as $pn)
+                                    <option value="{{ (string) $pn }}"></option>
+                                @endforeach
+                            </datalist>
+                            @error('mapping_product_name')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-slate-700 dark:text-slate-200">Category</label>
+                            <select wire:model.live="mapping_category_id"
+                                class="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                                <option value="">Select category</option>
+                                @foreach ($categories ?? [] as $cat)
+                                    <option value="{{ (int) ($cat->id ?? 0) }}">{{ (string) ($cat->name ?? '') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('mapping_category_id')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="sm:col-span-2 flex items-center justify-end gap-2">
+                            <button type="button" @click="mappingOpen = false"
+                                class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+                            <button type="submit"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
+                                Save Mapping
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-xs text-slate-500 dark:text-slate-300">
+                        Note: Only existing items are updated. New imports will need mapping again if item names change.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Import Modal (auto-create group) -->
     <div x-show="importOpen" x-cloak class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/50" @click="importOpen = false"></div>
@@ -75,14 +237,20 @@
 
                 <form wire:submit.prevent="importNewGroup" class="p-4 space-y-4">
                     <div class="text-sm text-slate-600 dark:text-slate-200">
-                        Required columns: <span class="font-medium">Branch ID</span>, <span class="font-medium">Product
+                        Required columns: <span class="font-medium">Branch ID</span>, <span
+                            class="font-medium">Product
                             Name</span>, <span class="font-medium">Quality</span>,
-                        <span class="font-medium">Total Weight</span>, <span class="font-medium">L Gram</span>, <span
-                            class="font-medium">L MMK</span>, <span class="font-medium">Kyauk Gram</span>.
-                        Optional: <span class="font-medium">Barcode</span>, <span class="font-medium">Batch
-                            Number</span>.
-                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-300">Limits: max 12 unique batch IDs and
-                            120 total items per group.</div>
+                        <span class="font-medium">Total Weight</span>, <span
+                            class="font-medium">ပန်းထိမ်အလျော့တွက်</span>,
+                        <span class="font-medium">ပန်းထိမ် လက်ခ</span>, <span class="font-medium">ကျောက်ချိန်</span>.
+                        Optional: <span class="font-medium">Barcode</span>, <span class="font-medium">Gold
+                            Weight</span>,
+                        <span class="font-medium">ကျောက်ဖိုး</span>, <span class="font-medium">အမြတ်အလျော့</span>,
+                        <span class="font-medium">အမြတ်လက်ခ</span>.
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-300">Limits: max 12 unique batch IDs
+                            and
+                            120 total items per group. If exceeded, the system will auto-create new group(s) and
+                            continue importing.</div>
                     </div>
 
                     <div>
@@ -185,8 +353,51 @@
                                 </a>
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
-                                {{ $g->purchaseBy?->name ?? '—' }}</td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">{{ $g->purchase_status }}
+                                @php
+                                    $purchaserName = (string) ($g->purchaseBy?->name ?? '—');
+                                    $skillGrade = strtolower((string) ($g->skillGradeLabel() ?? ''));
+
+                                    $skillIcon = null;
+                                    if ($skillGrade === 'excellent') {
+                                        $skillIcon = '👑';
+                                    } elseif ($skillGrade === 'good') {
+                                        $skillIcon = '⭐';
+                                    } elseif ($skillGrade === 'fighting') {
+                                        $skillIcon = '💪';
+                                    }
+                                @endphp
+
+                                <span class="inline-flex items-center gap-1.5">
+                                    <span>{{ $purchaserName }}</span>
+                                    @if (!is_null($skillIcon))
+                                        <span class="text-base leading-none"
+                                            title="Skill grade: {{ $g->skillGradeLabel() }}"
+                                            aria-label="Skill grade: {{ $g->skillGradeLabel() }}">
+                                            {{ $skillIcon }}
+                                        </span>
+                                    @endif
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                                @php
+                                    $status = (string) ($g->purchase_status ?? '');
+                                    $label = $status !== '' ? ucwords(str_replace('_', ' ', $status)) : '—';
+
+                                    $badgeClass = match ($status) {
+                                        'done'
+                                            => 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200',
+                                        'processing'
+                                            => 'bg-amber-100 text-amber-900 dark:bg-amber-900/20 dark:text-amber-200',
+                                        'not_started'
+                                            => 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+                                        default => 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+                                    };
+                                @endphp
+
+                                <span
+                                    class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ $badgeClass }}">
+                                    {{ $label }}
+                                </span>
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
                                 {{ (int) ($g->items_count ?? 0) }}</td>
@@ -195,9 +406,14 @@
                                     $itemsCount = (int) ($g->items_count ?? 0);
                                     $registeredCount = (int) ($g->registered_items_count ?? 0);
                                     $allRegistered = $itemsCount > 0 && $registeredCount === $itemsCount;
+                                    $purchaseStatus = (string) ($g->purchase_status ?? '');
                                 @endphp
 
-                                @if ($itemsCount === 0)
+                                @if ($purchaseStatus !== 'done')
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">Not
+                                        Start</span>
+                                @elseif ($itemsCount === 0)
                                     <span
                                         class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">No
                                         items</span>

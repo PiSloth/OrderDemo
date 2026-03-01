@@ -13,12 +13,17 @@ class JewelryItem extends Model
         'group_number_id',
         'branch_id',
         'product_name',
+        'item_category_id',
         'quality',
+        'gold_weight',
         'barcode',
         'total_weight',
-        'l_gram',
-        'l_mmk',
-        'kyauk_gram',
+        'kyauk_weight',
+        'goldsmith_deduction',
+        'goldsmith_labor_fee',
+        'stone_price',
+        'profit_loss',
+        'profit_labor_fee',
         'batch_id',
         'is_register',
         'register_by_id',
@@ -26,10 +31,15 @@ class JewelryItem extends Model
 
     protected $casts = [
         'branch_id' => 'int',
+        'item_category_id' => 'int',
+        'gold_weight' => 'decimal:3',
         'total_weight' => 'decimal:3',
-        'l_gram' => 'decimal:3',
-        'kyauk_gram' => 'decimal:3',
-        'l_mmk' => 'int',
+        'kyauk_weight' => 'decimal:3',
+        'goldsmith_deduction' => 'decimal:3',
+        'goldsmith_labor_fee' => 'int',
+        'stone_price' => 'int',
+        'profit_loss' => 'decimal:2',
+        'profit_labor_fee' => 'int',
         'batch_id' => 'int',
         'is_register' => 'bool',
     ];
@@ -42,6 +52,11 @@ class JewelryItem extends Model
     public function registerBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'register_by_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ItemCategory::class, 'item_category_id');
     }
 
     public function branch(): BelongsTo

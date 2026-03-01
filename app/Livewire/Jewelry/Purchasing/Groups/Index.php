@@ -4,6 +4,8 @@ namespace App\Livewire\Jewelry\Purchasing\Groups;
 
 use App\Models\Branch;
 use App\Models\GroupNumber;
+use App\Models\ItemCategory;
+use App\Models\JewelryItem;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -33,6 +35,14 @@ class Index extends Component
     /** @var array<int,array{id:int,name:string}> */
     public array $branches = [];
 
+    // Category CRUD
+    public string $category_name = '';
+    public ?int $editing_category_id = null;
+
+    // Product -> Category mapping
+    public string $mapping_product_name = '';
+    public ?int $mapping_category_id = null;
+
     public function mount(): void
     {
         $this->branches = Branch::query()
@@ -47,6 +57,118 @@ class Index extends Component
     {
         $this->branchId = $value ? (int) $value : null;
         $this->resetPage();
+    }
+
+    public function createCategory(): void
+    {
+        $validated = $this->validate([
+            'category_name' => ['required', 'string', 'max:255', Rule::unique('item_categories', 'name')],
+        ]);
+
+        ItemCategory::create([
+            'name' => trim((string) $validated['category_name']),
+        ]);
+
+        $this->resetCategoryForm();
+        session()->flash('success', 'Category created.');
+    }
+
+    public function editCategory(int $categoryId): void
+    {
+        $cat = ItemCategory::query()->findOrFail($categoryId);
+        $this->editing_category_id = (int) $cat->id;
+        $this->category_name = (string) $cat->name;
+    }
+
+    public function updateCategory(): void
+    {
+        if (is_null($this->editing_category_id)) {
+            return;
+        }
+
+        $categoryId = (int) $this->editing_category_id;
+        $validated = $this->validate([
+            'category_name' => ['required', 'string', 'max:255', Rule::unique('item_categories', 'name')->ignore($categoryId)],
+        ]);
+
+        ItemCategory::query()
+            ->whereKey($categoryId)
+            ->update([
+                'name' => trim((string) $validated['category_name']),
+            ]);
+
+        $this->resetCategoryForm();
+        session()->flash('success', 'Category updated.');
+    }
+
+    public function deleteCategory(int $categoryId): void
+    {
+        ItemCategory::query()->whereKey($categoryId)->delete();
+
+        if ((int) $this->editing_category_id === (int) $categoryId) {
+            $this->resetCategoryForm();
+        }
+
+        session()->flash('success', 'Category deleted.');
+    }
+
+    public function cancelEditCategory(): void
+    {
+        $this->resetCategoryForm();
+    }
+
+    private function resetCategoryForm(): void
+    {
+        $this->category_name = '';
+        $this->editing_category_id = null;
+        $this->resetValidation(['category_name']);
+    }
+
+    public function updatedMappingProductName($value): void
+    {
+        $this->mapping_product_name = trim((string) $value);
+        $this->mapping_category_id = null;
+
+        if ($this->mapping_product_name === '') {
+            return;
+        }
+
+        $branchId = $this->branchId;
+
+        $existing = JewelryItem::query()
+            ->when(!is_null($branchId), fn($q) => $q->where('branch_id', (int) $branchId))
+            ->where('product_name', $this->mapping_product_name)
+            ->select('item_category_id', DB::raw('COUNT(*) as c'))
+            ->groupBy('item_category_id')
+            ->orderByDesc('c')
+            ->value('item_category_id');
+
+        $this->mapping_category_id = $existing ? (int) $existing : null;
+    }
+
+    public function saveProductCategoryMapping(): void
+    {
+        $branchId = $this->branchId;
+
+        $validated = $this->validate([
+            'mapping_product_name' => ['required', 'string', 'max:255'],
+            'mapping_category_id' => ['required', 'integer', Rule::exists('item_categories', 'id')],
+        ]);
+
+        $productName = trim((string) $validated['mapping_product_name']);
+        $categoryId = (int) $validated['mapping_category_id'];
+
+        $q = JewelryItem::query()->where('product_name', $productName);
+        if (!is_null($branchId)) {
+            $q->where('branch_id', (int) $branchId);
+        }
+
+        $q->update([
+            'item_category_id' => $categoryId,
+            'updated_at' => now(),
+        ]);
+
+        session()->flash('success', 'Product category mapping saved.');
     }
 
     public function create(): void
@@ -91,9 +213,11 @@ class Index extends Component
         $userId = (int) auth()->id();
 
         $newGroupId = null;
+        $createdGroupNumbers = [];
+        $groupsCount = 0;
 
         try {
-            DB::transaction(function () use ($service, $path, $userId, &$newGroupId) {
+            DB::transaction(function () use ($service, $path, $userId, &$newGroupId, &$createdGroupNumbers, &$groupsCount) {
                 $tmpNumber = 'TMP-' . (string) Str::uuid();
 
                 $group = GroupNumber::create([
@@ -116,6 +240,11 @@ class Index extends Component
 
                 $this->importedCount = (int) ($result['inserted'] ?? 0);
                 $newGroupId = $group->id;
+
+                $groups = $result['groups'] ?? [];
+                $groupsCount = is_array($groups) ? count($groups) : 0;
+                $newGroups = is_array($groups) ? array_values(array_filter($groups, fn($g) => !empty($g['is_new']))) : [];
+                $createdGroupNumbers = array_values(array_filter(array_map(fn($g) => (string) ($g['number'] ?? ''), $newGroups), fn($v) => $v !== ''));
             });
         } catch (\Throwable $e) {
             if (empty($this->importErrors)) {
@@ -125,7 +254,13 @@ class Index extends Component
         }
 
         $this->importFile = null;
-        session()->flash('success', "Imported {$this->importedCount} items into new group.");
+
+        if ($groupsCount > 1) {
+            $suffix = empty($createdGroupNumbers) ? '' : (' New groups: ' . implode(', ', $createdGroupNumbers));
+            session()->flash('success', "Imported {$this->importedCount} items across {$groupsCount} groups. First group created." . $suffix);
+        } else {
+            session()->flash('success', "Imported {$this->importedCount} items into new group.");
+        }
 
         $this->dispatch('jewelry-import-success');
 
@@ -155,12 +290,31 @@ class Index extends Component
                         ->when(!is_null($branchId), fn($qq) => $qq->where('branch_id', (int) $branchId));
                 },
             ])
+            ->orderByRaw("(`purchase_status` = 'processing') DESC")
+            ->orderByRaw("CASE WHEN `purchase_status` = 'processing' THEN `registered_items_count` ELSE -1 END DESC")
             ->orderByDesc('id')
             ->paginate(20);
+
+        $categories = ItemCategory::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $productNames = JewelryItem::query()
+            ->when(!is_null($branchId), fn($q) => $q->where('branch_id', (int) $branchId))
+            ->where('product_name', '!=', '')
+            ->select('product_name')
+            ->distinct()
+            ->orderBy('product_name')
+            ->limit(500)
+            ->pluck('product_name')
+            ->map(fn($v) => (string) $v)
+            ->all();
 
         return view('livewire.jewelry.purchasing.groups.index', [
             'groups' => $groupsQuery,
             'branches' => $this->branches,
+            'categories' => $categories,
+            'productNames' => $productNames,
         ]);
     }
 }

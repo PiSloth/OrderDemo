@@ -44,6 +44,11 @@ class GroupNumber extends Model
         return $this->hasMany(BatchNumberAndGroup::class, 'group_number_id');
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(GroupNumberComment::class, 'group_number_id');
+    }
+
     public function durationMinutes(): ?int
     {
         if (!$this->started_at || !$this->finished_at) {
