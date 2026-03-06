@@ -9,7 +9,7 @@ class AssetCategory extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'description'];
 
     public function assets()
     {

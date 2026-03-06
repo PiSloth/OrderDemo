@@ -47,6 +47,12 @@ class OfficeAssetManager extends Component
     public $item_name;
     public $item_photo;
 
+    // Category Form
+    public $showCategoryModal = false;
+    public $categoryId = null;
+    public $category_name = '';
+    public $category_description = '';
+
     // Batch Form
     public $showBatchModal = false;
     public $batchId;
@@ -123,6 +129,69 @@ class OfficeAssetManager extends Component
             'batch_minimum_cost' => 'required|numeric|min:0',
             'batch_maximum_cost' => 'required|numeric|min:0|gte:batch_minimum_cost',
         ];
+    }
+
+    public function categoryRules()
+    {
+        return [
+            'category_name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('asset_categories', 'name')->ignore($this->categoryId),
+            ],
+            'category_description' => 'nullable|string',
+        ];
+    }
+
+    public function createCategory()
+    {
+        $this->resetCategoryForm();
+        $this->showCategoryModal = true;
+    }
+
+    public function editCategory($id)
+    {
+        $this->resetCategoryForm();
+        $category = AssetCategory::findOrFail($id);
+        $this->categoryId = $category->id;
+        $this->category_name = $category->name;
+        $this->category_description = $category->description;
+        $this->showCategoryModal = true;
+    }
+
+    public function saveCategory()
+    {
+        $this->validate($this->categoryRules());
+
+        if ($this->categoryId) {
+            $category = AssetCategory::findOrFail($this->categoryId);
+            $category->update([
+                'name' => $this->category_name,
+                'description' => $this->category_description,
+            ]);
+            $this->notification()->success('Category updated successfully.');
+        } else {
+            $category = AssetCategory::create([
+                'name' => $this->category_name,
+                'description' => $this->category_description,
+            ]);
+            $this->notification()->success('Category created successfully.');
+        }
+
+        // If user is in Item modal, preselect the newly saved category
+        if ($category?->id) {
+            $this->item_asset_category_id = $category->id;
+        }
+
+        $this->showCategoryModal = false;
+        $this->resetCategoryForm();
+    }
+
+    public function resetCategoryForm()
+    {
+        $this->reset(['categoryId', 'category_name', 'category_description']);
+        $this->resetValidation();
     }
 
     public function createAsset()
