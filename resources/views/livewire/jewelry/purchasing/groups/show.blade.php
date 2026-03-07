@@ -414,35 +414,36 @@
             'overflow-x-auto' => true,
             'blur-sm pointer-events-none select-none' => empty($group->started_at),
         ]) x-show="viewMode === 'batch'" x-cloak>
-            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <table
+                class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 border-separate border-spacing-0">
                 <thead class="bg-slate-50 dark:bg-slate-900/40">
                     <tr>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             Batch</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             Product</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             Quality</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             Total Weight</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             ပန်းထိမ်အလျော့တွက်</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             ပန်းထိမ် လက်ခ</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             ကျောက်ချိန်</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
                             ကျောက်ဖိုး</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                             Post</th>
                     </tr>
                 </thead>
@@ -458,7 +459,8 @@
                             'bg-slate-100/60 dark:bg-slate-900/60' => !$isPosted,
                             'bg-green-100 dark:bg-green-900/20 text-green-900 dark:text-green-200' => $isPosted,
                         ])>
-                            <td class="px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white select-none">
+                            <td
+                                class="px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white select-none border-r border-slate-200 dark:border-slate-700">
                                 <div class="flex items-center gap-2">
                                     <span>#{{ $bId }}</span>
                                     {{-- <button type="button"
@@ -472,7 +474,8 @@
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3 text-sm text-slate-900 dark:text-white">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700">
                                 @php
                                     $bCountValue = (int) ($batch['count'] ?? 0);
                                     $bCountLabel = (string) $bCountValue;
@@ -510,7 +513,8 @@
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700">
                                 <div class="flex items-center gap-2">
                                     <span>{{ $batch['quality'] }}</span>
                                 </div>
@@ -534,7 +538,8 @@
                                 $bstone = ($batch['stone_price'] ?? 0) == 0 ? '' : (int) $batch['stone_price'];
                             @endphp
 
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($bw !== '')
                                     <button type="button"
                                         @click="copyText(@js($bw)); markCopied('copy-{{ $bKey }}-tw'); $wire.set('batchPostState.{{ $bId }}', true)"
@@ -553,7 +558,8 @@
                                     </button>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($bded !== '')
                                     <button type="button"
                                         @click="copyText(@js($bded)); markCopied('copy-{{ $bKey }}-ded')"
@@ -572,7 +578,8 @@
                                     </button>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($blabor !== '')
                                     <button type="button"
                                         @click="copyText(@js($blabor)); markCopied('copy-{{ $bKey }}-labor')"
@@ -591,7 +598,8 @@
                                     </button>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($bkg !== '')
                                     <button type="button"
                                         @click="copyText(@js($bkg)); markCopied('copy-{{ $bKey }}-kg')"
@@ -611,7 +619,8 @@
                                 @endif
                             </td>
 
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($bstone !== '')
                                     <button type="button"
                                         @click="copyText(@js($bstone)); markCopied('copy-{{ $bKey }}-stone')"
@@ -643,47 +652,48 @@
 
         <!-- All items view -->
         <div @class([
-            'overflow-x-auto' => true,
+            'overflow-auto max-h-[70vh]' => true,
             'blur-sm pointer-events-none select-none' => empty($group->started_at),
         ]) x-show="viewMode === 'items'" x-cloak>
-            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <table
+                class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 border-separate border-spacing-0">
                 <thead class="bg-slate-50 dark:bg-slate-900/40">
                     <tr>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             Batch</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             Product</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             Quality</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             Total Weight</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             ကျောက်ချိန်</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             ပန်းထိမ်အလျော့တွက်</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             ပန်းထိမ် လက်ခ</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             ကျောက်ဖိုး</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             အမြတ်အလျော့</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             အမြတ်လက်ခ</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
                             Barcode</th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300">
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
                             Register</th>
                     </tr>
                 </thead>
@@ -698,13 +708,15 @@
                         <tr @class([
                             'bg-green-100 dark:bg-green-900/20 text-green-900 dark:text-green-200' => $isRegistered,
                         ])>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 select-none">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 select-none border-r border-slate-200 dark:border-slate-700">
                                 <div class="flex items-center gap-2">
                                     <span>#{{ $itemBatchId }}</span>
 
                                 </div>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-900 dark:text-white">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700">
                                 <div class="flex items-center gap-2">
                                     <span>{{ $item->product_name }}</span>
                                     <button type="button"
@@ -721,7 +733,8 @@
                                     </button>
                                 </div>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700">
                                 <div class="flex items-center gap-2">
                                     <span>{{ $item->quality }}</span>
 
@@ -741,22 +754,28 @@
                                     ($item->profit_loss ?? 0) == 0 ? '' : number_format((float) $item->profit_loss, 2);
                                 $iprofitLabor = empty($item->profit_labor_fee) ? '' : (int) $item->profit_labor_fee;
                             @endphp
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 <span>{{ $itw }}</span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 <span>{{ $ikg }}</span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 <span>{{ $ided }}</span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 <span>{{ $ilabor }}</span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 <span>{{ $istone }}</span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($ipl !== '')
                                     <button type="button"
                                         @click="copyText(@js($ipl)); markCopied('copy-{{ $iKey }}-pl')"
@@ -775,7 +794,8 @@
                                     </button>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($iprofitLabor !== '')
                                     <button type="button"
                                         @click="copyText(@js($iprofitLabor)); markCopied('copy-{{ $iKey }}-plf')"
@@ -794,7 +814,8 @@
                                     </button>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right">
+                            <td
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
                                 @if ($ibc !== '')
                                     <button type="button"
                                         @click="copyText(@js($ibc)); markCopied('copy-{{ $iKey }}-bc'); $wire.registerItem({{ (int) $item->id }})"
