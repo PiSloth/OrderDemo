@@ -58,7 +58,7 @@
     @if (!empty($importErrors ?? []))
         <div class="p-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded">
             <div class="font-medium">Import warnings</div>
-            <ul class="mt-2 space-y-1 list-disc list-inside">
+            <ul class="mt-2 space-y-1 list-disc list-inside max-h-60 overflow-y-auto pr-2">
                 @foreach ($importErrors as $msg)
                     <li>{{ $msg }}</li>
                 @endforeach
