@@ -12,6 +12,7 @@ use App\Models\PsiSupplier;
 use App\Models\RealSale;
 use App\Models\ReorderPoint;
 use App\Models\StockTransaction;
+use App\Services\Psi\ReorderPointCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -208,7 +209,7 @@ class DailySale extends Component
 
 
 
-        DB::transaction(function () use ($psiProduct, $productQuery, $focusQty, $reorderData, $saftyPoint, $findInitialSaleData) {
+        DB::transaction(function () use ($psiProduct, $productQuery, $findInitialSaleData) {
 
 
 
@@ -265,65 +266,19 @@ class DailySale extends Component
 
                 ]);
             }
-
-            //! update inventory stock data
-            // $psiProduct->update([
-            //     'inventory_balance' => $psiProduct->inventory_balance - $this->sale_qty,
-            // ]);
-
-            //! todo reorder_due_date => dayDiff with now/ sub or add days?
-
-            // dd($);
-
-            $inventoryBalance  = PsiStock::findOrFail($this->stock_id)->inventory_balance;
-
-            $netBalance = $inventoryBalance - $saftyPoint;
-
-            $totalDayToSale = $netBalance / $focusQty;
-            // dd("total day = $totalDayToSale, b = $netBalance , invB = $inventoryBalance, stB = $saftyPoint, focus = $focusQty");
-
-            if ($netBalance < 0) {
-                $subDay = ceil($totalDayToSale * -1);
-                $orderDueDate = Carbon::now()->subDays($subDay); //? due date got
-            } else {
-                $addDay = (int) $totalDayToSale;
-
-                //todo 2 - Reorder Due Date => $orderDueDate
-                $orderDueDate = Carbon::now()->addDays($addDay);
-            }
-            //end due date
-
-            //! todo 4-  stock status change
-            switch (true) {
-                case $totalDayToSale >= 10:
-                    $stockStatus = 1; // balanced
-                    break;
-                case $totalDayToSale >= 6:
-                    $stockStatus = 2; //warning
-                    break;
-                case $totalDayToSale > 0 && $totalDayToSale < 6:
-                    $stockStatus = 3; //Emergency
-                    break;
-                case $totalDayToSale <= 0:
-                    $stockStatus = 4; //
-                    break;
-                default:
-                    $this->notification([
-                        'title' => "Warning",
-                        'description' => 'No status code, Code Logical error!',
-                        'icon' => 'warning',
-                    ]);
-                    break;
-            }
-
-            $reorderData->update([
-                'psi_stock_id' => $this->stock_id,
-                // 'safty_day' => $productQuery->safty_day,
-                'reorder_point' => $saftyPoint,
-                'reorder_due_date' => $orderDueDate,
-                'psi_stock_status_id' => $stockStatus
-            ]);
         });
+
+        /** @var ReorderPointCalculator $calculator */
+        $calculator = app(ReorderPointCalculator::class);
+        $calcResult = $calculator->recalculate((int) $productQuery->id);
+
+        if (!($calcResult['ok'] ?? false)) {
+            $this->notification([
+                'title' => 'Error',
+                'description' => $calcResult['error'] ?? 'Reorder point calculation failed!',
+                'icon' => 'error',
+            ]);
+        }
 
         $this->dispatch('close-modal');
         $this->reset('sale_qty', 'sale_date');

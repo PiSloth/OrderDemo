@@ -1,12 +1,4 @@
 <div>
-    @can('isAGM')
-        <div class="w-1/4 mb-3 min-w-52">
-            <label for="lead_day">Product အတွက် Lead Day သတ်မှတ်ပါ။</label>
-            <x-input id="lead_day" type="number" wire:model='branch_lead_day' wire:keydown.enter='createLeadDay'
-                placeholder="Branch lead day" />
-            <span>initial lead day {{ $initial_lead_day }}</span>
-        </div>
-    @endcan
     <div class="px-1 py-2 mb-2 text-sm bg-yellow-100 rounded">
         <a href="{{ route('mainboard') }}" wire:navigate class="underline hover:text-blue-500">Product Dashboard</a> > <a
             href="{{ route('focus', ['prod' => $product_id, 'brch' => $branch_id]) }}" wire:navigate
@@ -16,6 +8,18 @@
     <div class="my-4 ">
         <span class="px-4 py-2 font-bold uppercase bg-yellow-200 rounded">{{ $branchName }}</span>
     </div>
+
+    <div class="flex flex-wrap gap-2 mb-4">
+        @foreach ($branchStock as $b)
+            @php
+                $isActiveBranch = (int) $branch_id === (int) ($b->branch_id ?? 0);
+            @endphp
+
+            <x-button wire:click="switchBranch({{ (int) $b->branch_id }})" xs label="{{ $b->name }}"
+                :outline="!$isActiveBranch" :color="$isActiveBranch ? 'sky' : 'slate'" />
+        @endforeach
+    </div>
+
     <div class="flex flex-wrap gap-4 mb-4">
         <div class="w-48 h-56 overflow-hidden rounded bg-slate-200">
             <img src="{{ asset('storage/' . $photo) }}" />
@@ -113,7 +117,42 @@
                                 <x-input wire:model='safty_day' placeholder="Update safty day" />
                             </td>
                             <td class="px-6 py-4">
-                                <x-button wire:click='createReorderPoint' icon="save" flat sky />
+                                <x-button wire:click='saveSafetyDay' icon="save" flat sky />
+                            </td>
+                        </tr>
+                        @can('isAGM')
+                            <tr
+                                class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                                <th scope="row"
+                                    class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                    Branch Lead Day (Deliver Day)
+                                </th>
+                                <td class="px-6 py-4">
+                                    {{ $initial_lead_day ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <x-input id="lead_day" type="number" wire:model='branch_lead_day'
+                                        placeholder="Branch lead day" />
+                                </td>
+                                <td class="px-6 py-4">
+                                    <x-button wire:click='createLeadDay' icon="save" flat sky />
+                                </td>
+                            </tr>
+                        @endcan
+                        <tr
+                            class="border-b odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 dark:border-gray-700">
+                            <th scope="row"
+                                class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                Display Qty
+                            </th>
+                            <td class="px-6 py-4">
+                                {{ $stockInfo->reorderPoint->display_qty ?? 0 }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <x-input type="number" wire:model='display_qty' placeholder="Update display qty" />
+                            </td>
+                            <td class="px-6 py-4">
+                                <x-button wire:click='saveDisplayQty' icon="save" flat sky />
                             </td>
                         </tr>
                         <tr
@@ -139,12 +178,13 @@
                                 Order စတင်မှာရတော့မည့် အနည်းဆုံးအမှတ်
                             </th>
                             <td class="px-6 py-4">
-                                {{ ($stockInfo->reorderPoint->safty_day + $productLeadDay) * $lastFocus }}
+                                {{ ($stockInfo->reorderPoint->safty_day + $productLeadDay) * $lastFocus + ($stockInfo->reorderPoint->display_qty ?? 0) }}
                             </td>
                             <td class="px-6 py-4">
                                 </p>
                                 Safty Day ({{ $stockInfo->reorderPoint->safty_day }} +
-                                {{ $productLeadDay }}) Delivery Days * Focus {{ $lastFocus }}
+                                {{ $productLeadDay }}) (Deliver Day + Order Day(ကြာချိန်)) * Focus {{ $lastFocus }}
+                                + Display Qty
                                 <p>
                             </td>
                             <td class="px-6 py-4">
@@ -485,6 +525,7 @@
         <x-card title="Reorder Point Form">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-1">
                 <x-input type='number' wire:model='safty_day' label="Safty Day" placeholder="day" />
+                <x-input type='number' wire:model='display_qty' label="Display Qty" placeholder="qty" />
             </div>
 
             <x-slot name="footer">

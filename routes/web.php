@@ -130,7 +130,7 @@ Route::middleware(['auth'])->prefix('psi')->group(function () {
     Route::get('/product/orders', PsiOrderHsitory::class)->name('orders');
     Route::get('/product/daily-sale', DailySale::class)->name('daily_sale');
     Route::get('/psi/oos', OutOfStockAnalysis::class)->name('psi_oos');
-    Route::get('/psi/branch/stockupdate', StockUpdate::class)->name('stock-update');
+    // Route::get('/psi/branch/stockupdate', StockUpdate::class)->name('stock-update');
     Route::get('/edit/product', ProductEdit::class)->name('edit_product');
     Route::get('/report', PsiReport::class)->name('psi-report');
 });

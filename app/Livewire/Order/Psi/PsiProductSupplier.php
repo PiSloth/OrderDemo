@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Order\Psi;
 
-use App\Models\Branch;
 use App\Models\BranchLeadDay;
 use App\Models\BranchPsiProduct;
 use App\Models\FocusSale;
@@ -15,17 +14,13 @@ use App\Models\PsiStock;
 use App\Models\PsiSupplier;
 use App\Models\ReorderPoint;
 use App\Models\StockTransaction;
+use App\Services\Psi\ReorderPointCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
-use PhpParser\Node\Expr\FuncCall;
 use WireUi\Traits\Actions;
-
-use function Laravel\Prompts\error;
-use function Laravel\Prompts\warning;
-use function Livewire\Volt\title;
 
 class PsiProductSupplier extends Component
 {
@@ -47,6 +42,7 @@ class PsiProductSupplier extends Component
     public $remark;
     public $photo;
     public $safty_day;
+    public $display_qty;
     public $branch_lead_day;
     public $stock_balance;
     public $adjust_qty;
@@ -66,14 +62,44 @@ class PsiProductSupplier extends Component
 
     // public $is_edit = false;
 
+    public function switchBranch(int $branchId)
+    {
+        $branchProduct = BranchPsiProduct::whereBranchId($branchId)
+            ->wherePsiProductId($this->product_id)
+            ->first();
+
+        if (!$branchProduct) {
+            $this->notification([
+                'title' => 'Branch not found',
+                'description' => 'This product is not available in the selected branch.',
+                'icon' => 'error',
+            ]);
+            return;
+        }
+
+        $this->redirectRoute('price', ['prod' => $this->product_id, 'bch' => $branchId], navigate: true);
+    }
+
     public function mount()
     {
         $photo = ProductPhoto::wherePsiProductId($this->product_id)->first();
-        $this->photo = $photo->image;
+        $this->photo = $photo?->image;
 
         $branchProduct = BranchPsiProduct::whereBranchId($this->branch_id)
             ->wherePsiProductId($this->product_id)
             ->first();
+
+        if (!$branchProduct) {
+            $fallback = BranchPsiProduct::wherePsiProductId($this->product_id)->first();
+
+            if ($fallback) {
+                $this->redirectRoute('price', ['prod' => $this->product_id, 'bch' => $fallback->branch_id], navigate: true);
+                return;
+            }
+
+            $this->redirectRoute('mainboard', navigate: true);
+            return;
+        }
 
         // dd($branchProduct->id);
 
@@ -96,9 +122,20 @@ class PsiProductSupplier extends Component
         ]);
 
 
-        $branchProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+        $branchProduct = BranchPsiProduct::whereBranchId($this->branch_id)
             ->wherePsiProductId($this->product_id)
-            ->first()->id;
+            ->first();
+
+        if (!$branchProduct) {
+            $this->notification([
+                'title' => 'Branch product not found',
+                'description' => 'Cannot set branch lead day for this product/branch.',
+                'icon' => 'error',
+            ]);
+            return;
+        }
+
+        $branchProductId = $branchProduct->id;
 
         $query = BranchLeadDay::whereBranchPsiProductId($branchProductId)->first();
 
@@ -216,9 +253,21 @@ class PsiProductSupplier extends Component
     //! generate new product reorder point
     public function createReorderPoint()
     {
-        $validated = $this->validate([
-            'safty_day' => 'required|numeric',
+        $this->validate([
+            'safty_day' => 'nullable|numeric',
+            'display_qty' => 'nullable|numeric|min:0',
         ]);
+
+        if ($this->safty_day === null && $this->display_qty === null) {
+            $this->dispatch('close-modal');
+
+            $this->dialog([
+                'title' => 'Not enough data',
+                'description' => 'Please fill Safety Day or Display Qty.',
+                'icon' => 'error'
+            ]);
+            return;
+        }
 
         //! break if not found Lead day
         $porductSupplierCount = PsiSupplier::wherePsiProductId($this->product_id)->count();
@@ -235,8 +284,24 @@ class PsiProductSupplier extends Component
         }
 
         $this->generateReorderPoint();
+    }
 
-        $this->reset('safty_day');
+    public function saveSafetyDay()
+    {
+        $this->validate([
+            'safty_day' => 'required|numeric',
+        ]);
+
+        $this->generateReorderPoint();
+    }
+
+    public function saveDisplayQty()
+    {
+        $this->validate([
+            'display_qty' => 'required|numeric|min:0',
+        ]);
+
+        $this->generateReorderPoint();
     }
 
 
@@ -250,9 +315,20 @@ class PsiProductSupplier extends Component
         ]);
 
         //todo find current stock level
-        $branchPsiProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+        $branchProduct = BranchPsiProduct::whereBranchId($this->branch_id)
             ->wherePsiProductId($this->product_id)
-            ->first()->id;
+            ->first();
+
+        if (!$branchProduct) {
+            $this->notification([
+                'title' => 'Branch product not found',
+                'description' => 'Cannot adjust stock for this product/branch.',
+                'icon' => 'error',
+            ]);
+            return;
+        }
+
+        $branchPsiProductId = $branchProduct->id;
 
 
         $invBalance = PsiStock::whereBranchPsiProductId($branchPsiProductId)->first();
@@ -285,10 +361,20 @@ class PsiProductSupplier extends Component
         ]);
 
         //todo find current stock level
-        $branchPsiProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+        $branchProduct = BranchPsiProduct::whereBranchId($this->branch_id)
             ->wherePsiProductId($this->product_id)
             ->first();
-        $branchPsiProductId = $branchPsiProductId->id;
+
+        if (!$branchProduct) {
+            $this->notification([
+                'title' => 'Branch product not found',
+                'description' => 'Cannot adjust stock for this product/branch.',
+                'icon' => 'error',
+            ]);
+            return;
+        }
+
+        $branchPsiProductId = $branchProduct->id;
 
         $invBalance = PsiStock::whereBranchPsiProductId($branchPsiProductId)->first();
 
@@ -324,166 +410,71 @@ class PsiProductSupplier extends Component
     public function generateReorderPoint()
     {
 
+        $branchPsiProductId = $this->branchProductId;
+        if (!$branchPsiProductId) {
+            $branchPsiProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+                ->wherePsiProductId($this->product_id)
+                ->value('id');
 
-        //todo find branch pis product
-        $branchPsiProductId = BranchPsiProduct::whereBranchId($this->branch_id)
-            ->wherePsiProductId($this->product_id)
-            ->first();
-        $branchPsiProductId = $branchPsiProductId->id;
+            if (!$branchPsiProductId) {
+                $this->notification([
+                    'title' => 'Error',
+                    'description' => 'Branch product is not found!',
+                    'icon' => 'error',
+                ]);
+                return;
+            }
+            $this->branchProductId = $branchPsiProductId;
+        }
 
-        //todo find stock info
-        $stockInfo = PsiStock::whereBranchPsiProductId($branchPsiProductId)->first();
-        $stockId = $stockInfo->id;
+        $safetyDayOverride = null;
+        if ($this->safty_day !== null && (float) $this->safty_day >= 0) {
+            $safetyDayOverride = (float) $this->safty_day;
+        }
 
-        $saftyDay = BranchPsiProduct::select('reorder_points.safty_day')
-            ->leftJoin('psi_stocks', 'psi_stocks.branch_psi_product_id', 'branch_psi_product_id')
-            ->leftJoin('reorder_points', 'psi_stocks.id', 'reorder_points.psi_stock_id')
-            ->where('psi_stocks.id', $stockInfo->id)
-            ->first();
+        $displayQtyOverride = null;
+        if ($this->display_qty !== null && (float) $this->display_qty >= 0) {
+            $displayQtyOverride = (float) $this->display_qty;
+        }
 
+        /** @var ReorderPointCalculator $calculator */
+        $calculator = app(ReorderPointCalculator::class);
+        $result = $calculator->recalculate((int) $branchPsiProductId, $safetyDayOverride, $displayQtyOverride);
 
-        //todo find last focus qty
-        $lastFocus = FocusSale::whereBranchPsiProductId($branchPsiProductId)
-            ->orderBy('id', 'desc')
-            ->first();
+        if (!($result['ok'] ?? false)) {
+            $this->dispatch('close-modal');
+            $this->notification([
+                'title' => 'Error',
+                'description' => $result['error'] ?? 'Reorder point calculation failed!',
+                'icon' => 'error',
+            ]);
+            return;
+        }
 
-        if (!$lastFocus) {
-            $this->focusQty = 1;
-
+        if (($result['used_default_focus'] ?? false) === true) {
             $this->notification([
                 'title' => 'Warning',
                 'description' => 'Focus qty is set to default 0!',
                 'icon' => 'warning',
             ]);
-        } else if ($lastFocus->qty >= 0) {
-            $this->focusQty = $lastFocus->qty;
-        } else {
+        }
+
+        if (($result['updated'] ?? false) === true) {
             $this->notification([
-                'title' => 'Error',
-                'description' => 'Focus qty is not found!',
-                'icon' => 'Error',
+                'title' => 'Success',
+                'description' => 'Safty Day Update Successful',
+                'icon' => 'success'
             ]);
-            return;
+        } elseif (($result['created'] ?? false) === true) {
+            $this->notification([
+                'title' => 'Success',
+                'description' => 'Safty Day created sccessful',
+                'icon' => 'success'
+            ]);
         }
-
-
-
-        //todo 1 - Calculate totoal delivered days + Safty Day => $saftyPoint
-
-        //todo find lead day
-        $branchProductId = $this->branchProductId;
-
-        $queryProductLeadDay = BranchLeadDay::select('quantity AS leadDay')
-            ->whereBranchPsiProductId($branchProductId)
-            ->first();
-
-        if ($queryProductLeadDay) {
-            $productLeadDay = $queryProductLeadDay;
-        } else {
-            $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
-                ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
-                ->where('psi_suppliers.psi_product_id', $this->product_id)
-                ->first();
-        }
-        $productLeadDay = $productLeadDay->leadDay;
-        //? end lead day found
-
-
-        //todo find safty point
-        if ($this->safty_day > 0) {
-            //when safty day update
-            $saftyPoint = ($productLeadDay +  $this->safty_day) * $this->focusQty;
-        } else {
-            $saftyPoint = ($productLeadDay +  $saftyDay->safty_day) * $this->focusQty;
-        }
-
-        //? end safty point
-
-        //todo check stock level and SET due date
-        //todo find inv balance
-        $invBalance = PsiStock::whereBranchPsiProductId($branchPsiProductId)->first()->inventory_balance;
-
-        $netBalance = $invBalance - $saftyPoint;
-        $totalDayToSale = $netBalance / $this->focusQty;
-
-        // dd("total day = $totalDayToSale, b = $netBalance , invB = $invBalance, stB = $saftyPoint, focus = $this->focusQty");
-
-
-        if ($netBalance < 0) {
-            $subDay = ceil($totalDayToSale * -1);
-
-            $orderDueDate = Carbon::now()->subDays($subDay);
-        } else {
-            $addDay = (int) $totalDayToSale;
-            //todo 2 - Reorder Due Date => $orderDueDate
-            $orderDueDate = Carbon::now()->addDays($addDay);
-        }
-
-        //todo 3 - Stock Status => $stockStatus
-        switch (true) {
-            case $totalDayToSale >= 10:
-                $this->stockStatus = 1; // balanced
-                break;
-            case $totalDayToSale >= 6:
-                $this->stockStatus = 2; //warning
-                break;
-            case $totalDayToSale > 0 && $totalDayToSale < 6:
-                $this->stockStatus = 3; //Emergency
-                break;
-            case $totalDayToSale <= 0:
-                $this->stockStatus = 4; //
-                break;
-            default:
-                $this->notification([
-                    'title' => "Warning",
-                    'description' => 'No status code, Code Logical error!',
-                    'icon' => 'warning',
-                ]);
-                break;
-        }
-
-        DB::transaction(function () use ($stockId, $saftyPoint, $orderDueDate) {
-
-            $reorderData = ReorderPoint::wherePsiStockId($stockId)->exists();
-
-
-            if ($reorderData) {
-                $reorderData = ReorderPoint::wherePsiStockId($stockId)->first();
-
-
-                $reorderData->update([
-                    'psi_stock_id' => $stockId,
-                    'safty_day' => $this->safty_day ? $this->safty_day : $reorderData->safty_day,
-                    'reorder_point' => $saftyPoint,
-                    'reorder_due_date' => $orderDueDate,
-                    'psi_stock_status_id' => $this->stockStatus
-                ]);
-
-                $this->notification([
-                    'title' => 'Success',
-                    'description' => 'Safty Day Update Successful',
-                    'icon' => 'success'
-                ]);
-            } else {
-
-                ReorderPoint::create([
-                    'psi_stock_id' => $stockId,
-                    'safty_day' => $this->safty_day,
-                    'reorder_point' => $saftyPoint,
-                    'reorder_due_date' => $orderDueDate,
-                    'psi_stock_status_id' => $this->stockStatus
-                ]);
-
-                $this->notification([
-                    'title' => 'Success',
-                    'description' => 'Safty Day created sccessful',
-                    'icon' => 'success'
-                ]);
-            }
-        });
 
         $this->dispatch('close-modal');
-        $this->reset('safty_day');
+        $this->reset('safty_day', 'display_qty');
 
         $this->dialog([
             'title' => 'Success',
@@ -509,16 +500,38 @@ class PsiProductSupplier extends Component
 
 
         //todo find branch pis product
-        $branchPsiProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+        $branchProduct = BranchPsiProduct::whereBranchId($this->branch_id)
             ->wherePsiProductId($this->product_id)
-            ->first()->id;
+            ->first();
+
+        if (!$branchProduct) {
+            $this->dispatch('close-modal');
+            $this->dialog([
+                'title' => 'Branch product not found',
+                'description' => 'Cannot create order for this product/branch.',
+                'icon' => 'error',
+            ]);
+            return;
+        }
+
+        $branchPsiProductId = $branchProduct->id;
         // $branchPsiProductId = $branchPsiProductId->id;
 
         //todo find stock info
         $stockId = PsiStock::whereBranchPsiProductId($branchPsiProductId)->first();
 
         //todo find due date
-        $due_date = ReorderPoint::wherePsiStockId($stockId->id)->get('reorder_due_date')->first()->reorder_due_date;
+        $due_date = ReorderPoint::wherePsiStockId($stockId->id)->value('reorder_due_date');
+
+        if (!$due_date) {
+            $this->dispatch('close-modal');
+            $this->dialog([
+                'title' => 'Reorder point missing',
+                'description' => 'Please create reorder point first.',
+                'icon' => 'error',
+            ]);
+            return;
+        }
         // dd($due_date);
 
         //todo find last focus qty
@@ -605,11 +618,19 @@ class PsiProductSupplier extends Component
 
         $productSuppliers = PsiSupplier::wherePsiProductId($this->product_id)->get();
 
-        $branchPsiProductId = BranchPsiProduct::whereBranchId($this->branch_id)
+        $branchPsiProduct = BranchPsiProduct::whereBranchId($this->branch_id)
             ->wherePsiProductId($this->product_id)
             ->first();
 
-        $stockInfo = PsiStock::whereBranchPsiProductId($branchPsiProductId->id)->first();
+        if (!$branchPsiProduct) {
+            abort(404);
+        }
+
+        $stockInfo = PsiStock::whereBranchPsiProductId($branchPsiProduct->id)->first();
+
+        if (!$stockInfo) {
+            abort(404);
+        }
 
         // dd($stockInfo->reorderPoint);
 
@@ -617,7 +638,7 @@ class PsiProductSupplier extends Component
 
         // dd($branchPsiProductId);
 
-        $lastFocus = FocusSale::whereBranchPsiProductId($branchPsiProductId->id)
+        $lastFocus = FocusSale::whereBranchPsiProductId($branchPsiProduct->id)
             ->orderBy('id', 'desc')
             ->first();
         if ($lastFocus) {
@@ -626,31 +647,22 @@ class PsiProductSupplier extends Component
             $lastFocus = 1;
         }
 
-        $branchProductId = BranchPsiProduct::whereBranchId($this->branch_id)
-            ->wherePsiProductId($this->product_id)
-            ->first()->id;
+        $branchProductId = $branchPsiProduct->id;
 
-        $queryProductLeadDay = BranchLeadDay::select('quantity AS leadDay')
-            ->whereBranchPsiProductId($branchProductId)
+        $deliverDayRaw = BranchLeadDay::whereBranchPsiProductId($branchProductId)->value('quantity');
+        $deliverDay = $deliverDayRaw !== null ? (float) $deliverDayRaw : 0;
+
+        $orderDayObj = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
+            ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
+            ->where('psi_suppliers.psi_product_id', $this->product_id)
             ->first();
+        $orderDay = (float) ($orderDayObj->leadDay ?? 0);
 
-        if ($queryProductLeadDay) {
-            $productLeadDay = BranchLeadDay::select('quantity AS leadDay')
-                ->whereBranchPsiProductId($branchProductId)
-                ->first();
-        } else {
-            $productLeadDay = PsiSupplier::select(DB::raw('AVG(psi_prices.lead_day) AS leadDay'))
-                ->leftJoin('psi_prices', 'psi_prices.id', 'psi_suppliers.psi_price_id')
-                ->where('psi_suppliers.psi_product_id', $this->product_id)
-                ->first();
-        }
-
-
-        $productLeadDay = ceil($productLeadDay->leadDay);
+        $productLeadDay = ceil($deliverDay + $orderDay);
 
         // show currently orders, not include transfered
         $psiOrders = PsiOrder::where('psi_status_id', '<', 10)
-            ->where('branch_psi_product_id', '=', $branchPsiProductId->id)
+            ->where('branch_psi_product_id', '=', $branchPsiProduct->id)
             ->get();
 
 
@@ -658,10 +670,11 @@ class PsiProductSupplier extends Component
         $productDetail = PsiProduct::findOrFail($this->product_id);
 
         //show stock that available branch
-        $branchStock = PsiStock::select('psi_stocks.inventory_balance', 'branches.name', 'psi_stocks.id AS stock_id')
+        $branchStock = PsiStock::select('psi_stocks.inventory_balance', 'branches.id AS branch_id', 'branches.name', 'psi_stocks.id AS stock_id')
             ->leftJoin('branch_psi_products', 'branch_psi_products.id', 'psi_stocks.branch_psi_product_id')
             ->leftJoin('branches', 'branches.id', 'branch_psi_products.branch_id')
             ->where('branch_psi_products.psi_product_id', '=', $this->product_id)
+            ->orderBy('branches.name')
             ->get();
 
         // dd($branchStock);

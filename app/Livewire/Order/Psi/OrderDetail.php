@@ -2,19 +2,14 @@
 
 namespace App\Livewire\Order\Psi;
 
-use App\Models\BranchPsiProduct;
-use App\Models\FocusSale;
 use App\Models\PhotoShooting;
 use App\Models\PhotoShootingStatusHistory;
 use App\Models\PsiOrder;
 use App\Models\PsiOrderStatusHistory;
 use App\Models\PsiProduct;
 use App\Models\PsiStock;
-use App\Models\PsiSupplier;
-use App\Models\RealSale;
-use App\Models\ReorderPoint;
 use App\Models\StockTransaction;
-use Carbon\Carbon;
+use App\Services\Psi\ReorderPointCalculator;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -213,107 +208,38 @@ class OrderDetail extends Component
     public function generateReorderPoint()
     {
 
-        $productQuery = BranchPsiProduct::select(
-            'branch_psi_products.id',
-            'reorder_points.safty_day',
-            'psi_stocks.inventory_balance',
-            'psi_stocks.id AS stockId',
-            DB::raw('(SELECT focus_sales.qty
-                      FROM focus_sales
-                      WHERE focus_sales.branch_psi_product_id = branch_psi_products.id
-                      ORDER BY focus_sales.id DESC LIMIT 1) AS latest_focus'),
+        $order = PsiOrder::findOrFail($this->order_id);
+        $branchPsiProductId = (int) $order->branch_psi_product_id;
 
-            DB::raw('(SELECT AVG(psi_prices.lead_day)
-		                FROM psi_prices
-		                WHERE psi_prices.psi_product_id = branch_psi_products.psi_product_id
-                        ) AS lead_day')
-        )
-            ->leftJoin('psi_stocks', 'psi_stocks.branch_psi_product_id', '=', 'branch_psi_products.id')
-            ->leftJoin('reorder_points', 'reorder_points.psi_stock_id', '=', 'psi_stocks.id')
-            ->leftJoin('psi_orders', 'psi_orders.branch_psi_product_id', '=', 'branch_psi_products.id')
-            ->leftJoin('psi_prices', 'psi_orders.psi_price_id', '=', 'psi_prices.id')
-            ->first();
+        /** @var ReorderPointCalculator $calculator */
+        $calculator = app(ReorderPointCalculator::class);
+        $result = $calculator->recalculate($branchPsiProductId);
 
-
-        // dd($productQuery->leadDay);
-
-        $saftyPoint = ($productQuery->lead_day + $productQuery->safty_day) * $productQuery->latest_focus;
-        // dd($saftyPoint);
-
-        $totalDayToSale = ($productQuery->inventory_balance - $saftyPoint) / $productQuery->latest_focus;
-        $totalDayToSale = (int) $totalDayToSale;
-        //
-        //todo 2 - Reorder Due Date => $orderDueDate
-        $orderDueDate = Carbon::now()->addDays($totalDayToSale);
-        // dd($totalDayToSale);
-
-        //todo 3 - Stock Status => $stockStatus
-        switch (true) {
-            case $totalDayToSale >= 10:
-                $stockStatus = 1; // balanced
-                break;
-            case $totalDayToSale >= 6:
-                $stockStatus = 2; //warning
-                break;
-            case $totalDayToSale > 0 && $totalDayToSale < 6:
-                $stockStatus = 3; //Emergency
-                break;
-            case $totalDayToSale < 0:
-                $stockStatus = 4; //
-                break;
-            default:
-                $this->notification([
-                    'title' => "Warning",
-                    'description' => 'No status code, Code Logical error!',
-                    'icon' => 'warning',
-                ]);
-                break;
+        if (!($result['ok'] ?? false)) {
+            $this->dispatch('close-modal');
+            $this->notification([
+                'title' => 'Error',
+                'description' => $result['error'] ?? 'Reorder point calculation failed!',
+                'icon' => 'error',
+            ]);
+            return;
         }
 
-        $safty_day = $productQuery->safty_day;
-        $stockId = $productQuery->stockId;
-
-        DB::transaction(function () use ($stockId, $saftyPoint, $orderDueDate, $stockStatus, $safty_day) {
-
-            $reorderData = ReorderPoint::wherePsiStockId($stockId)->exists();
-
-
-            if ($reorderData) {
-                $reorderData = ReorderPoint::wherePsiStockId($stockId)->first();
-
-                $reorderData->update([
-                    'psi_stock_id' => $stockId,
-                    'safty_day' => $safty_day,
-                    'reorder_point' => $saftyPoint,
-                    'reorder_due_date' => $orderDueDate,
-                    'psi_stock_status_id' => $stockStatus
-                ]);
-
-                $this->notification([
-                    'title' => 'Safty Day',
-                    'description' => 'Updated Successful',
-                    'icon' => 'success'
-                ]);
-            } else {
-
-                ReorderPoint::create([
-                    'psi_stock_id' => $stockId,
-                    'safty_day' => $safty_day,
-                    'reorder_point' => $saftyPoint,
-                    'reorder_due_date' => $orderDueDate,
-                    'psi_stock_status_id' => $stockStatus
-                ]);
-
-                $this->notification([
-                    'title' => 'Safty Day',
-                    'description' => 'Created sccessful',
-                    'icon' => 'success'
-                ]);
-            }
-        });
+        if (($result['updated'] ?? false) === true) {
+            $this->notification([
+                'title' => 'Safty Day',
+                'description' => 'Updated Successful',
+                'icon' => 'success'
+            ]);
+        } elseif (($result['created'] ?? false) === true) {
+            $this->notification([
+                'title' => 'Safty Day',
+                'description' => 'Created sccessful',
+                'icon' => 'success'
+            ]);
+        }
 
         $this->dispatch('close-modal');
-        // $this->reset('safty_day');
 
         $this->dialog([
             'title' => 'Reorder Point Regenerated',
