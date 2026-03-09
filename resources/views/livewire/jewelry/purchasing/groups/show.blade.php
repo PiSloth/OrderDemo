@@ -365,10 +365,16 @@
             } else {
                 foreach ($batchSummaries ?? [] as $b) {
                     if (!empty($b['is_post'])) {
+                        $anyBatchPosted = true;
                         $postedBatchIds[(int) ($b['batch_id'] ?? 0)] = true;
                     }
                 }
             }
+
+            $allBatchesOff = $batchCount > 0 && !$anyBatchPosted;
+            $displayTotalGram = $allBatchesOff
+                ? (float) ($footer['total_weight_plus_deduction'] ?? ($footer['total_weight'] ?? 0))
+                : (float) ($footer['total_weight'] ?? 0);
         @endphp
 
         <div class="px-4 py-3 border-b dark:border-slate-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
@@ -388,8 +394,7 @@
                         <span class="font-medium">Grand total:</span>
                         <span class="font-semibold">{{ (int) ($footer['item_count'] ?? 0) }}</span> items
                         <span class="mx-2">•</span>
-                        <span
-                            class="font-semibold">{{ number_format((float) ($footer['total_weight'] ?? 0), 3) }}</span>
+                        <span class="font-semibold">{{ number_format((float) $displayTotalGram, 3) }}</span>
                         total gram
                     </span>
                 @endif
@@ -535,7 +540,14 @@
                                     ($batch['kyauk_weight'] ?? 0) == 0
                                         ? ''
                                         : number_format((float) $batch['kyauk_weight'], 3);
-                                $bstone = ($batch['stone_price'] ?? 0) == 0 ? '' : (int) $batch['stone_price'];
+                                $bstone = '';
+                                if (($batch['stone_price'] ?? 0) != 0) {
+                                    $stoneHalf = ((float) ($batch['stone_price'] ?? 0)) / 2;
+                                    $bstone =
+                                        fmod($stoneHalf, 1.0) == 0.0
+                                            ? (string) ((int) $stoneHalf)
+                                            : rtrim(rtrim(number_format($stoneHalf, 1, '.', ''), '0'), '.');
+                                }
                             @endphp
 
                             <td
@@ -749,7 +761,14 @@
                                         ? ''
                                         : number_format((float) $item->goldsmith_deduction, 3);
                                 $ilabor = $item->goldsmith_labor_fee == 0 ? '' : (int) $item->goldsmith_labor_fee;
-                                $istone = empty($item->stone_price) ? '' : (int) $item->stone_price;
+                                $istone = '';
+                                if (!empty($item->stone_price)) {
+                                    $stoneHalf = ((float) $item->stone_price) / 2;
+                                    $istone =
+                                        fmod($stoneHalf, 1.0) == 0.0
+                                            ? (string) ((int) $stoneHalf)
+                                            : rtrim(rtrim(number_format($stoneHalf, 1, '.', ''), '0'), '.');
+                                }
                                 $ipl =
                                     ($item->profit_loss ?? 0) == 0 ? '' : number_format((float) $item->profit_loss, 2);
                                 $iprofitLabor = empty($item->profit_labor_fee) ? '' : (int) $item->profit_labor_fee;
@@ -772,7 +791,23 @@
                             </td>
                             <td
                                 class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
-                                <span>{{ $istone }}</span>
+                                @if ($istone !== '')
+                                    <button type="button"
+                                        @click="copyText(@js($istone)); markCopied('copy-{{ $iKey }}-stone')"
+                                        class="inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 tabular-nums dark:border-slate-600"
+                                        :class="isCopied('copy-{{ $iKey }}-stone') ?
+                                            'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                                            'border-slate-300 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'"
+                                        title="Copy">
+                                        <span>{{ $istone }}</span>
+                                        <span class="inline-flex items-center justify-center w-5 h-5">
+                                            <span x-show="!isCopied('copy-{{ $iKey }}-stone')"><x-icon
+                                                    name="duplicate" class="w-4 h-4" /></span>
+                                            <span x-show="isCopied('copy-{{ $iKey }}-stone')"><x-icon
+                                                    name="share" class="w-4 h-4" /></span>
+                                        </span>
+                                    </button>
+                                @endif
                             </td>
                             <td
                                 class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 text-right border-r border-slate-200 dark:border-slate-700">
@@ -850,8 +885,7 @@
                 Total items: <span class="font-semibold">{{ (int) ($footer['item_count'] ?? 0) }}</span>
             </div>
             <div class="text-sm text-slate-700 dark:text-slate-200">
-                Total gram: <span
-                    class="font-semibold">{{ number_format((float) ($footer['total_weight'] ?? 0), 3) }}</span>
+                Total gram: <span class="font-semibold">{{ number_format((float) $displayTotalGram, 3) }}</span>
             </div>
         </div>
     </div>

@@ -13,6 +13,186 @@ use Spatie\SimpleExcel\SimpleExcelReader;
 class JewelryExcelImportService
 {
     /**
+     * Updates existing items by barcode.
+     *
+     * - Only rows with a non-empty barcode are considered.
+     * - Only provided (non-null) columns are updated.
+     * - If $branchId is provided, updates are limited to that branch.
+     *
+     * @return array{updated:int,errors:array<int,string>,warnings:array<int,string>,not_found:array<int,string>}
+     */
+    public function updateExistingByBarcode(string $path, ?int $branchId = null): array
+    {
+        $errors = [];
+        $warnings = [];
+        $notFound = [];
+
+        $rows = SimpleExcelReader::create($path)->getRows();
+
+        /** @var array<string,array{rowIndexes:array<int,int>,payload:array<string,mixed>}> $updatesByBarcode */
+        $updatesByBarcode = [];
+        $rowIndex = 1;
+        foreach ($rows as $rawRow) {
+            $rowIndex++;
+            $r = $this->normalizeExcelRow($rawRow);
+
+            $barcode = trim((string) ($r['barcode'] ?? $r['bar_code'] ?? $r['code'] ?? ''));
+            if ($barcode === '') {
+                $errors[] = "Row {$rowIndex}: barcode is required.";
+                continue;
+            }
+
+            $productName = trim((string) ($r['product_name'] ?? $r['product'] ?? $r['name'] ?? ''));
+            $quality = trim((string) ($r['quality'] ?? $r['qlty'] ?? $r['q'] ?? ''));
+
+            $totalWeight = $this->parseDecimal($r['total_weight'] ?? $r['totalweight'] ?? $r['weight'] ?? null, 3);
+            $goldWeight = $this->parseDecimal($r['gold_weight'] ?? $r['goldweight'] ?? $r['gold'] ?? null, 3);
+
+            $goldsmithDeduction = $this->parseDecimal(
+                $r['goldsmith_deduction']
+                    ?? ($r['l_gram'] ?? null)
+                    ?? ($r['lgram'] ?? null)
+                    ?? ($r['ပန်းထိမ်အလျော့တွက်'] ?? null)
+                    ?? null,
+                3
+            );
+            $goldsmithLaborFee = $this->parseInt(
+                $r['goldsmith_labor_fee']
+                    ?? ($r['l_mmk'] ?? null)
+                    ?? ($r['lmmk'] ?? null)
+                    ?? ($r['ပန်းထိမ်_လက်ခ'] ?? null)
+                    ?? ($r['ပန်းထိမ်_လက်ခ'] ?? null)
+                    ?? null
+            );
+            $kyaukWeight = $this->parseDecimal(
+                $r['kyauk_weight']
+                    ?? ($r['kyauk_gram'] ?? null)
+                    ?? ($r['kyaukgram'] ?? null)
+                    ?? ($r['ကျောက်ချိန်'] ?? null)
+                    ?? null,
+                3
+            );
+
+            $stonePrice = $this->parseInt($r['stone_price'] ?? ($r['ကျောက်ဖိုး'] ?? null) ?? null);
+            $profitLoss = $this->parseDecimal($r['profit_loss'] ?? ($r['အမြတ်အလျော့'] ?? null) ?? null, 2);
+            $profitLaborFee = $this->parseInt($r['profit_labor_fee'] ?? ($r['အမြတ်လက်ခ'] ?? null) ?? null);
+
+            $payload = [];
+            if ($productName !== '') {
+                $payload['product_name'] = $productName;
+            }
+            if ($quality !== '') {
+                $payload['quality'] = $quality;
+            }
+            if (!is_null($goldWeight)) {
+                $payload['gold_weight'] = (float) $goldWeight;
+            }
+            if (!is_null($totalWeight)) {
+                $payload['total_weight'] = (float) $totalWeight;
+            }
+            if (!is_null($kyaukWeight)) {
+                $payload['kyauk_weight'] = (float) $kyaukWeight;
+            }
+            if (!is_null($goldsmithDeduction)) {
+                $payload['goldsmith_deduction'] = (float) $goldsmithDeduction;
+            }
+            if (!is_null($goldsmithLaborFee)) {
+                $payload['goldsmith_labor_fee'] = (int) $goldsmithLaborFee;
+            }
+            if (!is_null($stonePrice)) {
+                $payload['stone_price'] = (int) $stonePrice;
+            }
+            if (!is_null($profitLoss)) {
+                $payload['profit_loss'] = (float) $profitLoss;
+            }
+            if (!is_null($profitLaborFee)) {
+                $payload['profit_labor_fee'] = (int) $profitLaborFee;
+            }
+
+            if (empty($payload)) {
+                $errors[] = "Row {$rowIndex}: no updatable columns found (besides barcode).";
+                continue;
+            }
+
+            if (!isset($updatesByBarcode[$barcode])) {
+                $updatesByBarcode[$barcode] = ['rowIndexes' => [], 'payload' => []];
+            }
+            $updatesByBarcode[$barcode]['rowIndexes'][] = (int) $rowIndex;
+            // Last row wins for the same barcode.
+            $updatesByBarcode[$barcode]['payload'] = $payload;
+        }
+
+        if (empty($updatesByBarcode)) {
+            return [
+                'updated' => 0,
+                'errors' => array_values($errors ?: ['No rows found to update.']),
+                'warnings' => [],
+                'not_found' => [],
+            ];
+        }
+
+        foreach ($updatesByBarcode as $barcode => $u) {
+            if (count($u['rowIndexes']) > 1) {
+                $warnings[] = 'Duplicate barcode in file (rows ' . implode(', ', $u['rowIndexes']) . "): {$barcode}. Using last row.";
+            }
+        }
+
+        $barcodes = array_keys($updatesByBarcode);
+        $existingCounts = JewelryItem::query()
+            ->when(!is_null($branchId), fn($q) => $q->where('branch_id', (int) $branchId))
+            ->whereIn('barcode', $barcodes)
+            ->select('barcode', DB::raw('COUNT(*) as c'))
+            ->groupBy('barcode')
+            ->pluck('c', 'barcode');
+
+        $existingSet = [];
+        foreach ($existingCounts as $barcode => $c) {
+            $existingSet[(string) $barcode] = (int) $c;
+        }
+
+        foreach ($barcodes as $barcode) {
+            if (!isset($existingSet[$barcode])) {
+                $rowsLabel = implode(', ', $updatesByBarcode[$barcode]['rowIndexes'] ?? []);
+                $notFound[] = $rowsLabel !== ''
+                    ? "Barcode not found (rows {$rowsLabel}): {$barcode}"
+                    : "Barcode not found: {$barcode}";
+            }
+        }
+
+        $now = now();
+        $updated = 0;
+        DB::transaction(function () use ($updatesByBarcode, $existingSet, $branchId, $now, &$updated, &$warnings) {
+            foreach ($updatesByBarcode as $barcode => $u) {
+                if (!isset($existingSet[$barcode])) {
+                    continue;
+                }
+
+                $payload = $u['payload'];
+                $payload['updated_at'] = $now;
+
+                $count = JewelryItem::query()
+                    ->when(!is_null($branchId), fn($q) => $q->where('branch_id', (int) $branchId))
+                    ->where('barcode', $barcode)
+                    ->update($payload);
+
+                $updated += (int) $count;
+
+                $matched = (int) ($existingSet[$barcode] ?? 0);
+                if ($matched > 1) {
+                    $warnings[] = "Barcode {$barcode} matched {$matched} items; updated all.";
+                }
+            }
+        });
+
+        return [
+            'updated' => (int) $updated,
+            'errors' => array_values($errors),
+            'warnings' => array_values($warnings),
+            'not_found' => array_values($notFound),
+        ];
+    }
+
+    /**
      * Imports items into the provided group.
      *
      * If the group reaches its limits (120 items and/or 12 unique batches), the importer will

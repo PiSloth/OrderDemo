@@ -30,6 +30,9 @@ class Index extends Component
     public array $importErrors = [];
     public int $importedCount = 0;
 
+    public $updateFile;
+    public int $updatedCount = 0;
+
     public ?int $branchId = null;
 
     /** @var array<int,array{id:int,name:string}> */
@@ -265,6 +268,50 @@ class Index extends Component
         $this->dispatch('jewelry-import-success');
 
         // No redirect after import (per requirement).
+    }
+
+    public function updateExistingByBarcode(): void
+    {
+        $this->resetValidation();
+        $this->importErrors = [];
+        $this->updatedCount = 0;
+
+        $this->validate([
+            'updateFile' => ['required', 'file', 'mimes:xlsx,csv,ods'],
+        ]);
+
+        $path = method_exists($this->updateFile, 'getRealPath') ? $this->updateFile->getRealPath() : null;
+        $path = $path ?: (method_exists($this->updateFile, 'getPathname') ? $this->updateFile->getPathname() : null);
+        if (!$path) {
+            $this->addError('updateFile', 'Could not read uploaded file.');
+            return;
+        }
+
+        $service = app(JewelryExcelImportService::class);
+
+        try {
+            $result = $service->updateExistingByBarcode($path, $this->branchId);
+        } catch (\Throwable $e) {
+            $this->addError('updateFile', $e->getMessage() ?: 'Update failed.');
+            return;
+        }
+
+        $this->updatedCount = (int) ($result['updated'] ?? 0);
+
+        $messages = [];
+        $messages = array_merge($messages, (array) ($result['errors'] ?? []));
+        $messages = array_merge($messages, (array) ($result['not_found'] ?? []));
+        $messages = array_merge($messages, (array) ($result['warnings'] ?? []));
+        $messages = array_values(array_filter(array_map(fn($v) => trim((string) $v), $messages), fn($v) => $v !== ''));
+        $this->importErrors = $messages;
+
+        $this->updateFile = null;
+
+        $notFoundCount = is_array($result['not_found'] ?? null) ? count($result['not_found']) : 0;
+        $suffix = $notFoundCount > 0 ? " ({$notFoundCount} barcodes not found)" : '';
+        session()->flash('success', "Updated {$this->updatedCount} item(s) by barcode{$suffix}.");
+
+        $this->dispatch('jewelry-update-success');
     }
 
     public function render()

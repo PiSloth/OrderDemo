@@ -358,9 +358,14 @@ class Show extends Component
             ];
         }
 
+        $totalWeight = (float) $items->sum(fn($r) => (float) $r->total_weight);
+        $totalGoldsmithDeduction = (float) $items->sum(fn($r) => (float) $r->goldsmith_deduction);
+
         $footer = [
             'item_count' => (int) $items->count(),
-            'total_weight' => (float) $items->sum(fn($r) => (float) $r->total_weight),
+            'total_weight' => $totalWeight,
+            'goldsmith_deduction' => $totalGoldsmithDeduction,
+            'total_weight_plus_deduction' => $totalWeight + $totalGoldsmithDeduction,
         ];
 
         $poOk = trim((string) $this->po_reference) !== '';

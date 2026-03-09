@@ -1,4 +1,5 @@
-<div x-data="{ importOpen: false, categoryOpen: false, mappingOpen: false }" x-on:jewelry-import-success.window="importOpen = false" class="space-y-6">
+<div x-data="{ importOpen: false, updateOpen: false, categoryOpen: false, mappingOpen: false }" x-on:jewelry-import-success.window="importOpen = false"
+    x-on:jewelry-update-success.window="updateOpen = false" class="space-y-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-xl font-semibold text-slate-900 dark:text-white">Jewelry Groups</h1>
@@ -27,6 +28,12 @@
                 class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
                 <x-icon name="upload" class="w-4 h-4 mr-2" />
                 Import Excel
+            </button>
+
+            <button type="button" @click="updateOpen = true"
+                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+                <x-icon name="refresh" class="w-4 h-4 mr-2" />
+                Update by Barcode
             </button>
 
             <button type="button" @click="categoryOpen = true"
@@ -271,6 +278,65 @@
                             @disabled(!$importFile) wire:loading.attr="disabled"
                             wire:target="importFile,importNewGroup">
                             Import
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Modal (by barcode) -->
+    <div x-show="updateOpen" x-cloak class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/50" @click="updateOpen = false"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div class="text-base font-semibold text-slate-900 dark:text-white">Update Existing Items</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-300">Updates items by matching
+                            <span
+                                class="font-medium">Barcode</span>{{ !is_null($branchId) ? ' (in this branch)' : '' }}.
+                        </div>
+                    </div>
+                    <button type="button" @click="updateOpen = false"
+                        class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label="Close update modal">
+                        <x-icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <form wire:submit.prevent="updateExistingByBarcode" class="p-4 space-y-4">
+                    <div class="text-sm text-slate-600 dark:text-slate-200">
+                        Required column: <span class="font-medium">Barcode</span>.
+                        Optional update columns (if provided in the file): <span class="font-medium">Product
+                            Name</span>,
+                        <span class="font-medium">Quality</span>, <span class="font-medium">Gold Weight</span>,
+                        <span class="font-medium">Total Weight</span>, <span
+                            class="font-medium">ပန်းထိမ်အလျော့တွက်</span>,
+                        <span class="font-medium">ပန်းထိမ် လက်ခ</span>, <span class="font-medium">ကျောက်ချိန်</span>,
+                        <span class="font-medium">ကျောက်ဖိုး</span>, <span class="font-medium">အမြတ်အလျော့</span>,
+                        <span class="font-medium">အမြတ်လက်ခ</span>.
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-300">If a barcode is not found, it will
+                            be listed in the warnings panel.</div>
+                    </div>
+
+                    <div>
+                        <input type="file" wire:model="updateFile" accept=".xlsx,.csv,.ods"
+                            class="block w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 dark:text-slate-200 dark:file:bg-slate-700 dark:file:text-slate-100" />
+                        @error('updateFile')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                        <div wire:loading wire:target="updateFile" class="mt-2 text-sm text-slate-500">Uploading…
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" @click="updateOpen = false"
+                            class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+                        <button type="submit"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700"
+                            wire:loading.attr="disabled" wire:target="updateExistingByBarcode">
+                            Update
                         </button>
                     </div>
                 </form>
