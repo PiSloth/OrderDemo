@@ -35,6 +35,8 @@ class Index extends Component
 
     public ?int $branchId = null;
 
+    public string $search = '';
+
     /** @var array<int,array{id:int,name:string}> */
     public array $branches = [];
 
@@ -59,6 +61,11 @@ class Index extends Component
     public function updatedBranchId($value): void
     {
         $this->branchId = $value ? (int) $value : null;
+        $this->resetPage();
+    }
+
+    public function updatingSearch(): void
+    {
         $this->resetPage();
     }
 
@@ -318,6 +325,8 @@ class Index extends Component
     {
         $branchId = $this->branchId;
 
+        $search = trim($this->search);
+
         $groupsQuery = GroupNumber::query()
             ->with(['purchaseBy'])
             ->when(!is_null($branchId), function ($q) use ($branchId) {
@@ -326,6 +335,23 @@ class Index extends Component
                         ->from('jewelry_items')
                         ->whereColumn('jewelry_items.group_number_id', 'group_numbers.id')
                         ->where('jewelry_items.branch_id', (int) $branchId);
+                });
+            })
+            ->when($search !== '', function ($q) use ($search, $branchId) {
+                $like = "%{$search}%";
+
+                $q->where(function ($w) use ($like, $branchId) {
+                    $w->where('po_reference', 'like', $like)
+                        ->orWhereExists(function ($sub) use ($like, $branchId) {
+                            $sub->selectRaw('1')
+                                ->from('jewelry_items')
+                                ->whereColumn('jewelry_items.group_number_id', 'group_numbers.id')
+                                ->when(!is_null($branchId), fn($sq) => $sq->where('jewelry_items.branch_id', (int) $branchId))
+                                ->where(function ($iw) use ($like) {
+                                    $iw->where('jewelry_items.product_name', 'like', $like)
+                                        ->orWhere('jewelry_items.barcode', 'like', $like);
+                                });
+                        });
                 });
             })
             ->withCount([

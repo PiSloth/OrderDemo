@@ -56,6 +56,12 @@
         </div>
     </div>
 
+    <div class="flex items-center gap-2">
+        <div class="text-xs font-medium text-slate-500 dark:text-slate-300">Search</div>
+        <input type="text" wire:model.live.debounce.300ms="search" placeholder="Product name, PO ref, barcode…"
+            class="h-9 w-full max-w-md rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200" />
+    </div>
+
     @if (session('success'))
         <div class="p-3 text-sm text-green-800 bg-green-100 border border-green-200 rounded">
             {{ session('success') }}

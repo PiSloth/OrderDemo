@@ -352,29 +352,19 @@
         @php
             $batchCount = is_countable($batchSummaries ?? null) ? count($batchSummaries) : 0;
             $showGrandTotal = $batchCount > 1;
+            // Determine posted state from the *current* checkbox state when available.
+            $postState = is_array($batchPostState ?? null) ? $batchPostState : [];
             $anyBatchPosted = false;
-            $postedBatchIds = [];
-            if ($showGrandTotal) {
-                foreach ($batchSummaries ?? [] as $b) {
-                    if (!empty($b['is_post'])) {
-                        $anyBatchPosted = true;
-                        $postedBatchIds[(int) ($b['batch_id'] ?? 0)] = true;
-                        break;
-                    }
-                }
-            } else {
-                foreach ($batchSummaries ?? [] as $b) {
-                    if (!empty($b['is_post'])) {
-                        $anyBatchPosted = true;
-                        $postedBatchIds[(int) ($b['batch_id'] ?? 0)] = true;
-                    }
+            foreach ($batchSummaries ?? [] as $b) {
+                $bId = (int) ($b['batch_id'] ?? 0);
+                $isPosted = array_key_exists($bId, $postState) ? (bool) $postState[$bId] : !empty($b['is_post']);
+                if ($isPosted) {
+                    $anyBatchPosted = true;
+                    break;
                 }
             }
 
-            $allBatchesOff = $batchCount > 0 && !$anyBatchPosted;
-            $displayTotalGram = $allBatchesOff
-                ? (float) ($footer['total_weight_plus_deduction'] ?? ($footer['total_weight'] ?? 0))
-                : (float) ($footer['total_weight'] ?? 0);
+            $displayTotalGram = (float) ($footer['total_weight_plus_deduction'] ?? ($footer['total_weight'] ?? 0));
         @endphp
 
         <div class="px-4 py-3 border-b dark:border-slate-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"

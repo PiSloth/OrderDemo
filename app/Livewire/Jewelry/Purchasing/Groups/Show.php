@@ -47,9 +47,26 @@ class Show extends Component
             'po_reference' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $old = trim((string) ($this->group->po_reference ?? ''));
+        $new = trim((string) ($validated['po_reference'] ?? ''));
+
         $this->group->update([
-            'po_reference' => trim((string) ($validated['po_reference'] ?? '')) ?: null,
+            'po_reference' => $new !== '' ? $new : null,
         ]);
+
+        if ($old !== $new) {
+            $content = match (true) {
+                $old === '' && $new !== '' => "PO reference added: {$new}",
+                $old !== '' && $new === '' => "PO reference cleared (was {$old})",
+                default => "PO reference changed: {$old} → {$new}",
+            };
+
+            GroupNumberComment::create([
+                'group_number_id' => $this->group->id,
+                'user_id' => auth()->id(),
+                'content' => $content,
+            ]);
+        }
 
         session()->flash('success', 'PO reference updated.');
     }
@@ -107,6 +124,8 @@ class Show extends Component
             return;
         }
 
+        $oldPo = trim((string) ($this->group->po_reference ?? ''));
+
         if (!$this->allBatchesPosted()) {
             $this->notification([
                 'icon' => 'error',
@@ -127,6 +146,16 @@ class Show extends Component
         $this->group->po_reference = $po;
         $this->group->entry_skill_grade = $this->group->calculatedSkillGrade();
         $this->group->save();
+
+        if ($oldPo !== $po) {
+            $content = $oldPo === '' ? "PO reference added: {$po}" : "PO reference changed: {$oldPo} → {$po}";
+
+            GroupNumberComment::create([
+                'group_number_id' => $this->group->id,
+                'user_id' => auth()->id(),
+                'content' => $content,
+            ]);
+        }
     }
 
     public function updatedBatchPostState($value, $key): void
