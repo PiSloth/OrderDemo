@@ -52,6 +52,7 @@ class Dashboard extends Component
     // Daily targets calendar
     public $calendar_month;
     public $calendar_year;
+    public $calendar_metric = 'gram'; // gram | pcs
     public $selected_date;
     public $show_target_modal = false;
     public $daily_targets = [];
@@ -178,6 +179,12 @@ class Dashboard extends Component
     {
         $allowed = ['gram', 'pcs'];
         $this->target_actual_metric = in_array($this->target_actual_metric, $allowed, true) ? $this->target_actual_metric : 'gram';
+    }
+
+    public function updatedCalendarMetric()
+    {
+        $allowed = ['gram', 'pcs'];
+        $this->calendar_metric = in_array($this->calendar_metric, $allowed, true) ? $this->calendar_metric : 'gram';
     }
 
     public function setSaleCompareMode($mode)
@@ -1213,23 +1220,47 @@ class Dashboard extends Component
         $start = Carbon::create($this->calendar_year, $this->calendar_month, 1)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
+        $targets = BranchTarget::query()
+            ->select(
+                'day',
+                DB::raw('SUM(target_gram) AS target_gram'),
+                DB::raw('SUM(target_pcs) AS target_pcs')
+            )
+            ->where('year', (int) $start->year)
+            ->where('month', (int) $start->month)
+            ->groupBy('day')
+            ->get();
+
+        $targetsByDay = $targets->keyBy(fn($row) => (int) $row->day);
+
+        $actuals = DailyReportRecord::query()
+            ->select(
+                'daily_report_records.report_date',
+                DB::raw('SUM(CASE WHEN daily_reports.is_sale_gram = 1 THEN daily_report_records.number ELSE 0 END) AS actual_gram'),
+                DB::raw('SUM(CASE WHEN daily_reports.is_sale_quantity = 1 THEN daily_report_records.number ELSE 0 END) AS actual_pcs')
+            )
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->whereBetween('daily_report_records.report_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->groupBy('daily_report_records.report_date')
+            ->get();
+
+        $actualByDate = $actuals->keyBy(fn($row) => (string) $row->report_date);
+
         $days = [];
         for ($date = $start->copy(); $date <= $end; $date->addDay()) {
-            $targetGram = BranchTarget::where('year', $date->year)
-                ->where('month', $date->month)
-                ->where('day', $date->day)
-                ->sum('target_gram');
+            $dayNum = (int) $date->day;
+            $dateStr = $date->format('Y-m-d');
 
-            $actualGram = DailyReportRecord::where('report_date', $date->format('Y-m-d'))
-                ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
-                ->where('daily_reports.is_sale_gram', true)
-                ->sum('daily_report_records.number');
+            $t = $targetsByDay[$dayNum] ?? null;
+            $a = $actualByDate[$dateStr] ?? null;
 
             $days[] = [
-                'date' => $date->format('Y-m-d'),
-                'day' => $date->day,
-                'target_gram' => $targetGram,
-                'actual_gram' => $actualGram,
+                'date' => $dateStr,
+                'day' => $dayNum,
+                'target_gram' => (float) ($t->target_gram ?? 0),
+                'target_pcs' => (int) ($t->target_pcs ?? 0),
+                'actual_gram' => (float) ($a->actual_gram ?? 0),
+                'actual_pcs' => (float) ($a->actual_pcs ?? 0),
             ];
         }
 
