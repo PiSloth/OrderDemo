@@ -17,14 +17,10 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Alpine.js -->
-    <script src="//unpkg.com/alpinejs" defer></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
-        .neomorph {
-            background: #f0f0f3;
-            border-radius: 50px;
-            box-shadow: 8px 8px 16px #d1d9e6,
-                -8px -8px 16px #ffffff;
-            transition: all 0.3s ease-in-out;
+        [x-cloak] {
+            display: none !important;
         }
 
         .heartbeat {
@@ -42,75 +38,84 @@
                 transform: scale(1.1);
             }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            .heartbeat {
+                animation: none;
+            }
+        }
     </style>
 </head>
 
-<body class="font-sans antialiased text-gray-900 bg-gradient-to-br from-white via-stone-100 to-white">
+<body class="font-sans antialiased text-gray-900 bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100">
 
-    <div class="flex flex-col items-center justify-center min-h-screen px-6 py-12" x-data="{ show: false }"
-        x-init="setTimeout(() => show = true, 300)">
+    <div class="flex flex-col items-center justify-center min-h-screen px-6 py-12" x-data="{ ready: false, reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches }"
+        x-init="setTimeout(() => ready = true, reduceMotion ? 0 : 200)">
 
         <!-- Logo -->
-        <div class="mb-8">
-            <img src="{{ url('images/logo.png') }}" alt="Logo" class="w-24 h-24 rounded shadow-md">
+        <div class="mb-8" x-cloak x-show="ready" x-transition:enter="transition ease-out duration-700"
+            x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+            <img src="{{ url('images/logo.png') }}" alt="Logo"
+                class="w-24 h-24 rounded-2xl shadow-md ring-1 ring-white/60">
         </div>
 
         <!-- Animated Welcome -->
-        <div x-show="show" x-transition:enter="transition-opacity duration-1000" x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100" class="mb-10 text-center">
-            <h1 class="mb-4 font-serif text-4xl font-bold text-gray-900">Welcome to JewelTrack</h1>
-            <p class="text-lg text-gray-600">Manage luxurious jewelry orders with elegance and efficiency.</p>
+        <div x-cloak x-show="ready" x-transition:enter="transition ease-out duration-700"
+            x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            class="mb-10 text-center">
+            <h1 class="mb-4 text-4xl font-bold text-gray-900">Welcome to JewelTrack</h1>
+            <p class="text-lg text-gray-700">Manage luxurious jewelry orders with elegance and efficiency.</p>
         </div>
 
         <!-- Animated Navigation Cards -->
-        <div x-show="show" x-transition:enter="transition-opacity duration-1000 delay-300"
+        <div x-cloak x-show="ready" x-transition:enter="transition ease-out duration-700"
             x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
             class="grid w-full max-w-6xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <a href="#"
-                class="p-6 transition bg-white border border-gray-200 shadow-md hover:shadow-xl rounded-2xl">
+                class="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-md backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl">
                 <h2 class="mb-2 text-xl font-semibold text-gray-800">📜 View Order Histories</h2>
                 <p class="text-sm text-gray-500">Browse all past and recent orders.</p>
             </a>
 
             <a href="#"
-                class="p-6 transition bg-white border border-gray-200 shadow-md hover:shadow-xl rounded-2xl">
+                class="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-md backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl">
                 <h2 class="mb-2 text-xl font-semibold text-gray-800">➕ Create New Order</h2>
                 <p class="text-sm text-gray-500">Place a new order in the system.</p>
             </a>
 
             <a href="#"
-                class="p-6 transition bg-white border border-gray-200 shadow-md hover:shadow-xl rounded-2xl">
+                class="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-md backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl">
                 <h2 class="mb-2 text-xl font-semibold text-gray-800">🚚 Order Status</h2>
                 <p class="text-sm text-gray-500">Track pending and arrived orders.</p>
             </a>
 
             <a href="#"
-                class="p-6 transition bg-white border border-gray-200 shadow-md hover:shadow-xl rounded-2xl">
+                class="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-md backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl">
                 <h2 class="mb-2 text-xl font-semibold text-gray-800">🏢 Branch Performance</h2>
                 <p class="text-sm text-gray-500">Analyze how each branch performs.</p>
             </a>
 
             <a href="#"
-                class="p-6 transition bg-white border border-gray-200 shadow-md hover:shadow-xl rounded-2xl">
+                class="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-md backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl">
                 <h2 class="mb-2 text-xl font-semibold text-gray-800">📊 Sales Rate</h2>
                 <p class="text-sm text-gray-500">Visualize sales trends over time.</p>
             </a>
 
             <a href="#"
-                class="p-6 transition bg-white border border-gray-200 shadow-md hover:shadow-xl rounded-2xl">
+                class="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-md backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl">
                 <h2 class="mb-2 text-xl font-semibold text-gray-800">💍 Top Products</h2>
                 <p class="text-sm text-gray-500">View most demanded jewelry pieces.</p>
             </a>
         </div>
 
         {{-- Login Button --}}
-        <a href="{{ route('login') }}"
-            class="px-6 py-2 my-4 text-lg font-semibold text-gray-700 neomorph heartbeat hover:text-indigo-600">
+        <a href="{{ route('login') }}" :class="reduceMotion ? '' : 'heartbeat'"
+            class="my-6 inline-flex items-center justify-center rounded-full border border-black/10 bg-white/60 px-6 py-2 text-lg font-semibold text-gray-900 shadow-md backdrop-blur-md transition hover:bg-white/70 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-black/60 focus:ring-offset-2">
             Login
         </a>
 
         <!-- Optional Footer -->
-        <div class="mt-10 text-sm text-gray-500">
+        <div class="mt-10 text-sm text-gray-600">
             Invented by IT Department • Shwe Tatar
         </div>
 
