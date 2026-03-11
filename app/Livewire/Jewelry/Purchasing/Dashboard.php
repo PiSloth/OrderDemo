@@ -37,6 +37,13 @@ class Dashboard extends Component
     /** @var array<int,array{user_id:int,user_name:string,registered_count:int}> */
     public array $dailyTopRegistrars = [];
 
+    /**
+     * Bootcamp results for today + previous 3 days.
+     *
+     * @var array<int,array{date:string,is_today:bool,skill_winner:array,top_registrars:array}>
+     */
+    public array $dailyBootcampHistory = [];
+
     /** @var array<int,array{product_name:string,total_count:int,total_gram:float,registered_count:int}> */
     public array $itemRegisterSummary = [];
 
@@ -153,6 +160,17 @@ class Dashboard extends Component
 
         $this->dailySkillWinner = $this->buildDailySkillWinner($todayDate, $branchId);
         $this->dailyTopRegistrars = $this->buildDailyTopRegistrars($todayDate, $branchId);
+
+        $this->dailyBootcampHistory = [];
+        for ($i = 0; $i < 4; $i++) {
+            $d = $todayDate->copy()->subDays($i);
+            $this->dailyBootcampHistory[] = [
+                'date' => $d->toDateString(),
+                'is_today' => $i === 0,
+                'skill_winner' => $this->buildDailySkillWinner($d, $branchId),
+                'top_registrars' => $this->buildDailyTopRegistrars($d, $branchId),
+            ];
+        }
 
         $this->predictive = $this->buildPredictive();
 
