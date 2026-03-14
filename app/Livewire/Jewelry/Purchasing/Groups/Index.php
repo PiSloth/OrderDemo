@@ -196,17 +196,20 @@ class Index extends Component
         return [(string) $k, (string) $p, $y];
     }
 
-    private function formatLaborFee(?int $goldsmithLaborFee, ?int $profitLaborFee): string
+    private function formatLaborFee(?int $goldsmithLaborFee, ?int $profitLaborFee, ?int $stonePrice): string
     {
         $goldsmithLaborFee = (int) ($goldsmithLaborFee ?? 0);
         $profitLaborFee = (int) ($profitLaborFee ?? 0);
-        $sum = $goldsmithLaborFee + $profitLaborFee;
+        $stonePrice = (int) ($stonePrice ?? 0);
+        $sum = ((float) ($goldsmithLaborFee + $profitLaborFee)) + (((float) $stonePrice) / 2.0);
 
         if ($sum == 0.0) {
             return '0';
         }
 
-        return (string) $sum;
+        return fmod($sum, 1.0) == 0.0
+            ? (string) ((int) $sum)
+            : rtrim(rtrim(number_format($sum, 1, '.', ''), '0'), '.');
     }
 
     public function exportFilteredItems()
@@ -216,6 +219,12 @@ class Index extends Component
             $this->addError('exportFilters', 'Please select at least one filter (PO Ref / Barcode / Product name) to export.');
             return null;
         }
+
+        $branchId = $this->branchId;
+        $selectedPoRefs = array_values(array_filter(
+            array_map(fn($v) => trim((string) $v), (array) $this->exportPoRefs),
+            fn($v) => $v !== ''
+        ));
 
         $tempFilePath = tempnam(sys_get_temp_dir(), 'jewelry_items_') . '.xlsx';
 
@@ -242,6 +251,7 @@ class Index extends Component
                 'jewelry_items.profit_loss',
                 'jewelry_items.goldsmith_labor_fee',
                 'jewelry_items.profit_labor_fee',
+                'jewelry_items.stone_price',
             ])
             ->chunkById(1000, function ($chunk) use ($writer) {
                 foreach ($chunk as $r) {
@@ -258,12 +268,32 @@ class Index extends Component
                         'Addition Wastage K' => $this->zeroIfBlank($wK),
                         'Addition Wastage P' => $this->zeroIfBlank($wP),
                         'Addition Wastage Y' => $this->zeroIfBlank($wY),
-                        'Labor Fee(s)' => $this->zeroIfBlank($this->formatLaborFee($r->goldsmith_labor_fee ?? null, $r->profit_labor_fee ?? null)),
+                        'Labor Fee(s)' => $this->zeroIfBlank($this->formatLaborFee($r->goldsmith_labor_fee ?? null, $r->profit_labor_fee ?? null, $r->stone_price ?? null)),
                     ]);
                 }
             }, 'jewelry_items.id', 'id');
 
         $writer->close();
+
+        // If PO Ref filter is used, mark all items in those PO refs as registered by the exporter.
+        if (!empty($selectedPoRefs)) {
+            $userId = auth()->id();
+            if (!is_null($userId)) {
+                JewelryItem::query()
+                    ->join('group_numbers', 'group_numbers.id', '=', 'jewelry_items.group_number_id')
+                    ->when(!is_null($branchId), fn($q) => $q->where('jewelry_items.branch_id', (int) $branchId))
+                    ->whereIn('group_numbers.po_reference', $selectedPoRefs)
+                    ->where(function ($q) {
+                        $q->where('jewelry_items.is_register', false)
+                            ->orWhereNull('jewelry_items.register_by_id');
+                    })
+                    ->update([
+                        'is_register' => true,
+                        'register_by_id' => (int) $userId,
+                        'updated_at' => now(),
+                    ]);
+            }
+        }
 
         $filename = Carbon::now()->format('Ymd_His') . '-jewelry-items.xlsx';
         return Response::download($tempFilePath, $filename)->deleteFileAfterSend(true);
@@ -684,9 +714,16 @@ class Index extends Component
 
         $exportPreviewItems = [];
         $exportPreviewHasMore = false;
+        $exportMatchedCount = 0;
         $hasAnyExportFilter = !empty($this->exportPoRefs) || !empty($this->exportBarcodes) || !empty($this->exportProductNames);
         if ($hasAnyExportFilter) {
-            $preview = $this->exportItemsQuery()
+            $baseExportQuery = $this->exportItemsQuery();
+
+            $exportMatchedCount = (int) (clone $baseExportQuery)
+                ->reorder()
+                ->count('jewelry_items.id');
+
+            $preview = (clone $baseExportQuery)
                 ->limit(201)
                 ->get([
                     'jewelry_items.id',
@@ -722,6 +759,7 @@ class Index extends Component
             'exportProductNameOptions' => $exportProductNameOptions,
             'exportPreviewItems' => $exportPreviewItems,
             'exportPreviewHasMore' => $exportPreviewHasMore,
+            'exportMatchedCount' => $exportMatchedCount,
         ]);
     }
 }

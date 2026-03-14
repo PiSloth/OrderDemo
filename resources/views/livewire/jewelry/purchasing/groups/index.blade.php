@@ -551,7 +551,8 @@
     <div x-show="exportOpen" x-cloak class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/50" @click="exportOpen = false"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
-            <div class="w-full max-w-4xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+            <div
+                class="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800 flex flex-col">
                 <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
                     <div>
                         <div class="text-base font-semibold text-slate-900 dark:text-white">Export Items</div>
@@ -565,7 +566,7 @@
                     </button>
                 </div>
 
-                <div class="p-4 space-y-4">
+                <div class="flex-1 overflow-y-auto p-4 space-y-4">
                     <div class="grid gap-3 sm:grid-cols-3">
                         <div>
                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">PO Ref
@@ -669,6 +670,24 @@
                         matches.
                     </div>
 
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-slate-700 dark:text-slate-200">
+                            Items selected for export:
+                            <span class="font-semibold">{{ number_format((int) ($exportMatchedCount ?? 0)) }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" wire:click="resetExport"
+                                class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Reset</button>
+                            <button type="button" @click="exportOpen = false"
+                                class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Close</button>
+                            <button type="button" wire:click="exportFilteredItems"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
+                                <x-icon name="download" class="w-4 h-4 mr-2" />
+                                Export
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="overflow-hidden border rounded-md border-slate-200 dark:border-slate-700">
                         <div class="max-h-[50vh] overflow-auto">
                             <table class="min-w-full text-sm">
@@ -714,20 +733,6 @@
                     @error('exportFilters')
                         <div class="text-sm text-red-600">{{ $message }}</div>
                     @enderror
-
-                    <div class="flex items-center justify-between gap-2">
-                        <button type="button" wire:click="resetExport"
-                            class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Reset</button>
-                        <div class="flex items-center gap-2">
-                            <button type="button" @click="exportOpen = false"
-                                class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Close</button>
-                            <button type="button" wire:click="exportFilteredItems"
-                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
-                                <x-icon name="download" class="w-4 h-4 mr-2" />
-                                Export
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
