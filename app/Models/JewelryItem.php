@@ -46,6 +46,12 @@ class JewelryItem extends Model
         'is_register' => 'bool',
     ];
 
+    public function setExternalIdAttribute($value): void
+    {
+        $v = trim((string) ($value ?? ''));
+        $this->attributes['external_id'] = $v === '' ? null : $v;
+    }
+
     public function group(): BelongsTo
     {
         return $this->belongsTo(GroupNumber::class, 'group_number_id');

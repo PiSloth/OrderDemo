@@ -42,6 +42,10 @@ class JewelryExcelImportService
         $parsedRows = [];
 
         $rowIndex = 1;
+        /** @var array<string,int> $seenExternalIds */
+        $seenExternalIds = [];
+        /** @var array<string,int> $seenLotSerials */
+        $seenLotSerials = [];
         foreach ($rows as $rawRow) {
             $rowIndex++;
             $r = $this->normalizeExcelRow($rawRow);
@@ -137,10 +141,23 @@ class JewelryExcelImportService
                 $errors[] = "Row {$rowIndex}: external_id is required.";
                 continue;
             }
+
+            if (isset($seenExternalIds[$externalId])) {
+                $errors[] = "Row {$rowIndex}: external_id '{$externalId}' is duplicated (also in row {$seenExternalIds[$externalId]}). External ID must be unique.";
+                continue;
+            }
+            $seenExternalIds[$externalId] = (int) $rowIndex;
+
             if ($lotSerial === '') {
                 $errors[] = "Row {$rowIndex}: lot/serial is required.";
                 continue;
             }
+
+            if (isset($seenLotSerials[$lotSerial])) {
+                $errors[] = "Row {$rowIndex}: lot/serial '{$lotSerial}' is duplicated (also in row {$seenLotSerials[$lotSerial]}).";
+                continue;
+            }
+            $seenLotSerials[$lotSerial] = (int) $rowIndex;
 
             $parsedRows[] = [
                 'rowIndex' => (int) $rowIndex,
@@ -166,6 +183,45 @@ class JewelryExcelImportService
         }
 
         $poRefs = array_values(array_unique(array_map(fn($r) => (string) $r['po_reference'], $parsedRows)));
+
+        $dbCount = JewelryItem::query()
+            ->join('group_numbers', 'group_numbers.id', '=', 'jewelry_items.group_number_id')
+            ->when(!is_null($branchId), fn($q) => $q->where('jewelry_items.branch_id', (int) $branchId))
+            ->whereIn('group_numbers.po_reference', $poRefs)
+            ->count('jewelry_items.id');
+
+        $excelCount = count($parsedRows);
+        if ((int) $dbCount !== (int) $excelCount) {
+            return [
+                'updated' => 0,
+                'errors' => array_values(array_merge($errors, [
+                    "Row count mismatch: Excel has {$excelCount} row(s), but DB has {$dbCount} item(s) for the selected PO Ref(s). Import must be 1 Excel row = 1 DB item.",
+                ])),
+                'warnings' => array_values($warnings),
+                'not_found' => array_values($notFound),
+            ];
+        }
+
+        $externalIds = array_values(array_unique(array_map(fn($r) => (string) $r['external_id'], $parsedRows)));
+
+        /** @var array<string,array<int,int>> $existingItemIdsByExternalId */
+        $existingItemIdsByExternalId = [];
+        if (!empty($externalIds)) {
+            $existing = JewelryItem::query()
+                ->whereIn('external_id', $externalIds)
+                ->get(['id', 'external_id']);
+
+            foreach ($existing as $ex) {
+                $eid = (string) ($ex->external_id ?? '');
+                if ($eid === '') {
+                    continue;
+                }
+                if (!isset($existingItemIdsByExternalId[$eid])) {
+                    $existingItemIdsByExternalId[$eid] = [];
+                }
+                $existingItemIdsByExternalId[$eid][] = (int) $ex->id;
+            }
+        }
 
         $items = JewelryItem::query()
             ->join('group_numbers', 'group_numbers.id', '=', 'jewelry_items.group_number_id')
@@ -219,54 +275,121 @@ class JewelryExcelImportService
         $now = now();
         $updated = 0;
 
-        DB::transaction(function () use ($parsedRows, $itemIdsByKey, $itemIdsByKeyWithQuality, $now, &$updated, &$warnings, &$notFound) {
-            foreach ($parsedRows as $row) {
-                $quality = trim((string) ($row['quality'] ?? ''));
-                if ($quality !== '') {
-                    $key = $this->matchKeyWithQuality(
-                        (string) $row['po_reference'],
-                        (string) $quality,
-                        (float) $row['total_weight'],
-                        (float) $row['kyauk_weight'],
-                        (float) $row['goldsmith_deduction'],
-                        (int) $row['goldsmith_labor_fee'],
-                        $row['stone_price_db']
-                    );
-                    $ids = $itemIdsByKeyWithQuality[$key] ?? [];
-                } else {
-                    $warnings[] = 'Row ' . (int) $row['rowIndex'] . ': Quality is empty; matching without quality.';
-                    $key = $this->matchKey(
-                        (string) $row['po_reference'],
-                        (float) $row['total_weight'],
-                        (float) $row['kyauk_weight'],
-                        (float) $row['goldsmith_deduction'],
-                        (int) $row['goldsmith_labor_fee'],
-                        $row['stone_price_db']
-                    );
-                    $ids = $itemIdsByKey[$key] ?? [];
-                }
-                $count = count($ids);
+        /**
+         * First pass: validate 1:1 matching for every row and ensure no DB item is matched twice.
+         * If any row fails, do not update anything.
+         */
+        /** @var array<string,array<int,array<string,mixed>>> $rowsByKey */
+        $rowsByKey = [];
 
-                if ($count === 0) {
-                    $notFound[] = 'No match (row ' . (int) $row['rowIndex'] . '): PO Ref=' . (string) $row['po_reference'] . ($quality !== '' ? (', Quality=' . (string) $quality) : '');
+        foreach ($parsedRows as $row) {
+            $quality = trim((string) ($row['quality'] ?? ''));
+            if ($quality !== '') {
+                $baseKey = $this->matchKeyWithQuality(
+                    (string) $row['po_reference'],
+                    (string) $quality,
+                    (float) $row['total_weight'],
+                    (float) $row['kyauk_weight'],
+                    (float) $row['goldsmith_deduction'],
+                    (int) $row['goldsmith_labor_fee'],
+                    $row['stone_price_db']
+                );
+                $key = 'Q|' . $baseKey;
+            } else {
+                $warnings[] = 'Row ' . (int) $row['rowIndex'] . ': Quality is empty; matching without quality.';
+                $baseKey = $this->matchKey(
+                    (string) $row['po_reference'],
+                    (float) $row['total_weight'],
+                    (float) $row['kyauk_weight'],
+                    (float) $row['goldsmith_deduction'],
+                    (int) $row['goldsmith_labor_fee'],
+                    $row['stone_price_db']
+                );
+                $key = 'N|' . $baseKey;
+            }
+
+            if (!isset($rowsByKey[$key])) {
+                $rowsByKey[$key] = [];
+            }
+            $rowsByKey[$key][] = $row;
+        }
+
+        /** @var array<int,int> $targetIdByRowIndex */
+        $targetIdByRowIndex = [];
+        /** @var array<int,bool> $alreadyAssignedItemIds */
+        $alreadyAssignedItemIds = [];
+
+        foreach ($rowsByKey as $key => $rowsForKey) {
+            $isQualityKey = str_starts_with($key, 'Q|');
+            $baseKey = substr($key, 2);
+            $ids = $isQualityKey ? ($itemIdsByKeyWithQuality[$baseKey] ?? []) : ($itemIdsByKey[$baseKey] ?? []);
+
+            $rowCount = count($rowsForKey);
+            $idCount = count($ids);
+            if ($rowCount !== $idCount) {
+                $errors[] = 'Match bucket size mismatch: ' . $this->describeExternalMatchBucket($baseKey, $isQualityKey)
+                    . ": Excel has {$rowCount} row(s) but DB has {$idCount} item(s).";
+                continue;
+            }
+
+            usort($rowsForKey, fn($a, $b) => (int) ($a['rowIndex'] ?? 0) <=> (int) ($b['rowIndex'] ?? 0));
+            $ids = array_values(array_map('intval', $ids));
+            sort($ids);
+
+            foreach ($rowsForKey as $i => $row) {
+                $targetId = (int) ($ids[$i] ?? 0);
+                if ($targetId <= 0) {
+                    $errors[] = 'Row ' . (int) $row['rowIndex'] . ' could not be assigned to a DB item.';
+                    continue;
+                }
+
+                if (isset($alreadyAssignedItemIds[$targetId])) {
+                    $errors[] = 'Row ' . (int) $row['rowIndex'] . ' matched a DB item that was already assigned (item id ' . $targetId . ').';
+                    continue;
+                }
+                $alreadyAssignedItemIds[$targetId] = true;
+
+                $externalId = (string) ($row['external_id'] ?? '');
+                $existingIds = $existingItemIdsByExternalId[$externalId] ?? [];
+                $existingIds = array_values(array_unique(array_map('intval', $existingIds)));
+                $otherIds = array_values(array_filter($existingIds, fn($v) => (int) $v !== $targetId));
+                if (!empty($otherIds)) {
+                    $errors[] = 'Row ' . (int) $row['rowIndex'] . ": external_id '{$externalId}' is already used by another item (ID(s): " . implode(',', array_slice($otherIds, 0, 5)) . ').';
+                    continue;
+                }
+
+                $targetIdByRowIndex[(int) $row['rowIndex']] = $targetId;
+            }
+        }
+
+        if (!empty($errors)) {
+            return [
+                'updated' => 0,
+                'errors' => array_values($errors),
+                'warnings' => array_values($warnings),
+                'not_found' => array_values($notFound),
+            ];
+        }
+
+        DB::transaction(function () use ($parsedRows, $targetIdByRowIndex, $now, &$updated) {
+            foreach ($parsedRows as $row) {
+                $rowIndex = (int) $row['rowIndex'];
+                $targetId = (int) ($targetIdByRowIndex[$rowIndex] ?? 0);
+                if ($targetId <= 0) {
                     continue;
                 }
 
                 $payload = [
-                    'external_id' => (string) $row['external_id'],
-                    'lot_serial' => (string) $row['lot_serial'],
+                    'external_id' => (string) ($row['external_id'] ?? ''),
+                    'lot_serial' => (string) ($row['lot_serial'] ?? ''),
                     'updated_at' => $now,
                 ];
 
                 $affected = JewelryItem::query()
-                    ->whereIn('id', $ids)
+                    ->where('id', $targetId)
                     ->update($payload);
 
                 $updated += (int) $affected;
-
-                if ($count > 1) {
-                    $warnings[] = 'Row ' . (int) $row['rowIndex'] . ' matched ' . $count . ' items; updated all.';
-                }
             }
         });
 
@@ -945,6 +1068,30 @@ class JewelryExcelImportService
             . '|' . number_format($goldsmithDeduction, 3, '.', '')
             . '|' . (string) $goldsmithLaborFee
             . '|' . $stone;
+    }
+
+    private function describeExternalMatchBucket(string $baseKey, bool $withQuality): string
+    {
+        $parts = explode('|', $baseKey);
+
+        if ($withQuality) {
+            [$po, $quality, $total, $kyauk, $deduction, $labor, $stone] = array_pad($parts, 7, '');
+            return 'PO=' . (string) $po
+                . ', Quality=' . (string) $quality
+                . ', Total=' . (string) $total
+                . ', Kyauk=' . (string) $kyauk
+                . ', Deduction=' . (string) $deduction
+                . ', LaborFee=' . (string) $labor
+                . ', StoneDb=' . (string) $stone;
+        }
+
+        [$po, $total, $kyauk, $deduction, $labor, $stone] = array_pad($parts, 6, '');
+        return 'PO=' . (string) $po
+            . ', Total=' . (string) $total
+            . ', Kyauk=' . (string) $kyauk
+            . ', Deduction=' . (string) $deduction
+            . ', LaborFee=' . (string) $labor
+            . ', StoneDb=' . (string) $stone;
     }
 
     private function mapExternalQualityToDbQuality(string $qualityRaw): string

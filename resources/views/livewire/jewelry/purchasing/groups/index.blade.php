@@ -459,8 +459,8 @@
                         @error('updateFile')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
-                        <div wire:loading wire:target="updateFile" class="mt-2 text-sm text-slate-500">Uploading…
-                        </div>
+                        <div style="display: none" wire:loading.flex wire:target="updateFile"
+                            class="mt-2 text-sm text-slate-500">Uploading…</div>
                     </div>
 
                     <div class="flex items-center justify-end gap-2">
@@ -468,7 +468,8 @@
                             class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
                         <button type="submit"
                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700"
-                            wire:loading.attr="disabled" wire:target="updateExistingByBarcode">
+                            @disabled(!$updateFile) wire:loading.attr="disabled"
+                            wire:target="updateFile,updateExistingByBarcode">
                             Update
                         </button>
                     </div>
@@ -527,8 +528,8 @@
                         @error('externalFile')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
-                        <div wire:loading wire:target="externalFile" class="mt-2 text-sm text-slate-500">Uploading…
-                        </div>
+                        <div style="display: none" wire:loading.flex wire:target="externalFile"
+                            class="mt-2 text-sm text-slate-500">Uploading…</div>
                     </div>
 
                     <div class="flex items-center justify-end gap-2">
@@ -536,7 +537,8 @@
                             class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
                         <button type="submit"
                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700"
-                            wire:loading.attr="disabled" wire:target="updateExternalByMatch">
+                            @disabled(!$externalFile) wire:loading.attr="disabled"
+                            wire:target="externalFile,updateExternalByMatch">
                             Update
                         </button>
                     </div>
