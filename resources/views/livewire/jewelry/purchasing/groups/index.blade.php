@@ -1,5 +1,6 @@
-<div x-data="{ importOpen: false, updateOpen: false, categoryOpen: false, mappingOpen: false }" x-on:jewelry-import-success.window="importOpen = false"
-    x-on:jewelry-update-success.window="updateOpen = false" class="space-y-6">
+<div x-data="{ importOpen: false, updateOpen: false, externalOpen: false, exportOpen: false, categoryOpen: false, mappingOpen: false, qualityOpen: false }" x-on:jewelry-import-success.window="importOpen = false"
+    x-on:jewelry-update-success.window="updateOpen = false" x-on:jewelry-external-success.window="externalOpen = false"
+    class="space-y-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-xl font-semibold text-slate-900 dark:text-white">Jewelry Groups</h1>
@@ -18,41 +19,166 @@
                 </select>
             </div>
 
-            <a href="{{ route('jewelry.template') }}"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
-                <x-icon name="download" class="w-4 h-4 mr-2" />
-                Template
-            </a>
+            <div x-data="{ actionsOpen: false }" class="relative">
+                <button type="button" @click="actionsOpen = !actionsOpen"
+                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700"
+                    aria-haspopup="true" :aria-expanded="actionsOpen.toString()">
+                    Actions
+                    <x-icon name="chevron-down" class="w-4 h-4 ml-2" />
+                </button>
 
-            <button type="button" @click="importOpen = true"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
-                <x-icon name="upload" class="w-4 h-4 mr-2" />
-                Import Excel
-            </button>
+                <div x-show="actionsOpen" x-cloak @click.away="actionsOpen = false"
+                    class="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                    <div class="py-1">
+                        <a href="{{ route('jewelry.template') }}"
+                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                            @click="actionsOpen = false">
+                            <x-icon name="download" class="w-4 h-4 mr-2" />
+                            Items Template
+                        </a>
+                        <a href="{{ route('jewelry.template_external_mapping') }}"
+                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                            @click="actionsOpen = false">
+                            <x-icon name="download" class="w-4 h-4 mr-2" />
+                            External Template
+                        </a>
+                    </div>
 
-            <button type="button" @click="updateOpen = true"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
-                <x-icon name="refresh" class="w-4 h-4 mr-2" />
-                Update by Barcode
-            </button>
+                    <div class="border-t border-slate-200 dark:border-slate-700"></div>
 
-            <button type="button" @click="categoryOpen = true"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
-                <x-icon name="collection" class="w-4 h-4 mr-2" />
-                Categories
-            </button>
+                    <div class="py-1">
+                        <button type="button" @click="importOpen = true; actionsOpen = false"
+                            class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                            <x-icon name="upload" class="w-4 h-4 mr-2" />
+                            Import Excel
+                        </button>
+                        <button type="button" @click="updateOpen = true; actionsOpen = false"
+                            class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                            <x-icon name="refresh" class="w-4 h-4 mr-2" />
+                            Update by Barcode
+                        </button>
+                        <button type="button" @click="externalOpen = true; actionsOpen = false"
+                            class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                            <x-icon name="refresh" class="w-4 h-4 mr-2" />
+                            Update External / Lot
+                        </button>
+                        <button type="button" @click="exportOpen = true; actionsOpen = false"
+                            class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                            <x-icon name="download" class="w-4 h-4 mr-2" />
+                            Export Items
+                        </button>
+                    </div>
 
-            <button type="button" @click="mappingOpen = true"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
-                <x-icon name="link" class="w-4 h-4 mr-2" />
-                Map Category
-            </button>
+                    <div class="border-t border-slate-200 dark:border-slate-700"></div>
 
-            <a wire:navigate href="{{ route('jewelry.dashboard') }}"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
-                <x-icon name="chart-pie" class="w-4 h-4 mr-2" />
-                Dashboard
-            </a>
+                    <div class="py-1">
+                        <button type="button" @click="categoryOpen = true; actionsOpen = false"
+                            class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                            <x-icon name="collection" class="w-4 h-4 mr-2" />
+                            Categories
+                        </button>
+                        <button type="button" @click="mappingOpen = true; actionsOpen = false"
+                            class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                            <x-icon name="link" class="w-4 h-4 mr-2" />
+                            Map Category
+                        </button>
+                        <button type="button" @click="qualityOpen = true; actionsOpen = false"
+                            class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                            <x-icon name="clipboard-list" class="w-4 h-4 mr-2" />
+                            Quality List
+                        </button>
+                        <a wire:navigate href="{{ route('jewelry.dashboard') }}"
+                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                            @click="actionsOpen = false">
+                            <x-icon name="chart-pie" class="w-4 h-4 mr-2" />
+                            Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quality List Modal -->
+    <div x-show="qualityOpen" x-cloak class="fixed inset-0 z-50" x-data="{ copied: '' }">
+        <div class="absolute inset-0 bg-black/50" @click="qualityOpen = false"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div class="text-base font-semibold text-slate-900 dark:text-white">Quality Names</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-300">Copy exact DB quality values for
+                            mapping{{ !is_null($branchId) ? ' (in this branch)' : '' }}.</div>
+                    </div>
+                    <button type="button" @click="qualityOpen = false"
+                        class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label="Close quality modal">
+                        <x-icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div class="p-4 space-y-3">
+                    <div class="text-xs text-slate-500 dark:text-slate-300">
+                        Tip: Use these values in the import file “Quality” column (or map codes like <span
+                            class="font-medium">999</span> → <span class="font-medium">999 24 K</span> in the importer
+                        mapping array).
+                    </div>
+
+                    <div class="flex items-center justify-end">
+                        <button type="button"
+                            class="inline-flex items-center px-3 py-1.5 text-xs font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                            @click="navigator.clipboard.writeText(@js(implode("\n", array_map(fn($v) => (string) $v, $qualityNames ?? [])))).then(() => copied = 'ALL').catch(() => { try { window.prompt('Copy all qualities:', @js(implode("\n", array_map(fn($v) => (string) $v, $qualityNames ?? [])))); } catch (e) {} })">
+                            <x-icon name="clipboard" class="w-4 h-4 mr-1" />
+                            Copy All
+                        </button>
+                    </div>
+
+                    <div class="overflow-hidden border rounded-md border-slate-200 dark:border-slate-700">
+                        <div class="max-h-80 overflow-y-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-slate-50 dark:bg-slate-900/40">
+                                    <tr class="text-left text-slate-500 dark:text-slate-300">
+                                        <th class="px-4 py-2">Quality</th>
+                                        <th class="px-4 py-2 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                                    @forelse(($qualityNames ?? []) as $q)
+                                        <tr>
+                                            <td class="px-4 py-2 text-slate-900 dark:text-white">
+                                                {{ (string) $q }}
+                                            </td>
+                                            <td class="px-4 py-2 text-right">
+                                                <button type="button"
+                                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                                                    @click="navigator.clipboard.writeText(@js((string) $q)).then(() => copied = @js((string) $q)).catch(() => { try { window.prompt('Copy quality:', @js((string) $q)); } catch (e) {} })">
+                                                    <x-icon name="clipboard" class="w-4 h-4 mr-1" />
+                                                    Copy
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="2"
+                                                class="px-4 py-6 text-sm text-slate-500 dark:text-slate-300">No quality
+                                                values found.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div x-show="copied !== ''" class="text-xs text-slate-500 dark:text-slate-300">
+                        Copied: <span class="font-medium" x-text="copied === 'ALL' ? 'all qualities' : copied"></span>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" @click="qualityOpen = false"
+                            class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Close</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -146,7 +272,8 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="2" class="py-3 text-slate-500 dark:text-slate-300">No categories
+                                        <td colspan="2" class="py-3 text-slate-500 dark:text-slate-300">No
+                                            categories
                                             yet.</td>
                                     </tr>
                                 @endforelse
@@ -346,6 +473,260 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Modal (external_id + lot/serial by match) -->
+    <div x-show="externalOpen" x-cloak class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/50" @click="externalOpen = false"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div class="text-base font-semibold text-slate-900 dark:text-white">Update External ID / Lot
+                        </div>
+                        <div class="text-sm text-slate-500 dark:text-slate-300">Matches existing items by weights +
+                            <span class="font-medium">PO Ref</span> + stone price
+                            rule{{ !is_null($branchId) ? ' (in this branch)' : '' }}.
+                        </div>
+                    </div>
+                    <button type="button" @click="externalOpen = false"
+                        class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label="Close external update modal">
+                        <x-icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <form wire:submit.prevent="updateExternalByMatch" class="p-4 space-y-4">
+                    <div class="text-sm text-slate-600 dark:text-slate-200">
+                        Required columns: <span class="font-medium">External ID</span>, <span class="font-medium">Lot
+                            serial</span>,
+                        <span class="font-medium">Purchase Order</span>, <span class="font-medium">Quality</span>,
+                        <span class="font-medium">Total Weight</span>, <span class="font-medium">Kyauk Weight</span>,
+                        <span class="font-medium">Gold smith detuction</span>, <span
+                            class="font-medium">Labor-fee</span>,
+                        <span class="font-medium">ကျောက်ဖိုး</span>.
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-300">Stone price rule: the file should
+                            contain the
+                            <span class="font-medium">half value</span> (the UI value); the system matches by comparing
+                            (file value × 2) to the stored stone price.
+                        </div>
+                        <div class="mt-2">
+                            <a href="{{ route('jewelry.template_external_mapping') }}"
+                                class="inline-flex items-center text-sm font-medium text-primary-600 hover:underline">
+                                <x-icon name="download" class="w-4 h-4 mr-1" />
+                                Download template
+                            </a>
+                        </div>
+                    </div>
+
+                    <div>
+                        <input type="file" wire:model="externalFile" accept=".xlsx,.csv,.ods"
+                            class="block w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 dark:text-slate-200 dark:file:bg-slate-700 dark:file:text-slate-100" />
+                        @error('externalFile')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                        <div wire:loading wire:target="externalFile" class="mt-2 text-sm text-slate-500">Uploading…
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" @click="externalOpen = false"
+                            class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+                        <button type="submit"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700"
+                            wire:loading.attr="disabled" wire:target="updateExternalByMatch">
+                            Update
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal (filter + select items) -->
+    <div x-show="exportOpen" x-cloak class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/50" @click="exportOpen = false"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="w-full max-w-4xl overflow-hidden bg-white rounded-lg shadow-lg dark:bg-slate-800">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div class="text-base font-semibold text-slate-900 dark:text-white">Export Items</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-300">Filter by PO Ref / Barcode / Product
+                            name, select items, then export.</div>
+                    </div>
+                    <button type="button" @click="exportOpen = false"
+                        class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label="Close export modal">
+                        <x-icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">PO Ref
+                                (multi-select)</label>
+                            <input type="text" wire:model.live.debounce.250ms="exportPoRefSearch"
+                                placeholder="Search PO Ref…"
+                                class="mt-1 block h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200" />
+                            <select multiple wire:model.live="exportPoRefs" size="7"
+                                class="mt-2 block w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                                @foreach ($exportPoRefOptions ?? [] as $po)
+                                    <option value="{{ (string) $po }}">{{ (string) $po }}</option>
+                                @endforeach
+                            </select>
+
+                            @if (!empty($exportPoRefs ?? []))
+                                <div
+                                    class="mt-2 flex flex-wrap gap-2 rounded-md border border-slate-200 p-2 dark:border-slate-700 dark:bg-slate-900">
+                                    @foreach ($exportPoRefs ?? [] as $po)
+                                        <span
+                                            class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-800 dark:bg-slate-700 dark:text-slate-100">
+                                            <span class="break-all">{{ (string) $po }}</span>
+                                            <button type="button"
+                                                wire:click="removeExportPoRef(@js((string) $po))"
+                                                class="text-slate-600 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
+                                                aria-label="Remove">
+                                                ×
+                                            </button>
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">Barcode
+                                (multi-select)</label>
+                            <input type="text" wire:model.live.debounce.250ms="exportBarcodeSearch"
+                                placeholder="Search barcode…"
+                                class="mt-1 block h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200" />
+                            <select multiple wire:model.live="exportBarcodes" size="7"
+                                class="mt-2 block w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                                @foreach ($exportBarcodeOptions ?? [] as $bc)
+                                    <option value="{{ (string) $bc }}">{{ (string) $bc }}</option>
+                                @endforeach
+                            </select>
+
+                            @if (!empty($exportBarcodes ?? []))
+                                <div
+                                    class="mt-2 flex flex-wrap gap-2 rounded-md border border-slate-200 p-2 dark:border-slate-700 dark:bg-slate-900">
+                                    @foreach ($exportBarcodes ?? [] as $bc)
+                                        <span
+                                            class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-800 dark:bg-slate-700 dark:text-slate-100">
+                                            <span class="break-all">{{ (string) $bc }}</span>
+                                            <button type="button"
+                                                wire:click="removeExportBarcode(@js((string) $bc))"
+                                                class="text-slate-600 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
+                                                aria-label="Remove">
+                                                ×
+                                            </button>
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">Product name
+                                (multi-select)</label>
+                            <input type="text" wire:model.live.debounce.250ms="exportProductNameSearch"
+                                placeholder="Search product name…"
+                                class="mt-1 block h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200" />
+                            <select multiple wire:model.live="exportProductNames" size="7"
+                                class="mt-2 block w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                                @foreach ($exportProductNameOptions ?? [] as $pn)
+                                    <option value="{{ (string) $pn }}">{{ (string) $pn }}</option>
+                                @endforeach
+                            </select>
+
+                            @if (!empty($exportProductNames ?? []))
+                                <div
+                                    class="mt-2 flex flex-wrap gap-2 rounded-md border border-slate-200 p-2 dark:border-slate-700 dark:bg-slate-900">
+                                    @foreach ($exportProductNames ?? [] as $pn)
+                                        <span
+                                            class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-800 dark:bg-slate-700 dark:text-slate-100">
+                                            <span class="break-all">{{ (string) $pn }}</span>
+                                            <button type="button"
+                                                wire:click="removeExportProductName(@js((string) $pn))"
+                                                class="text-slate-600 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
+                                                aria-label="Remove">
+                                                ×
+                                            </button>
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-slate-500 dark:text-slate-300">
+                        Tip: Use Ctrl/Shift to multi-select. Export includes all matched items. Preview shows up to 200
+                        matches.
+                    </div>
+
+                    <div class="overflow-hidden border rounded-md border-slate-200 dark:border-slate-700">
+                        <div class="max-h-[50vh] overflow-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-slate-50 dark:bg-slate-900/40 sticky top-0 z-10">
+                                    <tr class="text-left text-slate-500 dark:text-slate-300">
+                                        <th class="px-4 py-2">Product</th>
+                                        <th class="px-4 py-2">Barcode</th>
+                                        <th class="px-4 py-2">PO Ref</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                                    @forelse(($exportPreviewItems ?? []) as $it)
+                                        <tr wire:key="export-preview-item-{{ (int) ($it->id ?? 0) }}">
+                                            <td class="px-4 py-2 text-slate-900 dark:text-white">
+                                                {{ (string) ($it->product_name ?? '') }}
+                                            </td>
+                                            <td class="px-4 py-2 text-slate-700 dark:text-slate-200">
+                                                {{ (string) ($it->barcode ?? '') }}
+                                            </td>
+                                            <td class="px-4 py-2 text-slate-700 dark:text-slate-200">
+                                                {{ (string) ($it->po_reference ?? '') }}
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="3" class="px-4 py-6 text-slate-500 dark:text-slate-300">
+                                                Select at least one filter (PO Ref / Barcode / Product name) to load a
+                                                preview list.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    @if (!empty($exportPreviewHasMore))
+                        <div class="text-xs text-slate-500 dark:text-slate-300">
+                            Showing first 200 matched items. Narrow filters to see fewer.
+                        </div>
+                    @endif
+
+                    @error('exportFilters')
+                        <div class="text-sm text-red-600">{{ $message }}</div>
+                    @enderror
+
+                    <div class="flex items-center justify-between gap-2">
+                        <button type="button" wire:click="resetExport"
+                            class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Reset</button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="exportOpen = false"
+                                class="px-4 py-2 text-sm font-medium border rounded-md border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Close</button>
+                            <button type="button" wire:click="exportFilteredItems"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md bg-primary-600 hover:bg-primary-700">
+                                <x-icon name="download" class="w-4 h-4 mr-2" />
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

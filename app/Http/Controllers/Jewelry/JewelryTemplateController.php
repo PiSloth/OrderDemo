@@ -97,4 +97,77 @@ class JewelryTemplateController
 
         return Response::download($tempFilePath, 'jewelry-import-template.xlsx')->deleteFileAfterSend(true);
     }
+
+    public function downloadExternalMappingTemplate(Request $request)
+    {
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'jewelry_external_template_') . '.xlsx';
+
+        $writer = new Writer();
+        $writer->openToFile($tempFilePath);
+
+        $itemsSheet = $writer->getCurrentSheet();
+        $itemsSheet->setName('Mapping');
+
+        $writer->addRow(Row::fromValues([
+            'External ID',
+            'Lot serial',
+            'Purchase Order',
+            'Quality',
+            'Total Weight',
+            'Kyauk Weight',
+            'Gold smith detuction',
+            'Labor-fee',
+            'ကျောက်ဖိုး',
+        ]));
+
+        // Sample row
+        $writer->addRow(Row::fromValues([
+            'EXT-000001',
+            'LOT-001',
+            'PO-2026-0001',
+            '၁၅ ပဲရည်',
+            5.750,
+            0.500,
+            1.200,
+            150000,
+            75000,
+        ]));
+
+        $rulesSheet = $writer->addNewSheetAndMakeItCurrent();
+        $rulesSheet->setName('Rules');
+
+        $writer->addRow(Row::fromValues(['Jewelry External Mapping Template - Rules']));
+        $writer->addRow(Row::fromValues(['']));
+        $writer->addRow(Row::fromValues(['Headers (Row 1) must be exactly:']));
+        $writer->addRow(Row::fromValues([
+            'External ID',
+            'Lot serial',
+            'Purchase Order',
+            'Quality',
+            'Total Weight',
+            'Kyauk Weight',
+            'Gold smith detuction',
+            'Labor-fee',
+            'ကျောက်ဖိုး',
+        ]));
+        $writer->addRow(Row::fromValues(['']));
+        $writer->addRow(Row::fromValues(['Match logic:']));
+        $writer->addRow(Row::fromValues([
+            'A row matches an existing item when Purchase Order + Quality + Total Weight + Kyauk Weight + Gold smith detuction + Labor-fee all match exactly, and stone price matches using the rule below. (Quality may be mapped/normalized before matching.)',
+        ]));
+        $writer->addRow(Row::fromValues(['']));
+        $writer->addRow(Row::fromValues(['Stone price rule:']));
+        $writer->addRow(Row::fromValues([
+            'The template uses the UI value for stone price (half). The system matches by (file stone price × 2) == stored stone_price.',
+        ]));
+        $writer->addRow(Row::fromValues(['']));
+        $writer->addRow(Row::fromValues(['Update action:']));
+        $writer->addRow(Row::fromValues([
+            'When matched, the system updates external_id and lot/serial on the matched item(s).',
+        ]));
+
+        $writer->close();
+
+        return Response::download($tempFilePath, 'jewelry-external-mapping-template.xlsx')->deleteFileAfterSend(true);
+    }
 }

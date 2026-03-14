@@ -2,6 +2,7 @@
     importOpen: false,
     commentsOpen: false,
     viewMode: @js((string) ($group->purchase_status ?? '') === 'done' || (bool) ($group->is_purchase ?? false) ? 'items' : 'batch'),
+    extraCols: false,
     startTs: null,
     finishTs: null,
     elapsed: '00:00',
@@ -390,17 +391,32 @@
                 @endif
             </div>
 
-            <div class="flex items-center gap-3">
-                <span class="text-xs font-medium">Batch totals</span>
-                <button type="button" @click="viewMode = (viewMode === 'batch' ? 'items' : 'batch')"
-                    class="relative inline-flex h-6 w-12 items-center rounded-full border transition"
-                    :class="viewMode === 'items' ? 'bg-primary-600 border-primary-600' :
-                        'bg-slate-200 border-slate-300 dark:bg-slate-700 dark:border-slate-600'"
-                    aria-label="Toggle batch/items view">
-                    <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition"
-                        :class="viewMode === 'items' ? 'translate-x-6' : 'translate-x-1'"></span>
-                </button>
-                <span class="text-xs font-medium">All items</span>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-medium">Batch totals</span>
+                    <button type="button" @click="viewMode = (viewMode === 'batch' ? 'items' : 'batch')"
+                        class="relative inline-flex h-6 w-12 items-center rounded-full border transition"
+                        :class="viewMode === 'items' ? 'bg-primary-600 border-primary-600' :
+                            'bg-slate-200 border-slate-300 dark:bg-slate-700 dark:border-slate-600'"
+                        aria-label="Toggle batch/items view">
+                        <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition"
+                            :class="viewMode === 'items' ? 'translate-x-6' : 'translate-x-1'"></span>
+                    </button>
+                    <span class="text-xs font-medium">All items</span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-medium">External/Lot</span>
+                    <button type="button" @click="extraCols = !extraCols"
+                        class="relative inline-flex h-6 w-12 items-center rounded-full border transition"
+                        :class="extraCols ? 'bg-primary-600 border-primary-600' :
+                            'bg-slate-200 border-slate-300 dark:bg-slate-700 dark:border-slate-600'"
+                        aria-label="Toggle external id and lot/serial columns">
+                        <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition"
+                            :class="extraCols ? 'translate-x-6' : 'translate-x-1'"></span>
+                    </button>
+                    <span class="text-xs font-medium" x-text="extraCols ? 'On' : 'Off'">Off</span>
+                </div>
             </div>
         </div>
 
@@ -415,31 +431,67 @@
                     <tr>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            Batch</th>
+                            <div>Batch</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                batch_id</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            Product</th>
+                            <div>Product</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                product_name</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            Quality</th>
+                            <div>Quality</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                quality</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            Total Weight</th>
+                            <div>Total Weight</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                total_weight</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            ပန်းထိမ်အလျော့တွက်</th>
+                            <div>ပန်းထိမ်အလျော့တွက်</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                goldsmith_deduction</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            ပန်းထိမ် လက်ခ</th>
+                            <div>ပန်းထိမ် လက်ခ</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                goldsmith_labor_fee</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            ကျောက်ချိန်</th>
+                            <div>ကျောက်ချိန်</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                kyauk_weight</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-700">
-                            ကျောက်ဖိုး</th>
+                            <div>ကျောက်ဖိုး</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                stone_price</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                            Post</th>
+                            <div>Post</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                is_post</div>
+                        </th>
                     </tr>
                 </thead>
 
@@ -663,40 +715,103 @@
                     <tr>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            Batch</th>
+                            <div>Batch</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                batch_id</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            Product</th>
+                            <div>Product</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                product_name</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            Quality</th>
+                            <div>Quality</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                quality</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            Total Weight</th>
+                            <div>Total Weight</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                total_weight</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            ကျောက်ချိန်</th>
+                            <div>ကျောက်ချိန်</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                kyauk_weight</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            ပန်းထိမ်အလျော့တွက်</th>
+                            <div>ပန်းထိမ်အလျော့တွက်</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                goldsmith_deduction</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            ပန်းထိမ် လက်ခ</th>
+                            <div>ပန်းထိမ် လက်ခ</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                goldsmith_labor_fee</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            ကျောက်ဖိုး</th>
+                            <div>ကျောက်ဖိုး</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                stone_price</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            အမြတ်အလျော့</th>
+                            <div>အမြတ်အလျော့</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                profit_loss</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            အမြတ်လက်ခ</th>
+                            <div>အမြတ်လက်ခ</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                profit_labor_fee</div>
+                        </th>
                         <th
                             class="px-4 py-3 text-xs font-semibold tracking-wider text-right text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
-                            Barcode</th>
+                            <div>Barcode</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                barcode</div>
+                        </th>
                         <th
-                            class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
-                            Register</th>
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
+                            <div>Register</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                is_register</div>
+                        </th>
+
+                        <th x-show="extraCols" x-cloak
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-r border-slate-200 dark:border-slate-700">
+                            <div>External ID</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                external_id</div>
+                        </th>
+                        <th x-show="extraCols" x-cloak
+                            class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase dark:text-slate-300 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
+                            <div>Lot/Serial</div>
+                            <div
+                                class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                lot_serial</div>
+                        </th>
                     </tr>
                 </thead>
 
@@ -744,6 +859,8 @@
                             </td>
                             @php
                                 $ibc = (string) ($item->barcode ?? '');
+                                $iexternalId = (string) ($item->external_id ?? '');
+                                $ilotSerial = (string) ($item->lot_serial ?? '');
                                 $itw = $item->total_weight == 0 ? '' : number_format((float) $item->total_weight, 3);
                                 $ikg = $item->kyauk_weight == 0 ? '' : number_format((float) $item->kyauk_weight, 3);
                                 $ided =
@@ -859,9 +976,18 @@
                                     </button>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-center">
+                            <td class="px-4 py-3 text-center border-r border-slate-200 dark:border-slate-700">
                                 <input type="checkbox" class="rounded border-slate-300" @checked($item->is_register)
                                     wire:click="toggleRegister({{ $item->id }})" />
+                            </td>
+
+                            <td x-show="extraCols" x-cloak
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700">
+                                <span class="whitespace-nowrap">{{ $iexternalId }}</span>
+                            </td>
+                            <td x-show="extraCols" x-cloak
+                                class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                                <span class="whitespace-nowrap">{{ $ilotSerial }}</span>
                             </td>
                         </tr>
                     @endforeach

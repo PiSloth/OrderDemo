@@ -13,6 +13,272 @@ use Spatie\SimpleExcel\SimpleExcelReader;
 class JewelryExcelImportService
 {
     /**
+     * Updates existing items by matching on the provided comparison columns.
+     *
+     * A row is considered a match if ALL of the following are equal:
+     * - total_weight
+     * - kyauk_weight
+     * - goldsmith_deduction
+     * - goldsmith_labor_fee
+     * - po_reference (from group_numbers)
+     * - stone_price, using the rule: (imported stone price) * 2 == jewelry_items.stone_price
+     *   (this matches the UI's "stone_price / 2" value)
+     *
+     * On match: updates jewelry_items.external_id and jewelry_items.lot_serial.
+     *
+     * If $branchId is provided, matches are limited to that branch.
+     *
+     * @return array{updated:int,errors:array<int,string>,warnings:array<int,string>,not_found:array<int,string>}
+     */
+    public function updateExternalIdAndLotSerialByMatch(string $path, ?int $branchId = null): array
+    {
+        $errors = [];
+        $warnings = [];
+        $notFound = [];
+
+        $rows = SimpleExcelReader::create($path)->getRows();
+
+        /** @var array<int,array{rowIndex:int,po_reference:string,quality:string,total_weight:float,kyauk_weight:float,goldsmith_deduction:float,goldsmith_labor_fee:int,stone_price_db:?int,external_id:string,lot_serial:string}> $parsedRows */
+        $parsedRows = [];
+
+        $rowIndex = 1;
+        foreach ($rows as $rawRow) {
+            $rowIndex++;
+            $r = $this->normalizeExcelRow($rawRow);
+
+            $poRef = trim((string) (
+                $r['po_reference']
+                ?? $r['po_ref']
+                ?? $r['po']
+                ?? $r['po_no']
+                ?? $r['po_number']
+                ?? $r['purchase_order']
+                ?? $r['purchaseorder']
+                ?? ''
+            ));
+            if ($poRef === '') {
+                $errors[] = "Row {$rowIndex}: PO Ref is required.";
+                continue;
+            }
+
+            $qualityRaw = trim((string) (
+                $r['quality']
+                ?? $r['quality_name']
+                ?? $r['qualityname']
+                ?? $r['qlty']
+                ?? $r['q']
+                ?? ''
+            ));
+            $quality = $this->mapExternalQualityToDbQuality($qualityRaw);
+
+            $totalWeight = $this->parseDecimal($r['total_weight'] ?? $r['totalweight'] ?? $r['weight'] ?? null, 3);
+            $kyaukWeight = $this->parseDecimal(
+                $r['kyauk_weight']
+                    ?? ($r['kyauk_gram'] ?? null)
+                    ?? ($r['kyaukgram'] ?? null)
+                    ?? ($r['kyaukweight'] ?? null)
+                    ?? ($r['kyauk_weight_gram'] ?? null)
+                    ?? ($r['ကျောက်ချိန်'] ?? null)
+                    ?? null,
+                3
+            );
+            $goldsmithDeduction = $this->parseDecimal(
+                $r['goldsmith_deduction']
+                    ?? ($r['goldsmith_deduciton'] ?? null)
+                    ?? ($r['gold_smith_deduction'] ?? null)
+                    ?? ($r['gold_smith_detuction'] ?? null)
+                    ?? ($r['l_gram'] ?? null)
+                    ?? ($r['lgram'] ?? null)
+                    ?? ($r['ပန်းထိမ်အလျော့တွက်'] ?? null)
+                    ?? null,
+                3
+            );
+            $goldsmithLaborFee = $this->parseInt(
+                $r['goldsmith_labor_fee']
+                    ?? ($r['labor_fee'] ?? null)
+                    ?? ($r['l_mmk'] ?? null)
+                    ?? ($r['lmmk'] ?? null)
+                    ?? ($r['ပန်းထိမ်_လက်ခ'] ?? null)
+                    ?? null
+            );
+
+            if (is_null($totalWeight) || is_null($kyaukWeight) || is_null($goldsmithDeduction) || is_null($goldsmithLaborFee)) {
+                $errors[] = "Row {$rowIndex}: missing required columns (total_weight, kyauk_weight, goldsmith_deduction, goldsmith_labor_fee).";
+                continue;
+            }
+
+            // Stone price in the mapping file is assumed to be the UI value (stone_price / 2).
+            // Convert it back to DB scale by multiplying by 2.
+            $stoneRaw = $r['stone_price'] ?? ($r['ကျောက်ဖိုး'] ?? null) ?? null;
+            $stoneDb = $this->parseStoneHalfToDbStone($stoneRaw);
+            if (is_null($stoneDb) && !is_null($stoneRaw) && trim((string) $stoneRaw) !== '') {
+                $errors[] = "Row {$rowIndex}: stone_price must be numeric (supports .5) to apply the /2 matching rule.";
+                continue;
+            }
+
+            $externalId = trim((string) (
+                $r['external_id']
+                ?? $r['externalid']
+                ?? $r['external']
+                ?? $r['ext_id']
+                ?? ''
+            ));
+
+            $lotSerial = trim((string) (
+                $r['lot_serial']
+                ?? $r['lot/serial']
+                ?? $r['lot_serial_no']
+                ?? $r['lot']
+                ?? $r['serial']
+                ?? ''
+            ));
+
+            if ($externalId === '') {
+                $errors[] = "Row {$rowIndex}: external_id is required.";
+                continue;
+            }
+            if ($lotSerial === '') {
+                $errors[] = "Row {$rowIndex}: lot/serial is required.";
+                continue;
+            }
+
+            $parsedRows[] = [
+                'rowIndex' => (int) $rowIndex,
+                'po_reference' => $poRef,
+                'quality' => (string) $quality,
+                'total_weight' => (float) $totalWeight,
+                'kyauk_weight' => (float) $kyaukWeight,
+                'goldsmith_deduction' => (float) $goldsmithDeduction,
+                'goldsmith_labor_fee' => (int) $goldsmithLaborFee,
+                'stone_price_db' => is_null($stoneDb) ? null : (int) $stoneDb,
+                'external_id' => $externalId,
+                'lot_serial' => $lotSerial,
+            ];
+        }
+
+        if (empty($parsedRows)) {
+            return [
+                'updated' => 0,
+                'errors' => array_values($errors ?: ['No rows found to import.']),
+                'warnings' => [],
+                'not_found' => [],
+            ];
+        }
+
+        $poRefs = array_values(array_unique(array_map(fn($r) => (string) $r['po_reference'], $parsedRows)));
+
+        $items = JewelryItem::query()
+            ->join('group_numbers', 'group_numbers.id', '=', 'jewelry_items.group_number_id')
+            ->when(!is_null($branchId), fn($q) => $q->where('jewelry_items.branch_id', (int) $branchId))
+            ->whereIn('group_numbers.po_reference', $poRefs)
+            ->get([
+                'jewelry_items.id as id',
+                'jewelry_items.quality as quality',
+                'jewelry_items.total_weight as total_weight',
+                'jewelry_items.kyauk_weight as kyauk_weight',
+                'jewelry_items.goldsmith_deduction as goldsmith_deduction',
+                'jewelry_items.goldsmith_labor_fee as goldsmith_labor_fee',
+                'jewelry_items.stone_price as stone_price',
+                'group_numbers.po_reference as po_reference',
+            ]);
+
+        /** @var array<string,array<int,int>> $itemIdsByKey */
+        $itemIdsByKey = [];
+        /** @var array<string,array<int,int>> $itemIdsByKeyWithQuality */
+        $itemIdsByKeyWithQuality = [];
+        foreach ($items as $it) {
+            $key = $this->matchKey(
+                (string) ($it->po_reference ?? ''),
+                (float) $it->total_weight,
+                (float) $it->kyauk_weight,
+                (float) $it->goldsmith_deduction,
+                (int) $it->goldsmith_labor_fee,
+                is_null($it->stone_price) ? null : (int) $it->stone_price
+            );
+
+            if (!isset($itemIdsByKey[$key])) {
+                $itemIdsByKey[$key] = [];
+            }
+            $itemIdsByKey[$key][] = (int) $it->id;
+
+            $keyWithQuality = $this->matchKeyWithQuality(
+                (string) ($it->po_reference ?? ''),
+                $this->mapExternalQualityToDbQuality((string) ($it->quality ?? '')),
+                (float) $it->total_weight,
+                (float) $it->kyauk_weight,
+                (float) $it->goldsmith_deduction,
+                (int) $it->goldsmith_labor_fee,
+                is_null($it->stone_price) ? null : (int) $it->stone_price
+            );
+            if (!isset($itemIdsByKeyWithQuality[$keyWithQuality])) {
+                $itemIdsByKeyWithQuality[$keyWithQuality] = [];
+            }
+            $itemIdsByKeyWithQuality[$keyWithQuality][] = (int) $it->id;
+        }
+
+        $now = now();
+        $updated = 0;
+
+        DB::transaction(function () use ($parsedRows, $itemIdsByKey, $itemIdsByKeyWithQuality, $now, &$updated, &$warnings, &$notFound) {
+            foreach ($parsedRows as $row) {
+                $quality = trim((string) ($row['quality'] ?? ''));
+                if ($quality !== '') {
+                    $key = $this->matchKeyWithQuality(
+                        (string) $row['po_reference'],
+                        (string) $quality,
+                        (float) $row['total_weight'],
+                        (float) $row['kyauk_weight'],
+                        (float) $row['goldsmith_deduction'],
+                        (int) $row['goldsmith_labor_fee'],
+                        $row['stone_price_db']
+                    );
+                    $ids = $itemIdsByKeyWithQuality[$key] ?? [];
+                } else {
+                    $warnings[] = 'Row ' . (int) $row['rowIndex'] . ': Quality is empty; matching without quality.';
+                    $key = $this->matchKey(
+                        (string) $row['po_reference'],
+                        (float) $row['total_weight'],
+                        (float) $row['kyauk_weight'],
+                        (float) $row['goldsmith_deduction'],
+                        (int) $row['goldsmith_labor_fee'],
+                        $row['stone_price_db']
+                    );
+                    $ids = $itemIdsByKey[$key] ?? [];
+                }
+                $count = count($ids);
+
+                if ($count === 0) {
+                    $notFound[] = 'No match (row ' . (int) $row['rowIndex'] . '): PO Ref=' . (string) $row['po_reference'] . ($quality !== '' ? (', Quality=' . (string) $quality) : '');
+                    continue;
+                }
+
+                $payload = [
+                    'external_id' => (string) $row['external_id'],
+                    'lot_serial' => (string) $row['lot_serial'],
+                    'updated_at' => $now,
+                ];
+
+                $affected = JewelryItem::query()
+                    ->whereIn('id', $ids)
+                    ->update($payload);
+
+                $updated += (int) $affected;
+
+                if ($count > 1) {
+                    $warnings[] = 'Row ' . (int) $row['rowIndex'] . ' matched ' . $count . ' items; updated all.';
+                }
+            }
+        });
+
+        return [
+            'updated' => (int) $updated,
+            'errors' => array_values($errors),
+            'warnings' => array_values($warnings),
+            'not_found' => array_values($notFound),
+        ];
+    }
+
+    /**
      * Updates existing items by barcode.
      *
      * - Only rows with a non-empty barcode are considered.
@@ -638,6 +904,137 @@ class JewelryExcelImportService
         }
 
         return (int) round((float) $s);
+    }
+
+    private function matchKey(
+        string $poReference,
+        float $totalWeight,
+        float $kyaukWeight,
+        float $goldsmithDeduction,
+        int $goldsmithLaborFee,
+        ?int $stonePriceDb
+    ): string {
+        $po = strtolower(trim($poReference));
+        $stone = is_null($stonePriceDb) ? 'null' : (string) $stonePriceDb;
+
+        return $po
+            . '|' . number_format($totalWeight, 3, '.', '')
+            . '|' . number_format($kyaukWeight, 3, '.', '')
+            . '|' . number_format($goldsmithDeduction, 3, '.', '')
+            . '|' . (string) $goldsmithLaborFee
+            . '|' . $stone;
+    }
+
+    private function matchKeyWithQuality(
+        string $poReference,
+        string $quality,
+        float $totalWeight,
+        float $kyaukWeight,
+        float $goldsmithDeduction,
+        int $goldsmithLaborFee,
+        ?int $stonePriceDb
+    ): string {
+        $po = strtolower(trim($poReference));
+        $q = strtolower(trim(preg_replace('/\s+/u', ' ', $quality) ?? $quality));
+        $stone = is_null($stonePriceDb) ? 'null' : (string) $stonePriceDb;
+
+        return $po
+            . '|' . $q
+            . '|' . number_format($totalWeight, 3, '.', '')
+            . '|' . number_format($kyaukWeight, 3, '.', '')
+            . '|' . number_format($goldsmithDeduction, 3, '.', '')
+            . '|' . (string) $goldsmithLaborFee
+            . '|' . $stone;
+    }
+
+    private function mapExternalQualityToDbQuality(string $qualityRaw): string
+    {
+        $q = trim($qualityRaw);
+        if ($q === '') {
+            return '';
+        }
+
+        $key = strtolower(trim(preg_replace('/\s+/u', ' ', $q) ?? $q));
+        $keyNoSpace = str_replace(' ', '', $key);
+
+        $map = [
+            '999' => '999 24K',
+            '၁၄ ပဲရည်' => '၁၄ပဲရည်',
+            '၁၅ ပဲရည်' => '၁၅ ပဲရည်',
+            '၁၅ ပဲရည်' => '၁၅ပဲရည်',
+            'W1 (A Grade)' => '18K GA',
+            'W1 (A Grade)' => '18K GAA',
+            'W2 (B Grade)' => '18K GB',
+            'W2 (B Grade)' => '18K GBB',
+            'W3 (C Grade)' => '18K GC',
+            'W3 (C Grade)' => '18K GCC',
+            'W4 (D Grade)' => '18K GD',
+            'W4 (D Grade)' => '18K GDD',
+            'W5 (E Grade)' => '18K GE',
+            'W6 (F Grade)' => '18K GF',
+            'WP (P Grade)' => '18K GP',
+            'WP (P Grade)' => '18K GPP',
+            'WT (T Grade)' => '18K GT',
+            'WU (U Grade)' => '18K GU',
+            'W1 (A Grade)' => '18K Mold',
+            '22K' => '22K',
+            '999 24K' => '999 24K',
+            '၁၅ ပဲရည်' => 'A',
+            'ဒင်္ဂါး' => 'B',
+            'C' => 'C',
+            'ဒင်္ဂါး' => 'ဒင်္ဂါး',
+            'မီးလင်း' => 'မီးလင်း',
+        ];
+
+        if (isset($map[$keyNoSpace])) {
+            return (string) $map[$keyNoSpace];
+        }
+        if (isset($map[$key])) {
+            return (string) $map[$key];
+        }
+
+        return $q;
+    }
+
+    private function parseStoneHalfToDbStone($value): ?int
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return null;
+        }
+
+        if (is_null($value)) {
+            return null;
+        }
+
+        if (is_int($value)) {
+            // Treat as half-value in MMK; DB stores full value.
+            return (int) ($value * 2);
+        }
+
+        if (is_float($value)) {
+            $dbl = (float) $value * 2.0;
+            if (abs($dbl - round($dbl)) > 0.0001) {
+                return null;
+            }
+            return (int) round($dbl);
+        }
+
+        $s = trim((string) $value);
+        if ($s === '') {
+            return null;
+        }
+
+        $s = str_replace(',', '', $s);
+        if (!is_numeric($s)) {
+            return null;
+        }
+
+        $dbl = ((float) $s) * 2.0;
+        if (abs($dbl - round($dbl)) > 0.0001) {
+            return null;
+        }
+
+        return (int) round($dbl);
     }
 
     private function batchKey(

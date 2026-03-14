@@ -158,6 +158,7 @@ Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function
     Route::get('/dashboard', JewelryPurchasingDashboard::class)->name('dashboard');
 
     Route::get('/template', [JewelryTemplateController::class, 'download'])->name('template');
+    Route::get('/template-external-mapping', [JewelryTemplateController::class, 'downloadExternalMappingTemplate'])->name('template_external_mapping');
 
     Route::prefix('groups')->name('groups.')->group(function () {
         Route::get('/', JewelryGroupsIndex::class)->name('index');

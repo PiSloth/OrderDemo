@@ -17,6 +17,8 @@ class JewelryItem extends Model
         'quality',
         'gold_weight',
         'barcode',
+        'external_id',
+        'lot_serial',
         'total_weight',
         'kyauk_weight',
         'goldsmith_deduction',
