@@ -222,7 +222,7 @@
                     </button>
                 </div>
 
-                <div class="p-4 space-y-4">
+                <div class="max-h-[80vh] overflow-y-auto p-4 space-y-4">
                     <form wire:submit.prevent="{{ $editing_category_id ? 'updateCategory' : 'createCategory' }}"
                         class="grid gap-3 sm:grid-cols-3">
                         <div class="sm:col-span-2">
@@ -545,7 +545,7 @@
         </div>
     </div>
 
-    <!-- Export Modal (filter + select items) -->
+    <!-- Export Modal (filter + export) -->
     <div x-show="exportOpen" x-cloak class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/50" @click="exportOpen = false"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
@@ -554,7 +554,7 @@
                     <div>
                         <div class="text-base font-semibold text-slate-900 dark:text-white">Export Items</div>
                         <div class="text-sm text-slate-500 dark:text-slate-300">Filter by PO Ref / Barcode / Product
-                            name, select items, then export.</div>
+                            name, then export.</div>
                     </div>
                     <button type="button" @click="exportOpen = false"
                         class="inline-flex items-center justify-center w-9 h-9 border rounded-md border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"

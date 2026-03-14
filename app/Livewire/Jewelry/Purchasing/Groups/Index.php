@@ -166,19 +166,47 @@ class Index extends Component
         return $value === '' ? '0' : $value;
     }
 
-    private function formatLaborFee(?int $profitLaborFee, ?int $stonePrice): string
+    /**
+     * Convert grams to K/P/Y parts using: base = g / 16.329
+     * - K = integer part of base
+     * - P = integer part of (decimal(base) * 16)
+     * - Y = round( decimal(decimal(base) * 16) * 8, 2 )
+     * Returns strings: [K, P, Y]
+     */
+    private function calcAdditionWastageKPY(?float $grams): array
     {
+        $g = (float) ($grams ?? 0);
+        if ($g == 0.0) {
+            return ['0', '0', '0.00'];
+        }
+
+        $gAbs = abs($g);
+        $base = $gAbs / 16.329;
+
+        $k = (int) floor($base + 1e-9);
+        $fracBase = max(0.0, $base - $k);
+
+        $pFloat = $fracBase * 16;
+        $p = (int) floor($pFloat + 1e-9);
+        $fracP = max(0.0, $pFloat - $p);
+
+        $yFloat = $fracP * 8;
+        $y = number_format($yFloat, 2, '.', '');
+
+        return [(string) $k, (string) $p, $y];
+    }
+
+    private function formatLaborFee(?int $goldsmithLaborFee, ?int $profitLaborFee): string
+    {
+        $goldsmithLaborFee = (int) ($goldsmithLaborFee ?? 0);
         $profitLaborFee = (int) ($profitLaborFee ?? 0);
-        $halfStone = ((float) ((int) ($stonePrice ?? 0))) / 2;
-        $sum = ((float) $profitLaborFee) + $halfStone;
+        $sum = $goldsmithLaborFee + $profitLaborFee;
 
         if ($sum == 0.0) {
             return '0';
         }
 
-        return fmod($sum, 1.0) == 0.0
-            ? (string) ((int) $sum)
-            : rtrim(rtrim(number_format($sum, 1, '.', ''), '0'), '.');
+        return (string) $sum;
     }
 
     public function exportFilteredItems()
@@ -198,6 +226,9 @@ class Index extends Component
                 'Purchase Order',
                 'Barcode',
                 'Addition Wastage(g)',
+                'Addition Wastage K',
+                'Addition Wastage P',
+                'Addition Wastage Y',
                 'Labor Fee(s)',
             ]);
 
@@ -209,13 +240,14 @@ class Index extends Component
                 'group_numbers.po_reference as po_reference',
                 'jewelry_items.barcode',
                 'jewelry_items.profit_loss',
+                'jewelry_items.goldsmith_labor_fee',
                 'jewelry_items.profit_labor_fee',
-                'jewelry_items.stone_price',
             ])
             ->chunkById(1000, function ($chunk) use ($writer) {
                 foreach ($chunk as $r) {
                     $profitLoss = (float) ($r->profit_loss ?? 0);
                     $profitLossStr = $profitLoss == 0.0 ? '0' : number_format($profitLoss, 2, '.', '');
+                    [$wK, $wP, $wY] = $this->calcAdditionWastageKPY($profitLoss);
 
                     $writer->addRow([
                         'ID' => $this->zeroIfBlank((string) ($r->external_id ?? '')),
@@ -223,7 +255,10 @@ class Index extends Component
                         'Purchase Order' => $this->zeroIfBlank((string) ($r->po_reference ?? '')),
                         'Barcode' => $this->zeroIfBlank((string) ($r->barcode ?? '')),
                         'Addition Wastage(g)' => $this->zeroIfBlank($profitLossStr),
-                        'Labor Fee(s)' => $this->zeroIfBlank($this->formatLaborFee($r->profit_labor_fee ?? null, $r->stone_price ?? null)),
+                        'Addition Wastage K' => $this->zeroIfBlank($wK),
+                        'Addition Wastage P' => $this->zeroIfBlank($wP),
+                        'Addition Wastage Y' => $this->zeroIfBlank($wY),
+                        'Labor Fee(s)' => $this->zeroIfBlank($this->formatLaborFee($r->goldsmith_labor_fee ?? null, $r->profit_labor_fee ?? null)),
                     ]);
                 }
             }, 'jewelry_items.id', 'id');
