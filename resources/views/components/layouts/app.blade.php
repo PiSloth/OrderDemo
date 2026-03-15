@@ -17,6 +17,7 @@
     {{-- @vite('resources/css/app.css') --}}
 
     @yield('styles')
+    @stack('styles')
 
     @wireUiScripts
     @livewireChartsScripts
@@ -38,6 +39,7 @@
             {{ $slot }}
         </div>
     </main>
+    @stack('scripts')
     @yield('script')
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script> --}}
 </body>

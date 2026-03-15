@@ -18,3 +18,10 @@ window.monthSelectPlugin = monthSelectPlugin;
 import ApexCharts from "apexcharts";
 window.ApexCharts = ApexCharts;
 
+import { bootGoogleCalendars } from "./calendar/google-calendar";
+
+const bootCalendars = () => bootGoogleCalendars(document);
+
+document.addEventListener("DOMContentLoaded", bootCalendars);
+document.addEventListener("livewire:navigated", bootCalendars);
+

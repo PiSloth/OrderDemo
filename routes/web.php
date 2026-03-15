@@ -1,11 +1,16 @@
 <?php
 
 use App\Http\Controllers\CustomLogout;
+use App\Http\Controllers\Calendar\GoogleCalendarAuthController;
+use App\Http\Controllers\Calendar\GoogleCalendarEventsController;
+use App\Http\Controllers\Calendar\GoogleSocialiteAuthController;
 use App\Http\Controllers\Document\CompanyDocumentImageController;
 use App\Http\Controllers\Document\EmailListExportController;
 use App\Livewire\BranchReport\Dashboard as BranchReportDashboard;
 use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
+use App\Livewire\Calendar\Index as CalendarIndex;
+use App\Livewire\Calendar\AutoSync as CalendarAutoSync;
 use App\Livewire\ManufactureCost;
 use App\Livewire\Document\EmailList as DocumentEmailList;
 use App\Livewire\Document\Library\Browser as DocumentLibraryBrowser;
@@ -47,6 +52,9 @@ use App\Livewire\Order\Psi\StockReceivedByBranch;
 use App\Livewire\Orders\OrderHistory as OrdersOrderHistory;
 use App\Livewire\Todo\Config as TodoConfig;
 use App\Livewire\Todo\TaskComments;
+use App\Livewire\Whiteboard\Board as WhiteboardBoard;
+use App\Livewire\Whiteboard\Config as WhiteboardConfig;
+use App\Livewire\Whiteboard\Show as WhiteboardShow;
 use App\Models\Order;
 use App\Models\OrderHistory;
 use App\Models\PsiPrice;
@@ -150,6 +158,12 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::get('/notifications', App\Livewire\Todo\Notifications::class)->name('notifications');
 });
 
+Route::middleware(['auth'])->prefix('whiteboard')->name('whiteboard.')->group(function () {
+    Route::get('/board', WhiteboardBoard::class)->name('board');
+    Route::get('/config', WhiteboardConfig::class)->name('config');
+    Route::get('/{content}', WhiteboardShow::class)->name('show');
+});
+
 Route::middleware(['auth'])->prefix('office-asset')->group(function () {
     Route::get('/', App\Livewire\OfficeAssetManager::class)->name('office-asset.index');
 });
@@ -164,6 +178,22 @@ Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function
         Route::get('/', JewelryGroupsIndex::class)->name('index');
         Route::get('/{group}', JewelryGroupsShow::class)->name('show');
     });
+});
+
+Route::middleware(['auth'])->prefix('calendar')->name('calendar.')->group(function () {
+    Route::get('/', CalendarIndex::class)->name('index');
+
+    Route::get('/auto-sync', CalendarAutoSync::class)->name('auto-sync');
+
+    Route::get('/google-socialite/connect', [GoogleSocialiteAuthController::class, 'connect'])->name('socialite.connect');
+    Route::get('/google-socialite/callback', [GoogleSocialiteAuthController::class, 'callback'])->name('socialite.callback');
+    Route::post('/google-socialite/disconnect', [GoogleSocialiteAuthController::class, 'disconnect'])->name('socialite.disconnect');
+
+    Route::get('/google/connect', [GoogleCalendarAuthController::class, 'connect'])->name('google.connect');
+    Route::get('/google/callback', [GoogleCalendarAuthController::class, 'callback'])->name('google.callback');
+    Route::post('/google/disconnect', [GoogleCalendarAuthController::class, 'disconnect'])->name('google.disconnect');
+
+    Route::get('/google/events', [GoogleCalendarEventsController::class, 'index'])->name('google.events');
 });
 
 // API Routes for notifications

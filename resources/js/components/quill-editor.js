@@ -292,6 +292,8 @@ window.__initQuillEditor = function initQuillEditor(element, initialHtml, onChan
         }
     });
 
+    element.__quill = quill;
+
     return quill;
 };
 

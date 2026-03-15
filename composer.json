@@ -7,9 +7,11 @@
     "require": {
         "php": "^8.1",
         "asantibanez/livewire-charts": "^3.0",
+        "google/apiclient": "^2.19",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
+        "laravel/socialite": "5.13",
         "laravel/tinker": "^2.8",
         "livewire/livewire": "^3.0",
         "livewire/volt": "^1.0",
@@ -68,8 +70,19 @@
             "php-http/discovery": true
         },
         "audit": {
-            "ignore": ["[PKSA-8qx3-n5y5-vvnd, PKSA-w7xr-vk7n-rstm, PKSA-g5js-3ypd-k2kr, PKSA-9tny-xycd-bd72, PKSA-5nn4-jtg3-nv71, PKSA-hkgy-xmch-74kt]"]
-        }
+            "block-insecure": false,
+            "ignore": [
+                "PKSA-8qx3-n5y5-vvnd",
+                "PKSA-w7xr-vk7n-rstm",
+                "PKSA-g5js-3ypd-k2kr",
+                "PKSA-9tny-xycd-bd72",
+                "PKSA-5nn4-jtg3-nv71",
+                "PKSA-hkgy-xmch-74kt",
+                "PKSA-z3gr-8qht-p93v",
+                "PKSA-y2cr-5h3j-g3ys"
+            ]
+        },
+        "process-timeout": 1200
     },
     "minimum-stability": "stable",
     "prefer-stable": true

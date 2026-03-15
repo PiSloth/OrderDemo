@@ -1,40 +1,44 @@
 <aside id="asidebar"
     class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0"
-    x-bind:class="{ 'translate-x-0': asideOpen }"
-    aria-label="Sidenav">
+    x-bind:class="{ 'translate-x-0': asideOpen }" aria-label="Sidenav">
     @php
-        $orderGroupActive = request()->routeIs('add_order')
-            || request()->routeIs('order-dashboard')
-            || request()->routeIs('order-report')
-            || request()->routeIs('chat')
-            || request()->routeIs('comment-history')
-            || request()->routeIs('order-export')
-            || request()->routeIs('addsupplier');
+        $orderGroupActive =
+            request()->routeIs('add_order') ||
+            request()->routeIs('order-dashboard') ||
+            request()->routeIs('order-report') ||
+            request()->routeIs('chat') ||
+            request()->routeIs('comment-history') ||
+            request()->routeIs('order-export') ||
+            request()->routeIs('addsupplier');
 
-        $psiGroupActive = request()->routeIs('mainboard')
-            || request()->routeIs('oos')
-            || request()->routeIs('daily_sale')
-            || request()->routeIs('psi-report');
+        $psiGroupActive =
+            request()->routeIs('mainboard') ||
+            request()->routeIs('oos') ||
+            request()->routeIs('daily_sale') ||
+            request()->routeIs('psi-report');
 
-        $performanceGroupActive = request()->routeIs('sale_repurchase')
-            || request()->routeIs('report-dashboard');
+        $performanceGroupActive = request()->routeIs('sale_repurchase') || request()->routeIs('report-dashboard');
 
         $jewelryGroupActive = request()->routeIs('jewelry.*');
 
-        $todoGroupActive = request()->routeIs('todo.dashboard')
-            || request()->routeIs('todo_list');
+        $todoGroupActive = request()->routeIs('todo.dashboard') || request()->routeIs('todo_list');
 
-        $documentGroupActive = request()->routeIs('document.email-list')
-            || request()->routeIs('document.library.*');
+        $whiteboardGroupActive = request()->routeIs('whiteboard.*');
 
-        $linkBase = 'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
+        $documentGroupActive = request()->routeIs('document.email-list') || request()->routeIs('document.library.*');
+
+        $calendarActive = request()->routeIs('calendar.*');
+
+        $linkBase =
+            'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
         $linkActive = 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white';
         $linkInactive = 'text-slate-700 dark:text-slate-200';
     @endphp
     <div
         class="h-full px-3 py-5 overflow-y-auto bg-white border-r border-slate-200 dark:bg-slate-800 dark:border-slate-700">
         <!-- Close button -->
-        <button @click="$parent.asideOpen = false" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none lg:hidden">
+        <button @click="$parent.asideOpen = false"
+            class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none lg:hidden">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -51,7 +55,7 @@
                 </a>
             </li>
 
-             <!-- Performance Group -->
+            <!-- Performance Group -->
             <li x-data="{ open: {{ $performanceGroupActive ? 'true' : 'false' }} }" class="mt-2">
                 <button type="button" @click="open = !open"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -191,7 +195,8 @@
                         <x-icon name="view-grid" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">PSI</span>
                     </span>
-                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': open }" />
                 </button>
 
                 <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
@@ -209,7 +214,8 @@
                     <li>
                         <a wire:navigate href="{{ route('oos') }}"
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
-                            <x-icon name="exclamation" class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <x-icon name="exclamation"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
                             <span class="ml-3">OoS</span>
                         </a>
                     </li>
@@ -218,7 +224,8 @@
                     <li>
                         <a wire:navigate href="{{ route('daily_sale') }}"
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
-                            <x-icon name="calendar" class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <x-icon name="calendar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
                             <span class="ml-3">Daily Sale</span>
                         </a>
                     </li>
@@ -227,14 +234,15 @@
                     <li>
                         <a wire:navigate href="{{ route('psi-report') }}"
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
-                            <x-icon name="chart-bar" class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <x-icon name="chart-bar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
                             <span class="ml-3">PSI Report</span>
                         </a>
                     </li>
                 </ul>
             </li>
 
-           
+
 
             <!-- Todo Group -->
             <li x-data="{ open: {{ $todoGroupActive ? 'true' : 'false' }} }" class="mt-2">
@@ -244,7 +252,8 @@
                         <x-icon name="check-circle" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Todo</span>
                     </span>
-                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': open }" />
                 </button>
 
                 <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
@@ -270,6 +279,41 @@
                 </ul>
             </li>
 
+            <!-- Whiteboard Group -->
+            <li x-data="{ open: {{ $whiteboardGroupActive ? 'true' : 'false' }} }" class="mt-2">
+                <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <span class="flex items-center">
+                        <x-icon name="view-grid" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Whiteboard</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': open }" />
+                </button>
+
+                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                    @php $active = request()->routeIs('whiteboard.board') || request()->routeIs('whiteboard.show'); @endphp
+                    <li>
+                        <a href="{{ route('whiteboard.board') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="collection"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Board</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('whiteboard.config'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('whiteboard.config') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="cog"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Configuration</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
             <!-- Office Asset -->
             <li class="mt-2">
                 @php $active = request()->routeIs('office-asset.index'); @endphp
@@ -281,6 +325,28 @@
                 </a>
             </li>
 
+            <!-- Calendar -->
+            <li class="mt-2">
+                @php $active = $calendarActive; @endphp
+                <a wire:navigate href="{{ route('calendar.index') }}"
+                    class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                    <x-icon name="calendar"
+                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                    <span class="ml-3">Calendar</span>
+                </a>
+            </li>
+
+            <!-- Calendar Auto Sync -->
+            <li class="mt-2">
+                @php $active = request()->routeIs('calendar.auto-sync'); @endphp
+                <a wire:navigate href="{{ route('calendar.auto-sync') }}"
+                    class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                    <x-icon name="refresh"
+                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                    <span class="ml-3">Calendar Auto Sync</span>
+                </a>
+            </li>
+
             <!-- Jewelry Group -->
             <li x-data="{ open: {{ $jewelryGroupActive ? 'true' : 'false' }} }" class="mt-2">
                 <button type="button" @click="open = !open"
@@ -289,7 +355,8 @@
                         <x-icon name="clipboard-list" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Jewelry</span>
                     </span>
-                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': open }" />
                 </button>
 
                 <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
@@ -323,7 +390,8 @@
                         <x-icon name="folder" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Document</span>
                     </span>
-                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': open }" />
                 </button>
 
                 <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">

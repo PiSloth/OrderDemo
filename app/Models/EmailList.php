@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmailList extends Model
 {
@@ -27,5 +28,15 @@ class EmailList extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(EmailTag::class, 'email_list_email_tag');
+    }
+
+    public function whiteboardReports(): HasMany
+    {
+        return $this->hasMany(WhiteboardReport::class);
+    }
+
+    public function reportedWhiteboardContents(): HasMany
+    {
+        return $this->hasMany(WhiteboardContent::class, 'report_by');
     }
 }

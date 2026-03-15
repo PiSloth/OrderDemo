@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -47,6 +48,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'suspended' => 'boolean',
+        'google_token_expires_at' => 'datetime',
     ];
 
     /**
@@ -126,5 +128,25 @@ class User extends Authenticatable
     public function taskComments()
     {
         return $this->hasMany(TaskComment::class);
+    }
+
+    public function googleCalendarAccount(): HasOne
+    {
+        return $this->hasOne(GoogleCalendarAccount::class);
+    }
+
+    public function whiteboardContents()
+    {
+        return $this->hasMany(WhiteboardContent::class, 'created_by');
+    }
+
+    public function whiteboardDecisions()
+    {
+        return $this->hasMany(WhiteboardDecision::class, 'created_by');
+    }
+
+    public function whiteboardReadReports()
+    {
+        return $this->hasMany(WhiteboardReport::class, 'read_by_user_id');
     }
 }

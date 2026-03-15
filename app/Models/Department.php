@@ -20,6 +20,11 @@ class Department extends Model
         return $this->hasMany(User::class);
     }
 
+    public function emailLists(): HasMany
+    {
+        return $this->hasMany(EmailList::class);
+    }
+
     public function companyDocuments(): HasMany
     {
         return $this->hasMany(CompanyDocument::class);
