@@ -277,8 +277,8 @@
                                             x-text="recipient.department ? `${recipient.email} - ${recipient.department}` : recipient.email"></span>
                                         <div class="ml-auto flex items-center gap-1.5 overflow-visible">
                                             <span
-                                                class="inline-flex items-center rounded-full {{ $this->isContentRead($selectedContent) ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700' }} px-3 py-1 text-xs font-semibold">
-                                                {{ $this->isContentRead($selectedContent) ? 'Read' : 'Unread' }}
+                                                class="inline-flex items-center rounded-full {{ $selectedContent && $this->isContentRead($selectedContent) ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700' }} px-3 py-1 text-xs font-semibold">
+                                                {{ $selectedContent && $this->isContentRead($selectedContent) ? 'Read' : 'Unread' }}
                                             </span>
                                 </button>
                             </template>
