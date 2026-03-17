@@ -30,6 +30,7 @@ class Board extends Component
     public string $content_type_id = '';
     public string $propose_decision_due_at = '';
     public string $flag_id = '';
+    public string $received_mail_at = '';
     public array $recipient_ids = [];
 
     #[Url(as: 'item')]
@@ -89,6 +90,7 @@ class Board extends Component
         $this->content_type_id = (string) $content->content_type_id;
         $this->propose_decision_due_at = $content->propose_decision_due_at?->format('Y-m-d\TH:i') ?? '';
         $this->flag_id = (string) ($content->flag_id ?? '');
+        $this->received_mail_at = $content->received_mail_at?->format('Y-m-d\TH:i') ?? '';
         $this->recipient_ids = $content->reports()
             ->pluck('email_list_id')
             ->map(fn($id) => (int) $id)
@@ -119,6 +121,7 @@ class Board extends Component
                 'content_type_id' => $validated['content_type_id'],
                 'propose_decision_due_at' => $validated['propose_decision_due_at'] ?: null,
                 'flag_id' => $validated['flag_id'] ?: null,
+                'received_mail_at' => $validated['received_mail_at'] ?? null,
             ]);
 
             $this->syncRecipients($content, $validated['recipient_ids']);
@@ -133,6 +136,7 @@ class Board extends Component
                 'content_type_id' => $validated['content_type_id'],
                 'propose_decision_due_at' => $validated['propose_decision_due_at'] ?: null,
                 'flag_id' => $validated['flag_id'] ?: null,
+                'received_mail_at' => $validated['received_mail_at'] ?? null,
             ]);
 
             $this->syncRecipients($content, $validated['recipient_ids']);
@@ -299,6 +303,7 @@ class Board extends Component
             'invited_person' => $this->invited_person,
         ], [
             'decision' => ['required', 'string'],
+            'received_mail_at' => ['required'],
             'appointment_at' => ['nullable', 'date'],
             'invited_person' => ['nullable', 'string', 'max:255'],
         ])->after(function ($validator) {
@@ -526,7 +531,7 @@ class Board extends Component
     private function compareNewest(WhiteboardContent $left, WhiteboardContent $right): int
     {
         return $this->compareWithNewestTieBreaker(
-            ($right->created_at?->timestamp ?? 0) <=> ($left->created_at?->timestamp ?? 0),
+            ($right->received_mail_at?->timestamp ?? 0) <=> ($left->received_mail_at?->timestamp ?? 0),
             $left,
             $right,
         );
@@ -535,7 +540,7 @@ class Board extends Component
     private function compareOldest(WhiteboardContent $left, WhiteboardContent $right): int
     {
         return $this->compareWithNewestTieBreaker(
-            ($left->created_at?->timestamp ?? 0) <=> ($right->created_at?->timestamp ?? 0),
+            ($left->received_mail_at?->timestamp ?? 0) <=> ($right->received_mail_at?->timestamp ?? 0),
             $left,
             $right,
         );
@@ -594,7 +599,7 @@ class Board extends Component
             return $comparison;
         }
 
-        return ($right->created_at?->timestamp ?? 0) <=> ($left->created_at?->timestamp ?? 0);
+        return ($right->received_mail_at?->timestamp ?? 0) <=> ($left->received_mail_at?->timestamp ?? 0);
     }
 
     private function flagPriority(WhiteboardContent $content): int
@@ -647,6 +652,7 @@ class Board extends Component
                 'date',
             ],
             'flag_id' => ['nullable', 'integer', 'exists:whiteboard_flags,id'],
+            'received_mail_at' => ['nullable', 'date'],
             'recipient_ids' => ['required', 'array', 'min:1'],
             'recipient_ids.*' => ['integer', 'exists:email_lists,id'],
         ]);

@@ -24,10 +24,12 @@ class WhiteboardContent extends Model
         'content_type_id',
         'propose_decision_due_at',
         'flag_id',
+        'received_mail_at',
     ];
 
     protected $casts = [
         'propose_decision_due_at' => 'datetime',
+        'received_mail_at' => 'datetime',
     ];
 
     public function reporter(): BelongsTo

@@ -191,6 +191,15 @@
                         @enderror
                     </div>
 
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Received Mail At</label>
+                        <input type="datetime-local" wire:model.defer="received_mail_at"
+                            class="mt-1 w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('received_mail_at')
+                            <span class="mt-1 block text-xs text-red-600">{{ $message }}</span>
+                        @enderror
+                    </div>
+
                     <div class="lg:col-span-2" x-data="{
                         recipientSearch: '',
                         selectedRecipients: $wire.entangle('recipient_ids'),
@@ -586,13 +595,17 @@
                                         {{ \Illuminate\Support\Str::limit(trim(strip_tags($content->description)), 82) }}
                                     </p>
 
+
                                     <div
                                         class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
                                         <span>{{ $content->reporter?->user_name ?? 'Unknown reporter' }}</span>
-                                        <span>{{ $this->isContentRead($content) ? 'Read' : 'Unread' }}</span>
+                                        <span
+                                            class="rounded-full px-2 py-0.5 bg-gray-50">{{ $this->isContentRead($content) ? 'Read' : 'Unread' }}</span>
                                         @if ($content->requiresDecision() && !$content->latestDecision)
                                             <span class="font-semibold text-amber-700">Decision needed</span>
                                         @endif
+                                        <span
+                                            class="text-xs">{{ $content->received_mail_at?->format('M d, H:i') }}</span>
                                     </div>
                                 </div>
                             </button>
@@ -665,7 +678,7 @@
                                     ->map(function ($report) {
                                         $recipientName = $report->emailList?->user_name ?? 'Recipient removed';
                                         $recipientEmail = $report->emailList?->email ?? 'No email';
-                                        $recipientStatus = $report->is_read ? 'Read' : 'Unread';
+                                        $recipientStatus = $report->is_read ? 'Readd' : 'Unread';
 
                                         return "- {$recipientName} ({$recipientEmail}) {$recipientStatus}";
                                     })
@@ -695,35 +708,39 @@
                                 'pointer-events-none max-h-0 -translate-y-4 overflow-hidden border-b-0 py-0 opacity-0'">
                             <div class="flex flex-col gap-3">
                                 <div class="min-w-0">
-                                    <div class="flex flex-wrap items-center justify-center gap-2">
-                                        <button type="button" @click="listOpen = true"
-                                            class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-50 lg:hidden">
-                                            Show List
-                                        </button>
-                                        <span
-                                            class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{{ $selectedContent->contentType?->name ?? 'Uncategorized' }}</span>
-                                        @if ($selectedContent->flag)
+                                    <div class=" flex ml-24 gap-2">
+                                        {{-- Left buttons --}}
+                                        <div class="p-4">
+                                            <button type="button" @click="listOpen = true"
+                                                class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-50 lg:hidden">
+                                                Show List
+                                            </button>
                                             <span
-                                                class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold text-slate-700"
-                                                style="border-color: {{ $selectedContent->flag->color }}; background-color: {{ $selectedContent->flag->color }}20;">
-                                                {{ $selectedContent->flag->name }}
+                                                class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{{ $selectedContent->contentType?->name ?? 'Uncategorized' }}</span>
+                                            @if ($selectedContent->flag)
+                                                <span
+                                                    class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold text-slate-700"
+                                                    style="border-color: {{ $selectedContent->flag->color }}; background-color: {{ $selectedContent->flag->color }}20;">
+                                                    {{ $selectedContent->flag->name }}
+                                                </span>
+                                            @endif
+                                            @if ($selectedContent->requiresDecision())
+                                                <span
+                                                    class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Decision
+                                                    Required</span>
+                                            @endif
+                                            @if ($selectedContent->trashed())
+                                                <span
+                                                    class="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">Archived</span>
+                                            @endif
+                                            <span
+                                                class="inline-flex items-center rounded-full {{ $this->isContentRead($selectedContent) ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700' }} px-3 py-1 text-xs font-semibold">
+                                                {{ $this->isContentRead($selectedContent) ? 'Read' : 'Unread' }}
                                             </span>
-                                        @endif
-                                        @if ($selectedContent->requiresDecision())
-                                            <span
-                                                class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Decision
-                                                Required</span>
-                                        @endif
-                                        @if ($selectedContent->trashed())
-                                            <span
-                                                class="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">Archived</span>
-                                        @endif
-                                        <span
-                                            class="inline-flex items-center rounded-full {{ $this->isContentRead($selectedContent) ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700' }} px-3 py-1 text-xs font-semibold">
-                                            {{ $this->isContentRead($selectedContent) ? 'Read' : 'Unread' }}
-                                        </span>
-
+                                        </div>
+                                        {{-- Right buttons --}}
                                         <div class="ml-auto flex items-center gap-1.5 overflow-visible">
+                                            {{-- Change Flag condition --}}
                                             <div x-data="{ open: false }" class="relative">
                                                 <button type="button" @click.stop="open = !open"
                                                     class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
@@ -918,7 +935,7 @@
                                 @if ($selectedContent->propose_solution)
                                     <section class="rounded-2xl border border-sky-100 bg-sky-50 p-5">
                                         <p class="text-xs font-semibold uppercase tracking-wide text-sky-700">
-                                            Proposed Solution</p>
+                                            Executive Summary</p>
                                         <div class="prose prose-sm mt-3 max-w-none text-sky-900">
                                             {!! $selectedContent->propose_solution !!}
                                         </div>
