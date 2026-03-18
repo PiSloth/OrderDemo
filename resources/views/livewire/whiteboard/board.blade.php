@@ -573,6 +573,11 @@
                                                         Archived
                                                     </span>
                                                 @endif
+                                                <span
+                                                    class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold text-slate-700"
+                                                    style="border-color: {{ $content->contentType->color }}; background-color: {{ $content->contentType->color }}20; color: {{ $content->contentType->color }};">
+                                                    {{ $content->contentType?->name ?? 'Uncategorized' }}
+                                                </span>
                                                 @if ($content->flag)
                                                     <span
                                                         class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold text-slate-700"
@@ -581,8 +586,6 @@
                                                     </span>
                                                 @endif
                                             </div>
-                                            <p class="mt-0.5 text-[11px] text-slate-500">
-                                                {{ $content->contentType?->name ?? 'Uncategorized' }}</p>
                                         </div>
 
                                         @if ($content->propose_decision_due_at)

@@ -11,11 +11,13 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use WireUi\Traits\Actions;
 
 #[Layout('components.layouts.whiteboard')]
 #[Title('Whiteboard Configuration')]
 class Config extends Component
 {
+    use Actions;
     public array $newContentType = [
         'name' => '',
         'color' => '#2563EB',
@@ -72,8 +74,14 @@ class Config extends Component
         session()->flash('success', 'Content type created.');
     }
 
-    public function editContentType(int $id): void
+    // public function editType()
+    // {
+    //     dd("Hello");
+    // }
+
+    public function editType(int $id): void
     {
+        // dd("Hello $id");
         $row = WhiteboardContentType::query()->findOrFail($id);
 
         $this->editContentTypeId = $row->id;
@@ -107,10 +115,17 @@ class Config extends Component
 
     public function deleteContentType(int $id): void
     {
-        WhiteboardContentType::query()->findOrFail($id)->delete();
-        $this->cancelContentTypeEdit();
+        $this->dialog()->info(
+            $title = 'Hi buddy',
+            $description = "This's currently dissabled."
+        );
+        return;
 
-        session()->flash('success', 'Content type deleted.');
+
+        // WhiteboardContentType::query()->findOrFail($id)->delete();
+        // $this->cancelContentTypeEdit();
+
+        // session()->flash('success', 'Content type deleted.');
     }
 
     public function cancelContentTypeEdit(): void

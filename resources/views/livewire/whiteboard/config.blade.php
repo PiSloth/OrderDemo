@@ -67,8 +67,12 @@
                     <form wire:submit.prevent="createContentType" class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-4">
                         <input type="text" wire:model.defer="newContentType.name" placeholder="Issue"
                             class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <input type="text" wire:model.defer="newContentType.color" placeholder="#2563EB"
-                            class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+
+                        <x-color-picker wire:model.defer="newContentType.color" placeholder="Select the car color" />
+
+                        {{-- <input type="text" placeholder="#2563EB"
+                            class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"> --}}
+
                         <input type="text" wire:model.defer="newContentType.description"
                             placeholder="Category description"
                             class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -104,9 +108,14 @@
                                         <td class="px-4 py-3"><input type="text"
                                                 wire:model.defer="editContentType.name"
                                                 class="w-full rounded-lg border-slate-300 text-sm shadow-sm"></td>
-                                        <td class="px-4 py-3"><input type="text"
+                                        <td class="px-4 py-3">
+                                            <x-color-picker wire:model.defer="editContentType.color"
+                                                placeholder="Select the car color" />
+
+                                            {{-- <input type="text"
                                                 wire:model.defer="editContentType.color"
-                                                class="w-full rounded-lg border-slate-300 text-sm shadow-sm"></td>
+                                                class="w-full rounded-lg border-slate-300 text-sm shadow-sm"> --}}
+                                        </td>
                                         <td class="px-4 py-3"><input type="text"
                                                 wire:model.defer="editContentType.description"
                                                 class="w-full rounded-lg border-slate-300 text-sm shadow-sm"></td>
@@ -126,12 +135,14 @@
                                         </td>
                                     @else
                                         <td class="px-4 py-3 font-medium text-slate-800">{{ $contentType->name }}</td>
-                                        <td class="px-4 py-3 text-slate-600">{{ $contentType->color }}</td>
+                                        <td class="inline-flex mt-2 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold text-slate-700"
+                                            style="border-color: {{ $contentType->color }}; background-color: {{ $contentType->color }}20; color: {{ $contentType->color }};">
+                                            {{ $contentType->name }}</td>
                                         <td class="px-4 py-3 text-slate-600">{{ $contentType->description }}</td>
                                         <td class="px-4 py-3 text-slate-600">
                                             {{ $contentType->requires_decision ? 'Required' : 'Optional' }}</td>
                                         <td class="px-4 py-3 text-right space-x-3">
-                                            <button wire:click="editContentType({{ $contentType->id }})"
+                                            <button wire:click="editType({{ $contentType->id }})"
                                                 class="text-indigo-600 hover:text-indigo-800">Edit</button>
                                             <button wire:click="deleteContentType({{ $contentType->id }})"
                                                 class="text-red-600 hover:text-red-800">Delete</button>
