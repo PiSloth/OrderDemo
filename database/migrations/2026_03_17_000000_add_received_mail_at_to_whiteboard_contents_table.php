@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('whiteboard_contents', 'received_mail_at')) {
+            return;
+        }
+
         Schema::table('whiteboard_contents', function (Blueprint $table) {
             $table->dateTime('received_mail_at')->nullable()->after('flag_id');
         });
@@ -15,6 +19,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasColumn('whiteboard_contents', 'received_mail_at')) {
+            return;
+        }
+
         Schema::table('whiteboard_contents', function (Blueprint $table) {
             $table->dropColumn('received_mail_at');
         });

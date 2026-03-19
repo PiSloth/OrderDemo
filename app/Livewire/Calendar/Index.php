@@ -45,6 +45,7 @@ class Index extends Component
 
     public bool $allDay = false;
     public ?int $reminderMinutes = 30;
+    public string $inviteeSearch = '';
 
     /**
      * @var array<int,int>
@@ -390,14 +391,52 @@ class Index extends Component
         $this->endsAt = '';
         $this->allDay = false;
         $this->reminderMinutes = 30;
+        $this->inviteeSearch = '';
+        $this->attendeeUserIds = [];
+    }
+
+    public function addInvitee(int $userId): void
+    {
+        if (in_array($userId, $this->attendeeUserIds, true)) {
+            return;
+        }
+
+        $this->attendeeUserIds[] = $userId;
+        $this->inviteeSearch = '';
+    }
+
+    public function removeInvitee(int $userId): void
+    {
+        $this->attendeeUserIds = array_values(array_filter(
+            $this->attendeeUserIds,
+            fn (int $id): bool => $id !== $userId
+        ));
+    }
+
+    public function clearInvitees(): void
+    {
         $this->attendeeUserIds = [];
     }
 
     public function render()
     {
+        $selectedInvitees = $this->eligibleInviteeQuery()
+            ->whereIn('id', $this->attendeeUserIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
         $users = $this->eligibleInviteeQuery()
             ->when(Auth::id(), fn (Builder $query) => $query->where('id', '!=', Auth::id()))
+            ->when(!empty($this->attendeeUserIds), fn (Builder $query) => $query->whereNotIn('id', $this->attendeeUserIds))
+            ->when($this->inviteeSearch !== '', function (Builder $query): void {
+                $search = '%' . trim($this->inviteeSearch) . '%';
+                $query->where(function (Builder $nested) use ($search): void {
+                    $nested->where('name', 'like', $search)
+                        ->orWhere('email', 'like', $search);
+                });
+            })
             ->orderBy('name')
+            ->limit(12)
             ->get(['id', 'name', 'email']);
 
         $todayStart = now(config('app.timezone'))->startOfDay();
@@ -422,6 +461,7 @@ class Index extends Component
 
         return view('livewire.calendar.index', [
             'users' => $users,
+            'selectedInvitees' => $selectedInvitees,
             'todayMeetings' => $todayMeetings,
         ]);
     }
@@ -497,6 +537,7 @@ class Index extends Component
 
         $this->startsAt = $this->allDay ? $start->format('Y-m-d') : $start->format('Y-m-d\\TH:i');
         $this->endsAt = $this->allDay ? $end->format('Y-m-d') : $end->format('Y-m-d\\TH:i');
+        $this->inviteeSearch = '';
         $this->attendeeUserIds = $event->attendees->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 

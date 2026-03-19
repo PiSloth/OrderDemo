@@ -241,14 +241,53 @@
                         <i class="fa-solid fa-user-group text-base"></i>
                     </div>
                     <div>
-                        <label for="calendar_attendees" class="mb-2 block text-sm font-medium text-slate-700">Invite people with Google calendar access</label>
-                        <select wire:model.defer="attendeeUserIds" id="calendar_attendees" multiple
-                            class="block min-h-[180px] w-full rounded-2xl border-slate-300 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:ring-sky-500">
-                            @foreach ($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})</option>
-                            @endforeach
-                        </select>
-                        <p class="mt-2 text-xs text-slate-500">Only users with Google token access are shown. Hold Ctrl or Command to select multiple.</p>
+                        <label for="calendar_attendee_search" class="mb-2 block text-sm font-medium text-slate-700">Invite people with Google calendar access</label>
+                        <input wire:model.live.debounce.200ms="inviteeSearch" id="calendar_attendee_search" type="text"
+                            placeholder="Search people by name or email"
+                            class="block w-full rounded-2xl border-slate-300 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:ring-sky-500" />
+
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @forelse ($selectedInvitees as $invitee)
+                                <span class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700">
+                                    {{ $invitee->name }}
+                                    <button type="button" wire:click="removeInvitee({{ $invitee->id }})"
+                                        class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-sky-700 hover:bg-sky-100">
+                                        &times;
+                                    </button>
+                                </span>
+                            @empty
+                                <span class="text-xs text-slate-500">No invited people selected.</span>
+                            @endforelse
+                        </div>
+
+                        @if ($selectedInvitees->isNotEmpty())
+                            <button type="button" wire:click="clearInvitees"
+                                class="mt-3 inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">
+                                Clear all
+                            </button>
+                        @endif
+
+                        <div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Search results</div>
+                            <div class="space-y-2">
+                                @forelse ($users as $user)
+                                    <button type="button" wire:click="addInvitee({{ $user->id }})"
+                                        class="flex w-full items-center justify-between rounded-xl border border-transparent bg-white px-3 py-3 text-left text-sm text-slate-700 shadow-sm hover:border-sky-200 hover:bg-sky-50">
+                                        <span>
+                                            <span class="block font-medium text-slate-900">{{ $user->name }}</span>
+                                            <span class="block text-xs text-slate-500">{{ $user->email }}</span>
+                                        </span>
+                                        <span class="rounded-full bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-700">Add</span>
+                                    </button>
+                                @empty
+                                    <div class="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-xs text-slate-500">
+                                        No matching users with Google calendar access.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <p class="mt-2 text-xs text-slate-500">Only users with Google token access are shown.</p>
                         <x-input-error :messages="$errors->get('attendeeUserIds')" class="mt-2" />
                     </div>
                 </div>
