@@ -448,30 +448,9 @@ class Index extends Component
             ->limit(12)
             ->get(['id', 'name', 'email']);
 
-        $todayStart = now(config('app.timezone'))->startOfDay();
-        $todayEnd = $todayStart->endOfDay();
-
-        $todayMeetings = CalendarEvent::query()
-            ->with(['createdBy:id,name', 'attendees:id,name'])
-            ->where(function (Builder $query): void {
-                $userId = Auth::id();
-                $query->where('created_by_user_id', $userId)
-                    ->orWhereHas('attendees', fn (Builder $attendeeQuery) => $attendeeQuery->where('users.id', $userId));
-            })
-            ->where(function (Builder $query) use ($todayStart, $todayEnd): void {
-                $query->whereBetween('starts_at', [$todayStart, $todayEnd])
-                    ->orWhere(function (Builder $nested) use ($todayStart): void {
-                        $nested->where('starts_at', '<', $todayStart)
-                            ->where('ends_at', '>=', $todayStart);
-                    });
-            })
-            ->orderBy('starts_at')
-            ->get();
-
         return view('livewire.calendar.index', [
             'users' => $users,
             'selectedInvitees' => $selectedInvitees,
-            'todayMeetings' => $todayMeetings,
         ]);
     }
 
