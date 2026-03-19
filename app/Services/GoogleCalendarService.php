@@ -207,7 +207,7 @@ class GoogleCalendarService
         bool $allDay = false,
         ?int $reminderMinutes = null
     ): ?GoogleCalendarEvent {
-        $service = $this->getCalendarServiceForUser($user);
+        $service = $this->getManagedCalendarServiceForUser($user);
         if (!$service) {
             return null;
         }
@@ -245,7 +245,7 @@ class GoogleCalendarService
         bool $allDay = false,
         ?int $reminderMinutes = null
     ): ?GoogleCalendarEvent {
-        $service = $this->getCalendarServiceForUser($user);
+        $service = $this->getManagedCalendarServiceForUser($user);
         if (!$service) {
             return null;
         }
@@ -270,7 +270,7 @@ class GoogleCalendarService
 
     public function deleteEvent(User $user, string $calendarId, string $eventId, bool $sendUpdates = true): bool
     {
-        $service = $this->getCalendarServiceForUser($user);
+        $service = $this->getManagedCalendarServiceForUser($user);
         if (!$service) {
             return false;
         }

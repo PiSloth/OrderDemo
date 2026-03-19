@@ -17,7 +17,7 @@ class GoogleCalendarEventsController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $service = $googleCalendar->getCalendarServiceForUser($user);
+        $service = $googleCalendar->getManagedCalendarServiceForUser($user);
         if (!$service) {
             return response()->json(['message' => 'Google Calendar not connected'], 409);
         }

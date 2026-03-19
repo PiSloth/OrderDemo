@@ -67,8 +67,8 @@ class Index extends Component
 
         /** @var GoogleCalendarAccount|null $account */
         $account = $user->googleCalendarAccount;
-        $this->connected = $account !== null;
-        $this->email = $account?->email;
+        $this->connected = !empty($user->google_refresh_token) || !empty($user->google_token);
+        $this->email = $account?->email ?: $user->email;
     }
 
     #[On('calendar-range-selected')]

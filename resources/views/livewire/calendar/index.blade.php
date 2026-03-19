@@ -14,11 +14,11 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+            <button type="button" wire:click="openCreateEventModal"
+                class="inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
+                Add meeting
+            </button>
             @if ($connected)
-                <button type="button" wire:click="openCreateEventModal"
-                    class="inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
-                    Add meeting
-                </button>
                 <div class="text-sm text-slate-600 dark:text-slate-200">
                     Connected{{ $email ? ' as ' . $email : '' }}
                 </div>
@@ -26,15 +26,16 @@
                     class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100">
                     Enable notifications
                 </button>
-                <form method="POST" action="{{ route('calendar.google.disconnect') }}">
+                <form method="POST" action="{{ route('calendar.socialite.disconnect') }}">
                     @csrf
+                    <input type="hidden" name="redirect_to" value="calendar.index">
                     <button type="submit"
                         class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                         Disconnect
                     </button>
                 </form>
             @else
-                <a href="{{ route('calendar.google.connect') }}"
+                <a href="{{ route('calendar.socialite.connect', ['redirect_to' => 'calendar.index']) }}"
                     class="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
                     Connect Google Calendar
                 </a>

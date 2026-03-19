@@ -12,15 +12,26 @@ use Laravel\Socialite\Facades\Socialite;
 class GoogleSocialiteAuthController extends Controller
 {
     /**
+     * @var array<int,string>
+     */
+    private const ALLOWED_REDIRECT_ROUTES = [
+        'calendar.index',
+        'calendar.auto-sync',
+    ];
+
+    /**
      * Redirect the user to Google's consent screen.
      */
     public function connect(Request $request): RedirectResponse
     {
+        $redirectRoute = $this->resolveRedirectRoute($request->query('redirect_to'));
+        $request->session()->put('calendar_socialite_redirect_to', $redirectRoute);
+
         Log::info('Google OAuth connect attempted. Config: client_id=' . (config('services.google.client_id') ? 'present' : 'missing') . ', client_secret=' . (config('services.google.client_secret') ? 'present' : 'missing'));
 
         if (empty(config('services.google.client_id')) || empty(config('services.google.client_secret'))) {
             return redirect()
-                ->route('calendar.auto-sync')
+                ->route($redirectRoute)
                 ->with('error', 'Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env, then run: php artisan config:clear');
         }
 
@@ -54,6 +65,7 @@ class GoogleSocialiteAuthController extends Controller
      */
     public function callback(Request $request): RedirectResponse
     {
+        $redirectRoute = $this->resolveRedirectRoute($request->session()->pull('calendar_socialite_redirect_to'));
         $user = $request->user();
         if (!$user) {
             return redirect()->route('welcome');
@@ -80,16 +92,16 @@ class GoogleSocialiteAuthController extends Controller
 
             if (empty($refreshToken)) {
                 return redirect()
-                    ->route('calendar.auto-sync')
+                    ->route($redirectRoute)
                     ->with('error', 'Connected, but Google did not return a refresh token. Try Disconnect -> Connect again, and make sure Google prompts for consent (or remove the app from your Google Account and reconnect).');
             }
 
             return redirect()
-                ->route('calendar.auto-sync')
-                ->with('success', 'Google Calendar connected for auto-sync. Use the Calendar page to create events manually.');
+                ->route($redirectRoute)
+                ->with('success', 'Google Calendar connected.');
         } catch (\Throwable $e) {
             return redirect()
-                ->route('calendar.auto-sync')
+                ->route($redirectRoute)
                 ->with('error', 'Google connection failed. Please try again.');
         }
     }
@@ -107,6 +119,17 @@ class GoogleSocialiteAuthController extends Controller
             'google_token_expires_at' => null,
         ])->save();
 
-        return redirect()->route('calendar.auto-sync')->with('success', 'Google Calendar disconnected.');
+        return redirect()
+            ->route($this->resolveRedirectRoute($request->input('redirect_to')))
+            ->with('success', 'Google Calendar disconnected.');
+    }
+
+    private function resolveRedirectRoute(mixed $value): string
+    {
+        $route = is_string($value) ? $value : 'calendar.auto-sync';
+
+        return in_array($route, self::ALLOWED_REDIRECT_ROUTES, true)
+            ? $route
+            : 'calendar.auto-sync';
     }
 }

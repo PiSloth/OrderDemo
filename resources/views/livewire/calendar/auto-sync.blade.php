@@ -15,13 +15,14 @@
                 <div class="text-sm text-slate-600 dark:text-slate-200">Connected</div>
                 <form method="POST" action="{{ route('calendar.socialite.disconnect') }}">
                     @csrf
+                    <input type="hidden" name="redirect_to" value="calendar.auto-sync">
                     <button type="submit"
                         class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                         Disconnect
                     </button>
                 </form>
             @else
-                <a href="{{ route('calendar.socialite.connect') }}"
+                <a href="{{ route('calendar.socialite.connect', ['redirect_to' => 'calendar.auto-sync']) }}"
                     class="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
                     Connect Google Calendar
                 </a>
