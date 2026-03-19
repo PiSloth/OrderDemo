@@ -38,7 +38,6 @@ class GoogleSocialiteAuthController extends Controller
                 'prompt' => 'consent',
                 'include_granted_scopes' => 'true',
             ])
-
             ->redirect();
 
         Log::info('Google Socialite connect redirect', [
@@ -82,12 +81,12 @@ class GoogleSocialiteAuthController extends Controller
             if (empty($refreshToken)) {
                 return redirect()
                     ->route('calendar.auto-sync')
-                    ->with('error', 'Connected, but Google did not return a refresh token. Try Disconnect → Connect again, and make sure Google prompts for consent (or remove the app from your Google Account and reconnect).');
+                    ->with('error', 'Connected, but Google did not return a refresh token. Try Disconnect -> Connect again, and make sure Google prompts for consent (or remove the app from your Google Account and reconnect).');
             }
 
             return redirect()
                 ->route('calendar.auto-sync')
-                ->with('success', 'Google Calendar connected for auto-sync.');
+                ->with('success', 'Google Calendar connected for auto-sync. Use the Calendar page to create events manually.');
         } catch (\Throwable $e) {
             return redirect()
                 ->route('calendar.auto-sync')

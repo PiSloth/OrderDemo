@@ -3,15 +3,18 @@
 namespace App\Livewire\Calendar;
 
 use App\Models\Calendar\CalendarEvent;
+use App\Models\Calendar\CalendarEventGoogleCopy;
 use App\Models\CalendarNotification;
 use App\Models\GoogleCalendarAccount;
 use App\Models\User;
 use App\Services\GoogleCalendarService;
 use Carbon\CarbonImmutable;
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -41,6 +44,7 @@ class Index extends Component
     public string $endsAt = '';
 
     public bool $allDay = false;
+    public ?int $reminderMinutes = 30;
 
     /**
      * @var array<int,int>
@@ -71,7 +75,7 @@ class Index extends Component
     public function onCalendarRangeSelected(array $payload): void
     {
         if (!$this->connected) {
-            session()->flash('error', 'Connect your Google account before creating events.');
+            session()->flash('error', 'Connect your Google account before creating meetings.');
             return;
         }
 
@@ -87,7 +91,6 @@ class Index extends Component
         $endAt = CarbonImmutable::parse($end)->setTimezone(config('app.timezone'));
 
         $this->resetEventForm();
-        $this->editingEventId = null;
         $this->allDay = $allDay;
 
         if ($allDay) {
@@ -129,21 +132,29 @@ class Index extends Component
             return;
         }
 
-        $this->resetEventForm();
-        $this->editingEventId = (int) $event->id;
-        $this->title = (string) $event->title;
-        $this->description = $event->description;
-        $this->location = $event->location;
-        $this->allDay = (bool) $event->all_day;
+        $this->fillFormFromEvent($event);
+        $this->dispatch('open-modal', 'calendar-event-modal');
+    }
 
-        $tz = config('app.timezone');
-        $start = CarbonImmutable::parse($event->starts_at)->setTimezone($tz);
-        $end = CarbonImmutable::parse($event->ends_at)->setTimezone($tz);
+    public function openOwnedEventModal(int $eventId): void
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            return;
+        }
 
-        $this->startsAt = $this->allDay ? $start->format('Y-m-d') : $start->format('Y-m-d\\TH:i');
-        $this->endsAt = $this->allDay ? $end->format('Y-m-d') : $end->format('Y-m-d\\TH:i');
-        $this->attendeeUserIds = $event->attendees->pluck('id')->map(fn ($id) => (int) $id)->all();
+        /** @var CalendarEvent|null $event */
+        $event = CalendarEvent::query()
+            ->where('id', $eventId)
+            ->where('created_by_user_id', $userId)
+            ->with('attendees:id')
+            ->first();
 
+        if (!$event) {
+            return;
+        }
+
+        $this->fillFormFromEvent($event);
         $this->dispatch('open-modal', 'calendar-event-modal');
     }
 
@@ -167,8 +178,26 @@ class Index extends Component
             $this->startsAt = $start->startOfDay()->addHours(9)->format('Y-m-d\\TH:i');
             $this->endsAt = $end->startOfDay()->addHours(10)->format('Y-m-d\\TH:i');
         } catch (\Throwable $e) {
-            // Leave existing values as-is if conversion fails.
+            // Keep current values if conversion fails.
         }
+    }
+
+    public function openCreateEventModal(): void
+    {
+        if (!$this->connected) {
+            session()->flash('error', 'Connect your Google account before creating meetings.');
+            return;
+        }
+
+        $this->resetEventForm();
+
+        $start = now(config('app.timezone'))->addHour()->startOfHour();
+        $end = $start->addHour();
+
+        $this->startsAt = $start->format('Y-m-d\\TH:i');
+        $this->endsAt = $end->format('Y-m-d\\TH:i');
+
+        $this->dispatch('open-modal', 'calendar-event-modal');
     }
 
     public function saveEvent(GoogleCalendarService $googleCalendar): void
@@ -180,7 +209,7 @@ class Index extends Component
         }
 
         if (!$this->connected) {
-            session()->flash('error', 'Connect your Google account before creating events.');
+            session()->flash('error', 'Connect your Google account before creating meetings.');
             return;
         }
 
@@ -190,12 +219,9 @@ class Index extends Component
             (string) $validated['endsAt']
         );
 
-        $attendees = User::query()
+        $attendees = $this->eligibleInviteeQuery()
             ->whereIn('id', $validated['attendeeUserIds'] ?? [])
-            ->whereNotNull('email')
-            ->get(['id', 'name', 'email']);
-
-        $attendeeEmails = $attendees->pluck('email')->filter()->values()->all();
+            ->get(['id', 'name', 'email', 'google_token', 'google_refresh_token', 'google_token_expires_at']);
 
         try {
             if ($this->editingEventId) {
@@ -212,6 +238,7 @@ class Index extends Component
                     'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
                     'all_day' => (bool) $this->allDay,
+                    'reminder_minutes' => $validated['reminderMinutes'] ?? null,
                 ]);
                 $event->save();
                 $event->attendees()->sync($attendees->pluck('id')->all());
@@ -226,13 +253,17 @@ class Index extends Component
                         $event->location,
                         $startsAt,
                         $endsAt,
-                        $attendeeEmails,
-                        true
+                        [],
+                        false,
+                        (bool) $event->all_day,
+                        $event->reminder_minutes
                     );
                 }
 
+                $this->syncInvitedUserCalendars($event, $attendees, $googleCalendar);
                 $this->createCalendarNotifications($event, $attendees, true);
-                session()->flash('success', 'Event updated.');
+
+                session()->flash('success', 'Meeting updated for all invited users.');
             } else {
                 $googleEvent = $googleCalendar->createEvent(
                     $user,
@@ -242,12 +273,14 @@ class Index extends Component
                     $validated['location'] ?? null,
                     $startsAt,
                     $endsAt,
-                    $attendeeEmails,
-                    true
+                    [],
+                    false,
+                    (bool) $this->allDay,
+                    $validated['reminderMinutes'] ?? null
                 );
 
                 if (!$googleEvent) {
-                    session()->flash('error', 'Unable to create event in Google Calendar.');
+                    session()->flash('error', 'Unable to create the meeting in the creator Google Calendar.');
                     return;
                 }
 
@@ -259,17 +292,25 @@ class Index extends Component
                     'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
                     'all_day' => (bool) $this->allDay,
+                    'reminder_minutes' => $validated['reminderMinutes'] ?? null,
                     'google_calendar_id' => 'primary',
                     'google_event_id' => (string) $googleEvent->getId(),
                 ]);
 
                 $event->attendees()->sync($attendees->pluck('id')->all());
+                $this->syncInvitedUserCalendars($event, $attendees, $googleCalendar);
                 $this->createCalendarNotifications($event, $attendees, false);
 
-                session()->flash('success', 'Event created and invitations sent.');
+                session()->flash('success', 'Meeting created and pushed to invited users.');
             }
         } catch (\Throwable $e) {
-            session()->flash('error', 'Google Calendar sync failed. If you recently connected, try Disconnect -> Connect again to grant permissions.');
+            Log::warning('Calendar meeting sync failed', [
+                'user_id' => $user->id,
+                'event_id' => $this->editingEventId,
+                'error' => $e->getMessage(),
+            ]);
+
+            session()->flash('error', 'Meeting sync failed. Check Google connection and invited users token access.');
             return;
         }
 
@@ -293,6 +334,7 @@ class Index extends Component
         $event = CalendarEvent::query()
             ->where('id', $this->editingEventId)
             ->where('created_by_user_id', $user->id)
+            ->with('googleCopies.user')
             ->firstOrFail();
 
         try {
@@ -301,16 +343,37 @@ class Index extends Component
                     $user,
                     (string) ($event->google_calendar_id ?: 'primary'),
                     (string) $event->google_event_id,
-                    true
+                    false
                 );
             }
         } catch (\Throwable $e) {
-            // Delete locally even if Google deletion fails.
+            Log::warning('Failed deleting creator Google event', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        foreach ($event->googleCopies as $copy) {
+            try {
+                if ($copy->user) {
+                    $googleCalendar->deleteManagedUserEvent(
+                        $copy->user,
+                        (string) $copy->google_calendar_id,
+                        (string) $copy->google_event_id
+                    );
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed deleting invited user Google event copy', [
+                    'event_id' => $event->id,
+                    'copy_user_id' => $copy->user_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         $event->delete();
 
-        session()->flash('success', 'Event deleted.');
+        session()->flash('success', 'Meeting deleted from website and synced calendars.');
         $this->dispatch('close-modal', 'calendar-event-modal');
         $this->dispatch('calendar-refetch');
     }
@@ -326,19 +389,40 @@ class Index extends Component
         $this->startsAt = '';
         $this->endsAt = '';
         $this->allDay = false;
+        $this->reminderMinutes = 30;
         $this->attendeeUserIds = [];
     }
 
     public function render()
     {
-        $users = User::query()
-            ->whereNotNull('email')
-            ->when(Auth::id(), fn ($q) => $q->where('id', '!=', Auth::id()))
+        $users = $this->eligibleInviteeQuery()
+            ->when(Auth::id(), fn (Builder $query) => $query->where('id', '!=', Auth::id()))
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
+        $todayStart = now(config('app.timezone'))->startOfDay();
+        $todayEnd = $todayStart->endOfDay();
+
+        $todayMeetings = CalendarEvent::query()
+            ->with(['createdBy:id,name', 'attendees:id,name'])
+            ->where(function (Builder $query): void {
+                $userId = Auth::id();
+                $query->where('created_by_user_id', $userId)
+                    ->orWhereHas('attendees', fn (Builder $attendeeQuery) => $attendeeQuery->where('users.id', $userId));
+            })
+            ->where(function (Builder $query) use ($todayStart, $todayEnd): void {
+                $query->whereBetween('starts_at', [$todayStart, $todayEnd])
+                    ->orWhere(function (Builder $nested) use ($todayStart): void {
+                        $nested->where('starts_at', '<', $todayStart)
+                            ->where('ends_at', '>=', $todayStart);
+                    });
+            })
+            ->orderBy('starts_at')
+            ->get();
+
         return view('livewire.calendar.index', [
             'users' => $users,
+            'todayMeetings' => $todayMeetings,
         ]);
     }
 
@@ -371,6 +455,7 @@ class Index extends Component
                     }
                 },
             ],
+            'reminderMinutes' => ['nullable', 'integer', 'min:0', 'max:40320'],
             'attendeeUserIds' => ['array'],
             'attendeeUserIds.*' => ['integer', 'exists:users,id'],
         ];
@@ -396,6 +481,131 @@ class Index extends Component
         ];
     }
 
+    protected function fillFormFromEvent(CalendarEvent $event): void
+    {
+        $this->resetEventForm();
+        $this->editingEventId = (int) $event->id;
+        $this->title = (string) $event->title;
+        $this->description = $event->description;
+        $this->location = $event->location;
+        $this->allDay = (bool) $event->all_day;
+        $this->reminderMinutes = $event->reminder_minutes;
+
+        $tz = config('app.timezone');
+        $start = CarbonImmutable::parse($event->starts_at)->setTimezone($tz);
+        $end = CarbonImmutable::parse($event->ends_at)->setTimezone($tz);
+
+        $this->startsAt = $this->allDay ? $start->format('Y-m-d') : $start->format('Y-m-d\\TH:i');
+        $this->endsAt = $this->allDay ? $end->format('Y-m-d') : $end->format('Y-m-d\\TH:i');
+        $this->attendeeUserIds = $event->attendees->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    protected function eligibleInviteeQuery(): Builder
+    {
+        return User::query()
+            ->whereNotNull('email')
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('google_refresh_token')
+                    ->orWhereNotNull('google_token')
+                    ->orWhereHas('googleCalendarAccount', function (Builder $accountQuery): void {
+                        $accountQuery->where(function (Builder $nested): void {
+                            $nested->whereNotNull('refresh_token')
+                                ->orWhereNotNull('access_token');
+                        });
+                    });
+            });
+    }
+
+    protected function syncInvitedUserCalendars(
+        CalendarEvent $event,
+        Collection $attendees,
+        GoogleCalendarService $googleCalendar
+    ): void {
+        $existingCopies = $event->googleCopies()->get()->keyBy('user_id');
+        $keepUserIds = [];
+
+        foreach ($attendees as $attendee) {
+            if ((int) $attendee->id === (int) $event->created_by_user_id) {
+                continue;
+            }
+
+            $keepUserIds[] = (int) $attendee->id;
+            /** @var CalendarEventGoogleCopy|null $copy */
+            $copy = $existingCopies->get((int) $attendee->id);
+
+            try {
+                if ($copy) {
+                    $googleCalendar->updateManagedUserEvent(
+                        $attendee,
+                        (string) $copy->google_calendar_id,
+                        (string) $copy->google_event_id,
+                        $event->title,
+                        $event->description,
+                        $event->location,
+                        $event->starts_at,
+                        $event->ends_at,
+                        (bool) $event->all_day,
+                        $event->reminder_minutes
+                    );
+                    continue;
+                }
+
+                $googleEvent = $googleCalendar->createManagedUserEvent(
+                    $attendee,
+                    $event->title,
+                    $event->description,
+                    $event->location,
+                    $event->starts_at,
+                    $event->ends_at,
+                    (bool) $event->all_day,
+                    $event->reminder_minutes
+                );
+
+                if (!$googleEvent) {
+                    continue;
+                }
+
+                $event->googleCopies()->updateOrCreate(
+                    ['user_id' => $attendee->id],
+                    [
+                        'google_calendar_id' => 'primary',
+                        'google_event_id' => (string) $googleEvent->getId(),
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed syncing invited user meeting copy', [
+                    'calendar_event_id' => $event->id,
+                    'invitee_user_id' => $attendee->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        foreach ($existingCopies as $userId => $copy) {
+            if (in_array((int) $userId, $keepUserIds, true)) {
+                continue;
+            }
+
+            try {
+                if ($copy->user) {
+                    $googleCalendar->deleteManagedUserEvent(
+                        $copy->user,
+                        (string) $copy->google_calendar_id,
+                        (string) $copy->google_event_id
+                    );
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed deleting removed invitee meeting copy', [
+                    'calendar_event_id' => $event->id,
+                    'invitee_user_id' => $userId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            $copy->delete();
+        }
+    }
+
     protected function createCalendarNotifications(CalendarEvent $event, Collection $attendees, bool $isUpdate): void
     {
         $actor = Auth::user();
@@ -417,7 +627,7 @@ class Index extends Component
                 'user_id' => $attendee->id,
                 'actor_user_id' => $actor->id,
                 'type' => $isUpdate ? 'update' : 'invite',
-                'title' => $isUpdate ? 'Calendar event updated' : 'New calendar invite',
+                'title' => $isUpdate ? 'Meeting updated' : 'New meeting',
                 'message' => $isUpdate
                     ? "{$actor->name} updated \"{$event->title}\" for {$dateLabel}."
                     : "{$actor->name} invited you to \"{$event->title}\" on {$dateLabel}.",
@@ -427,6 +637,7 @@ class Index extends Component
                     'title' => $event->title,
                     'starts_at' => $event->starts_at?->toISOString(),
                     'all_day' => (bool) $event->all_day,
+                    'reminder_minutes' => $event->reminder_minutes,
                 ],
             ]);
         }

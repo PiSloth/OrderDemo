@@ -141,6 +141,11 @@ class User extends Authenticatable
         return $this->hasMany(CalendarNotification::class);
     }
 
+    public function calendarEventGoogleCopies()
+    {
+        return $this->hasMany(\App\Models\Calendar\CalendarEventGoogleCopy::class);
+    }
+
     public function whiteboardContents()
     {
         return $this->hasMany(WhiteboardContent::class, 'created_by');

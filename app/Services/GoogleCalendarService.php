@@ -21,15 +21,11 @@ class GoogleCalendarService
 
     public function makeClient(): GoogleClient
     {
-        $clientId = config('services.google.client_id');
-        $clientSecret = config('services.google.client_secret');
-        $redirectUri = config('services.google.redirect');
-
         $client = new GoogleClient();
         $client->setApplicationName(config('app.name'));
-        $client->setClientId($clientId);
-        $client->setClientSecret($clientSecret);
-        $client->setRedirectUri($redirectUri);
+        $client->setClientId(config('services.google.client_id'));
+        $client->setClientSecret(config('services.google.client_secret'));
+        $client->setRedirectUri(config('services.google.redirect'));
 
         $client->setAccessType('offline');
         $client->setPrompt('consent');
@@ -80,7 +76,7 @@ class GoogleCalendarService
 
         $tokenJson = json_encode($token);
 
-        return GoogleCalendarAccount::query()->updateOrCreate(
+        $account = GoogleCalendarAccount::query()->updateOrCreate(
             ['user_id' => $user->id],
             [
                 'google_user_id' => $me->getId() ?: ($existing?->google_user_id),
@@ -92,6 +88,14 @@ class GoogleCalendarService
                 'scopes' => (string) (($token['scope'] ?? '') ?: ($existing?->scopes ?? '')),
             ]
         );
+
+        $user->forceFill([
+            'google_token' => (string) ($token['access_token'] ?? $user->google_token),
+            'google_refresh_token' => $refreshToken !== '' ? $refreshToken : $user->google_refresh_token,
+            'google_token_expires_at' => $expiresAt,
+        ])->save();
+
+        return $account;
     }
 
     public function getAuthorizedClientForUser(User $user): ?GoogleClient
@@ -131,7 +135,6 @@ class GoogleCalendarService
                 }
 
                 $newToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
-
                 if (!isset($newToken['access_token'])) {
                     return $client;
                 }
@@ -178,6 +181,16 @@ class GoogleCalendarService
         return new GoogleCalendar($client);
     }
 
+    public function getManagedCalendarServiceForUser(User $user): ?GoogleCalendar
+    {
+        $service = $this->getAutoSyncCalendarServiceForUser($user);
+        if ($service) {
+            return $service;
+        }
+
+        return $this->getCalendarServiceForUser($user);
+    }
+
     /**
      * @param array<int,string> $attendeeEmails
      */
@@ -190,31 +203,25 @@ class GoogleCalendarService
         \DateTimeInterface $startsAt,
         \DateTimeInterface $endsAt,
         array $attendeeEmails = [],
-        bool $sendUpdates = true
+        bool $sendUpdates = true,
+        bool $allDay = false,
+        ?int $reminderMinutes = null
     ): ?GoogleCalendarEvent {
         $service = $this->getCalendarServiceForUser($user);
         if (!$service) {
             return null;
         }
 
-        $event = new GoogleCalendarEvent([
-            'summary' => $title,
-            'description' => $description,
-            'location' => $location,
-            'start' => [
-                'dateTime' => CarbonImmutable::instance($startsAt)->toRfc3339String(),
-                'timeZone' => config('app.timezone'),
-            ],
-            'end' => [
-                'dateTime' => CarbonImmutable::instance($endsAt)->toRfc3339String(),
-                'timeZone' => config('app.timezone'),
-            ],
-        ]);
-
-        $attendeeEmails = array_values(array_filter(array_map('trim', $attendeeEmails), fn($e) => $e !== ''));
-        if (!empty($attendeeEmails)) {
-            $event->setAttendees(array_map(fn($email) => ['email' => $email], $attendeeEmails));
-        }
+        $event = $this->buildEventPayload(
+            $title,
+            $description,
+            $location,
+            $startsAt,
+            $endsAt,
+            $attendeeEmails,
+            $allDay,
+            $reminderMinutes
+        );
 
         return $service->events->insert($calendarId, $event, [
             'sendUpdates' => $sendUpdates ? 'all' : 'none',
@@ -234,7 +241,9 @@ class GoogleCalendarService
         \DateTimeInterface $startsAt,
         \DateTimeInterface $endsAt,
         array $attendeeEmails = [],
-        bool $sendUpdates = true
+        bool $sendUpdates = true,
+        bool $allDay = false,
+        ?int $reminderMinutes = null
     ): ?GoogleCalendarEvent {
         $service = $this->getCalendarServiceForUser($user);
         if (!$service) {
@@ -242,21 +251,17 @@ class GoogleCalendarService
         }
 
         $event = $service->events->get($calendarId, $eventId);
-        $event->setSummary($title);
-        $event->setDescription($description);
-        $event->setLocation($location);
-
-        $event->setStart([
-            'dateTime' => CarbonImmutable::instance($startsAt)->toRfc3339String(),
-            'timeZone' => config('app.timezone'),
-        ]);
-        $event->setEnd([
-            'dateTime' => CarbonImmutable::instance($endsAt)->toRfc3339String(),
-            'timeZone' => config('app.timezone'),
-        ]);
-
-        $attendeeEmails = array_values(array_filter(array_map('trim', $attendeeEmails), fn($e) => $e !== ''));
-        $event->setAttendees(array_map(fn($email) => ['email' => $email], $attendeeEmails));
+        $this->hydrateEvent(
+            $event,
+            $title,
+            $description,
+            $location,
+            $startsAt,
+            $endsAt,
+            $attendeeEmails,
+            $allDay,
+            $reminderMinutes
+        );
 
         return $service->events->update($calendarId, $eventId, $event, [
             'sendUpdates' => $sendUpdates ? 'all' : 'none',
@@ -275,5 +280,250 @@ class GoogleCalendarService
         ]);
 
         return true;
+    }
+
+    public function createManagedUserEvent(
+        User $user,
+        string $title,
+        ?string $description,
+        ?string $location,
+        \DateTimeInterface $startsAt,
+        \DateTimeInterface $endsAt,
+        bool $allDay = false,
+        ?int $reminderMinutes = null
+    ): ?GoogleCalendarEvent {
+        $service = $this->getManagedCalendarServiceForUser($user);
+        if (!$service) {
+            return null;
+        }
+
+        $event = $this->buildEventPayload(
+            $title,
+            $description,
+            $location,
+            $startsAt,
+            $endsAt,
+            [],
+            $allDay,
+            $reminderMinutes
+        );
+
+        return $service->events->insert('primary', $event, [
+            'sendUpdates' => 'none',
+        ]);
+    }
+
+    public function updateManagedUserEvent(
+        User $user,
+        string $calendarId,
+        string $eventId,
+        string $title,
+        ?string $description,
+        ?string $location,
+        \DateTimeInterface $startsAt,
+        \DateTimeInterface $endsAt,
+        bool $allDay = false,
+        ?int $reminderMinutes = null
+    ): ?GoogleCalendarEvent {
+        $service = $this->getManagedCalendarServiceForUser($user);
+        if (!$service) {
+            return null;
+        }
+
+        $event = $service->events->get($calendarId, $eventId);
+        $this->hydrateEvent(
+            $event,
+            $title,
+            $description,
+            $location,
+            $startsAt,
+            $endsAt,
+            [],
+            $allDay,
+            $reminderMinutes
+        );
+
+        return $service->events->update($calendarId, $eventId, $event, [
+            'sendUpdates' => 'none',
+        ]);
+    }
+
+    public function deleteManagedUserEvent(User $user, string $calendarId, string $eventId): bool
+    {
+        $service = $this->getManagedCalendarServiceForUser($user);
+        if (!$service) {
+            return false;
+        }
+
+        $service->events->delete($calendarId, $eventId, [
+            'sendUpdates' => 'none',
+        ]);
+
+        return true;
+    }
+
+    private function getAutoSyncAuthorizedClientForUser(User $user): ?GoogleClient
+    {
+        if (empty($user->google_token) && empty($user->google_refresh_token)) {
+            return null;
+        }
+
+        $client = $this->makeClient();
+        $client->setAccessToken([
+            'access_token' => (string) ($user->google_token ?? ''),
+            'refresh_token' => (string) ($user->google_refresh_token ?? ''),
+        ]);
+
+        if (empty($user->google_token)
+            || ($user->google_token_expires_at && now()->greaterThanOrEqualTo($user->google_token_expires_at))) {
+            $this->refreshAutoSyncUserToken($client, $user);
+        }
+
+        return $client;
+    }
+
+    private function getAutoSyncCalendarServiceForUser(User $user): ?GoogleCalendar
+    {
+        $client = $this->getAutoSyncAuthorizedClientForUser($user);
+        if (!$client) {
+            return null;
+        }
+
+        return new GoogleCalendar($client);
+    }
+
+    private function refreshAutoSyncUserToken(GoogleClient $client, User $user): void
+    {
+        $refreshToken = (string) ($user->google_refresh_token ?? '');
+        if ($refreshToken === '') {
+            return;
+        }
+
+        try {
+            $newToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
+            if (!is_array($newToken) || empty($newToken['access_token'])) {
+                return;
+            }
+
+            $expiresAt = null;
+            if (!empty($newToken['expires_in'])) {
+                $expiresAt = CarbonImmutable::now()->addSeconds((int) $newToken['expires_in']);
+            }
+
+            $user->forceFill([
+                'google_token' => (string) $newToken['access_token'],
+                'google_token_expires_at' => $expiresAt,
+                'google_refresh_token' => !empty($newToken['refresh_token'])
+                    ? (string) $newToken['refresh_token']
+                    : $user->google_refresh_token,
+            ])->save();
+
+            $client->setAccessToken([
+                'access_token' => (string) $user->google_token,
+                'refresh_token' => (string) $user->google_refresh_token,
+            ]);
+        } catch (\Throwable $e) {
+            $message = strtolower($e->getMessage());
+            if (str_contains($message, 'invalid_grant')) {
+                $user->forceFill([
+                    'google_token' => null,
+                    'google_refresh_token' => null,
+                    'google_token_expires_at' => null,
+                ])->save();
+
+                Log::info('Google refresh token invalid_grant; cleared user tokens', [
+                    'user_id' => $user->id,
+                ]);
+
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * @param array<int,string> $attendeeEmails
+     */
+    private function buildEventPayload(
+        string $title,
+        ?string $description,
+        ?string $location,
+        \DateTimeInterface $startsAt,
+        \DateTimeInterface $endsAt,
+        array $attendeeEmails,
+        bool $allDay,
+        ?int $reminderMinutes
+    ): GoogleCalendarEvent {
+        $event = new GoogleCalendarEvent();
+
+        $this->hydrateEvent(
+            $event,
+            $title,
+            $description,
+            $location,
+            $startsAt,
+            $endsAt,
+            $attendeeEmails,
+            $allDay,
+            $reminderMinutes
+        );
+
+        return $event;
+    }
+
+    /**
+     * @param array<int,string> $attendeeEmails
+     */
+    private function hydrateEvent(
+        GoogleCalendarEvent $event,
+        string $title,
+        ?string $description,
+        ?string $location,
+        \DateTimeInterface $startsAt,
+        \DateTimeInterface $endsAt,
+        array $attendeeEmails,
+        bool $allDay,
+        ?int $reminderMinutes
+    ): void {
+        $event->setSummary($title);
+        $event->setDescription($description);
+        $event->setLocation($location);
+
+        if ($allDay) {
+            $start = CarbonImmutable::instance($startsAt)->startOfDay();
+            $end = CarbonImmutable::instance($endsAt)->startOfDay()->addDay();
+
+            $event->setStart([
+                'date' => $start->format('Y-m-d'),
+            ]);
+            $event->setEnd([
+                'date' => $end->format('Y-m-d'),
+            ]);
+        } else {
+            $event->setStart([
+                'dateTime' => CarbonImmutable::instance($startsAt)->toRfc3339String(),
+                'timeZone' => config('app.timezone'),
+            ]);
+            $event->setEnd([
+                'dateTime' => CarbonImmutable::instance($endsAt)->toRfc3339String(),
+                'timeZone' => config('app.timezone'),
+            ]);
+        }
+
+        $attendeeEmails = array_values(array_filter(array_map('trim', $attendeeEmails), fn ($email) => $email !== ''));
+        $event->setAttendees(array_map(fn ($email) => ['email' => $email], $attendeeEmails));
+
+        if ($reminderMinutes !== null) {
+            $event->setReminders([
+                'useDefault' => false,
+                'overrides' => [
+                    [
+                        'method' => 'popup',
+                        'minutes' => max(0, (int) $reminderMinutes),
+                    ],
+                ],
+            ]);
+        }
     }
 }

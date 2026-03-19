@@ -7,6 +7,10 @@
         </div>
 
         <div class="flex items-center gap-2">
+            <a href="{{ route('calendar.index') }}"
+                class="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100">
+                Open Event Calendar
+            </a>
             @if ($connected)
                 <div class="text-sm text-slate-600 dark:text-slate-200">Connected</div>
                 <form method="POST" action="{{ route('calendar.socialite.disconnect') }}">
@@ -39,6 +43,10 @@
 
     <div
         class="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 space-y-2">
+        <div class="rounded-lg border border-sky-100 bg-sky-50 px-3 py-3 text-sky-800">
+            Manual event creation is on the <a href="{{ route('calendar.index') }}" class="font-semibold underline">Calendar</a> page.
+            This Auto Sync page is only for background Google token connection.
+        </div>
         <div class="font-medium">How it works</div>
         <div>
             When a user is assigned a task/event, dispatch the job

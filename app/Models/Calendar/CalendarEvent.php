@@ -22,6 +22,7 @@ class CalendarEvent extends Model
         'starts_at',
         'ends_at',
         'all_day',
+        'reminder_minutes',
         'google_calendar_id',
         'google_event_id',
     ];
@@ -30,6 +31,7 @@ class CalendarEvent extends Model
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'all_day' => 'boolean',
+        'reminder_minutes' => 'integer',
     ];
 
     public function createdBy(): BelongsTo
@@ -46,5 +48,10 @@ class CalendarEvent extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(CalendarNotification::class);
+    }
+
+    public function googleCopies(): HasMany
+    {
+        return $this->hasMany(CalendarEventGoogleCopy::class);
     }
 }
