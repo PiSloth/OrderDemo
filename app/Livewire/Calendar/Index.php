@@ -12,7 +12,6 @@ use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -74,16 +73,12 @@ class Index extends Component
     }
 
     #[On('calendar-range-selected')]
-    public function onCalendarRangeSelected(array $payload): void
+    public function onCalendarRangeSelected(string $start = '', string $end = '', bool $allDay = false): void
     {
         if (!$this->connected) {
             session()->flash('error', 'Connect your Google account before creating meetings.');
             return;
         }
-
-        $start = (string) Arr::get($payload, 'start', '');
-        $end = (string) Arr::get($payload, 'end', '');
-        $allDay = (bool) Arr::get($payload, 'allDay', false);
 
         if ($start === '' || $end === '') {
             return;
@@ -111,9 +106,9 @@ class Index extends Component
     }
 
     #[On('calendar-event-clicked')]
-    public function onCalendarEventClicked(array $payload): void
+    public function onCalendarEventClicked(string $eventId = ''): void
     {
-        $googleEventId = (string) Arr::get($payload, 'eventId', '');
+        $googleEventId = $eventId;
         if ($googleEventId === '') {
             return;
         }
