@@ -53,4 +53,14 @@
             reconnect, or remove the app from your Google Account and try again.
         </div>
     </div>
+
+    <form method="POST" action="{{ route('calendar.events.store') }}">
+        @csrf
+        <input type="text" name="title" placeholder="Event Title" required>
+        <input type="text" name="description" placeholder="Description">
+        <input type="text" name="location" placeholder="Location">
+        <input type="datetime-local" name="start" required>
+        <input type="datetime-local" name="end" required>
+        <button type="submit">Create Event</button>
+    </form>
 </div>

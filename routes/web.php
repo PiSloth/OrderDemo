@@ -194,8 +194,10 @@ Route::middleware(['auth'])->prefix('calendar')->name('calendar.')->group(functi
     Route::post('/google/disconnect', [GoogleCalendarAuthController::class, 'disconnect'])->name('google.disconnect');
 
     Route::get('/google/events', [GoogleCalendarEventsController::class, 'index'])->name('google.events');
+    // Route::post('calendar/events', [GoogleCalendarEventsController::class, 'store'])->name('calendar.events.store');
 });
 
+Route::post('/calendar/events', [GoogleCalendarEventsController::class, 'store'])->name('calendar.events.store');
 // API Routes for notifications
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::post('/task-notifications/check', function (Illuminate\Http\Request $request) {
