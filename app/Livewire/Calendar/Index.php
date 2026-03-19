@@ -13,6 +13,7 @@ use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
@@ -224,14 +225,18 @@ class Index extends Component
             ->whereIn('id', $validated['attendeeUserIds'] ?? [])
             ->get(['id', 'name', 'email', 'google_token', 'google_refresh_token', 'google_token_expires_at']);
 
+        $syncStep = 'start';
+
         try {
             if ($this->editingEventId) {
+                $syncStep = 'load_local_event';
                 /** @var CalendarEvent $event */
                 $event = CalendarEvent::query()
                     ->where('id', $this->editingEventId)
                     ->where('created_by_user_id', $user->id)
                     ->firstOrFail();
 
+                $syncStep = 'save_local_event';
                 $event->fill([
                     'title' => $validated['title'],
                     'description' => $validated['description'] ?? null,
@@ -245,6 +250,7 @@ class Index extends Component
                 $event->attendees()->sync($attendees->pluck('id')->all());
 
                 if ($event->google_event_id) {
+                    $syncStep = 'update_creator_google_event';
                     $googleCalendar->updateEvent(
                         $user,
                         (string) ($event->google_calendar_id ?: 'primary'),
@@ -261,11 +267,14 @@ class Index extends Component
                     );
                 }
 
+                $syncStep = 'sync_invited_user_google_events';
                 $this->syncInvitedUserCalendars($event, $attendees, $googleCalendar);
+                $syncStep = 'create_local_notifications';
                 $this->createCalendarNotifications($event, $attendees, true);
 
                 session()->flash('success', 'Meeting updated for all invited users.');
             } else {
+                $syncStep = 'create_creator_google_event';
                 $googleEvent = $googleCalendar->createEvent(
                     $user,
                     'primary',
@@ -281,10 +290,17 @@ class Index extends Component
                 );
 
                 if (!$googleEvent) {
-                    session()->flash('error', 'Unable to create the meeting in the creator Google Calendar.');
+                    $reference = $this->logMeetingSyncFailure(
+                        new \RuntimeException('Google calendar service returned no event for the creator.'),
+                        $user,
+                        $attendees,
+                        $syncStep
+                    );
+                    session()->flash('error', "Meeting sync failed [{$reference}] at {$syncStep}: creator calendar service returned no event.");
                     return;
                 }
 
+                $syncStep = 'create_local_event';
                 $event = CalendarEvent::query()->create([
                     'created_by_user_id' => $user->id,
                     'title' => $validated['title'],
@@ -299,19 +315,17 @@ class Index extends Component
                 ]);
 
                 $event->attendees()->sync($attendees->pluck('id')->all());
+                $syncStep = 'sync_invited_user_google_events';
                 $this->syncInvitedUserCalendars($event, $attendees, $googleCalendar);
+                $syncStep = 'create_local_notifications';
                 $this->createCalendarNotifications($event, $attendees, false);
 
                 session()->flash('success', 'Meeting created and pushed to invited users.');
             }
         } catch (\Throwable $e) {
-            Log::warning('Calendar meeting sync failed', [
-                'user_id' => $user->id,
-                'event_id' => $this->editingEventId,
-                'error' => $e->getMessage(),
-            ]);
-
-            session()->flash('error', 'Meeting sync failed. Check Google connection and invited users token access.');
+            $reference = $this->logMeetingSyncFailure($e, $user, $attendees, $syncStep);
+            $message = Str::limit(trim(preg_replace('/\s+/', ' ', $e->getMessage())), 220);
+            session()->flash('error', "Meeting sync failed [{$reference}] at {$syncStep}: {$message}");
             return;
         }
 
@@ -682,5 +696,32 @@ class Index extends Component
                 ],
             ]);
         }
+    }
+
+    protected function logMeetingSyncFailure(
+        \Throwable $exception,
+        User $user,
+        Collection $attendees,
+        string $step
+    ): string {
+        $reference = strtoupper(Str::random(8));
+
+        Log::error('Calendar meeting sync failed', [
+            'reference' => $reference,
+            'step' => $step,
+            'user_id' => $user->id,
+            'editing_event_id' => $this->editingEventId,
+            'title' => $this->title,
+            'starts_at' => $this->startsAt,
+            'ends_at' => $this->endsAt,
+            'all_day' => $this->allDay,
+            'reminder_minutes' => $this->reminderMinutes,
+            'attendee_user_ids' => $this->attendeeUserIds,
+            'resolved_attendee_ids' => $attendees->pluck('id')->all(),
+            'exception_class' => $exception::class,
+            'error' => $exception->getMessage(),
+        ]);
+
+        return $reference;
     }
 }

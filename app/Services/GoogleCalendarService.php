@@ -8,6 +8,9 @@ use Carbon\CarbonImmutable;
 use Google\Client as GoogleClient;
 use Google\Service\Calendar as GoogleCalendar;
 use Google\Service\Calendar\Event as GoogleCalendarEvent;
+use Google\Service\Calendar\EventDateTime;
+use Google\Service\Calendar\EventReminder;
+use Google\Service\Calendar\EventReminders;
 use Google\Service\Oauth2 as GoogleOauth2;
 use Illuminate\Support\Facades\Log;
 
@@ -490,40 +493,39 @@ class GoogleCalendarService
         $event->setDescription($description);
         $event->setLocation($location);
 
+        $startDateTime = new EventDateTime();
+        $endDateTime = new EventDateTime();
+
         if ($allDay) {
             $start = CarbonImmutable::instance($startsAt)->startOfDay();
             $end = CarbonImmutable::instance($endsAt)->startOfDay()->addDay();
 
-            $event->setStart([
-                'date' => $start->format('Y-m-d'),
-            ]);
-            $event->setEnd([
-                'date' => $end->format('Y-m-d'),
-            ]);
+            $startDateTime->setDate($start->format('Y-m-d'));
+            $endDateTime->setDate($end->format('Y-m-d'));
         } else {
-            $event->setStart([
-                'dateTime' => CarbonImmutable::instance($startsAt)->toRfc3339String(),
-                'timeZone' => config('app.timezone'),
-            ]);
-            $event->setEnd([
-                'dateTime' => CarbonImmutable::instance($endsAt)->toRfc3339String(),
-                'timeZone' => config('app.timezone'),
-            ]);
+            $startDateTime->setDateTime(CarbonImmutable::instance($startsAt)->toRfc3339String());
+            $startDateTime->setTimeZone(config('app.timezone'));
+
+            $endDateTime->setDateTime(CarbonImmutable::instance($endsAt)->toRfc3339String());
+            $endDateTime->setTimeZone(config('app.timezone'));
         }
+
+        $event->setStart($startDateTime);
+        $event->setEnd($endDateTime);
 
         $attendeeEmails = array_values(array_filter(array_map('trim', $attendeeEmails), fn ($email) => $email !== ''));
         $event->setAttendees(array_map(fn ($email) => ['email' => $email], $attendeeEmails));
 
         if ($reminderMinutes !== null) {
-            $event->setReminders([
-                'useDefault' => false,
-                'overrides' => [
-                    [
-                        'method' => 'popup',
-                        'minutes' => max(0, (int) $reminderMinutes),
-                    ],
-                ],
-            ]);
+            $reminder = new EventReminder();
+            $reminder->setMethod('popup');
+            $reminder->setMinutes(max(0, (int) $reminderMinutes));
+
+            $reminders = new EventReminders();
+            $reminders->setUseDefault(false);
+            $reminders->setOverrides([$reminder]);
+
+            $event->setReminders($reminders);
         }
     }
 }
