@@ -2,11 +2,13 @@
 
 namespace App\Models\Calendar;
 
+use App\Models\CalendarNotification;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CalendarEvent extends Model
 {
@@ -39,5 +41,10 @@ class CalendarEvent extends Model
     {
         return $this->belongsToMany(User::class, 'calendar_event_attendees')
             ->withTimestamps();
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(CalendarNotification::class);
     }
 }

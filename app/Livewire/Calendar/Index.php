@@ -3,10 +3,13 @@
 namespace App\Livewire\Calendar;
 
 use App\Models\Calendar\CalendarEvent;
+use App\Models\CalendarNotification;
 use App\Models\GoogleCalendarAccount;
 use App\Models\User;
 use App\Services\GoogleCalendarService;
 use Carbon\CarbonImmutable;
+use Closure;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -28,12 +31,12 @@ class Index extends Component
     public ?string $location = null;
 
     /**
-     * Datetime-local input format: YYYY-MM-DDTHH:MM
+     * Uses either YYYY-MM-DD or YYYY-MM-DDTHH:MM depending on allDay.
      */
     public string $startsAt = '';
 
     /**
-     * Datetime-local input format: YYYY-MM-DDTHH:MM
+     * Uses either YYYY-MM-DD or YYYY-MM-DDTHH:MM depending on allDay.
      */
     public string $endsAt = '';
 
@@ -83,20 +86,21 @@ class Index extends Component
         $startAt = CarbonImmutable::parse($start)->setTimezone(config('app.timezone'));
         $endAt = CarbonImmutable::parse($end)->setTimezone(config('app.timezone'));
 
-        if ($allDay) {
-            // In month view FullCalendar selects [date, date+1) for all-day.
-            $startAt = $startAt->startOfDay()->addHours(9);
-            $endAt = $startAt->addHour();
-        } elseif ($endAt->lessThanOrEqualTo($startAt)) {
-            $endAt = $startAt->addHour();
-        }
-
         $this->resetEventForm();
         $this->editingEventId = null;
         $this->allDay = $allDay;
 
-        $this->startsAt = $startAt->format('Y-m-d\\TH:i');
-        $this->endsAt = $endAt->format('Y-m-d\\TH:i');
+        if ($allDay) {
+            $this->startsAt = $startAt->format('Y-m-d');
+            $this->endsAt = $startAt->format('Y-m-d');
+        } else {
+            if ($endAt->lessThanOrEqualTo($startAt)) {
+                $endAt = $startAt->addHour();
+            }
+
+            $this->startsAt = $startAt->format('Y-m-d\\TH:i');
+            $this->endsAt = $endAt->format('Y-m-d\\TH:i');
+        }
 
         $this->dispatch('open-modal', 'calendar-event-modal');
     }
@@ -122,24 +126,49 @@ class Index extends Component
             ->first();
 
         if (!$event) {
-            // Not an app-owned event; leave it read-only.
             return;
         }
 
         $this->resetEventForm();
         $this->editingEventId = (int) $event->id;
-
         $this->title = (string) $event->title;
         $this->description = $event->description;
         $this->location = $event->location;
         $this->allDay = (bool) $event->all_day;
 
         $tz = config('app.timezone');
-        $this->startsAt = CarbonImmutable::parse($event->starts_at)->setTimezone($tz)->format('Y-m-d\\TH:i');
-        $this->endsAt = CarbonImmutable::parse($event->ends_at)->setTimezone($tz)->format('Y-m-d\\TH:i');
-        $this->attendeeUserIds = $event->attendees->pluck('id')->map(fn($id) => (int) $id)->all();
+        $start = CarbonImmutable::parse($event->starts_at)->setTimezone($tz);
+        $end = CarbonImmutable::parse($event->ends_at)->setTimezone($tz);
+
+        $this->startsAt = $this->allDay ? $start->format('Y-m-d') : $start->format('Y-m-d\\TH:i');
+        $this->endsAt = $this->allDay ? $end->format('Y-m-d') : $end->format('Y-m-d\\TH:i');
+        $this->attendeeUserIds = $event->attendees->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $this->dispatch('open-modal', 'calendar-event-modal');
+    }
+
+    public function updatedAllDay(bool $value): void
+    {
+        if ($this->startsAt === '' || $this->endsAt === '') {
+            return;
+        }
+
+        try {
+            $tz = config('app.timezone');
+            $start = CarbonImmutable::parse($this->startsAt, $tz);
+            $end = CarbonImmutable::parse($this->endsAt, $tz);
+
+            if ($value) {
+                $this->startsAt = $start->format('Y-m-d');
+                $this->endsAt = $end->format('Y-m-d');
+                return;
+            }
+
+            $this->startsAt = $start->startOfDay()->addHours(9)->format('Y-m-d\\TH:i');
+            $this->endsAt = $end->startOfDay()->addHours(10)->format('Y-m-d\\TH:i');
+        } catch (\Throwable $e) {
+            // Leave existing values as-is if conversion fails.
+        }
     }
 
     public function saveEvent(GoogleCalendarService $googleCalendar): void
@@ -155,24 +184,16 @@ class Index extends Component
             return;
         }
 
-        $validated = $this->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'startsAt' => ['required', 'date_format:Y-m-d\\TH:i'],
-            'endsAt' => ['required', 'date_format:Y-m-d\\TH:i', 'after:startsAt'],
-            'attendeeUserIds' => ['array'],
-            'attendeeUserIds.*' => ['integer', 'exists:users,id'],
-        ]);
-
-        $tz = config('app.timezone');
-        $startsAt = CarbonImmutable::createFromFormat('Y-m-d\\TH:i', $validated['startsAt'], $tz);
-        $endsAt = CarbonImmutable::createFromFormat('Y-m-d\\TH:i', $validated['endsAt'], $tz);
+        $validated = $this->validate($this->rules());
+        [$startsAt, $endsAt] = $this->resolveEventRange(
+            (string) $validated['startsAt'],
+            (string) $validated['endsAt']
+        );
 
         $attendees = User::query()
             ->whereIn('id', $validated['attendeeUserIds'] ?? [])
             ->whereNotNull('email')
-            ->get(['id', 'email']);
+            ->get(['id', 'name', 'email']);
 
         $attendeeEmails = $attendees->pluck('email')->filter()->values()->all();
 
@@ -210,6 +231,7 @@ class Index extends Component
                     );
                 }
 
+                $this->createCalendarNotifications($event, $attendees, true);
                 session()->flash('success', 'Event updated.');
             } else {
                 $googleEvent = $googleCalendar->createEvent(
@@ -242,11 +264,12 @@ class Index extends Component
                 ]);
 
                 $event->attendees()->sync($attendees->pluck('id')->all());
+                $this->createCalendarNotifications($event, $attendees, false);
 
                 session()->flash('success', 'Event created and invitations sent.');
             }
         } catch (\Throwable $e) {
-            session()->flash('error', 'Google Calendar sync failed. If you recently connected, try Disconnect → Connect again to grant permissions.');
+            session()->flash('error', 'Google Calendar sync failed. If you recently connected, try Disconnect -> Connect again to grant permissions.');
             return;
         }
 
@@ -282,7 +305,7 @@ class Index extends Component
                 );
             }
         } catch (\Throwable $e) {
-            // Fall through and still delete locally.
+            // Delete locally even if Google deletion fails.
         }
 
         $event->delete();
@@ -310,12 +333,102 @@ class Index extends Component
     {
         $users = User::query()
             ->whereNotNull('email')
-            ->when(Auth::id(), fn($q) => $q->where('id', '!=', Auth::id()))
+            ->when(Auth::id(), fn ($q) => $q->where('id', '!=', Auth::id()))
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
         return view('livewire.calendar.index', [
             'users' => $users,
         ]);
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    protected function rules(): array
+    {
+        return [
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'startsAt' => ['required', 'date'],
+            'endsAt' => [
+                'required',
+                'date',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    try {
+                        [$startsAt, $endsAt] = $this->resolveEventRange(
+                            (string) $this->startsAt,
+                            (string) $this->endsAt
+                        );
+
+                        if ((!$this->allDay && $endsAt->lessThanOrEqualTo($startsAt))
+                            || ($this->allDay && $endsAt->lessThan($startsAt))) {
+                            $fail('The end must be after the start.');
+                        }
+                    } catch (\Throwable $e) {
+                        $fail('Invalid date range.');
+                    }
+                },
+            ],
+            'attendeeUserIds' => ['array'],
+            'attendeeUserIds.*' => ['integer', 'exists:users,id'],
+        ];
+    }
+
+    /**
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    protected function resolveEventRange(string $startValue, string $endValue): array
+    {
+        $tz = config('app.timezone');
+
+        if ($this->allDay) {
+            return [
+                CarbonImmutable::parse($startValue, $tz)->startOfDay(),
+                CarbonImmutable::parse($endValue, $tz)->endOfDay(),
+            ];
+        }
+
+        return [
+            CarbonImmutable::parse($startValue, $tz),
+            CarbonImmutable::parse($endValue, $tz),
+        ];
+    }
+
+    protected function createCalendarNotifications(CalendarEvent $event, Collection $attendees, bool $isUpdate): void
+    {
+        $actor = Auth::user();
+        if (!$actor) {
+            return;
+        }
+
+        $dateLabel = $event->all_day
+            ? CarbonImmutable::parse($event->starts_at)->format('M j, Y')
+            : CarbonImmutable::parse($event->starts_at)->format('M j, Y g:i A');
+
+        foreach ($attendees as $attendee) {
+            if ((int) $attendee->id === (int) $actor->id) {
+                continue;
+            }
+
+            CalendarNotification::query()->create([
+                'calendar_event_id' => $event->id,
+                'user_id' => $attendee->id,
+                'actor_user_id' => $actor->id,
+                'type' => $isUpdate ? 'update' : 'invite',
+                'title' => $isUpdate ? 'Calendar event updated' : 'New calendar invite',
+                'message' => $isUpdate
+                    ? "{$actor->name} updated \"{$event->title}\" for {$dateLabel}."
+                    : "{$actor->name} invited you to \"{$event->title}\" on {$dateLabel}.",
+                'data' => [
+                    'event_id' => $event->id,
+                    'google_event_id' => $event->google_event_id,
+                    'title' => $event->title,
+                    'starts_at' => $event->starts_at?->toISOString(),
+                    'all_day' => (bool) $event->all_day,
+                ],
+            ]);
+        }
     }
 }

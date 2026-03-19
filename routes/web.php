@@ -60,6 +60,7 @@ use App\Models\OrderHistory;
 use App\Models\PsiPrice;
 use App\View\Components\AppLayout;
 use App\View\Components\GuestLayout;
+use Illuminate\Http\Request;
 
 
 /*
@@ -194,13 +195,11 @@ Route::middleware(['auth'])->prefix('calendar')->name('calendar.')->group(functi
     Route::post('/google/disconnect', [GoogleCalendarAuthController::class, 'disconnect'])->name('google.disconnect');
 
     Route::get('/google/events', [GoogleCalendarEventsController::class, 'index'])->name('google.events');
-    // Route::post('calendar/events', [GoogleCalendarEventsController::class, 'store'])->name('calendar.events.store');
 });
 
-Route::post('/calendar/events', [GoogleCalendarEventsController::class, 'store'])->name('calendar.events.store');
 // API Routes for notifications
 Route::middleware(['auth'])->prefix('api')->group(function () {
-    Route::post('/task-notifications/check', function (Illuminate\Http\Request $request) {
+    Route::post('/task-notifications/check', function (Request $request) {
         $lastCheck = $request->input('last_check');
         $userId = auth()->id();
 
@@ -221,6 +220,32 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
         return response()->json([
             'notifications' => $newNotifications,
             'count' => $newNotifications->count()
+        ]);
+    });
+
+    Route::post('/calendar-notifications/check', function (Request $request) {
+        $lastCheck = $request->input('last_check');
+        $userId = auth()->id();
+
+        $newNotifications = \App\Models\CalendarNotification::forUser($userId)
+            ->when($lastCheck, fn ($query) => $query->where('created_at', '>', $lastCheck))
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'title' => $notification->title,
+                    'message' => $notification->message,
+                    'type' => $notification->type,
+                    'created_at' => $notification->created_at->toISOString(),
+                    'data' => $notification->data,
+                ];
+            });
+
+        return response()->json([
+            'notifications' => $newNotifications,
+            'count' => $newNotifications->count(),
+            'checked_at' => now()->toISOString(),
         ]);
     });
 });

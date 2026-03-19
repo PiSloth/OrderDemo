@@ -118,6 +118,90 @@ export function initGoogleCalendar(el) {
     }
 }
 
+function showCalendarBrowserNotification(notification) {
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+        return;
+    }
+
+    const browserNotification = new Notification(notification.title, {
+        body: notification.message,
+        tag: `calendar-notification-${notification.id}`,
+    });
+
+    browserNotification.onclick = () => {
+        window.focus();
+        browserNotification.close();
+    };
+}
+
+function initCalendarNotifications(el) {
+    if (!el || el.__calendarNotificationsBooted) return;
+
+    const checkUrl = el.dataset.checkUrl;
+    if (!checkUrl) return;
+
+    el.__calendarNotificationsBooted = true;
+    el.__lastCalendarNotificationCheck = new Date().toISOString();
+
+    if (window.__calendarNotificationInterval) {
+        window.clearInterval(window.__calendarNotificationInterval);
+    }
+
+    const checkNotifications = async () => {
+        try {
+            const res = await fetch(checkUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN":
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute("content") || "",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                body: JSON.stringify({
+                    last_check: el.__lastCalendarNotificationCheck,
+                }),
+            });
+
+            if (!res.ok) return;
+
+            const data = await res.json();
+            (data.notifications || [])
+                .slice()
+                .reverse()
+                .forEach((notification) =>
+                    showCalendarBrowserNotification(notification)
+                );
+
+            el.__lastCalendarNotificationCheck =
+                data.checked_at || new Date().toISOString();
+        } catch {
+            // ignore
+        }
+    };
+
+    const requestPermissionButton = el.querySelector(
+        "[data-enable-calendar-notifications]"
+    );
+    if (requestPermissionButton && "Notification" in window) {
+        requestPermissionButton.addEventListener("click", async () => {
+            try {
+                await Notification.requestPermission();
+            } catch {
+                // ignore
+            }
+        });
+    }
+
+    setTimeout(checkNotifications, 2000);
+    window.__calendarNotificationInterval = window.setInterval(
+        checkNotifications,
+        30000
+    );
+}
+
 export function bootGoogleCalendars(root = document) {
     root.querySelectorAll("[data-google-calendar]").forEach((el) => initGoogleCalendar(el));
+    root.querySelectorAll("[data-calendar-notification-feed]").forEach((el) => initCalendarNotifications(el));
 }
