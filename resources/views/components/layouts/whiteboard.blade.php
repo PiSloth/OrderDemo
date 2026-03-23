@@ -30,6 +30,10 @@
                     </div>
 
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="{{ route('whiteboard.dashboard') }}" wire:navigate
+                            class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium {{ request()->routeIs('whiteboard.dashboard') ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white' }}">
+                            Dashboard
+                        </a>
                         <a href="{{ route('whiteboard.board') }}"
                             class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium {{ request()->routeIs('whiteboard.board') || request()->routeIs('whiteboard.show') ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white' }}">
                             Board

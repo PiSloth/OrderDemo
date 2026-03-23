@@ -1,5 +1,6 @@
 <div x-data="{
     listOpen: true,
+    isDesktop: window.innerWidth >= 1024,
     composeOpen: false,
     decisionSectionOpen: false,
     activeSidebarPanel: null,
@@ -10,8 +11,22 @@
     toggleSidebarPanel(panel) {
         this.activeSidebarPanel = this.activeSidebarPanel === panel ? null : panel;
     },
+    handleViewportChange() {
+        this.isDesktop = window.innerWidth >= 1024;
+    },
     closeSidebarPanels() {
         this.activeSidebarPanel = null;
+    },
+    sidebarStyle() {
+        if (this.isDesktop) {
+            return this.listOpen
+                ? 'width: 24rem; max-height: none; opacity: 1; transform: scaleX(1);'
+                : 'width: 0rem; max-height: none; opacity: 0; transform: scaleX(0);';
+        }
+
+        return this.listOpen
+            ? 'width: 100%; max-height: 32rem; opacity: 1; transform: scaleY(1);'
+            : 'width: 100%; max-height: 0rem; opacity: 0; transform: scaleY(0.96);';
     },
     handleDetailScroll(event) {
         const currentTop = event.target.scrollTop;
@@ -47,6 +62,7 @@
     }
 }" @whiteboard-show-content-info.window="showTooltip('content-info')"
     @whiteboard-compose-open.window="composeOpen = true" @whiteboard-compose-close.window="composeOpen = false"
+    @resize.window="handleViewportChange()"
     @click="if ($refs.sidebarControls && !$refs.sidebarControls.contains($event.target)) closeSidebarPanels()"
     @keydown.escape.window="if (composeOpen) composeOpen = false" class="space-y-4">
     <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -322,11 +338,12 @@
         class="h-[calc(100vh-8.5rem)] min-h-[38rem] overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
         <div class="flex h-full min-h-0 flex-col lg:flex-row">
             <aside
-                class="origin-left w-full overflow-hidden border-b border-slate-200 bg-slate-50 opacity-100 scale-x-100 transition-[width,opacity,transform,border-color] duration-300 ease-in-out lg:h-full lg:w-[24rem] lg:shrink-0 lg:border-b-0 lg:border-r"
+                class="origin-top w-full overflow-hidden border-b border-slate-200 bg-slate-50 transition-[max-height,width,opacity,transform,border-color] duration-300 ease-in-out lg:h-full lg:shrink-0 lg:origin-left lg:border-b-0 lg:border-r"
                 :class="listOpen
                     ?
                     'pointer-events-auto' :
-                    'pointer-events-none w-0 border-transparent opacity-0 scale-x-0 lg:w-0 lg:border-r-0'">
+                    'pointer-events-none border-transparent lg:border-r-0'"
+                :style="sidebarStyle()">
                 <div class="flex h-full min-h-0 flex-col">
                     <div class="relative border-b border-slate-200 bg-white/80 p-3 backdrop-blur"
                         x-ref="sidebarControls">
@@ -370,6 +387,7 @@
                                         ? $flags->firstWhere('id', (int) $flagFilter)?->color ?? '#94A3B8'
                                         : '#94A3B8';
                                 $archiveFilterActive = $archiveFilter === 'archived';
+                                $receivedMailDateFilterActive = trim($receivedMailDateFilter) !== '';
                             @endphp
 
                             <button type="button" @click.stop="toggleSidebarPanel('type')"
@@ -430,6 +448,27 @@
                                         :stroke="activeSidebarPanel === 'archive' ? 'currentColor' :
                                             '{{ $archiveFilterActive ? '#E11D48' : '#64748B' }}'"
                                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </button>
+
+                            <button type="button" @click.stop="toggleSidebarPanel('received-mail-date')"
+                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white shadow-sm hover:bg-slate-50"
+                                :class="activeSidebarPanel === 'received-mail-date' ?
+                                    'border-cyan-500 bg-cyan-500 text-white shadow-sm' : 'text-slate-600'"
+                                aria-label="Filter by received mail date">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <rect x="3" y="5" width="18" height="16" rx="2"
+                                        :stroke="activeSidebarPanel === 'received-mail-date' ? 'currentColor' :
+                                            '{{ $receivedMailDateFilterActive ? '#0F766E' : '#64748B' }}'"
+                                        stroke-width="1.8" />
+                                    <path d="M16 3v4M8 3v4M3 10h18"
+                                        :stroke="activeSidebarPanel === 'received-mail-date' ? 'currentColor' :
+                                            '{{ $receivedMailDateFilterActive ? '#0F766E' : '#64748B' }}'"
+                                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M8 14h.01M12 14h.01M16 14h.01"
+                                        :stroke="activeSidebarPanel === 'received-mail-date' ? 'currentColor' :
+                                            '{{ $receivedMailDateFilterActive ? '#0F766E' : '#64748B' }}'"
+                                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </button>
                         </div>
@@ -529,9 +568,83 @@
                                     </button>
                                 @endforeach
                             </div>
+
+                            <div x-show="activeSidebarPanel === 'received-mail-date'" style="display: none;">
+                                <div class="space-y-3">
+                                    <div class="w-full" wire:ignore x-data="{
+                                        value: @entangle('receivedMailDateFilter').live,
+                                        picker: null,
+                                        initPicker() {
+                                            if (!window.flatpickr) {
+                                                return;
+                                            }
+
+                                            if (this.$refs.dateInput._flatpickr) {
+                                                this.picker = this.$refs.dateInput._flatpickr;
+                                                return;
+                                            }
+
+                                            const alpine = this;
+
+                                            this.picker = window.flatpickr(this.$refs.dateInput, {
+                                                dateFormat: 'Y-m-d',
+                                                altInput: true,
+                                                altFormat: 'M d, Y',
+                                                defaultDate: alpine.value || null,
+                                                altInputClass: 'block w-full rounded-lg border-slate-300 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500',
+                                                onReady(selectedDates, dateStr, instance) {
+                                                    if (instance?.altInput) {
+                                                        instance.altInput.placeholder = 'Select received mail date';
+                                                    }
+                                                },
+                                                onChange(selectedDates, dateStr) {
+                                                    alpine.value = selectedDates.length ? dateStr : '';
+                                                }
+                                            });
+
+                                            this.$watch('value', (value) => {
+                                                if (!this.picker) {
+                                                    return;
+                                                }
+
+                                                if (!value) {
+                                                    if (this.picker.selectedDates.length) {
+                                                        this.picker.clear();
+                                                    }
+
+                                                    return;
+                                                }
+
+                                                if (this.picker.input.value !== value) {
+                                                    this.picker.setDate(value, false, 'Y-m-d');
+                                                }
+                                            });
+                                        },
+                                        clear() {
+                                            this.value = '';
+
+                                            if (this.picker) {
+                                                this.picker.clear();
+                                            }
+                                        }
+                                    }" x-init="$nextTick(() => initPicker())">
+                                        <input x-ref="dateInput" type="text" class="w-full"
+                                            placeholder="Select received mail date" />
+                                    </div>
+
+                                    <div class="flex items-center justify-between gap-3">
+                                        <p class="text-xs text-slate-500">Show only mail received on the selected date.</p>
+                                        <button type="button" x-show="value" @click="clear()"
+                                            class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+                                            style="display: none;">
+                                            Clear Date
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        @if ($this->activeSorts())
+                        @if ($this->activeSorts() || $receivedMailDateFilterActive)
                             <div class="mt-2 flex flex-wrap items-center gap-1.5 pr-2">
                                 @foreach ($this->activeSorts() as $sortKey)
                                     <button type="button" wire:click="clearSort('{{ $sortKey }}')"
@@ -540,6 +653,13 @@
                                         <span class="text-xs leading-none text-slate-500">×</span>
                                     </button>
                                 @endforeach
+                                @if ($receivedMailDateFilterActive)
+                                    <button type="button" wire:click="$set('receivedMailDateFilter', '')"
+                                        class="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-teal-700 hover:bg-teal-100">
+                                        <span>Received {{ $receivedMailDateFilter }}</span>
+                                        <span class="text-xs leading-none text-teal-600">x</span>
+                                    </button>
+                                @endif
                             </div>
                         @endif
                     </div>

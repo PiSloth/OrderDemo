@@ -46,6 +46,8 @@ class Board extends Component
     public string $flagFilter = 'all';
     #[Url(as: 'archive')]
     public string $archiveFilter = 'active';
+    #[Url(as: 'received')]
+    public string $receivedMailDateFilter = '';
 
     #[Url(as: 'sort')]
     public string $sortBy = 'unread_first';
@@ -192,6 +194,13 @@ class Board extends Component
         if (! in_array($this->archiveFilter, $this->availableArchiveFilters(), true)) {
             $this->archiveFilter = 'active';
         }
+
+        $this->syncSelection();
+    }
+
+    public function updatedReceivedMailDateFilter(): void
+    {
+        $this->receivedMailDateFilter = trim($this->receivedMailDateFilter);
 
         $this->syncSelection();
     }
@@ -459,6 +468,9 @@ class Board extends Component
             })
             ->when($this->flagFilter !== 'all', function (Builder $query) {
                 $query->where('flag_id', $this->flagFilter);
+            })
+            ->when(trim($this->receivedMailDateFilter) !== '', function (Builder $query) {
+                $query->whereDate('received_mail_at', $this->receivedMailDateFilter);
             });
     }
 
@@ -692,6 +704,7 @@ class Board extends Component
             'content_type_id',
             'propose_decision_due_at',
             'flag_id',
+            'received_mail_at',
             'recipient_ids',
         ]);
 

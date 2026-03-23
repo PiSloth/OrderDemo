@@ -54,6 +54,7 @@ use App\Livewire\Todo\Config as TodoConfig;
 use App\Livewire\Todo\TaskComments;
 use App\Livewire\Whiteboard\Board as WhiteboardBoard;
 use App\Livewire\Whiteboard\Config as WhiteboardConfig;
+use App\Livewire\Whiteboard\Dashboard as WhiteboardDashboard;
 use App\Livewire\Whiteboard\Show as WhiteboardShow;
 use App\Models\Order;
 use App\Models\OrderHistory;
@@ -160,6 +161,7 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
 });
 
 Route::middleware(['auth'])->prefix('whiteboard')->name('whiteboard.')->group(function () {
+    Route::get('/dashboard', WhiteboardDashboard::class)->name('dashboard');
     Route::get('/board', WhiteboardBoard::class)->name('board');
     Route::get('/config', WhiteboardConfig::class)->name('config');
     Route::get('/{content}', WhiteboardShow::class)->name('show');
