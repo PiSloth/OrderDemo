@@ -9,6 +9,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'profile_photo_path',
         'position_id',
         'branch_id',
         'department_id',
@@ -159,5 +161,14 @@ class User extends Authenticatable
     public function whiteboardReadReports()
     {
         return $this->hasMany(WhiteboardReport::class, 'read_by_user_id');
+    }
+
+    public function getProfilePhotoUrlAttribute(): string
+    {
+        if ($this->profile_photo_path) {
+            return '/storage/' . ltrim($this->profile_photo_path, '/');
+        }
+
+        return asset('images/admin-icon.png');
     }
 }

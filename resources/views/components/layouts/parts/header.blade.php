@@ -20,17 +20,12 @@
                         class=" justify-center w-5 h-5 text-xs font-semibold text-gray-300 dark:text-gray-400">K  4  S  0  3  K </span>
                     </marquee>
                 </div>
-                <span class="flex items-center mr-4">
-                    <img src="{{ url('images/admin-icon.png') }}" alt="admin-profile" class="w-8 h-8 mr-1">
-                    @if (Auth::user())
-                        <a href="#"
-                            class="mr-2 text-sm font-medium rounded-lg text-amber-600 dark:text-amber-400">{{ Auth::user()->name }}</a>
-                    @endif
-                </span>
-                <a href="{{ route('doLogout') }}"
-                    class="text-gray-800 bg-gray-600 text-white focus:ring-4 focus:ring-gray-300 font-medium rounded text-sm px-1.5 py-1 mr-2 focus:outline-none dark:focus:ring-gray-800">
-                    {{ Auth::user() ? 'Log out' : 'Log in' }}
-                </a>
+                <div class="mr-3">
+                    @include('components.layouts.parts.theme-toggle')
+                </div>
+                <div class="mr-2">
+                    @include('components.layouts.parts.user-menu')
+                </div>
             </div>
         </div>
     </nav>

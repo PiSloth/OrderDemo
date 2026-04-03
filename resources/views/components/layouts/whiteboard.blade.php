@@ -7,6 +7,16 @@
 
     <title>{{ $title ?? config('app.name') }}</title>
 
+    <script>
+        (() => {
+            const storedTheme = localStorage.getItem('color-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const darkMode = storedTheme === 'dark' || (!storedTheme && prefersDark);
+
+            document.documentElement.classList.toggle('dark', darkMode);
+        })();
+    </script>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     @yield('styles')
@@ -16,6 +26,7 @@
 <body class="antialiased bg-gray-100 dark:bg-gray-800">
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
+    <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" />
 
     <nav class="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -45,23 +56,17 @@
                     </div>
                 </div>
 
-                <div class="hidden sm:ml-6 sm:flex sm:items-center">
+                <div class="flex items-center">
                     <div class="ml-3 flex items-center space-x-4">
-                        <span class="text-sm text-gray-700 dark:text-gray-200">{{ Auth::user()->name }}</span>
-                        <form method="GET" action="{{ route('doLogout') }}">
-                            @csrf
-                            <button type="submit"
-                                class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">
-                                Logout
-                            </button>
-                        </form>
+                        @include('components.layouts.parts.theme-toggle')
+                        @include('components.layouts.parts.user-menu')
                     </div>
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="w-full px-4 py-4 sm:px-5 lg:px-6">
+    <main class="w-full px-4 py-4 sm:px-5 lg:px-6 text-gray-900 dark:text-gray-100">
         {{ $slot }}
     </main>
 

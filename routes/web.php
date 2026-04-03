@@ -6,6 +6,7 @@ use App\Http\Controllers\Calendar\GoogleCalendarEventsController;
 use App\Http\Controllers\Calendar\GoogleSocialiteAuthController;
 use App\Http\Controllers\Document\CompanyDocumentImageController;
 use App\Http\Controllers\Document\EmailListExportController;
+use App\Http\Controllers\Kpi\ImportExportController as KpiImportExportController;
 use App\Livewire\BranchReport\Dashboard as BranchReportDashboard;
 use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
@@ -16,6 +17,16 @@ use App\Livewire\Document\EmailList as DocumentEmailList;
 use App\Livewire\Document\Library\Browser as DocumentLibraryBrowser;
 use App\Livewire\Document\Library\Create as DocumentLibraryCreate;
 use App\Livewire\Document\Library\Edit as DocumentLibraryEdit;
+use App\Livewire\Kpi\Approvals as KpiApprovals;
+use App\Livewire\Kpi\Audit as KpiAudit;
+use App\Livewire\Kpi\Assignments as KpiAssignments;
+use App\Livewire\Kpi\Dashboard as KpiDashboard;
+use App\Livewire\Kpi\Exclusions as KpiExclusions;
+use App\Livewire\Kpi\Holidays as KpiHolidays;
+use App\Livewire\Kpi\ImportExport as KpiImportExport;
+use App\Livewire\Kpi\Leaderboard as KpiLeaderboard;
+use App\Livewire\Kpi\MyTasks as KpiMyTasks;
+use App\Livewire\Kpi\Templates as KpiTemplates;
 use App\Livewire\Order\Psi\Branch\StockUpdate;
 use App\Livewire\Orders\Config;
 use App\Livewire\Orders\AddOrder;
@@ -77,9 +88,9 @@ use Illuminate\Http\Request;
 
 // Route::get('/', Report::class);
 
-// Route::view('dashboard', 'dashboard')
-//     ->middleware(['auth', 'verified'])
-//     ->name('dashboard');
+Route::get('dashboard', fn () => redirect()->route('report-dashboard'))
+    ->middleware(['auth'])
+    ->name('dashboard');
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])
@@ -158,6 +169,32 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::get('/list', App\Livewire\Todo\TodoList::class)->name('todo_list');
     Route::get('/comments/{taskId}', TaskComments::class)->name('task_comments');
     Route::get('/notifications', App\Livewire\Todo\Notifications::class)->name('notifications');
+});
+
+Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
+    Route::get('/', KpiDashboard::class)->name('dashboard');
+    Route::get('/dashboard', KpiDashboard::class)->name('dashboard.home');
+    Route::get('/tasks', KpiMyTasks::class)->name('tasks');
+    Route::get('/audit', KpiAudit::class)->name('audit');
+    Route::get('/exclusions', KpiExclusions::class)->name('exclusions');
+    Route::get('/approvals', KpiApprovals::class)->name('approvals');
+    Route::get('/holidays', KpiHolidays::class)->middleware('can:kpiManageHolidays')->name('holidays');
+    Route::get('/templates', KpiTemplates::class)->middleware('can:kpiManageTemplates')->name('templates');
+    Route::get('/assignments', KpiAssignments::class)->middleware('can:kpiManageAssignments')->name('assignments');
+    Route::get('/import-export', KpiImportExport::class)->middleware('can:kpiManageImports')->name('import-export');
+    Route::get('/import-export/template', [KpiImportExportController::class, 'downloadTemplate'])
+        ->middleware('can:kpiManageImports')
+        ->name('import-export.template');
+    Route::get('/import-export/export', [KpiImportExportController::class, 'exportEmployee'])
+        ->middleware('can:kpiManageImports')
+        ->name('import-export.employee');
+    Route::post('/import-export/import', [KpiImportExportController::class, 'import'])
+        ->middleware('can:kpiManageImports')
+        ->name('import-export.import');
+    Route::get('/import-export/errors/{file}', [KpiImportExportController::class, 'downloadErrorReport'])
+        ->middleware('can:kpiManageImports')
+        ->name('import-export.errors');
+    Route::get('/leaderboard', KpiLeaderboard::class)->name('leaderboard');
 });
 
 Route::middleware(['auth'])->prefix('whiteboard')->name('whiteboard.')->group(function () {

@@ -65,6 +65,32 @@
                         </div>
                     </div>
 
+                    <div class="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_240px]">
+                        <div>
+                            <label for="user-search" class="mb-1 block text-sm font-medium text-gray-700">Search user</label>
+                            <input
+                                id="user-search"
+                                type="text"
+                                wire:model.live.debounce.300ms="userSearch"
+                                placeholder="Search by name or email"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            >
+                        </div>
+                        <div>
+                            <label for="user-department-filter" class="mb-1 block text-sm font-medium text-gray-700">Department</label>
+                            <select
+                                id="user-department-filter"
+                                wire:model.live="userDepartmentFilter"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            >
+                                <option value="">All departments</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Users Table -->
                     <div class="overflow-x-auto">
                         <table class="w-full table-auto">
@@ -72,6 +98,7 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
@@ -83,8 +110,23 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse ($users as $user)
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $user->name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center gap-3">
+                                                <img src="{{ $user->profile_photo_url }}"
+                                                    alt="{{ $user->name }}"
+                                                    class="h-10 w-10 rounded-full object-cover ring-1 ring-gray-200">
+                                                <div>
+                                                    <p class="text-sm font-medium text-gray-900">{{ $user->name }}</p>
+                                                    <p class="text-xs text-gray-500">ID: {{ $user->id }}</p>
+                                                </div>
+                                            </div>
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->email }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $user->suspended ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700' }}">
+                                                {{ $user->suspended ? 'Suspended' : 'Active' }}
+                                            </span>
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->position?->name ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->department?->name ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->location?->name ?? 'N/A' }}</td>
@@ -113,11 +155,15 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">No users found</td>
+                                        <td colspan="9" class="px-6 py-4 text-center text-gray-500">No users found</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="mt-4">
+                        {{ $users->links() }}
                     </div>
                 </div>
             </div>
@@ -453,6 +499,20 @@
                 </div>
                 <form wire:submit="create_user" class="space-y-4">
                     <div>
+                        <label class="block text-sm font-medium text-gray-700">Profile Photo</label>
+                        <div class="mt-2 flex items-center gap-4">
+                            <img src="{{ $profilePhoto ? $profilePhoto->temporaryUrl() : asset('images/admin-icon.png') }}"
+                                alt="Profile preview"
+                                class="h-16 w-16 rounded-full object-cover ring-1 ring-gray-200">
+                            <div class="flex-1">
+                                <input type="file" wire:model="profilePhoto" accept="image/*"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <p class="mt-1 text-xs text-gray-500">Optional. JPG, PNG, WEBP up to 2 MB.</p>
+                            </div>
+                        </div>
+                        @error('profilePhoto') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700">Name</label>
                         <input type="text" wire:model="username" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>
                         @error('username') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
@@ -529,6 +589,28 @@
                     </button>
                 </div>
                 <form wire:submit="updateUser" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Profile Photo</label>
+                        <div class="mt-2 flex items-center gap-4">
+                            <img src="{{ $editProfilePhoto ? $editProfilePhoto->temporaryUrl() : ($editCurrentProfilePhotoPath ? '/storage/' . ltrim($editCurrentProfilePhotoPath, '/') : asset('images/admin-icon.png')) }}"
+                                alt="Profile preview"
+                                class="h-16 w-16 rounded-full object-cover ring-1 ring-gray-200">
+                            <div class="flex-1 space-y-2">
+                                <input type="file" wire:model="editProfilePhoto" accept="image/*"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <div class="flex items-center gap-3">
+                                    @if ($editCurrentProfilePhotoPath || $editProfilePhoto)
+                                        <button type="button" wire:click="clearEditProfilePhoto"
+                                            class="text-sm font-medium text-rose-600 hover:text-rose-700">
+                                            Remove photo
+                                        </button>
+                                    @endif
+                                    <p class="text-xs text-gray-500">Optional. JPG, PNG, WEBP up to 2 MB.</p>
+                                </div>
+                            </div>
+                        </div>
+                        @error('editProfilePhoto') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Name</label>
                         <input type="text" wire:model="editUsername" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>

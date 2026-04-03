@@ -17,6 +17,7 @@ $login = function () {
     $this->form->authenticate();
 
     Session::regenerate();
+    session()->flash('show_login_announcement', true);
 
     $this->redirect(session('url.intended', RouteServiceProvider::HOME), navigate: false);
 };

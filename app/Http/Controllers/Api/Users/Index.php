@@ -17,6 +17,14 @@ class Index extends Controller
             ->with('department')
             ->select('id', 'name', 'department_id')
             ->where('suspended', false)
+            ->when(
+                $request->filled('user_ids'),
+                fn(Builder $query) => $query->whereIn('id', (array) $request->input('user_ids', []))
+            )
+            ->when(
+                $request->filled('department_id'),
+                fn(Builder $query) => $query->where('department_id', $request->integer('department_id'))
+            )
             ->orderBy('name')
             ->when(
                 $request->search,

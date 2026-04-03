@@ -9,6 +9,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>{{ $title ?? config('app.name') }}</title>
+    <script>
+        (() => {
+            const storedTheme = localStorage.getItem('color-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const darkMode = storedTheme === 'dark' || (!storedTheme && prefersDark);
+
+            document.documentElement.classList.toggle('dark', darkMode);
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
     {{-- Font Awesome --}}
@@ -31,6 +40,8 @@
 <body class="antialiased bg-gray-100 dark:bg-gray-800">
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
+    <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" />
+    {{-- <x-announcement-login-modal :show="true" :announcement="config('announcements.login_popup')" /> --}}
 
     <main class="">
         @include('components.layouts.parts.header')

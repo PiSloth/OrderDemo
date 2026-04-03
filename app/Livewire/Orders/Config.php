@@ -4,6 +4,7 @@ namespace App\Livewire\Orders;
 
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\Department;
 use App\Models\Design;
 use App\Models\Grade;
 use App\Models\Position;
@@ -22,12 +23,17 @@ use App\Models\TodoList;
 use App\Models\TaskComment;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 use NunoMaduro\Collision\Adapters\Phpunit\State;
 use App\Models\CommentPool;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class Config extends Component
 {
+    use WithFileUploads;
+    use WithPagination;
 
     public $position = '';
     public $username = '';
@@ -61,6 +67,12 @@ class Config extends Component
     public $newPassword = '';
     public $confirmPassword = '';
     public $showSuspendedUsers = false;
+    public $userSearch = '';
+    public $userDepartmentFilter = '';
+    public $profilePhoto;
+    public $editProfilePhoto;
+    public $editCurrentProfilePhotoPath = null;
+    public $removeEditProfilePhoto = false;
 
     // Edit properties for other entities
     public $editingPositionId = null;
@@ -115,6 +127,7 @@ class Config extends Component
             'branch_id' => 'required|exists:branches,id',
             'department_id' => 'required|exists:departments,id',
             'location_id' => 'required|exists:locations,id',
+            'profilePhoto' => 'nullable|image|max:2048',
         ]);
 
         $user = User::create([
@@ -125,9 +138,10 @@ class Config extends Component
             'branch_id' => $this->branch_id,
             'department_id' => $this->department_id,
             'location_id' => $this->location_id,
+            'profile_photo_path' => $this->profilePhoto ? $this->profilePhoto->store('profile-photos', 'public') : null,
         ]);
 
-        $this->reset(['username', 'email', 'password', 'position_id', 'branch_id', 'department_id', 'location_id']);
+        $this->reset(['username', 'email', 'password', 'position_id', 'branch_id', 'department_id', 'location_id', 'profilePhoto']);
         $this->showCreateUserModal = false;
         session()->flash('message', 'User created successfully!');
     }
@@ -143,6 +157,9 @@ class Config extends Component
             $this->editBranchId = $user->branch_id;
             $this->editDepartmentId = $user->department_id ?? '';
             $this->editLocationId = $user->location_id ?? '';
+            $this->editCurrentProfilePhotoPath = $user->profile_photo_path;
+            $this->editProfilePhoto = null;
+            $this->removeEditProfilePhoto = false;
             $this->showEditUserModal = true;
         }
     }
@@ -156,10 +173,24 @@ class Config extends Component
             'editBranchId' => 'required|exists:branches,id',
             'editDepartmentId' => 'required|exists:departments,id',
             'editLocationId' => 'required|exists:locations,id',
+            'editProfilePhoto' => 'nullable|image|max:2048',
         ]);
 
         $user = User::find($this->editingUserId);
         if ($user) {
+            if ($this->removeEditProfilePhoto && $user->profile_photo_path) {
+                Storage::disk('public')->delete($user->profile_photo_path);
+                $user->profile_photo_path = null;
+            }
+
+            if ($this->editProfilePhoto) {
+                if ($user->profile_photo_path) {
+                    Storage::disk('public')->delete($user->profile_photo_path);
+                }
+
+                $user->profile_photo_path = $this->editProfilePhoto->store('profile-photos', 'public');
+            }
+
             $user->update([
                 'name' => $this->editUsername,
                 'email' => $this->editEmail,
@@ -167,9 +198,10 @@ class Config extends Component
                 'branch_id' => $this->editBranchId,
                 'department_id' => $this->editDepartmentId,
                 'location_id' => $this->editLocationId,
+                'profile_photo_path' => $user->profile_photo_path,
             ]);
 
-            $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editBranchId', 'editDepartmentId', 'editLocationId']);
+            $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editBranchId', 'editDepartmentId', 'editLocationId', 'editProfilePhoto', 'editCurrentProfilePhotoPath', 'removeEditProfilePhoto']);
             $this->showEditUserModal = false;
             session()->flash('message', 'User updated successfully!');
         }
@@ -205,7 +237,7 @@ class Config extends Component
         $this->showCreateUserModal = false;
         $this->showEditUserModal = false;
         $this->showChangePasswordModal = false;
-        $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editBranchId', 'editDepartmentId', 'editLocationId', 'newPassword', 'confirmPassword']);
+        $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editBranchId', 'editDepartmentId', 'editLocationId', 'newPassword', 'confirmPassword', 'profilePhoto', 'editProfilePhoto', 'editCurrentProfilePhotoPath', 'removeEditProfilePhoto']);
     }
 
     public function create_category()
@@ -326,15 +358,39 @@ class Config extends Component
     {
         $user = User::find($id);
         if ($user) {
+            if ($user->id === Auth::id()) {
+                session()->flash('message', 'You cannot suspend your own account.');
+                return;
+            }
+
             $user->update(['suspended' => !$user->suspended]);
             $status = $user->suspended ? 'suspended' : 'unsuspended';
             session()->flash('message', "User {$status} successfully!");
         }
     }
 
+    public function clearEditProfilePhoto(): void
+    {
+        $this->editProfilePhoto = null;
+        $this->editCurrentProfilePhotoPath = null;
+        $this->removeEditProfilePhoto = true;
+    }
+
     public function toggleSuspendedView()
     {
         $this->showSuspendedUsers = !$this->showSuspendedUsers;
+        $this->resetPage();
+    }
+
+    public function updatedUserSearch(): void
+    {
+        $this->userSearch = trim($this->userSearch);
+        $this->resetPage();
+    }
+
+    public function updatedUserDepartmentFilter(): void
+    {
+        $this->resetPage();
     }
 
     public function confirmDeleteUser($id)
@@ -641,16 +697,27 @@ class Config extends Component
 
     public function render()
     {
-
         return view('livewire.orders.config', [
-            'users' => User::with(['position', 'branch', 'department', 'location'])->where('suspended', $this->showSuspendedUsers)->get(),
+            'users' => User::with(['position', 'branch', 'department', 'location'])
+                ->where('suspended', $this->showSuspendedUsers)
+                ->when($this->userDepartmentFilter !== '', fn ($query) => $query->where('department_id', $this->userDepartmentFilter))
+                ->when($this->userSearch !== '', function ($query) {
+                    $search = '%' . $this->userSearch . '%';
+
+                    $query->where(function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', $search)
+                            ->orWhere('email', 'like', $search);
+                    });
+                })
+                ->orderBy('name')
+                ->paginate(15),
             'positions' => Position::all(),
             'categories' => Category::all(),
             'statuses' => Status::all(),
             'designs' => Design::all(),
             'qualities' => Quality::all(),
             'branches' => Branch::all(),
-            'departments' => \App\Models\Department::all(),
+            'departments' => Department::orderBy('name')->get(),
             'locations' => \App\Models\Location::all(),
             'grades' => Grade::all(),
             'priorities' => Priority::all(),

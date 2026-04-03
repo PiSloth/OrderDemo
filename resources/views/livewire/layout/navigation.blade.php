@@ -55,8 +55,21 @@ $logout = function (Logout $logout) {
                     <x-slot name="trigger">
                         <button
                             class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out bg-white border border-transparent rounded-md dark:text-gray-400 dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none">
-                            <div x-data="{ name: '{{ auth()->user()->name }}' }" x-text="name"
-                                x-on:profile-updated.window="name = $event.detail.name"></div>
+                            <div class="flex items-center gap-2"
+                                x-data="{
+                                    name: @js(auth()->user()->name),
+                                    photoUrl: @js(auth()->user()->profile_photo_url)
+                                }"
+                                x-on:profile-updated.window="
+                                    if ($event.detail.name) name = $event.detail.name;
+                                    if ($event.detail.photoUrl) photoUrl = $event.detail.photoUrl;
+                                ">
+                                <img src="{{ auth()->user()->profile_photo_url }}"
+                                    :src="photoUrl"
+                                    alt="{{ auth()->user()->name }}"
+                                    class="h-8 w-8 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700">
+                                <div x-text="name"></div>
+                            </div>
 
                             <div class="ml-1">
                                 <svg class="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg"
@@ -116,9 +129,21 @@ $logout = function (Logout $logout) {
 
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
-            <div class="px-4">
-                <div class="text-base font-medium text-gray-800 dark:text-gray-200" x-data="{ name: '{{ auth()->user()->name }}' }"
-                    x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
+            <div class="px-4"
+                x-data="{
+                    name: @js(auth()->user()->name),
+                    photoUrl: @js(auth()->user()->profile_photo_url)
+                }"
+                x-on:profile-updated.window="
+                    if ($event.detail.name) name = $event.detail.name;
+                    if ($event.detail.photoUrl) photoUrl = $event.detail.photoUrl;
+                ">
+                <img src="{{ auth()->user()->profile_photo_url }}"
+                    :src="photoUrl"
+                    alt="{{ auth()->user()->name }}"
+                    class="mb-3 h-10 w-10 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700">
+                <div class="text-base font-medium text-gray-800 dark:text-gray-200"
+                    x-text="name"></div>
                 <div class="text-sm font-medium text-gray-500">{{ auth()->user()->email }}</div>
             </div>
 

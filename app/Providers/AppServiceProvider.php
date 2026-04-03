@@ -23,6 +23,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $kpiHasPosition = static function (User $user, array $allowed): bool {
+            $current = strtolower(trim((string) optional($user->position)->name));
+            $allowed = array_map(
+                static fn(string $value): string => strtolower(trim($value)),
+                $allowed
+            );
+
+            return in_array($current, $allowed, true);
+        };
+
         Gate::define('isSuperAdmin', function (User $user) {
             return $user->position->name == "Super Admin";
         });
@@ -161,6 +171,40 @@ class AppServiceProvider extends ServiceProvider
             $usr = $user->position->name;
 
             return in_array($usr, $authorizedUsers);
+        });
+
+        Gate::define('kpiManageTemplates', function (User $user) use ($kpiHasPosition) {
+            return $kpiHasPosition($user, ['Super Admin', 'Assistant Manager', 'Manager']);
+        });
+
+        Gate::define('kpiManageAssignments', function (User $user) use ($kpiHasPosition) {
+            return $kpiHasPosition($user, ['Super Admin', 'Assistant Manager', 'Manager']);
+        });
+
+        Gate::define('kpiManageHolidays', function (User $user) use ($kpiHasPosition) {
+            return $kpiHasPosition($user, ['Super Admin', 'Assistant Manager', 'Manager']);
+        });
+
+        Gate::define('kpiManageImports', function (User $user) use ($kpiHasPosition) {
+            return $kpiHasPosition($user, ['Super Admin', 'Manager']);
+        });
+
+        Gate::define('kpiApproveExclusions', function (User $user) use ($kpiHasPosition) {
+            return $kpiHasPosition($user, ['Super Admin', 'Supervisor', 'Assistant Manager', 'Manager']);
+        });
+
+        Gate::define('kpiViewCompanyLeaderboard', function (User $user) use ($kpiHasPosition) {
+            return $kpiHasPosition(
+                $user,
+                ['Super Admin', 'Assistant Manager', 'Manager', 'Assistant General Manager', 'CEO']
+            );
+        });
+
+        Gate::define('kpiApproveTasks', function (User $user) use ($kpiHasPosition) {
+            return $kpiHasPosition(
+                $user,
+                ['Super Admin', 'Supervisor', 'Assistant Manager', 'Manager', 'Assistant General Manager', 'CEO']
+            );
         });
     }
 }
