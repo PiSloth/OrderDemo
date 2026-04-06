@@ -20,8 +20,9 @@ window.ApexCharts = ApexCharts;
 
 import { bootGoogleCalendars } from "./calendar/google-calendar";
 
+window.bootGoogleCalendars = bootGoogleCalendars;
+
 const bootCalendars = () => bootGoogleCalendars(document);
 
 document.addEventListener("DOMContentLoaded", bootCalendars);
 document.addEventListener("livewire:navigated", bootCalendars);
-

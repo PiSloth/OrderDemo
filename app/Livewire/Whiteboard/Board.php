@@ -261,6 +261,7 @@ class Board extends Component
 
     public function selectContent(int $contentId): void
     {
+        // dd($contentId);
         $this->selectedContentId = (string) $contentId;
 
         if ($content = $this->selectedContentModel()) {
@@ -269,7 +270,6 @@ class Board extends Component
 
         $this->resetDecisionForm();
         $this->dispatch('whiteboard-decision-reset');
-        $this->dispatch('whiteboard-content-selected');
         $this->syncSelection();
     }
 
@@ -312,7 +312,6 @@ class Board extends Component
             'invited_person' => $this->invited_person,
         ], [
             'decision' => ['required', 'string'],
-            'received_mail_at' => ['required'],
             'appointment_at' => ['nullable', 'date'],
             'invited_person' => ['nullable', 'string', 'max:255'],
         ])->after(function ($validator) {
@@ -431,6 +430,7 @@ class Board extends Component
 
     private function syncSelection(): void
     {
+        // dd('syncSelection');
         $contents = $this->filteredBoardContents();
         $selectedContent = $this->resolveSelectedContent($contents);
         $selectedContentId = $selectedContent ? (string) $selectedContent->id : '';
@@ -736,6 +736,14 @@ class Board extends Component
     {
         $boardContents = $this->filteredBoardContents();
         $selectedContent = $this->resolveSelectedContent($boardContents);
+        $user = Auth::user();
+        $googleCalendarAccount = $user?->googleCalendarAccount;
+        $googleCalendarConnected = (bool) (
+            ! empty($user?->google_refresh_token)
+            || ! empty($user?->google_token)
+            || $googleCalendarAccount?->refresh_token
+            || $googleCalendarAccount?->access_token
+        );
 
         return view('livewire.whiteboard.board', [
             'boardContents' => $boardContents,
@@ -744,6 +752,8 @@ class Board extends Component
             'flags' => WhiteboardFlag::query()->orderBy('name')->get(),
             'emailLists' => EmailList::query()->with('department')->orderBy('user_name')->get(),
             'unreadCount' => $boardContents->filter(fn(WhiteboardContent $content) => ! $this->isContentRead($content))->count(),
+            'googleCalendarConnected' => $googleCalendarConnected,
+            'googleCalendarEmail' => $googleCalendarAccount?->email ?: $user?->email,
         ]);
     }
 }
