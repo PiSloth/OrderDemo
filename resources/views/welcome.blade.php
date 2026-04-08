@@ -48,7 +48,7 @@
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100">
-
+<h1>Test</h1>
     <div class="flex flex-col items-center justify-center min-h-screen px-6 py-12" x-data="{ ready: false, loginReady: false, footerReady: false, reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches }"
         x-init="if (reduceMotion) {
             ready = true;
