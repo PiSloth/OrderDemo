@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Kpi\KpiGroup;
 use App\Models\Kpi\KpiTaskRule;
 use App\Models\Kpi\KpiTaskTemplate;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -20,6 +21,9 @@ class Templates extends Component
     public $groups;
     public $templates;
     public $departments;
+    public $templateEmployees;
+
+    public string $templateEmployeeFilter = '';
 
     public ?int $editingGroupId = null;
     public string $groupCode = '';
@@ -54,6 +58,7 @@ class Templates extends Component
     public function mount(): void
     {
         $this->departments = Department::orderBy('name')->get();
+        $this->templateEmployees = collect();
         $this->loadData();
     }
 
@@ -65,10 +70,29 @@ class Templates extends Component
             ->orderBy('name')
             ->get();
 
+        $this->templateEmployees = User::query()
+            ->whereIn('id', function ($query) {
+                $query->from('kpi_task_assignments')
+                    ->select('user_id')
+                    ->whereNotNull('user_id');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $this->templates = KpiTaskTemplate::query()
-            ->with(['group.department', 'rule'])
+            ->with(['group.department', 'rule', 'taskAssignments.user', 'taskAssignments.firstApprover', 'taskAssignments.finalApprover'])
+            ->when($this->templateEmployeeFilter !== '', function ($query) {
+                $query->whereHas('taskAssignments', function ($assignmentQuery) {
+                    $assignmentQuery->where('user_id', (int) $this->templateEmployeeFilter);
+                });
+            })
             ->orderBy('title')
             ->get();
+    }
+
+    public function updatedTemplateEmployeeFilter(): void
+    {
+        $this->loadData();
     }
 
     public function createGroup(): void
@@ -348,12 +372,6 @@ class Templates extends Component
             'templateCutoffTime' => 'cutoff time',
             'templateRuleType' => 'rule type',
         ]);
-
-        if (!$this->templateRequiresImages && !$this->templateRequiresTable) {
-            throw ValidationException::withMessages([
-                'templateRequiresImages' => 'Select at least one evidence type: images or custom table.',
-            ]);
-        }
 
         if ($this->templateMaxImages !== '' && (int) $this->templateMaxImages < (int) $this->templateMinImages) {
             throw ValidationException::withMessages([
