@@ -65,7 +65,7 @@ class MyTasks extends Component
                 'template.group',
                 'assignment.firstApprover',
                 'assignment.finalApprover',
-                'submissions' => fn ($query) => $query->latest('sequence')->latest('id'),
+                'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
             ])
             ->withCount('submissions')
             ->where('user_id', Auth::id())
@@ -93,22 +93,22 @@ class MyTasks extends Component
             ->orderBy('period_index')
             ->get();
 
-        $isOpen = fn (KpiTaskInstance $instance) => !$this->isFinalized($instance);
+        $isOpen = fn(KpiTaskInstance $instance) => !$this->isFinalized($instance);
 
         $this->todayTasks = $instances
-            ->filter(fn (KpiTaskInstance $instance) => $instance->period_type === 'daily' && $isOpen($instance))
+            ->filter(fn(KpiTaskInstance $instance) => $instance->period_type === 'daily' && $isOpen($instance))
             ->values();
 
         $this->weeklyTasks = $instances
-            ->filter(fn (KpiTaskInstance $instance) => $instance->period_type === 'weekly' && $isOpen($instance))
+            ->filter(fn(KpiTaskInstance $instance) => $instance->period_type === 'weekly' && $isOpen($instance))
             ->values();
 
         $this->monthlyTasks = $instances
-            ->filter(fn (KpiTaskInstance $instance) => $instance->period_type === 'monthly' && $isOpen($instance))
+            ->filter(fn(KpiTaskInstance $instance) => $instance->period_type === 'monthly' && $isOpen($instance))
             ->values();
 
         $this->overdueTasks = $instances
-            ->filter(fn (KpiTaskInstance $instance) => $isOpen($instance) && $instance->due_at && Carbon::parse($instance->due_at)->lt(now()))
+            ->filter(fn(KpiTaskInstance $instance) => $isOpen($instance) && $instance->due_at && Carbon::parse($instance->due_at)->lt(now()))
             ->values();
 
         $this->summaryCards = [
@@ -131,7 +131,7 @@ class MyTasks extends Component
         ];
 
         if ($this->selectedTaskInstanceId) {
-            $selectedExists = $instances->contains(fn (KpiTaskInstance $instance) => $instance->id === $this->selectedTaskInstanceId);
+            $selectedExists = $instances->contains(fn(KpiTaskInstance $instance) => $instance->id === $this->selectedTaskInstanceId);
 
             if (!$selectedExists) {
                 $this->cancelSubmission();
@@ -313,7 +313,7 @@ class MyTasks extends Component
                 ]);
 
                 foreach ($this->submissionPhotos as $index => $photo) {
-                    $path = $resizer->store($photo, 300);
+                    $path = $resizer->store($photo, 600);
                     $storedPaths[] = $path;
 
                     $submission->images()->create([
@@ -396,7 +396,7 @@ class MyTasks extends Component
                 'template.group',
                 'assignment.firstApprover',
                 'assignment.finalApprover',
-                'submissions' => fn ($query) => $query->latest('sequence')->latest('id'),
+                'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
             ])
             ->where('id', $this->selectedTaskInstanceId)
             ->where('user_id', Auth::id())
@@ -417,7 +417,7 @@ class MyTasks extends Component
                 'template.group',
                 'assignment.firstApprover',
                 'assignment.finalApprover',
-                'submissions' => fn ($query) => $query->latest('sequence')->latest('id'),
+                'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
             ])
             ->where('id', $taskInstanceId)
             ->where('user_id', Auth::id())

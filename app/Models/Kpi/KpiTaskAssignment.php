@@ -58,4 +58,9 @@ class KpiTaskAssignment extends Model
     {
         return $this->hasMany(KpiExclusionRequest::class, 'task_assignment_id');
     }
+
+    public function frequency(): string
+    {
+        return $this->template->frequency;
+    }
 }

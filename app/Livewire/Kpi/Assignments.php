@@ -19,6 +19,8 @@ class Assignments extends Component
     public $users;
     public $assignments;
 
+    public int $selectedUserId = 0;
+
     public ?int $editingAssignmentId = null;
     public string $assignmentTemplateId = '';
     public string $assignmentUserId = '';
@@ -38,6 +40,12 @@ class Assignments extends Component
     public function mount(): void
     {
         $this->loadOptions();
+        $this->loadAssignments();
+        $this->selectedUserId = auth()->id();
+    }
+
+    public function updatedSelectedUserId(): void
+    {
         $this->loadAssignments();
     }
 
@@ -75,7 +83,11 @@ class Assignments extends Component
             ->withCount('instances')
             ->orderByDesc('is_active')
             ->orderBy('user_id')
-            ->orderBy('task_template_id')
+            ->orderBy(
+                KpiTaskTemplate::select('frequency')
+                    ->whereColumn('kpi_task_templates.id', 'kpi_task_assignments.task_template_id')
+            )
+            ->where("user_id", '=', $this->selectedUserId)
             ->get();
     }
 
@@ -111,6 +123,7 @@ class Assignments extends Component
 
     public function editAssignment(int $assignmentId): void
     {
+        // dd(Gate::allows('kpiManageAssignments'));
         Gate::authorize('kpiManageAssignments');
 
         $assignment = KpiTaskAssignment::query()->with('calendarControl')->findOrFail($assignmentId);
@@ -130,6 +143,8 @@ class Assignments extends Component
         $this->assignmentWeeklyMonthlyRefreshTime = substr((string) ($assignment->calendarControl?->weekly_monthly_refresh_time ?? '09:15:00'), 0, 5);
         $this->assignmentPushUntilFinalized = (bool) ($assignment->calendarControl?->push_until_finalized ?? true);
         $this->assignmentIsActive = (bool) $assignment->is_active;
+
+        $this->dispatch('openModal', 'assignmentModal');
     }
 
     public function updateAssignment(): void
@@ -309,7 +324,7 @@ class Assignments extends Component
             ->where('task_template_id', $templateId)
             ->where('user_id', $userId)
             ->where('is_active', true)
-            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->when($ignoreId, fn($query) => $query->where('id', '!=', $ignoreId))
             ->exists();
 
         if ($exists) {
