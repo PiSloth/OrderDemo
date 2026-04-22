@@ -115,18 +115,23 @@ class MyTasks extends Component
             [
                 'label' => 'Today Tasks',
                 'value' => $this->todayTasks->count(),
+                'modalTarget' => 'dailyTaskModal',
             ],
             [
                 'label' => 'Open Weekly',
                 'value' => $this->weeklyTasks->count(),
+                'modalTarget' => 'weeklyTaskModal',
             ],
             [
                 'label' => 'Open Monthly',
                 'value' => $this->monthlyTasks->count(),
+                'modalTarget' => 'monthlyTaskModal',
             ],
             [
                 'label' => 'Overdue',
                 'value' => $this->overdueTasks->count(),
+                'modalTarget' => '',
+
             ],
         ];
 
