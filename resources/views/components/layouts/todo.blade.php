@@ -25,7 +25,8 @@
 <body class="antialiased bg-gray-100 dark:bg-gray-800">
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
-    <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" />
+    {{-- <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" /> --}}
+    <x-profile-photo-reminder-modal :announcement="config('announcements.profile_photo_popup')" />
 
     <!-- Navigation Bar -->
     <nav class="bg-white shadow-sm border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700">
@@ -34,21 +35,26 @@
                 <div class="flex">
                     <div class="flex-shrink-0 flex items-center">
                         <a href="{{ route('report-dashboard') }}" wire:navigate>
-                        <x-icon black name="home" class="w-6 h-6 mr-2 hover:text-gray-700 dark:hover:text-gray-300 hover:cursor-pointer" />
+                            <x-icon black name="home"
+                                class="w-6 h-6 mr-2 hover:text-gray-700 dark:hover:text-gray-300 hover:cursor-pointer" />
                         </a>
                         <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">Todo Management</h1>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                        <a href="{{ route('todo.dashboard') }}" wire:navigate class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('todo.dashboard') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
+                        <a href="{{ route('todo.dashboard') }}" wire:navigate
+                            class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('todo.dashboard') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
                             Dashboard
                         </a>
-                        <a href="{{ route('todo_list') }}" wire:navigate class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('todo_list') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
+                        <a href="{{ route('todo_list') }}" wire:navigate
+                            class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('todo_list') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
                             Task List
                         </a>
-                        <a href="{{ route('todo_config') }}" wire:navigate class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('todo_config') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
+                        <a href="{{ route('todo_config') }}" wire:navigate
+                            class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('todo_config') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
                             Configuration
                         </a>
-                        <a href="{{ route('notifications') }}" wire:navigate class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('notifications') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
+                        <a href="{{ route('notifications') }}" wire:navigate
+                            class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium {{ request()->routeIs('notifications') ? 'border-indigo-500 text-gray-900 dark:text-white' : '' }}">
                             Notifications
                         </a>
                     </div>
@@ -99,10 +105,10 @@
 
         function fallbackCopyTextToClipboard(text) {
             console.log('fallbackCopyTextToClipboard called with:', text);
-            
+
             var textArea = document.createElement("textarea");
             textArea.value = text;
-            
+
             // Avoid scrolling to bottom
             textArea.style.top = "0";
             textArea.style.left = "0";

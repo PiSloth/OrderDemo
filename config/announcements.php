@@ -14,4 +14,14 @@ return [
         'cta_url' => '/profile',
         // 'secondary_text' => 'Maybe Later',
     ],
+    'profile_photo_popup' => [
+        'enabled' => true,
+        'badge' => 'Profile',
+        'headline' => 'Add your profile photo',
+        'subheadline' => 'Make chats and reports easier to read for everyone.',
+        'body' => 'Team members who already updated their profile photos are shown below. Add yours for a better and more beautiful UI experience.',
+        'cta_text' => 'Update Photo',
+        'cta_url' => '/profile',
+        'secondary_text' => 'Later',
+    ],
 ];

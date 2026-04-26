@@ -40,7 +40,8 @@
 <body class="antialiased bg-gray-100 dark:bg-gray-800">
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
-    <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" />
+    {{-- <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" /> --}}
+    <x-profile-photo-reminder-modal :announcement="config('announcements.profile_photo_popup')" />
     {{-- <x-announcement-login-modal :show="true" :announcement="config('announcements.login_popup')" /> --}}
 
     <main class="">

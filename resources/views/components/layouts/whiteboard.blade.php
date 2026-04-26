@@ -26,7 +26,8 @@
 <body class="antialiased bg-gray-100 dark:bg-gray-800">
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
-    <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" />
+    {{-- <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" /> --}}
+    <x-profile-photo-reminder-modal :announcement="config('announcements.profile_photo_popup')" />
 
     <nav class="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

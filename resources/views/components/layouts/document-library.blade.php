@@ -27,6 +27,7 @@
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
     <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" />
+    <x-profile-photo-reminder-modal :announcement="config('announcements.profile_photo_popup')" />
 
     <nav class="bg-white shadow-sm border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,6 +1,38 @@
 <aside id="asidebar"
     class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0"
     x-bind:class="{ 'translate-x-0': asideOpen }" aria-label="Sidenav">
+    <style>
+        .tree-submenu {
+            position: relative;
+            margin-left: 0.5rem;
+            padding-left: 1rem;
+            border-left: 1px solid rgb(226 232 240);
+        }
+
+        .dark .tree-submenu {
+            border-left-color: rgb(71 85 105);
+        }
+
+        .tree-submenu>li {
+            position: relative;
+            padding-left: 0.5rem;
+        }
+
+        .tree-submenu>li::before {
+            content: '';
+            position: absolute;
+            left: -1rem;
+            top: 50%;
+            width: 0.75rem;
+            height: 1px;
+            background: rgb(203 213 225);
+            transform: translateY(-50%);
+        }
+
+        .dark .tree-submenu>li::before {
+            background: rgb(100 116 139);
+        }
+    </style>
     @php
         $orderGroupActive =
             request()->routeIs('add_order') ||
@@ -23,7 +55,10 @@
 
         $todoGroupActive = request()->routeIs('todo.dashboard') || request()->routeIs('todo_list');
 
-        $operationGroupActive = request()->routeIs('operation.dashboard') || request()->routeIs('operation.titles');
+        $operationGroupActive =
+            request()->routeIs('operation.dashboard') ||
+            request()->routeIs('operation.titles') ||
+            request()->routeIs('operation.daily-notes');
 
         $kpiGroupActive = request()->routeIs('kpi.*');
 
@@ -33,12 +68,30 @@
 
         $calendarActive = request()->routeIs('calendar.*');
 
+        $initialOpenGroup = $performanceGroupActive
+            ? 'performance'
+            : ($orderGroupActive
+                ? 'order'
+                : ($psiGroupActive
+                    ? 'psi'
+                    : ($todoGroupActive
+                        ? 'todo'
+                        : ($operationGroupActive
+                            ? 'operation'
+                            : ($kpiGroupActive
+                                ? 'kpi'
+                                : ($whiteboardGroupActive
+                                    ? 'whiteboard'
+                                    : ($jewelryGroupActive
+                                        ? 'jewelry'
+                                        : ($documentGroupActive ? 'document' : ''))))))));
+
         $linkBase =
             'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
         $linkActive = 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white';
-        $linkInactive = 'text-slate-700 dark:text-slate-200';
+        $linkInactive = 'text-slate-500 dark:text-slate-400';
     @endphp
-    <div
+    <div x-data="{ openGroup: '{{ $initialOpenGroup }}' }"
         class="h-full px-3 py-5 overflow-y-auto bg-white border-r border-slate-200 dark:bg-slate-800 dark:border-slate-700">
         <!-- Close button -->
         <button @click="$parent.asideOpen = false"
@@ -60,17 +113,20 @@
             </li>
 
             <!-- Performance Group -->
-            <li x-data="{ open: {{ $performanceGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button"
+                    @click="openGroup = openGroup === 'performance' ? '' : 'performance'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'performance' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="trending-up" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Performance</span>
                     </span>
-                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': openGroup === 'performance' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'performance'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @php $active = request()->routeIs('sale_repurchase'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('sale_repurchase') }}"
@@ -94,17 +150,19 @@
             </li>
 
             <!-- Order Group -->
-            <li x-data="{ open: {{ $orderGroupActive ? 'true' : 'false' }} }" class="mt-3">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-3">
+                <button type="button" @click="openGroup = openGroup === 'order' ? '' : 'order'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'order' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="clipboard-list" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Order</span>
                     </span>
-                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400" x-bind:class="{ 'rotate-180': open }" />
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': openGroup === 'order' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'order'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @can('isAuthorized')
                         @php $active = request()->routeIs('add_order'); @endphp
                         <li>
@@ -192,18 +250,19 @@
             </li>
 
             <!-- PSI Group -->
-            <li x-data="{ open: {{ $psiGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'psi' ? '' : 'psi'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'psi' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="view-grid" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">PSI</span>
                     </span>
                     <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
-                        x-bind:class="{ 'rotate-180': open }" />
+                        x-bind:class="{ 'rotate-180': openGroup === 'psi' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'psi'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @php $active = request()->routeIs('mainboard'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('mainboard') }}"
@@ -249,18 +308,19 @@
 
 
             <!-- Todo Group -->
-            <li x-data="{ open: {{ $todoGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'todo' ? '' : 'todo'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'todo' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="check-circle" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Todo</span>
                     </span>
                     <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
-                        x-bind:class="{ 'rotate-180': open }" />
+                        x-bind:class="{ 'rotate-180': openGroup === 'todo' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'todo'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @php $active = request()->routeIs('todo.dashboard'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('todo.dashboard') }}"
@@ -284,25 +344,26 @@
             </li>
 
             <!-- Operation Group -->
-            <li x-data="{ open: {{ $operationGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'operation' ? '' : 'operation'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'operation' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
-                        <x-icon name="check-circle" class="w-5 h-5 text-slate-400" />
+                        <x-icon name="globe" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Operation</span>
                     </span>
                     <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
-                        x-bind:class="{ 'rotate-180': open }" />
+                        x-bind:class="{ 'rotate-180': openGroup === 'operation' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
-                    @php $active = request()->routeIs('operation.titles'); @endphp
+                <ul x-show="openGroup === 'operation'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
+                    @php $active = request()->routeIs('operation.daily-notes'); @endphp
                     <li>
-                        <a wire:navigate href="{{ route('operation.titles') }}"
+                        <a wire:navigate href="{{ route('operation.daily-notes') }}"
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
-                            <x-icon name="chart-bar"
+                            <x-icon name="book-open"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                            <span class="ml-3">Operation List</span>
+                            <span class="ml-3">Daily Notes</span>
                         </a>
                     </li>
 
@@ -319,18 +380,19 @@
             </li>
 
             <!-- KPI Group -->
-            <li x-data="{ open: {{ $kpiGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'kpi' ? '' : 'kpi'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'kpi' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="clipboard-check" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">KPI Tasks</span>
                     </span>
                     <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
-                        x-bind:class="{ 'rotate-180': open }" />
+                        x-bind:class="{ 'rotate-180': openGroup === 'kpi' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'kpi'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @php $active = request()->routeIs('kpi.dashboard') || request()->routeIs('kpi.dashboard.home'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('kpi.dashboard') }}"
@@ -364,18 +426,19 @@
             </li>
 
             <!-- Whiteboard Group -->
-            <li x-data="{ open: {{ $whiteboardGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'whiteboard' ? '' : 'whiteboard'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'whiteboard' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="view-grid" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Whiteboard</span>
                     </span>
                     <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
-                        x-bind:class="{ 'rotate-180': open }" />
+                        x-bind:class="{ 'rotate-180': openGroup === 'whiteboard' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'whiteboard'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @php $active = request()->routeIs('whiteboard.board') || request()->routeIs('whiteboard.show'); @endphp
                     <li>
                         <a href="{{ route('whiteboard.board') }}"
@@ -432,18 +495,19 @@
             </li>
 
             <!-- Jewelry Group -->
-            <li x-data="{ open: {{ $jewelryGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'jewelry' ? '' : 'jewelry'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'jewelry' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="clipboard-list" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Jewelry</span>
                     </span>
                     <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
-                        x-bind:class="{ 'rotate-180': open }" />
+                        x-bind:class="{ 'rotate-180': openGroup === 'jewelry' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'jewelry'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @php $active = request()->routeIs('jewelry.dashboard'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('jewelry.dashboard') }}"
@@ -467,18 +531,19 @@
             </li>
 
             <!-- Document Group -->
-            <li x-data="{ open: {{ $documentGroupActive ? 'true' : 'false' }} }" class="mt-2">
-                <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'document' ? '' : 'document'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'document' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="folder" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Document</span>
                     </span>
                     <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
-                        x-bind:class="{ 'rotate-180': open }" />
+                        x-bind:class="{ 'rotate-180': openGroup === 'document' }" />
                 </button>
 
-                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                <ul x-show="openGroup === 'document'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
                     @php $active = request()->routeIs('document.email-list'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('document.email-list') }}"
@@ -535,3 +600,4 @@
         </ul>
     </div>
 </aside>
+

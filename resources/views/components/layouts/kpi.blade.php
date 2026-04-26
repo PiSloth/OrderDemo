@@ -29,7 +29,8 @@
 <body class="bg-slate-100 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
     <x-notifications z-index="z-50" position="bottom-right" />
     <x-dialog z-index="z-40" blur="md" align="center" />
-    <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" />
+    {{-- <x-announcement-login-modal :show="session()->has('show_login_announcement')" :announcement="config('announcements.login_popup')" /> --}}
+    <x-profile-photo-reminder-modal :announcement="config('announcements.profile_photo_popup')" />
 
     @php
         $navItems = [
@@ -55,7 +56,8 @@
             :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'">
             <div class="flex items-center justify-between px-5 py-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">KPI Module</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">KPI
+                        Module</p>
                     <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Employee Task Tracking</h1>
                 </div>
                 <div class="flex items-center gap-2">
@@ -63,7 +65,8 @@
                         class="rounded-full border border-slate-200 px-3 py-1 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                         Home
                     </a>
-                    <button type="button" class="rounded-full border border-slate-200 p-2 text-slate-600 dark:border-slate-700 dark:text-slate-300 lg:hidden"
+                    <button type="button"
+                        class="rounded-full border border-slate-200 p-2 text-slate-600 dark:border-slate-700 dark:text-slate-300 lg:hidden"
                         @click="mobileMenuOpen = false">
                         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                             <path fill-rule="evenodd"
@@ -79,9 +82,10 @@
                     @foreach ($navItems as $item)
                         @continue($item['gate'] && !auth()->user()->can($item['gate']))
                         @php
-                            $active = $item['route'] === 'kpi.dashboard'
-                                ? request()->routeIs('kpi.dashboard') || request()->routeIs('kpi.dashboard.home')
-                                : request()->routeIs($item['route']);
+                            $active =
+                                $item['route'] === 'kpi.dashboard'
+                                    ? request()->routeIs('kpi.dashboard') || request()->routeIs('kpi.dashboard.home')
+                                    : request()->routeIs($item['route']);
                         @endphp
                         <li>
                             <a href="{{ route($item['route']) }}" wire:navigate @click="mobileMenuOpen = false"
@@ -118,7 +122,8 @@
                             </svg>
                         </button>
                         <div>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Separate KPI workflow and scoring domain</p>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">Separate KPI workflow and scoring
+                                domain</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
