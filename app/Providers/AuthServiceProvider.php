@@ -28,5 +28,9 @@ class AuthServiceProvider extends ServiceProvider
             // dd($user->position->name);
             return $user->position->name == "IT";
         });
+
+        Gate::define('manageOperationTitles', function (User $user) {
+            return $user->isAdmin() || optional($user->position)->name === 'IT';
+        });
     }
 }

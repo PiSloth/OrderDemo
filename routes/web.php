@@ -88,7 +88,7 @@ use Illuminate\Http\Request;
 
 // Route::get('/', Report::class);
 
-Route::get('dashboard', fn () => redirect()->route('report-dashboard'))
+Route::get('dashboard', fn() => redirect()->route('report-dashboard'))
     ->middleware(['auth'])
     ->name('dashboard');
 
@@ -208,6 +208,13 @@ Route::middleware(['auth'])->prefix('office-asset')->group(function () {
     Route::get('/', App\Livewire\OfficeAssetManager::class)->name('office-asset.index');
 });
 
+Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(function () {
+    Route::get('/daily-notes', \App\Livewire\Operation\DailyNotesList::class)->name('daily-notes');
+    Route::get('/titles', \App\Livewire\Operation\TitleManager::class)
+        // ->middleware('can:manageOperationTitles')
+        ->name('titles');
+});
+
 Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function () {
     Route::get('/dashboard', JewelryPurchasingDashboard::class)->name('dashboard');
 
@@ -267,7 +274,7 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
         $userId = auth()->id();
 
         $newNotifications = \App\Models\CalendarNotification::forUser($userId)
-            ->when($lastCheck, fn ($query) => $query->where('created_at', '>', $lastCheck))
+            ->when($lastCheck, fn($query) => $query->where('created_at', '>', $lastCheck))
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($notification) {

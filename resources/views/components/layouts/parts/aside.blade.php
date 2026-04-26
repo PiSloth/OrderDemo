@@ -23,6 +23,8 @@
 
         $todoGroupActive = request()->routeIs('todo.dashboard') || request()->routeIs('todo_list');
 
+        $operationGroupActive = request()->routeIs('operation.dashboard') || request()->routeIs('operation.titles');
+
         $kpiGroupActive = request()->routeIs('kpi.*');
 
         $whiteboardGroupActive = request()->routeIs('whiteboard.*');
@@ -278,6 +280,41 @@
                             <span class="ml-3">Task List</span>
                         </a>
                     </li>
+                </ul>
+            </li>
+
+            <!-- Operation Group -->
+            <li x-data="{ open: {{ $operationGroupActive ? 'true' : 'false' }} }" class="mt-2">
+                <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold text-slate-600 dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <span class="flex items-center">
+                        <x-icon name="check-circle" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Operation</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': open }" />
+                </button>
+
+                <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-2">
+                    @php $active = request()->routeIs('operation.titles'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('operation.titles') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="chart-bar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Operation List</span>
+                        </a>
+                    </li>
+
+                    {{-- @php $active = request()->routeIs('operation.titles'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('operation.titles') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="clipboard-list"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Operation Titles</span>
+                        </a>
+                    </li> --}}
                 </ul>
             </li>
 

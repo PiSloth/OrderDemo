@@ -46,6 +46,29 @@ $logout = function (Logout $logout) {
                             @endif
                         </span>
                     </x-nav-link>
+                    <div class="relative" x-data="{ open: request()->routeIs('operation.*') }">
+                        <button type="button" @click="open = !open"
+                            class="inline-flex items-center h-16 text-sm font-medium leading-5 transition duration-150 ease-in-out border-b-2 focus:outline-none {{ request()->routeIs('operation.*') ? 'border-indigo-400 text-gray-900 dark:text-gray-100' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300' }}">
+                            {{ __('Operations') }}
+                            <svg class="w-4 h-4 ml-1 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="open" @click.outside="open = false" x-transition
+                            class="absolute left-0 z-30 mt-2 w-52 rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                            <a href="{{ route('operation.daily-notes') }}" wire:navigate
+                                class="block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('operation.daily-notes') ? 'bg-indigo-50 text-indigo-700 dark:bg-gray-700 dark:text-gray-100' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                {{ __('Daily Notes') }}
+                            </a>
+                            @can('manageOperationTitles')
+                                <a href="{{ route('operation.titles') }}" wire:navigate
+                                    class="mt-1 block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('operation.titles') ? 'bg-indigo-50 text-indigo-700 dark:bg-gray-700 dark:text-gray-100' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    {{ __('Titles') }}
+                                </a>
+                            @endcan
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -125,6 +148,26 @@ $logout = function (Logout $logout) {
             <x-responsive-nav-link :href="route('ord_list')" :active="request()->routeIs('ord_list')" wire:navigate>
                 {{ __('Orders') }}
             </x-responsive-nav-link>
+            <div class="px-4 pt-2" x-data="{ open: request()->routeIs('operation.*') }">
+                <button type="button" @click="open = !open"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium {{ request()->routeIs('operation.*') ? 'bg-indigo-50 text-indigo-700 dark:bg-gray-700 dark:text-gray-100' : 'text-gray-700 dark:text-gray-200' }}">
+                    <span>{{ __('Operations') }}</span>
+                    <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <div x-show="open" class="mt-2 space-y-1 pl-2" x-transition>
+                    <x-responsive-nav-link :href="route('operation.daily-notes')" :active="request()->routeIs('operation.daily-notes')" wire:navigate>
+                        {{ __('Daily Notes') }}
+                    </x-responsive-nav-link>
+                    @can('manageOperationTitles')
+                        <x-responsive-nav-link :href="route('operation.titles')" :active="request()->routeIs('operation.titles')" wire:navigate>
+                            {{ __('Titles') }}
+                        </x-responsive-nav-link>
+                    @endcan
+                </div>
+            </div>
         </div>
 
         <!-- Responsive Settings Options -->

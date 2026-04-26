@@ -10,6 +10,8 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -23,6 +25,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'role',
         'password',
         'profile_photo_path',
         'position_id',
@@ -52,6 +55,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'suspended' => 'boolean',
         'google_token_expires_at' => 'datetime',
+        'role' => 'string',
     ];
 
     /**
@@ -81,6 +85,50 @@ class User extends Authenticatable
     public function location()
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function noteTitles(): HasMany
+    {
+        return $this->hasMany(NoteTitle::class, 'created_by');
+    }
+
+    public function dailyNotes(): HasMany
+    {
+        return $this->hasMany(DailyNote::class, 'created_by');
+    }
+
+    public function noteMessages(): HasMany
+    {
+        return $this->hasMany(NoteMessage::class);
+    }
+
+    public function noteMessageReads(): HasMany
+    {
+        return $this->hasMany(NoteMessageRead::class);
+    }
+
+    public function readNoteMessages(): BelongsToMany
+    {
+        return $this->belongsToMany(NoteMessage::class, 'note_message_reads', 'user_id', 'note_message_id')
+            ->withPivot(['read_at'])
+            ->withTimestamps();
+    }
+
+    public function completedDailyNotes(): HasMany
+    {
+        return $this->hasMany(DailyNote::class, 'completed_by');
+    }
+
+    public function dailyNoteAcknowledgements(): HasMany
+    {
+        return $this->hasMany(DailyNoteAcknowledgement::class);
+    }
+
+    public function acknowledgedDailyNotes(): BelongsToMany
+    {
+        return $this->belongsToMany(DailyNote::class, 'daily_note_acknowledgements', 'user_id', 'note_id')
+            ->withPivot(['acknowledged_at'])
+            ->withTimestamps();
     }
 
     public function psiProducts()
@@ -170,5 +218,10 @@ class User extends Authenticatable
         }
 
         return asset('images/admin-icon.png');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
     }
 }
