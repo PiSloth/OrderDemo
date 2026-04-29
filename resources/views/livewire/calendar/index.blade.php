@@ -34,11 +34,11 @@
                         Disconnect
                     </button>
                 </form>
-            @else
+                {{-- @else
                 <a href="{{ route('calendar.socialite.connect', ['redirect_to' => 'calendar.index']) }}"
                     class="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
                     Connect Google Calendar
-                </a>
+                </a> --}}
             @endif
         </div>
     </div>
@@ -64,7 +64,8 @@
         @else
             <div class="mb-3 flex flex-col gap-1 text-sm text-slate-500 dark:text-slate-300">
                 <span>Select a range on the calendar or use the Add meeting button.</span>
-                <span>Invited users receive a local notification and get the meeting inserted into their own Google Calendars.</span>
+                <span>Invited users receive a local notification and get the meeting inserted into their own Google
+                    Calendars.</span>
             </div>
             <div wire:ignore class="min-h-[680px]" data-google-calendar
                 data-events-url="{{ route('calendar.google.events') }}"></div>
@@ -124,7 +125,8 @@
 
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
-                                <label for="calendar_starts_at" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <label for="calendar_starts_at"
+                                    class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                                     Start
                                 </label>
                                 <input wire:model.defer="startsAt" id="calendar_starts_at"
@@ -133,7 +135,8 @@
                                 <x-input-error :messages="$errors->get('startsAt')" class="mt-2" />
                             </div>
                             <div>
-                                <label for="calendar_ends_at" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <label for="calendar_ends_at"
+                                    class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                                     End
                                 </label>
                                 <input wire:model.defer="endsAt" id="calendar_ends_at"
@@ -154,11 +157,13 @@
                             Reminder time
                         </label>
                         <div class="flex items-center gap-3">
-                            <input wire:model.defer="reminderMinutes" id="calendar_reminder" type="number" min="0" max="40320"
+                            <input wire:model.defer="reminderMinutes" id="calendar_reminder" type="number"
+                                min="0" max="40320"
                                 class="block w-40 rounded-xl border-slate-300 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:ring-sky-500" />
                             <span class="text-sm text-slate-500">minutes before the meeting</span>
                         </div>
-                        <p class="mt-2 text-xs text-slate-500">This reminder is pushed into the creator and invited user Google Calendars.</p>
+                        <p class="mt-2 text-xs text-slate-500">This reminder is pushed into the creator and invited user
+                            Google Calendars.</p>
                         <x-input-error :messages="$errors->get('reminderMinutes')" class="mt-2" />
                     </div>
                 </div>
@@ -168,14 +173,17 @@
                         <i class="fa-solid fa-user-group text-base"></i>
                     </div>
                     <div>
-                        <label for="calendar_attendee_search" class="mb-2 block text-sm font-medium text-slate-700">Invite people with Google calendar access</label>
-                        <input wire:model.live.debounce.200ms="inviteeSearch" id="calendar_attendee_search" type="text"
-                            placeholder="Search people by name or email"
+                        <label for="calendar_attendee_search"
+                            class="mb-2 block text-sm font-medium text-slate-700">Invite people with Google calendar
+                            access</label>
+                        <input wire:model.live.debounce.200ms="inviteeSearch" id="calendar_attendee_search"
+                            type="text" placeholder="Search people by name or email"
                             class="block w-full rounded-2xl border-slate-300 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:ring-sky-500" />
 
                         <div class="mt-3 flex flex-wrap gap-2">
                             @forelse ($selectedInvitees as $invitee)
-                                <span class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700">
+                                <span
+                                    class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700">
                                     {{ $invitee->name }}
                                     <button type="button" wire:click="removeInvitee({{ $invitee->id }})"
                                         class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-sky-700 hover:bg-sky-100">
@@ -195,7 +203,8 @@
                         @endif
 
                         <div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Search results</div>
+                            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Search
+                                results</div>
                             <div class="space-y-2">
                                 @forelse ($users as $user)
                                     <button type="button" wire:click="addInvitee({{ $user->id }})"
@@ -204,10 +213,12 @@
                                             <span class="block font-medium text-slate-900">{{ $user->name }}</span>
                                             <span class="block text-xs text-slate-500">{{ $user->email }}</span>
                                         </span>
-                                        <span class="rounded-full bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-700">Add</span>
+                                        <span
+                                            class="rounded-full bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-700">Add</span>
                                     </button>
                                 @empty
-                                    <div class="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-xs text-slate-500">
+                                    <div
+                                        class="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-xs text-slate-500">
                                         No matching users with Google calendar access.
                                     </div>
                                 @endforelse
@@ -224,7 +235,8 @@
                         <i class="fa-solid fa-location-dot text-base"></i>
                     </div>
                     <div>
-                        <input wire:model.defer="location" id="calendar_location" type="text" placeholder="Add location"
+                        <input wire:model.defer="location" id="calendar_location" type="text"
+                            placeholder="Add location"
                             class="block w-full rounded-2xl border-slate-300 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:ring-sky-500" />
                         <x-input-error :messages="$errors->get('location')" class="mt-2" />
                     </div>

@@ -84,8 +84,7 @@ class DailyNote extends Model
     {
         return $query
             ->where('location_id', $user->location_id)
-            ->where('department_id', $user->department_id)
-            ->where('branch_id', $user->branch_id);
+            ->where('department_id', $user->department_id);
     }
 
     public function scopeForDate(Builder $query, CarbonInterface|string $date): Builder
