@@ -331,6 +331,18 @@
                             <div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $group['title']->name }}</h3>
                                 <p class="text-sm text-slate-600">Remark: {{ $group['remark'] ?: '-' }}</p>
+                                <div class="mt-2 flex items-center gap-2">
+                                    <span class="text-xs text-slate-500">Noted by:</span>
+                                    <div class="flex -space-x-2">
+                                        @forelse (($group['noted_users'] ?? collect()) as $notedUser)
+                                            <img src="{{ $notedUser['photo'] }}" alt="{{ $notedUser['name'] }}"
+                                                title="{{ $notedUser['name'] }}"
+                                                class="h-7 w-7 rounded-full border-2 border-white object-cover">
+                                        @empty
+                                            <span class="text-xs text-slate-500">No one yet</span>
+                                        @endforelse
+                                    </div>
+                                </div>
                             </div>
                             <button type="button" wire:click="acknowledgeTitle({{ $group['title_id'] }})"
                                 @disabled(!$group['has_unacknowledged'])
@@ -381,17 +393,21 @@
                                         <td class="px-4 py-3 text-sm text-slate-700">{{ $row['branch_name'] ?: '-' }}
                                         </td>
                                         <td class="px-4 py-3">
-                                            <button type="button"
-                                                wire:click="openMessageModal({{ $row['title_id'] }})"
-                                                class="inline-flex items-center rounded-2xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                                Message
-                                                @if (($row['unread_message_count'] ?? 0) > 0)
-                                                    <span
-                                                        class="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
-                                                        {{ $row['unread_message_count'] }}
-                                                    </span>
-                                                @endif
-                                            </button>
+                                            @if ($row['note_id'])
+                                                <button type="button"
+                                                    wire:click="openMessageModal({{ $row['title_id'] }})"
+                                                    class="inline-flex items-center rounded-2xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
+                                                    Message
+                                                    @if (($row['unread_message_count'] ?? 0) > 0)
+                                                        <span
+                                                            class="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                                                            {{ $row['unread_message_count'] }}
+                                                        </span>
+                                                    @endif
+                                                </button>
+                                            @else
+                                                <span class="text-xs text-slate-400">No note yet</span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

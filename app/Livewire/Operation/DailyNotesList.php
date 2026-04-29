@@ -573,6 +573,91 @@ class DailyNotesList extends Component
             ->get();
     }
 
+    protected function tableViewGroups(): Collection
+    {
+        $userId = (int) Auth::id();
+        $user = Auth::user();
+        $notesByTitle = DailyNote::query()
+            ->forUser($user)
+            ->forDate($this->effectiveDate())
+            ->with(['title', 'location', 'department', 'branch', 'creator', 'messages.user', 'acknowledgements.user'])
+            ->withCount([
+                'messages',
+                'messages as unread_messages_count' => function ($query) use ($userId) {
+                    $query->where('user_id', '!=', $userId)
+                        ->whereDoesntHave('readReceipts', function ($readQuery) use ($userId) {
+                            $readQuery->where('user_id', $userId);
+                        });
+                },
+            ])
+            ->get()
+            ->groupBy('title_id');
+
+        return NoteTitle::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get()
+            ->map(function (NoteTitle $title) use ($notesByTitle, $userId, $user) {
+                $items = $notesByTitle->get($title->id, collect());
+                $rows = $items->map(function (DailyNote $note) use ($userId) {
+                    $ackUsers = $note->acknowledgements
+                        ->pluck('user.name')
+                        ->filter()
+                        ->unique()
+                        ->values();
+                    $isAcknowledgedByMe = $note->acknowledgements
+                        ->contains(fn($ack) => (int) $ack->user_id === $userId);
+
+                    return [
+                        'title_id' => $note->title_id,
+                        'note_id' => $note->id,
+                        'note' => $note->note,
+                        'created_by' => $note->creator?->name,
+                        'created_by_photo' => $note->creator?->profile_photo_url,
+                        'created_by_id' => $note->created_by,
+                        'branch_name' => $note->branch?->name ?? '-',
+                        'ack_users' => $ackUsers,
+                        'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                        'unread_message_count' => $note->unread_messages_count ?? 0,
+                    ];
+                });
+
+                $notedUsers = $items
+                    ->flatMap(fn(DailyNote $note) => $this->notedUsers($note))
+                    ->unique('id')
+                    ->values();
+
+                if ($rows->isEmpty()) {
+                    $rows = collect([[
+                        'title_id' => $title->id,
+                        'note_id' => null,
+                        'note' => null,
+                        'created_by' => null,
+                        'created_by_photo' => null,
+                        'created_by_id' => null,
+                        'branch_name' => $user->branch?->name ?? '-',
+                        'ack_users' => collect(),
+                        'is_acknowledged_by_me' => false,
+                        'unread_message_count' => 0,
+                    ]]);
+                }
+
+                return [
+                    'title' => $title,
+                    'title_id' => $title->id,
+                    'remark' => $title->remark,
+                    'rows' => $rows,
+                    'noted_users' => $notedUsers,
+                    'has_unacknowledged' => $rows->contains(function (array $row) use ($userId) {
+                        return $row['note_id']
+                            && (int) $row['created_by_id'] !== $userId
+                            && !$row['is_acknowledged_by_me'];
+                    }),
+                ];
+            })
+            ->values();
+    }
+
     public function render()
     {
         $userId = (int) Auth::id();
@@ -587,7 +672,9 @@ class DailyNotesList extends Component
         $activeTitle = $this->activeTitleId ? NoteTitle::query()->find($this->activeTitleId) : null;
         $user = Auth::user();
 
-        if ($this->activeTab === 'opened') {
+        if ($this->viewMode === 'table') {
+            $tableGroups = $this->tableViewGroups();
+        } elseif ($this->activeTab === 'opened') {
             $tableGroups = $openedCards->map(function (array $card) use ($user, $userId) {
                 $note = $card['note'];
                 $title = $card['title'];
