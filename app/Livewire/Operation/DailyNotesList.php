@@ -107,14 +107,16 @@ class DailyNotesList extends Component
         $this->reset('showNoteModal', 'activeTitleId', 'activeNoteId', 'note', 'is_number', 'quickInputMode', 'quickNumber', 'quickDateTime');
     }
 
-    public function openMessageModal(int $titleId): void
+    public function openMessageModal(int $noteId): void
     {
-        $title = NoteTitle::query()->findOrFail($titleId);
-        $note = $this->findDailyNote($title);
+        $note = DailyNote::query()
+            ->forUser(Auth::user())
+            ->find($noteId);
+
         if (!$note) {
             $this->notification([
-                'title' => 'Save note first',
-                'description' => 'Please save a note before opening messages.',
+                'title' => 'Note not available',
+                'description' => 'This note cannot be opened for message view.',
                 'icon' => 'warning',
             ]);
             return;
