@@ -83,7 +83,6 @@ class DailyNote extends Model
     public function scopeForUser(Builder $query, User $user): Builder
     {
         return $query
-            ->where('location_id', $user->location_id)
             ->where('department_id', $user->department_id);
     }
 
