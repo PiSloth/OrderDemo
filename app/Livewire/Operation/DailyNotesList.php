@@ -22,7 +22,7 @@ class DailyNotesList extends Component
 {
     use Actions;
     public string $activeTab = 'opened';
-    public string $viewMode = 'card';
+    public string $viewMode = 'list';
     public string $selectedDate = '';
     public bool $showNoteModal = false;
     public bool $showMessageModal = false;
@@ -39,6 +39,7 @@ class DailyNotesList extends Component
     public $edit_mode = false;
     public string $search = '';
     public array $selectedBranchIds = [];
+    public string $listStatusFilter = 'all';
 
     public function mount(): void
     {
@@ -81,19 +82,18 @@ class DailyNotesList extends Component
     public function openTitle(int $titleId): void
     {
         $title = NoteTitle::query()->where('is_active', true)->findOrFail($titleId);
-        $note = $this->getOrCreateDailyNote($title);
-
-        // dd($note->toArray());
+        $note = $this->findDailyNote($title);
 
         $this->activeTitleId = $title->id;
-        $this->activeNoteId = $note->id;
+        $this->activeNoteId = $note?->id;
         $this->note = (string) ($note->note ?? '');
         $this->quickInputMode = null;
         $this->quickNumber = '';
         $this->quickDateTime = '';
-        $this->is_number = (bool) $note->is_number;
-        $this->created_date = $note->created_at;
-        $this->updated_date = $note->updated_at;
+        $this->is_number = (bool) ($note->is_number ?? false);
+        $this->created_date = $note?->created_at;
+        $this->updated_date = $note?->updated_at;
+        $this->edit_mode = false;
         $this->showNoteModal = true;
     }
 
@@ -110,7 +110,15 @@ class DailyNotesList extends Component
     public function openMessageModal(int $titleId): void
     {
         $title = NoteTitle::query()->findOrFail($titleId);
-        $note = $this->getOrCreateDailyNote($title);
+        $note = $this->findDailyNote($title);
+        if (!$note) {
+            $this->notification([
+                'title' => 'Save note first',
+                'description' => 'Please save a note before opening messages.',
+                'icon' => 'warning',
+            ]);
+            return;
+        }
 
         $this->messageNoteId = $note->id;
         $this->showMessageModal = true;
@@ -177,7 +185,15 @@ class DailyNotesList extends Component
 
     public function saveNote(): void
     {
-        $this->persistNote();
+        if (!$this->persistNote()) {
+            $this->notification([
+                'title' => 'Nothing to save',
+                'description' => 'Write a note first, then save.',
+                'icon' => 'warning',
+            ]);
+            return;
+        }
+
         $this->notification([
             'title' => 'Success',
             'description' => 'Daily note saved successfully.',
@@ -235,7 +251,7 @@ class DailyNotesList extends Component
     public function saveAndNext(): void
     {
         $currentTitleId = $this->activeTitleId;
-        $this->persistNote();
+        $saved = $this->persistNote();
 
         $nextTitle = $this->openedTitleCards()
             ->pluck('title')
@@ -246,17 +262,31 @@ class DailyNotesList extends Component
             return;
         }
 
-        $this->notification([
-            'title' => 'Success',
-            'description' => 'Daily note saved. No more open titles.',
-            'icon' => 'success',
-        ]);
+        $this->notification($saved
+            ? [
+                'title' => 'Success',
+                'description' => 'Daily note saved. No more open titles.',
+                'icon' => 'success',
+            ]
+            : [
+                'title' => 'Nothing to save',
+                'description' => 'Write a note first, then save.',
+                'icon' => 'warning',
+            ]);
         $this->closeModal();
     }
 
     public function markFinished(): void
     {
         $note = $this->currentNote();
+        if (!$note) {
+            $this->notification([
+                'title' => 'Nothing to finish',
+                'description' => 'Write and save a note first.',
+                'icon' => 'warning',
+            ]);
+            return;
+        }
 
         $note->update([
             'note' => $this->note !== '' ? $this->note : null,
@@ -273,45 +303,79 @@ class DailyNotesList extends Component
         $this->closeModal();
     }
 
-    protected function persistNote(): void
+    protected function persistNote(): bool
     {
         $this->validate([
             'note' => ['nullable', 'string', 'max:255'],
             'is_number' => ['boolean'],
         ]);
 
-        $note = $this->currentNote();
+        $note = $this->findOrCreateCurrentNoteForSave();
+        if (!$note) {
+            return false;
+        }
 
         $note->update([
             'note' => $this->note !== '' ? $this->note : null,
             'is_number' => $this->is_number,
         ]);
+
+        return true;
     }
 
-    protected function currentNote(): DailyNote
+    protected function currentNote(): ?DailyNote
     {
+        if (!$this->activeNoteId) {
+            return null;
+        }
+
         return DailyNote::query()
             ->forUser(Auth::user())
             ->with(['title', 'location', 'department', 'branch'])
             ->findOrFail($this->activeNoteId);
     }
 
-    protected function getOrCreateDailyNote(NoteTitle $title): DailyNote
+    protected function findDailyNote(NoteTitle $title): ?DailyNote
     {
         $user = Auth::user();
 
-        return DailyNote::query()->firstOrCreate(
-            [
-                'title_id' => $title->id,
-                'location_id' => $user->location_id,
-                'department_id' => $user->department_id,
-                'branch_id' => $user->branch_id,
-                'date' => $this->effectiveDate(),
-            ],
-            [
-                'created_by' => $user->id,
-            ],
-        );
+        return DailyNote::query()
+            ->where('title_id', $title->id)
+            ->where('location_id', $user->location_id)
+            ->where('department_id', $user->department_id)
+            ->where('branch_id', $user->branch_id)
+            ->whereDate('date', $this->effectiveDate())
+            ->first();
+    }
+
+    protected function findOrCreateCurrentNoteForSave(): ?DailyNote
+    {
+        $existingNote = $this->currentNote();
+        if ($existingNote) {
+            return $existingNote;
+        }
+
+        $noteText = trim($this->note);
+        if ($noteText === '' || !$this->activeTitleId) {
+            return null;
+        }
+
+        $user = Auth::user();
+
+        $note = DailyNote::query()->create([
+            'title_id' => $this->activeTitleId,
+            'location_id' => $user->location_id,
+            'department_id' => $user->department_id,
+            'branch_id' => $user->branch_id,
+            'date' => $this->effectiveDate(),
+            'created_by' => $user->id,
+            'note' => $noteText,
+            'is_number' => $this->is_number,
+        ]);
+
+        $this->activeNoteId = $note->id;
+
+        return $note;
     }
 
     protected function effectiveDate(): string
@@ -420,6 +484,73 @@ class DailyNotesList extends Component
             ->values();
     }
 
+    protected function filteredOpenedCards(Collection $openedCards): Collection
+    {
+        if ($this->listStatusFilter === 'empty') {
+            return $openedCards->filter(function (array $card) {
+                $noteText = trim((string) ($card['note']?->note ?? ''));
+                return $noteText === '';
+            })->values();
+        }
+
+        if ($this->listStatusFilter === 'noted') {
+            return $openedCards->filter(function (array $card) {
+                $noteText = trim((string) ($card['note']?->note ?? ''));
+                return $noteText !== '';
+            })->values();
+        }
+
+        return $openedCards;
+    }
+
+    protected function listTitleCards(): Collection
+    {
+        $search = trim($this->search);
+        $notes = $this->baseTodayNotes()->get()->keyBy('title_id');
+
+        return NoteTitle::query()
+            ->where('is_active', true)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($titleQuery) use ($search) {
+                    $titleQuery->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('remark', 'like', '%' . $search . '%');
+                });
+            })
+            ->orderBy('id')
+            ->get()
+            ->map(function (NoteTitle $title) use ($notes) {
+                $note = $notes->get($title->id);
+
+                return [
+                    'title' => $title,
+                    'note' => $note,
+                    'message_count' => $note?->messages_count ?? 0,
+                    'unread_message_count' => $note?->unread_messages_count ?? 0,
+                    'noted_users' => $this->notedUsers($note),
+                ];
+            })
+            ->values();
+    }
+
+    protected function filteredListCards(Collection $listCards): Collection
+    {
+        if ($this->listStatusFilter === 'empty') {
+            return $listCards->filter(function (array $card) {
+                $noteText = trim((string) ($card['note']?->note ?? ''));
+                return $noteText === '';
+            })->values();
+        }
+
+        if ($this->listStatusFilter === 'noted') {
+            return $listCards->filter(function (array $card) {
+                $noteText = trim((string) ($card['note']?->note ?? ''));
+                return $noteText !== '';
+            })->values();
+        }
+
+        return $listCards;
+    }
+
     protected function finishedNotes(): Collection
     {
         $userId = (int) Auth::id();
@@ -446,10 +577,14 @@ class DailyNotesList extends Component
     {
         $userId = (int) Auth::id();
         $openedCards = $this->openedTitleCards();
+        $filteredOpenedCards = $this->filteredOpenedCards($openedCards);
+        $listCards = $this->listTitleCards();
+        $filteredListCards = $this->filteredListCards($listCards);
         $finishedNotes = $this->finishedNotes();
         $recentNotes = $this->recentNotes();
         $tableGroups = collect();
         $activeNote = $this->activeNoteId ? $this->currentNote() : null;
+        $activeTitle = $this->activeTitleId ? NoteTitle::query()->find($this->activeTitleId) : null;
         $user = Auth::user();
 
         if ($this->activeTab === 'opened') {
@@ -574,12 +709,16 @@ class DailyNotesList extends Component
 
         return view('livewire.operation.daily-notes-list', [
             'openedCards' => $openedCards,
+            'filteredOpenedCards' => $filteredOpenedCards,
+            'listCards' => $listCards,
+            'filteredListCards' => $filteredListCards,
             'openedBadgeCount' => $openedCards->where('has_no_messages', true)->count(),
             'finishedNotes' => $finishedNotes,
             'recentNotes' => $recentNotes,
             'tableGroups' => $tableGroups,
             'showRecentTab' => $recentNotes->isNotEmpty(),
             'activeNote' => $activeNote,
+            'activeTitle' => $activeTitle,
             'userLocationName' => $user->location?->name ?? 'Unknown location',
             'todayLabel' => Carbon::parse($this->effectiveDate())->format('Y-m-d'),
             'isSelectedToday' => Carbon::parse($this->effectiveDate())->isToday(),

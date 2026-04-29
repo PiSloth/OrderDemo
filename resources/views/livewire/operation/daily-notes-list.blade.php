@@ -49,6 +49,10 @@
             </div>
 
             <div class="inline-flex rounded-2xl border border-slate-200 bg-slate-100 p-1">
+                <button type="button" wire:click="$set('viewMode', 'list')"
+                    class="rounded-xl px-3 py-2 text-sm font-medium {{ $viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600' }}">
+                    List view
+                </button>
                 <button type="button" wire:click="$set('viewMode', 'card')"
                     class="rounded-xl px-3 py-2 text-sm font-medium {{ $viewMode === 'card' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600' }}">
                     Card view
@@ -129,6 +133,104 @@
                     No open titles for today.
                 </div>
             @endforelse
+        </section>
+    @endif
+
+    @if ($viewMode === 'list')
+        <section class="space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-800">Status filter</span>
+                <button type="button" wire:click="$set('listStatusFilter', 'all')"
+                    class="rounded-full border px-3 py-1 text-xs font-medium transition {{ $listStatusFilter === 'all' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50' }}">
+                    All
+                </button>
+                <button type="button" wire:click="$set('listStatusFilter', 'empty')"
+                    class="rounded-full border px-3 py-1 text-xs font-medium transition {{ $listStatusFilter === 'empty' ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50' }}">
+                    Empty note
+                </button>
+                <button type="button" wire:click="$set('listStatusFilter', 'noted')"
+                    class="rounded-full border px-3 py-1 text-xs font-medium transition {{ $listStatusFilter === 'noted' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50' }}">
+                    Noted
+                </button>
+            </div>
+
+            <div class="overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-emerald-200">
+                        <thead class="bg-emerald-100/80">
+                            <tr>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-emerald-800">
+                                    Topic
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-emerald-800">
+                                    Status
+                                </th>
+
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-emerald-800">
+                                    Chat
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-emerald-800">
+                                    Noted by today
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-emerald-100">
+                            @forelse ($filteredListCards as $card)
+                                <tr wire:click="openTitle({{ $card['title']->id }})"
+                                    class="cursor-pointer transition odd:bg-emerald-50/40 even:bg-emerald-50/70 hover:bg-emerald-100">
+                                    <td class="px-4 py-3 text-sm text-slate-800">
+                                        <p class="font-semibold">{{ $card['title']->name }}</p>
+                                        <p class="text-xs text-slate-600">{{ $card['title']->remark ?: '-' }}</p>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm">
+                                        @if (trim((string) ($card['note']?->note ?? '')) === '')
+                                            <span
+                                                class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">Empty
+                                                note</span>
+                                        @else
+                                            <span
+                                                class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Noted</span>
+                                        @endif
+                                    </td>
+
+                                    <td class="px-4 py-3 text-sm text-slate-700">
+                                        <x-badge amber class="absolute w-3 h-4 -ml-1" rounded primary
+                                            label="{{ $card['message_count'] }}" />
+                                        <x-button sm positive icon="chat-alt-2" label="" />
+
+                                        @if ($card['unread_message_count'] > 0)
+                                            <span
+                                                class="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                                {{ $card['unread_message_count'] }} unread
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex -space-x-2">
+                                            @forelse ($card['noted_users'] as $notedUser)
+                                                <img src="{{ $notedUser['photo'] }}" alt="{{ $notedUser['name'] }}"
+                                                    title="{{ $notedUser['name'] }}"
+                                                    class="h-7 w-7 rounded-full border-2 border-white object-cover">
+                                            @empty
+                                                <span class="text-xs text-slate-500">No one yet</span>
+                                            @endforelse
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-sm text-slate-500">No open titles for
+                                        this filter.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
     @endif
 
@@ -305,18 +407,19 @@
         </section>
     @endif
 
-    @if ($showNoteModal && $activeNote)
+    @if ($showNoteModal && $activeTitle)
         <div class="fixed inset-0 z-40 overflow-y-auto bg-slate-950/60 p-4">
             <div class="mx-auto max-w-5xl rounded-[2rem] bg-white shadow-2xl">
                 <div class="border-b border-slate-200 px-5 py-4 sm:px-6">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Daily note</p>
-                            <h2 class="mt-1 text-2xl font-semibold text-slate-900">{{ $activeNote->title->name }}</h2>
+                            <h2 class="mt-1 text-2xl font-semibold text-slate-900">{{ $activeTitle->name }}</h2>
                             <p class="mt-2 text-sm text-slate-600">
-                                {{ $activeNote->branch->name }} / {{ $activeNote->department->name }} /
-                                {{ $activeNote->location->name }}
-                                on {{ $activeNote->date->format('Y-m-d') }}
+                                {{ auth()->user()->branch?->name ?? '-' }} /
+                                {{ auth()->user()->department?->name ?? '-' }} /
+                                {{ auth()->user()->location?->name ?? '-' }}
+                                on {{ $todayLabel }}
                             </p>
                         </div>
 
@@ -425,7 +528,14 @@
                     </aside>
 
                     <div class="min-h-[32rem]">
-                        <livewire:operation.note-chat :note-id="$activeNoteId" :key="'operation-note-chat-' . $activeNoteId" />
+                        @if ($activeNoteId)
+                            <livewire:operation.note-chat :note-id="$activeNoteId" :key="'operation-note-chat-' . $activeNoteId" />
+                        @else
+                            <div
+                                class="flex h-full min-h-[32rem] items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
+                                Save this note first to start chat messages.
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
