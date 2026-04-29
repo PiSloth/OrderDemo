@@ -27,25 +27,25 @@
     <section class="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex flex-wrap gap-2">
-            <button type="button" wire:click="$set('activeTab', 'opened')"
-                class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium {{ $activeTab === 'opened' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
-                <span>Opened notes</span>
-                <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ $openedBadgeCount }}</span>
-            </button>
-
-            <button type="button" wire:click="$set('activeTab', 'finished')"
-                class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium {{ $activeTab === 'finished' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
-                <span>Finished notes</span>
-                <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ $finishedNotes->count() }}</span>
-            </button>
-
-            @if ($showRecentTab)
-                <button type="button" wire:click="$set('activeTab', 'recent')"
-                    class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium {{ $activeTab === 'recent' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
-                    <span>Updated within 1 hour</span>
-                    <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ $recentNotes->count() }}</span>
+                <button type="button" wire:click="$set('activeTab', 'opened')"
+                    class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium {{ $activeTab === 'opened' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
+                    <span>Opened notes</span>
+                    <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ $openedBadgeCount }}</span>
                 </button>
-            @endif
+
+                <button type="button" wire:click="$set('activeTab', 'finished')"
+                    class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium {{ $activeTab === 'finished' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
+                    <span>Finished notes</span>
+                    <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ $finishedNotes->count() }}</span>
+                </button>
+
+                @if ($showRecentTab)
+                    <button type="button" wire:click="$set('activeTab', 'recent')"
+                        class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium {{ $activeTab === 'recent' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
+                        <span>Updated within 1 hour</span>
+                        <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ $recentNotes->count() }}</span>
+                    </button>
+                @endif
             </div>
 
             <div class="inline-flex rounded-2xl border border-slate-200 bg-slate-100 p-1">
@@ -72,6 +72,10 @@
                     class="rounded-2xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
                     Today
                 </button>
+            </div>
+            <div class="max-w-sm">
+                <x-select label="Branches" placeholder="Select branches" multiselect searchable :options="$branchOptions"
+                    option-label="name" option-value="id" wire:model.live="selectedBranchIds" />
             </div>
         </div>
         @error('selectedDate')
@@ -238,10 +242,18 @@
                         <table class="min-w-full divide-y divide-slate-200">
                             <thead class="bg-white">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Note</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Created By</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Branch</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Action</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Note</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Created By</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Branch</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Action</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -257,19 +269,23 @@
                                         <td class="px-4 py-3 text-sm text-slate-700">
                                             <div class="flex items-center gap-2">
                                                 @if ($row['created_by_photo'])
-                                                    <img src="{{ $row['created_by_photo'] }}" alt="{{ $row['created_by'] ?: 'User' }}"
+                                                    <img src="{{ $row['created_by_photo'] }}"
+                                                        alt="{{ $row['created_by'] ?: 'User' }}"
                                                         class="h-7 w-7 rounded-full border border-slate-200 object-cover">
                                                 @endif
                                                 <span>{{ $row['created_by'] ?: '-' }}</span>
                                             </div>
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-slate-700">{{ $row['branch_name'] ?: '-' }}</td>
+                                        <td class="px-4 py-3 text-sm text-slate-700">{{ $row['branch_name'] ?: '-' }}
+                                        </td>
                                         <td class="px-4 py-3">
-                                            <button type="button" wire:click="openMessageModal({{ $row['title_id'] }})"
+                                            <button type="button"
+                                                wire:click="openMessageModal({{ $row['title_id'] }})"
                                                 class="inline-flex items-center rounded-2xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
                                                 Message
                                                 @if (($row['unread_message_count'] ?? 0) > 0)
-                                                    <span class="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                                                    <span
+                                                        class="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
                                                         {{ $row['unread_message_count'] }}
                                                     </span>
                                                 @endif
@@ -332,19 +348,24 @@
                             </div>
 
                             <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Quick insert</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Quick
+                                    insert</p>
                                 <div class="mt-2 flex flex-wrap gap-2">
                                     <button type="button" wire:click="openQuickInput('number')"
                                         class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m-7 5h8m-9 5h10M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M9 7h6m-7 5h8m-9 5h10M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
                                         </svg>
                                         Calculator
                                     </button>
                                     <button type="button" wire:click="openQuickInput('datetime')"
                                         class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-13 9h16a1 1 0 001-1V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a1 1 0 001 1z" />
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M8 7V3m8 4V3m-9 8h10m-13 9h16a1 1 0 001-1V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a1 1 0 001 1z" />
                                         </svg>
                                         Date & Time
                                     </button>

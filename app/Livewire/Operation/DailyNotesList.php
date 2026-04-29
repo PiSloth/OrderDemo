@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Operation;
 
+use App\Models\Branch;
 use App\Models\DailyNoteAcknowledgement;
 use App\Models\DailyNote;
 use App\Models\NoteTitle;
@@ -37,6 +38,7 @@ class DailyNotesList extends Component
     public $updated_date = null;
     public $edit_mode = false;
     public string $search = '';
+    public array $selectedBranchIds = [];
 
     public function mount(): void
     {
@@ -48,6 +50,23 @@ class DailyNotesList extends Component
         $this->validate([
             'selectedDate' => ['required', 'date', 'before_or_equal:today'],
         ]);
+
+        $this->closeModal();
+        $this->closeMessageModal();
+    }
+
+    public function updatedSelectedBranchIds($value): void
+    {
+        $branchIds = collect(is_array($value) ? $value : [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($branchIds !== $this->selectedBranchIds) {
+            $this->selectedBranchIds = $branchIds;
+        }
 
         $this->closeModal();
         $this->closeMessageModal();
@@ -335,11 +354,19 @@ class DailyNotesList extends Component
     {
         $userId = (int) Auth::id();
         $search = trim($this->search);
+        $branchIds = collect($this->selectedBranchIds)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values();
 
         return DailyNote::query()
             ->forUser(Auth::user())
             ->forDate($this->effectiveDate())
             ->with(['title', 'location', 'department', 'branch', 'creator', 'messages.user', 'acknowledgements.user'])
+            ->when($branchIds->isNotEmpty(), function ($query) use ($branchIds) {
+                $query->whereIn('branch_id', $branchIds->all());
+            })
             ->when($search !== '', function ($query) use ($search) {
                 $query->whereHas('title', function ($titleQuery) use ($search) {
                     $titleQuery->where('name', 'like', '%' . $search . '%')
@@ -371,7 +398,7 @@ class DailyNotesList extends Component
                         ->orWhere('remark', 'like', '%' . $search . '%');
                 });
             })
-            ->orderBy('name')
+            ->orderBy('id')
             ->get()
             ->filter(function (NoteTitle $title) use ($notes, $userId) {
                 $note = $notes->get($title->id);
@@ -556,6 +583,13 @@ class DailyNotesList extends Component
             'userLocationName' => $user->location?->name ?? 'Unknown location',
             'todayLabel' => Carbon::parse($this->effectiveDate())->format('Y-m-d'),
             'isSelectedToday' => Carbon::parse($this->effectiveDate())->isToday(),
+            'branchOptions' => Branch::select('id', 'name')
+                ->orderBy('name')
+                ->get()
+                ->map(function ($b) {
+                    $b->name = ucfirst($b->name);
+                    return $b;
+                }),
         ]);
     }
 }
