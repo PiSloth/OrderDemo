@@ -34,9 +34,17 @@
             <div class="flex justify-between h-16">
                 <div class="flex">
                     <div class="flex-shrink-0 flex items-center">
-                        <a href="{{ route('order-dashboard') }}" wire:navigate>
-                            <x-icon black name="home" class="w-6 h-6 mr-2 hover:text-gray-700 dark:hover:text-gray-300 hover:cursor-pointer" />
-                        </a>
+                        @can('isGuest')
+                            <a href="#">
+                                <x-icon black name="home"
+                                    class="w-6 h-6 mr-2 hover:text-gray-700 dark:hover:text-gray-300 hover:cursor-pointer" />
+                            </a>
+                        @else
+                            <a href="{{ route('order-dashboard') }}">
+                                <x-icon black name="home"
+                                    class="w-6 h-6 mr-2 hover:text-gray-700 dark:hover:text-gray-300 hover:cursor-pointer" />
+                            </a>
+                        @endcan
                         <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">Document Library</h1>
                     </div>
 

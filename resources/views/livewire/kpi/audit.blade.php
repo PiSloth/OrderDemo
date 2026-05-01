@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ open: false, activeImage: null }">
     <section
         class="rounded-3xl border border-slate-200 bg-white px-6 py-7 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <p class="text-sm uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">Audit Matrix</p>
@@ -200,10 +200,10 @@
                     @if ($selectedSubmission->images->isNotEmpty())
                         <div class="grid gap-4 lg:grid-cols-2">
                             @foreach ($selectedSubmission->images as $image)
-                                <article
+                                @php $fullImagePath = asset('storage/' . ltrim($image->image_path, '/')); @endphp
+                                <article @click="activeImage = '{{ $fullImagePath }}'; open = true"
                                     class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-                                    <img src="{{ asset('storage/' . ltrim($image->image_path, '/')) }}"
-                                        alt="{{ $image->title ?: 'Submission image' }}"
+                                    <img src="{{ $fullImagePath }}" alt="{{ $image->title ?: 'Submission image' }}"
                                         class="h-56 w-full object-cover">
                                     <div class="space-y-2 p-4">
                                         <p class="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -438,4 +438,19 @@
             </table>
         </div>
     </section>
+
+    <!-- SINGLE MODAL (Shared by all images) -->
+    <div x-show="open" x-transition.opacity @keydown.escape.window="open = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" style="display: none;" x-cloak>
+
+        <!-- Close Overlay Click -->
+        <div class="absolute inset-0" @click="open = false"></div>
+
+        <div class="relative max-w-5xl max-h-screen">
+            <button @click="open = false" class="absolute -top-10 right-0 text-white text-3xl">&times;</button>
+
+            <!-- This image tag updates automatically because it is bound to 'activeImage' -->
+            <img :src="activeImage" class="max-w-full max-h-[90vh] rounded shadow-2xl">
+        </div>
+    </div>
 </div>

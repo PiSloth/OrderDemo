@@ -397,7 +397,7 @@
                                                 <button type="button"
                                                     wire:click="openMessageModal({{ $row['note_id'] }})"
                                                     class="inline-flex items-center rounded-2xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                                    Message
+                                                    Message!
                                                     @if (($row['unread_message_count'] ?? 0) > 0)
                                                         <span
                                                             class="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
