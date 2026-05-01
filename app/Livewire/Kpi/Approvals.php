@@ -36,7 +36,7 @@ class Approvals extends Component
             ->where('status', 'pending')
             ->orderBy('created_at')
             ->get()
-            ->filter(fn (KpiTaskApprovalStep $step) => $this->isActionableStep($step))
+            ->filter(fn(KpiTaskApprovalStep $step) => $this->isActionableStep($step))
             ->values();
 
         $recentSteps = KpiTaskApprovalStep::query()
@@ -71,7 +71,7 @@ class Approvals extends Component
 
         if (
             $this->selectedStepId &&
-            !$pendingSteps->contains(fn (KpiTaskApprovalStep $step) => $step->id === $this->selectedStepId)
+            !$pendingSteps->contains(fn(KpiTaskApprovalStep $step) => $step->id === $this->selectedStepId)
         ) {
             $this->cancelDecision();
         }
@@ -175,7 +175,7 @@ class Approvals extends Component
 
             if ($approvalSteps
                 ->where('step_order', '<', $lockedStep->step_order)
-                ->contains(fn (KpiTaskApprovalStep $previousStep) => $previousStep->status !== 'approved')
+                ->contains(fn(KpiTaskApprovalStep $previousStep) => $previousStep->status !== 'approved')
             ) {
                 throw ValidationException::withMessages([
                     'selectedStepId' => 'A previous approval step is still pending.',
@@ -217,7 +217,7 @@ class Approvals extends Component
             }
 
             $nextPendingStep = $approvalSteps
-                ->first(fn (KpiTaskApprovalStep $approvalStep) => $approvalStep->step_order > $lockedStep->step_order && $approvalStep->status === 'pending');
+                ->first(fn(KpiTaskApprovalStep $approvalStep) => $approvalStep->step_order > $lockedStep->step_order && $approvalStep->status === 'pending');
 
             if ($nextPendingStep) {
                 $submission->update([
@@ -282,7 +282,7 @@ class Approvals extends Component
 
         return $submission->approvalSteps
             ->where('step_order', '<', $step->step_order)
-            ->every(fn (KpiTaskApprovalStep $previousStep) => $previousStep->status === 'approved');
+            ->every(fn(KpiTaskApprovalStep $previousStep) => $previousStep->status === 'approved');
     }
 
     protected function approvalRelations(): array
@@ -294,6 +294,7 @@ class Approvals extends Component
             'submission.approvalSteps.approver',
             'submission.instance.template.group',
             'submission.instance.user',
+            'submission.instance.template',
         ];
     }
 }

@@ -31,7 +31,7 @@
         <article
             class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Existing Assignments</h3>
-            <div>
+            <div class="md:w-1/3 w-full">
                 <x-select label="" placeholder="Search employee" wire:model.live="selectedUserId"
                     :async-data="route('users.index')" option-label="name" option-value="id" />
             </div>
@@ -49,6 +49,11 @@
                                         class="rounded-full px-2 py-0.5 text-xs {{ $assignment->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600' }}">
                                         {{ $assignment->is_active ? 'Active' : 'Inactive' }}
                                     </span>
+                                    <span
+                                        class="rounded-full px-2 py-0.5 text-xs {{ $assignment->ends_on?->isPast() ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700' }}">
+                                        {{ $assignment->ends_on?->isPast() ? 'Expired' : 'Ongoing' }}
+                                    </span>
+
                                 </div>
 
                                 <div class="grid gap-2 text-sm text-slate-600 dark:text-slate-300 md:grid-cols-2">
@@ -84,6 +89,7 @@
 
                             <div class="flex gap-2">
                                 <button type="button" wire:click="editAssignment({{ $assignment->id }})"
+                                    @click="$openModal('assignmentModal')"
                                     class="rounded-lg border border-yellow-300 px-3 py-1.5 text-sm font-medium text-yellow-700 hover:bg-yellow-50">
                                     <x-icon teal name="pencil" class="h-4 w-4" />
                                 </button>
