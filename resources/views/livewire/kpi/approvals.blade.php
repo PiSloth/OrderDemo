@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ open: false, activeImage: null }">
     @if (session()->has('message'))
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             {{ session('message') }}
@@ -15,7 +15,8 @@
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @foreach ($summaryCards as $card)
-            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <article
+                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                 <p class="text-sm text-slate-500 dark:text-slate-400">{{ $card['label'] }}</p>
                 <p class="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">{{ $card['value'] }}</p>
             </article>
@@ -27,11 +28,14 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div class="space-y-2">
                     <div class="flex flex-wrap items-center gap-2">
-                        <h3 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ $selectedStep->submission?->instance?->template?->title }}</h3>
-                        <span class="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-sky-700">
+                        <h3 class="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                            {{ $selectedStep->submission?->instance?->template?->title }}</h3>
+                        <span
+                            class="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-sky-700">
                             Step {{ $selectedStep->step_order }}
                         </span>
-                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        <span
+                            class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                             {{ $selectedStep->submission?->instance?->template?->group?->name ?? 'No KPI Group' }}
                         </span>
                     </div>
@@ -40,25 +44,25 @@
                     </p>
                     <div class="grid gap-2 text-sm text-slate-500 dark:text-slate-400 md:grid-cols-2">
                         <p>Submitted: {{ $selectedStep->submission?->submitted_at?->format('Y-m-d H:i') ?? '-' }}</p>
-                        <p>Due: {{ $selectedStep->submission?->instance?->due_at?->format('Y-m-d H:i') ?? 'No cutoff' }}</p>
+                        <p>Due: {{ $selectedStep->submission?->instance?->due_at?->format('Y-m-d H:i') ?? 'No cutoff' }}
+                        </p>
                         <p>On Time: {{ $selectedStep->submission?->is_late ? 'Late' : 'On time' }}</p>
                         <p>Submitted By: {{ $selectedStep->submission?->submittedBy?->name ?? '-' }}</p>
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    wire:click="cancelDecision"
-                    class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
-                >
+                <button type="button" wire:click="cancelDecision"
+                    class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100">
                     Close
                 </button>
             </div>
 
             @if ($selectedStep->submission?->employee_remark)
                 <div class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Employee Remark</p>
-                    <p class="mt-2 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">{{ $selectedStep->submission->employee_remark }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                        Employee Remark</p>
+                    <p class="mt-2 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">
+                        {{ $selectedStep->submission->employee_remark }}</p>
                 </div>
             @endif
 
@@ -67,33 +71,38 @@
                 @if ($selectedStep->submission?->images?->isNotEmpty())
                     <div class="grid gap-4 lg:grid-cols-2">
                         @foreach ($selectedStep->submission->images as $image)
-                            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-                                <img
-                                    src="{{ asset('storage/' . ltrim($image->image_path, '/')) }}"
-                                    alt="{{ $image->title ?: 'Submission image' }}"
-                                    class="h-56 w-full object-cover"
-                                >
+                            @php $fullImagePath = asset('storage/' . ltrim($image->image_path, '/')); @endphp
+                            <article @click="activeImage = '{{ $fullImagePath }}'; open = true"
+                                class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                                <img src="{{ $fullImagePath }}" alt="{{ $image->title ?: 'Submission image' }}"
+                                    class="h-56 w-full object-cover">
                                 <div class="space-y-2 p-4">
-                                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ $image->title ?: 'No title' }}</p>
-                                    <p class="text-sm text-slate-600 dark:text-slate-300">{{ $image->remark ?: 'No remark' }}</p>
+                                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                        {{ $image->title ?: 'No title' }}</p>
+                                    <p class="text-sm text-slate-600 dark:text-slate-300">
+                                        {{ $image->remark ?: 'No remark' }}</p>
                                 </div>
                             </article>
                         @endforeach
                     </div>
                 @else
-                    <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                    <div
+                        class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
                         No images found on this submission.
                     </div>
                 @endif
             </div>
 
             <div class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Approval Steps</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Approval
+                    Steps</p>
                 <div class="mt-3 space-y-2">
                     @foreach ($selectedStep->submission?->approvalSteps?->sortBy('step_order') ?? [] as $step)
-                        <div class="flex flex-col gap-1 rounded-2xl bg-white px-4 py-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300 md:flex-row md:items-center md:justify-between">
+                        <div
+                            class="flex flex-col gap-1 rounded-2xl bg-white px-4 py-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <p class="font-medium text-slate-900 dark:text-slate-100">Step {{ $step->step_order }} - {{ $step->role_label ?: 'Approver' }}</p>
+                                <p class="font-medium text-slate-900 dark:text-slate-100">Step {{ $step->step_order }}
+                                    - {{ $step->role_label ?: 'Approver' }}</p>
                                 <p>{{ $step->approver?->name ?? 'Unassigned' }}</p>
                             </div>
                             <div class="text-sm text-slate-500 dark:text-slate-400">
@@ -107,30 +116,21 @@
 
             <div class="mt-5">
                 <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Approval Remark</label>
-                <textarea
-                    wire:model.defer="decisionRemark"
-                    rows="3"
+                <textarea wire:model.defer="decisionRemark" rows="3"
                     class="mt-2 block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                    placeholder="Optional when approving, required when rejecting"
-                ></textarea>
+                    placeholder="Optional when approving, required when rejecting"></textarea>
                 @error('decisionRemark')
                     <p class="mt-2 text-sm text-rose-600">{{ $message }}</p>
                 @enderror
             </div>
 
             <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                <button
-                    type="button"
-                    wire:click="rejectSelected"
-                    class="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-rose-700"
-                >
+                <button type="button" wire:click="rejectSelected"
+                    class="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-rose-700">
                     Reject
                 </button>
-                <button
-                    type="button"
-                    wire:click="approveSelected"
-                    class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-                >
+                <button type="button" wire:click="approveSelected"
+                    class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800">
                     Approve
                 </button>
             </div>
@@ -138,10 +138,12 @@
     @endif
 
     <section class="grid gap-6 xl:grid-cols-2">
-        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <article
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">First-Step Queue</h3>
-                <span class="text-sm text-slate-500 dark:text-slate-400">{{ $pendingFirstSteps->count() }} item(s)</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400">{{ $pendingFirstSteps->count() }}
+                    item(s)</span>
             </div>
 
             <div class="mt-4 space-y-3">
@@ -149,18 +151,17 @@
                     <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <p class="font-medium text-slate-900 dark:text-slate-100">{{ $step->submission?->instance?->template?->title }}</p>
-                                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ $step->submission?->instance?->user?->name ?? '-' }}</p>
+                                <p class="font-medium text-slate-900 dark:text-slate-100">
+                                    {{ $step->submission?->instance?->template?->title }}</p>
+                                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                                    {{ $step->submission?->instance?->user?->name ?? '-' }}</p>
                                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                                     Submitted {{ $step->submission?->submitted_at?->format('Y-m-d H:i') ?? '-' }}
                                 </p>
                             </div>
 
-                            <button
-                                type="button"
-                                wire:click="openStep({{ $step->id }})"
-                                class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-                            >
+                            <button type="button" wire:click="openStep({{ $step->id }})"
+                                class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
                                 Review
                             </button>
                         </div>
@@ -171,10 +172,12 @@
             </div>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <article
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Final-Step Queue</h3>
-                <span class="text-sm text-slate-500 dark:text-slate-400">{{ $pendingFinalSteps->count() }} item(s)</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400">{{ $pendingFinalSteps->count() }}
+                    item(s)</span>
             </div>
 
             <div class="mt-4 space-y-3">
@@ -182,18 +185,18 @@
                     <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <p class="font-medium text-slate-900 dark:text-slate-100">{{ $step->submission?->instance?->template?->title }}</p>
-                                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ $step->submission?->instance?->user?->name ?? '-' }}</p>
+                                <p class="font-medium text-slate-900 dark:text-slate-100">
+                                    {{ $step->submission?->instance?->template?->title }}</p>
+                                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                                    {{ $step->submission?->instance?->user?->name ?? '-' }}</p>
                                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                    First approved {{ $step->submission?->first_approved_at?->format('Y-m-d H:i') ?? '-' }}
+                                    First approved
+                                    {{ $step->submission?->first_approved_at?->format('Y-m-d H:i') ?? '-' }}
                                 </p>
                             </div>
 
-                            <button
-                                type="button"
-                                wire:click="openStep({{ $step->id }})"
-                                class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-                            >
+                            <button type="button" wire:click="openStep({{ $step->id }})"
+                                class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
                                 Review
                             </button>
                         </div>
@@ -216,11 +219,15 @@
                 <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                            <p class="font-medium text-slate-900 dark:text-slate-100">{{ $step->submission?->instance?->template?->title }}</p>
-                            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ $step->submission?->instance?->user?->name ?? '-' }}</p>
-                            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $step->acted_at?->format('Y-m-d H:i') ?? '-' }}</p>
+                            <p class="font-medium text-slate-900 dark:text-slate-100">
+                                {{ $step->submission?->instance?->template?->title }}</p>
+                            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                                {{ $step->submission?->instance?->user?->name ?? '-' }}</p>
+                            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                {{ $step->acted_at?->format('Y-m-d H:i') ?? '-' }}</p>
                         </div>
-                        <span class="rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.15em] {{ $step->status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' }}">
+                        <span
+                            class="rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.15em] {{ $step->status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' }}">
                             {{ $step->status }}
                         </span>
                     </div>
@@ -234,4 +241,19 @@
             @endforelse
         </div>
     </section>
+
+    <!-- SINGLE MODAL (Shared by all images) -->
+    <div x-show="open" x-transition.opacity @keydown.escape.window="open = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" style="display: none;" x-cloak>
+
+        <!-- Close Overlay Click -->
+        <div class="absolute inset-0" @click="open = false"></div>
+
+        <div class="relative max-w-5xl max-h-screen">
+            <button @click="open = false" class="absolute -top-10 right-0 text-white text-3xl">&times;</button>
+
+            <!-- This image tag updates automatically because it is bound to 'activeImage' -->
+            <img :src="activeImage" class="max-w-full max-h-[90vh] rounded shadow-2xl">
+        </div>
+    </div>
 </div>

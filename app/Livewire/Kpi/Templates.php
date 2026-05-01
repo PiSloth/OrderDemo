@@ -205,6 +205,7 @@ class Templates extends Component
 
     public function editTemplate(int $templateId): void
     {
+        // dd("hello");
         Gate::authorize('kpiManageTemplates');
 
         $template = KpiTaskTemplate::query()->with('rule')->findOrFail($templateId);
@@ -478,9 +479,9 @@ class Templates extends Component
 
         while (
             KpiTaskTemplate::query()
-                ->when($ignoreId, fn($query) => $query->where('id', '!=', $ignoreId))
-                ->where('slug', $slug)
-                ->exists()
+            ->when($ignoreId, fn($query) => $query->where('id', '!=', $ignoreId))
+            ->where('slug', $slug)
+            ->exists()
         ) {
             $slug = $baseSlug . '-' . $counter;
             $counter++;

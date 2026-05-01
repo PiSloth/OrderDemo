@@ -19,6 +19,7 @@ class Holidays extends Component
     public string $holidayUserId = '';
     public string $holidayRemark = '';
     public bool $holidayIsActive = true;
+    public ?string $selectedUserId = null;
 
     public function mount(): void
     {
@@ -102,6 +103,9 @@ class Holidays extends Component
             'holidays' => KpiHoliday::query()
                 ->with('user')
                 ->whereBetween('holiday_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+                ->when($this->selectedUserId, function ($query) {
+                    $query->where('user_id', $this->selectedUserId);
+                })
                 ->orderBy('holiday_date')
                 ->orderBy('user_id')
                 ->get(),

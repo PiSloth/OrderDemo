@@ -4,7 +4,8 @@
             <div>
                 <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">KPI Template Configuration</h2>
                 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    Create KPI groups and recurring task templates with rule type, cutoff time, and evidence requirements.
+                    Create KPI groups and recurring task templates with rule type, cutoff time, and evidence
+                    requirements.
                 </p>
             </div>
             @can('kpiManageTemplates')
@@ -12,7 +13,8 @@
                     You can manage templates
                 </span>
             @else
-                <span class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <span
+                    class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     Read-only access
                 </span>
             @endcan
@@ -30,11 +32,13 @@
     @enderror
 
     <section class="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <article
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">KPI Groups</h3>
                 @if ($editingGroupId)
-                    <button type="button" wire:click="cancelGroup" class="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                    <button type="button" wire:click="cancelGroup"
+                        class="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
                         Cancel
                     </button>
                 @endif
@@ -47,7 +51,9 @@
                             <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Code</label>
                             <input type="text" wire:model.defer="groupCode"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('groupCode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('groupCode')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Department</label>
@@ -58,7 +64,9 @@
                                     <option value="{{ $department->id }}">{{ $department->name }}</option>
                                 @endforeach
                             </select>
-                            @error('groupDepartmentId') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('groupDepartmentId')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -66,14 +74,18 @@
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Name</label>
                         <input type="text" wire:model.defer="groupName"
                             class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                        @error('groupName') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        @error('groupName')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Description</label>
                         <textarea wire:model.defer="groupDescription" rows="3"
                             class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
-                        @error('groupDescription') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        @error('groupDescription')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
@@ -85,30 +97,42 @@
                                 <option value="fail_count">Fail Count</option>
                                 <option value="spend_cost_lte">Spend Cost &lt;= Target</option>
                             </select>
-                            @error('groupRuleType') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('groupRuleType')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             @if ($groupRuleType === 'pass_percentage')
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target Percentage</label>
-                                <input type="number" step="0.01" min="0" max="100" wire:model.defer="groupTargetPercentage"
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target
+                                    Percentage</label>
+                                <input type="number" step="0.01" min="0" max="100"
+                                    wire:model.defer="groupTargetPercentage"
                                     class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('groupTargetPercentage') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                @error('groupTargetPercentage')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
                             @elseif ($groupRuleType === 'fail_count')
                                 <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Fail Count</label>
                                 <input type="number" min="0" wire:model.defer="groupMaxFailCount"
                                     class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('groupMaxFailCount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                @error('groupMaxFailCount')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
                             @else
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost Amount</label>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost
+                                    Amount</label>
                                 <input type="number" min="0" step="0.01" wire:model.defer="groupMaxCostAmount"
                                     class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('groupMaxCostAmount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                @error('groupMaxCostAmount')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
                             @endif
                         </div>
                     </div>
 
                     <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                        <input type="checkbox" wire:model.defer="groupIsActive" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                        <input type="checkbox" wire:model.defer="groupIsActive"
+                            class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
                         Active
                     </label>
 
@@ -120,7 +144,8 @@
             @endcan
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <article
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Task Templates</h3>
                 <span class="text-sm text-slate-500 dark:text-slate-400">Create new task templates here</span>
@@ -128,147 +153,190 @@
 
             @can('kpiManageTemplates')
                 @if (!$editingTemplateId)
-                <form wire:submit.prevent="createTemplate" class="mt-4 space-y-4">
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">KPI Group</label>
-                            <select wire:model.defer="templateGroupId"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                <option value="">Select Group</option>
-                                @foreach ($groups as $group)
-                                    <option value="{{ $group->id }}">{{ $group->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('templateGroupId') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Title</label>
-                            <input type="text" wire:model.defer="templateTitle"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateTitle') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Frequency</label>
-                            <select wire:model.defer="templateFrequency"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
-                            </select>
-                            @error('templateFrequency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Monthly Required Count</label>
-                            <input type="number" min="1" max="31" wire:model.defer="templateMonthlyRequiredCount"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateMonthlyRequiredCount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Cutoff Time</label>
-                            <input type="time" wire:model.defer="templateCutoffTime"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateCutoffTime') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Rule Type</label>
-                            <select wire:model.live="templateRuleType"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                <option value="pass_percentage">Pass Percentage</option>
-                                <option value="fail_count">Fail Count</option>
-                                <option value="spend_cost_lte">Spend Cost &lt;= Target</option>
-                            </select>
-                            @error('templateRuleType') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target Percentage</label>
-                            <input type="number" step="0.01" min="0" max="100" wire:model.defer="templateTargetPercentage"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateTargetPercentage') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Fail Count</label>
-                            <input type="number" min="0" wire:model.defer="templateMaxFailCount"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateMaxFailCount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost Amount</label>
-                            <input type="number" min="0" step="0.01" wire:model.defer="templateMaxCostAmount"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateMaxCostAmount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Description</label>
-                            <textarea wire:model.defer="templateDescription" rows="3"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
-                            @error('templateDescription') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Guideline</label>
-                            <textarea wire:model.defer="templateGuideline" rows="3"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
-                            @error('templateGuideline') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
-                    <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                        <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Evidence Settings</p>
-                        <div class="mt-3 grid gap-4 md:grid-cols-2">
-                            <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                <input type="checkbox" wire:model.live="templateRequiresImages" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
-                                Require Images
-                            </label>
-                            <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                <input type="checkbox" wire:model.live="templateRequiresTable" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
-                                Require Custom Table
-                            </label>
+                    <form wire:submit.prevent="createTemplate" class="mt-4 space-y-4">
+                        <div class="grid gap-4 md:grid-cols-2">
                             <div>
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Minimum Images</label>
-                                <input type="number" min="0" max="20" wire:model.defer="templateMinImages"
-                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('templateMinImages') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">KPI Group</label>
+                                <select wire:model.defer="templateGroupId"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                    <option value="">Select Group</option>
+                                    @foreach ($groups as $group)
+                                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('templateGroupId')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div>
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Maximum Images</label>
-                                <input type="number" min="0" max="20" wire:model.defer="templateMaxImages"
-                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('templateMaxImages') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Title</label>
+                                <input type="text" wire:model.defer="templateTitle"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                @error('templateTitle')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
-                        <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                            Leave both unchecked if this template does not require evidence.
-                        </p>
-                        <label class="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                            <input type="checkbox" wire:model.defer="templateImageRemarkRequired" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
-                            Require remark for each image
-                        </label>
-                        @error('templateRequiresImages') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
 
-                    <div class="flex flex-wrap gap-4">
-                        <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                            <input type="checkbox" wire:model.defer="templateIsActive" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
-                            Active
-                        </label>
-                    </div>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Frequency</label>
+                                <select wire:model.defer="templateFrequency"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                                @error('templateFrequency')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Monthly Required
+                                    Count</label>
+                                <input type="number" min="1" max="31"
+                                    wire:model.defer="templateMonthlyRequiredCount"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                @error('templateMonthlyRequiredCount')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
 
-                    <button type="submit"
-                        class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                        Create Template
-                    </button>
-                </form>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Cutoff Time</label>
+                                <input type="time" wire:model.defer="templateCutoffTime"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                @error('templateCutoffTime')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Rule Type</label>
+                                <select wire:model.live="templateRuleType"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                    <option value="pass_percentage">Pass Percentage</option>
+                                    <option value="fail_count">Fail Count</option>
+                                    <option value="spend_cost_lte">Spend Cost &lt;= Target</option>
+                                </select>
+                                @error('templateRuleType')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target
+                                    Percentage</label>
+                                <input type="number" step="0.01" min="0" max="100"
+                                    wire:model.defer="templateTargetPercentage"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                @error('templateTargetPercentage')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Fail
+                                    Count</label>
+                                <input type="number" min="0" wire:model.defer="templateMaxFailCount"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                @error('templateMaxFailCount')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost
+                                    Amount</label>
+                                <input type="number" min="0" step="0.01"
+                                    wire:model.defer="templateMaxCostAmount"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                @error('templateMaxCostAmount')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Description</label>
+                                <textarea wire:model.defer="templateDescription" rows="3"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
+                                @error('templateDescription')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Guideline</label>
+                                <textarea wire:model.defer="templateGuideline" rows="3"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
+                                @error('templateGuideline')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+                            <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Evidence Settings</p>
+                            <div class="mt-3 grid gap-4 md:grid-cols-2">
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                    <input type="checkbox" wire:model.live="templateRequiresImages"
+                                        class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                                    Require Images
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                    <input type="checkbox" wire:model.live="templateRequiresTable"
+                                        class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                                    Require Custom Table
+                                </label>
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Minimum
+                                        Images</label>
+                                    <input type="number" min="0" max="20"
+                                        wire:model.defer="templateMinImages"
+                                        class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                    @error('templateMinImages')
+                                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Maximum
+                                        Images</label>
+                                    <input type="number" min="0" max="20"
+                                        wire:model.defer="templateMaxImages"
+                                        class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                                    @error('templateMaxImages')
+                                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                Leave both unchecked if this template does not require evidence.
+                            </p>
+                            <label class="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" wire:model.defer="templateImageRemarkRequired"
+                                    class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                                Require remark for each image
+                            </label>
+                            @error('templateRequiresImages')
+                                <p class="mt-2 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="flex flex-wrap gap-4">
+                            <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" wire:model.defer="templateIsActive"
+                                    class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                                Active
+                            </label>
+                        </div>
+
+                        <button type="submit"
+                            class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                            Create Template
+                        </button>
+                    </form>
                 @endif
             @endcan
         </article>
@@ -276,13 +344,16 @@
 
     @if ($editingTemplateId)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
-            <div class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div
+                class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Edit Task Template</h3>
-                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Update the selected template in this modal.</p>
+                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Update the selected template in this
+                            modal.</p>
                     </div>
-                    <button type="button" wire:click="cancelTemplate" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                    <button type="button" wire:click="cancelTemplate"
+                        class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
                         Close
                     </button>
                 </div>
@@ -298,13 +369,17 @@
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
                                 @endforeach
                             </select>
-                            @error('templateGroupId') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateGroupId')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Title</label>
                             <input type="text" wire:model.defer="templateTitle"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateTitle') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateTitle')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -317,13 +392,19 @@
                                 <option value="weekly">Weekly</option>
                                 <option value="monthly">Monthly</option>
                             </select>
-                            @error('templateFrequency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateFrequency')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Monthly Required Count</label>
-                            <input type="number" min="1" max="31" wire:model.defer="templateMonthlyRequiredCount"
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Monthly Required
+                                Count</label>
+                            <input type="number" min="1" max="31"
+                                wire:model.defer="templateMonthlyRequiredCount"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateMonthlyRequiredCount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateMonthlyRequiredCount')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -332,7 +413,9 @@
                             <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Cutoff Time</label>
                             <input type="time" wire:model.defer="templateCutoffTime"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateCutoffTime') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateCutoffTime')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Rule Type</label>
@@ -342,28 +425,41 @@
                                 <option value="fail_count">Fail Count</option>
                                 <option value="spend_cost_lte">Spend Cost &lt;= Target</option>
                             </select>
-                            @error('templateRuleType') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateRuleType')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
                     <div class="grid gap-4 md:grid-cols-3">
                         <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target Percentage</label>
-                            <input type="number" step="0.01" min="0" max="100" wire:model.defer="templateTargetPercentage"
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target
+                                Percentage</label>
+                            <input type="number" step="0.01" min="0" max="100"
+                                wire:model.defer="templateTargetPercentage"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateTargetPercentage') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateTargetPercentage')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Fail Count</label>
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Fail
+                                Count</label>
                             <input type="number" min="0" wire:model.defer="templateMaxFailCount"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateMaxFailCount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateMaxFailCount')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost Amount</label>
-                            <input type="number" min="0" step="0.01" wire:model.defer="templateMaxCostAmount"
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost
+                                Amount</label>
+                            <input type="number" min="0" step="0.01"
+                                wire:model.defer="templateMaxCostAmount"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('templateMaxCostAmount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateMaxCostAmount')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -372,13 +468,17 @@
                             <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Description</label>
                             <textarea wire:model.defer="templateDescription" rows="3"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
-                            @error('templateDescription') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateDescription')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Guideline</label>
                             <textarea wire:model.defer="templateGuideline" rows="3"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
-                            @error('templateGuideline') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            @error('templateGuideline')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -386,39 +486,53 @@
                         <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Evidence Settings</p>
                         <div class="mt-3 grid gap-4 md:grid-cols-2">
                             <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                <input type="checkbox" wire:model.live="templateRequiresImages" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                                <input type="checkbox" wire:model.live="templateRequiresImages"
+                                    class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
                                 Require Images
                             </label>
                             <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                <input type="checkbox" wire:model.live="templateRequiresTable" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                                <input type="checkbox" wire:model.live="templateRequiresTable"
+                                    class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
                                 Require Custom Table
                             </label>
                             <div>
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Minimum Images</label>
-                                <input type="number" min="0" max="20" wire:model.defer="templateMinImages"
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Minimum
+                                    Images</label>
+                                <input type="number" min="0" max="20"
+                                    wire:model.defer="templateMinImages"
                                     class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('templateMinImages') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                @error('templateMinImages')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div>
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Maximum Images</label>
-                                <input type="number" min="0" max="20" wire:model.defer="templateMaxImages"
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Maximum
+                                    Images</label>
+                                <input type="number" min="0" max="20"
+                                    wire:model.defer="templateMaxImages"
                                     class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('templateMaxImages') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                @error('templateMaxImages')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                         <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
                             Leave both unchecked if this template does not require evidence.
                         </p>
                         <label class="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                            <input type="checkbox" wire:model.defer="templateImageRemarkRequired" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                            <input type="checkbox" wire:model.defer="templateImageRemarkRequired"
+                                class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
                             Require remark for each image
                         </label>
-                        @error('templateRequiresImages') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        @error('templateRequiresImages')
+                            <p class="mt-2 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="flex flex-wrap gap-4">
                         <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                            <input type="checkbox" wire:model.defer="templateIsActive" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                            <input type="checkbox" wire:model.defer="templateIsActive"
+                                class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
                             Active
                         </label>
                     </div>
@@ -438,7 +552,8 @@
         </div>
     @endif
 
-    <section x-data="{ activeTable: 'groups' }" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section x-data="{ activeTable: 'groups' }"
+        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Created Groups & Templates</h3>
@@ -451,33 +566,30 @@
                 <div class="relative grid grid-cols-2">
                     <span
                         class="absolute inset-y-0 w-1/2 rounded-full bg-white shadow-sm transition-transform duration-300 ease-out dark:bg-slate-700"
-                        :class="activeTable === 'groups' ? 'translate-x-0' : 'translate-x-full'"
-                    ></span>
-                    <button
-                        type="button"
-                        @click="activeTable = 'groups'"
-                        :class="activeTable === 'groups' ? 'text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'"
-                        class="relative z-10 rounded-full px-4 py-2 text-sm font-medium transition"
-                    >
+                        :class="activeTable === 'groups' ? 'translate-x-0' : 'translate-x-full'"></span>
+                    <button type="button" @click="activeTable = 'groups'"
+                        :class="activeTable === 'groups' ? 'text-slate-900 dark:text-slate-100' :
+                            'text-slate-500 dark:text-slate-400'"
+                        class="relative z-10 rounded-full px-4 py-2 text-sm font-medium transition">
                         Created Groups
                     </button>
-                    <button
-                        type="button"
-                        @click="activeTable = 'templates'"
-                        :class="activeTable === 'templates' ? 'text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'"
-                        class="relative z-10 rounded-full px-4 py-2 text-sm font-medium transition"
-                    >
+                    <button type="button" @click="activeTable = 'templates'"
+                        :class="activeTable === 'templates' ? 'text-slate-900 dark:text-slate-100' :
+                            'text-slate-500 dark:text-slate-400'"
+                        class="relative z-10 rounded-full px-4 py-2 text-sm font-medium transition">
                         Created Templates
                     </button>
                 </div>
             </div>
         </div>
 
-        <div x-show="activeTable === 'groups'" x-transition.opacity.duration.200ms class="mt-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <div x-show="activeTable === 'groups'" x-transition.opacity.duration.200ms
+            class="mt-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                     <thead class="bg-slate-50 dark:bg-slate-800/80">
-                        <tr class="text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        <tr
+                            class="text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                             <th class="px-4 py-3">Group</th>
                             <th class="px-4 py-3">Department</th>
                             <th class="px-4 py-3">Templates</th>
@@ -492,24 +604,35 @@
                         @forelse ($groups as $group)
                             <tr class="align-top">
                                 <td class="px-4 py-4">
-                                    <div class="font-semibold text-slate-900 dark:text-slate-100">{{ $group->name }}</div>
-                                    <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $group->code ?: 'No code' }}</div>
-                                    <div class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ $group->description ?: 'No description' }}</div>
+                                    <div class="font-semibold text-slate-900 dark:text-slate-100">{{ $group->name }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        {{ $group->code ?: 'No code' }}</div>
+                                    <div class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                                        {{ $group->description ?: 'No description' }}</div>
                                 </td>
-                                <td class="px-4 py-4 text-slate-600 dark:text-slate-300">{{ $group->department?->name ?? 'All departments' }}</td>
-                                <td class="px-4 py-4 text-slate-600 dark:text-slate-300">{{ $group->task_templates_count }}</td>
+                                <td class="px-4 py-4 text-slate-600 dark:text-slate-300">
+                                    {{ $group->department?->name ?? 'All departments' }}</td>
+                                <td class="px-4 py-4 text-slate-600 dark:text-slate-300">
+                                    {{ $group->task_templates_count }}</td>
                                 <td class="px-4 py-4 text-slate-600 dark:text-slate-300">
                                     {{ str_replace('_', ' ', $group->rule_type ?? 'not set') }}
                                     @if ($group->rule_type === 'pass_percentage')
-                                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Target {{ $group->target_percentage !== null ? number_format((float) $group->target_percentage, 2) . '%' : '-' }}</div>
+                                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Target
+                                            {{ $group->target_percentage !== null ? number_format((float) $group->target_percentage, 2) . '%' : '-' }}
+                                        </div>
                                     @elseif ($group->rule_type === 'fail_count')
-                                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Max {{ $group->max_fail_count ?? '-' }} fail(s)</div>
+                                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Max
+                                            {{ $group->max_fail_count ?? '-' }} fail(s)</div>
                                     @elseif ($group->rule_type === 'spend_cost_lte')
-                                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Max {{ $group->max_cost_amount !== null ? number_format((float) $group->max_cost_amount, 2) : '-' }}</div>
+                                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Max
+                                            {{ $group->max_cost_amount !== null ? number_format((float) $group->max_cost_amount, 2) : '-' }}
+                                        </div>
                                     @endif
                                 </td>
                                 <td class="px-4 py-4">
-                                    <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $group->is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' }}">
+                                    <span
+                                        class="rounded-full px-2.5 py-1 text-xs font-medium {{ $group->is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' }}">
                                         {{ $group->is_active ? 'Active' : 'Inactive' }}
                                     </span>
                                 </td>
@@ -531,7 +654,8 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="@can('kpiManageTemplates') 6 @else 5 @endcan" class="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                                <td colspan="@can('kpiManageTemplates') 6 @else 5 @endcan"
+                                    class="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No KPI groups yet.
                                 </td>
                             </tr>
@@ -543,12 +667,10 @@
 
         <div x-show="activeTable === 'templates'" x-transition.opacity.duration.200ms class="mt-6 space-y-4">
             <div class="flex flex-col gap-3 sm:max-w-xs">
-                <label for="template-employee-filter" class="text-sm font-medium text-slate-700 dark:text-slate-200">Assigned User</label>
-                <select
-                    id="template-employee-filter"
-                    wire:model.live="templateEmployeeFilter"
-                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"
-                >
+                <label for="template-employee-filter"
+                    class="text-sm font-medium text-slate-700 dark:text-slate-200">Assigned User</label>
+                <select id="template-employee-filter" wire:model.live="templateEmployeeFilter"
+                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
                     <option value="">All Assigned Users</option>
                     @foreach ($templateEmployees as $employee)
                         <option value="{{ $employee->id }}">{{ $employee->name }}</option>
@@ -560,7 +682,8 @@
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                         <thead class="bg-slate-50 dark:bg-slate-800/80">
-                            <tr class="text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                            <tr
+                                class="text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                                 <th class="px-4 py-3">Template</th>
                                 <th class="px-4 py-3">Group</th>
                                 <th class="px-4 py-3">Assigned User</th>
@@ -574,20 +697,27 @@
                                 @endcan
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-200 bg-white text-sm dark:divide-slate-800 dark:bg-slate-900">
+                        <tbody
+                            class="divide-y divide-slate-200 bg-white text-sm dark:divide-slate-800 dark:bg-slate-900">
                             @forelse ($templates as $template)
                                 <tr class="align-top">
                                     <td class="px-4 py-4">
-                                        <div class="font-semibold text-slate-900 dark:text-slate-100">{{ $template->title }}</div>
-                                        <div class="mt-1 text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">{{ $template->frequency }}</div>
-                                        <div class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ $template->description ?: 'No description' }}</div>
+                                        <div class="font-semibold text-slate-900 dark:text-slate-100">
+                                            {{ $template->title }}</div>
+                                        <div
+                                            class="mt-1 text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">
+                                            {{ $template->frequency }}</div>
+                                        <div class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                                            {{ $template->description ?: 'No description' }}</div>
                                         @if ($template->guideline)
-                                            <div class="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                            <div
+                                                class="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                                                 Guideline: {{ $template->guideline }}
                                             </div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-4 text-slate-600 dark:text-slate-300">{{ $template->group?->name ?? '-' }}</td>
+                                    <td class="px-4 py-4 text-slate-600 dark:text-slate-300">
+                                        {{ $template->group?->name ?? '-' }}</td>
                                     <td class="px-4 py-4 text-slate-600 dark:text-slate-300">
                                         @php
                                             $assignedUsers = $template->taskAssignments
@@ -625,9 +755,12 @@
                                             None
                                         @endif
                                     </td>
-                                    <td class="px-4 py-4 text-slate-600 dark:text-slate-300">{{ $template->cutoff_time ? \Illuminate\Support\Str::of($template->cutoff_time)->substr(0, 5) : 'No cutoff' }}</td>
+                                    <td class="px-4 py-4 text-slate-600 dark:text-slate-300">
+                                        {{ $template->cutoff_time ? \Illuminate\Support\Str::of($template->cutoff_time)->substr(0, 5) : 'No cutoff' }}
+                                    </td>
                                     <td class="px-4 py-4">
-                                        <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $template->is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' }}">
+                                        <span
+                                            class="rounded-full px-2.5 py-1 text-xs font-medium {{ $template->is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' }}">
                                             {{ $template->is_active ? 'Active' : 'Inactive' }}
                                         </span>
                                         <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
@@ -637,22 +770,26 @@
                                     @can('kpiManageTemplates')
                                         <td class="px-4 py-4">
                                             <div class="flex justify-end gap-2">
-                                                <button type="button" wire:click="editTemplate({{ $template->id }})"
+                                                {{-- <button type="button" wire:click="edit({{ $template->id }})"
                                                     class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
                                                     Edit
-                                                </button>
-                                                <button type="button" wire:click="deleteTemplate({{ $template->id }})"
-                                                    wire:confirm="Delete this task template?"
-                                                    class="rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-slate-800">
-                                                    Delete
-                                                </button>
+                                                </button> --}}
+                                                <x-button icon="pencil" size="xs" color="blue"
+                                                    wire:click="editTemplate({{ $template->id }})">
+                                                </x-button>
+                                                <x-button icon="trash" size="xs" color="red"
+                                                    wire:click="deleteTemplate({{ $template->id }})"
+                                                    wire:confirm="Delete this task template?">
+                                                </x-button>
+
                                             </div>
                                         </td>
                                     @endcan
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="@can('kpiManageTemplates') 9 @else 8 @endcan" class="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                                    <td colspan="@can('kpiManageTemplates') 9 @else 8 @endcan"
+                                        class="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                                         No task templates found for the selected assigned user.
                                     </td>
                                 </tr>
