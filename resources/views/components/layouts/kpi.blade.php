@@ -18,6 +18,7 @@
     </script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
         [x-cloak] {
             display: none !important;
@@ -37,6 +38,7 @@
             ['label' => 'Dashboard', 'route' => 'kpi.dashboard', 'gate' => null],
             ['label' => 'My Tasks', 'route' => 'kpi.tasks', 'gate' => null],
             ['label' => 'Audit', 'route' => 'kpi.audit', 'gate' => null],
+            ['label' => 'Certificate', 'route' => 'kpi.certificate', 'gate' => null],
             ['label' => 'Exclusions', 'route' => 'kpi.exclusions', 'gate' => null],
             ['label' => 'Approvals', 'route' => 'kpi.approvals', 'gate' => null],
             ['label' => 'Holidays', 'route' => 'kpi.holidays', 'gate' => 'kpiManageHolidays'],

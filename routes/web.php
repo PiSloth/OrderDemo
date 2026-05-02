@@ -20,6 +20,7 @@ use App\Livewire\Document\Library\Edit as DocumentLibraryEdit;
 use App\Livewire\Kpi\Approvals as KpiApprovals;
 use App\Livewire\Kpi\Audit as KpiAudit;
 use App\Livewire\Kpi\Assignments as KpiAssignments;
+use App\Livewire\Kpi\Certificate as KpiCertificate;
 use App\Livewire\Kpi\Dashboard as KpiDashboard;
 use App\Livewire\Kpi\Exclusions as KpiExclusions;
 use App\Livewire\Kpi\Holidays as KpiHolidays;
@@ -177,6 +178,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::get('/dashboard', KpiDashboard::class)->name('dashboard.home');
     Route::get('/tasks', KpiMyTasks::class)->name('tasks');
     Route::get('/audit', KpiAudit::class)->name('audit');
+    Route::get('/certificate', KpiCertificate::class)->name('certificate');
     Route::get('/exclusions', KpiExclusions::class)->name('exclusions');
     Route::get('/approvals', KpiApprovals::class)->name('approvals');
     Route::get('/holidays', KpiHolidays::class)->middleware('can:kpiManageHolidays')->name('holidays');
