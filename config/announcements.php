@@ -17,11 +17,11 @@ return [
     'profile_photo_popup' => [
         'enabled' => true,
         'badge' => 'Profile',
-        'headline' => 'Add your profile photo',
-        'subheadline' => 'Make chats and reports easier to read for everyone.',
-        'body' => 'Team members who already updated their profile photos are shown below. Add yours for a better and more beautiful UI experience.',
-        'cta_text' => 'Update Photo',
+        'headline' => 'ပုံလှလှ ထည့်မယ်',
+        'subheadline' => 'ကိုယ့်ကိုယ်ကို နေ့တိုင်း ကြည့်ဖို့ Profile Photo ထည့်ပါ',
+        'body' => 'ပုံမထည့်မချင်း ဒီ Alarm က စိတ်ရှုပ်စရာကောင်းအောင် ပြနေမှာပါ။',
+        'cta_text' => 'ပုံထည့်မယ်',
         'cta_url' => '/profile',
-        'secondary_text' => 'Later',
+        'secondary_text' => 'နောက်မှထည့်မယ်',
     ],
 ];

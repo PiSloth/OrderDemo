@@ -8,12 +8,14 @@
     $isEnabled = (bool) ($announcement['enabled'] ?? false);
 
     $photoPath = (string) ($user?->profile_photo_path ?? '');
-    $hasCustomPhoto = filled(trim($photoPath))
-        && !str_contains($photoPath, 'admin-icon.png')
-        && !str_contains($photoPath, 'default-avatar');
+    $hasCustomPhoto =
+        filled(trim($photoPath)) &&
+        !str_contains($photoPath, 'admin-icon.png') &&
+        !str_contains($photoPath, 'default-avatar');
+    $routeName = request()->route()?->getName() ?? '';
 
-    $shouldShowByRule = $isEnabled && $user && !$hasCustomPhoto;
-    $shouldShow = is_null($show) ? $shouldShowByRule : ($isEnabled && (bool) $show);
+    $shouldShowByRule = $isEnabled && $user && !$hasCustomPhoto && !str_starts_with($routeName, 'profile');
+    $shouldShow = is_null($show) ? $shouldShowByRule : $isEnabled && (bool) $show;
 
     $usersWithPhoto = collect();
     if ($isEnabled) {
@@ -46,7 +48,7 @@
                 <button type="button"
                     class="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"
                     x-on:click="open = false">
-                    <span class="sr-only">Close reminder</span>
+                    <span class="sr-only">Reminder ကိုပိတ်မည်</span>
                     <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd"
                             d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -70,7 +72,7 @@
 
                             <h2 id="profile-photo-reminder-title"
                                 class="mt-5 max-w-xl text-3xl font-black leading-tight sm:text-4xl">
-                                {{ $announcement['headline'] ?? 'Add your profile photo' }}
+                                {{ $announcement['headline'] ?? 'ကိုယ့်ပုံ လှလှ ထည့်မယ်' }}
                             </h2>
 
                             @if (!empty($announcement['subheadline']))
@@ -80,7 +82,7 @@
                             @endif
 
                             @if (!empty($announcement['body']))
-                                <p class="mt-4 max-w-lg text-sm leading-6 text-white/80">
+                                <p class="mt-4 max-w-lg text-sm leading-6 text-white dark:text-red-400 sm:text-base">
                                     {{ $announcement['body'] }}
                                 </p>
                             @endif
@@ -88,8 +90,10 @@
                     </div>
 
                     <div class="bg-slate-50 px-6 py-7 dark:bg-slate-950/70 sm:px-8 sm:py-9">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                        <div
+                            class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                            <p
+                                class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                                 Team already updated
                             </p>
 
@@ -100,7 +104,8 @@
                                             title="{{ $member->name }}"
                                             class="h-10 w-10 rounded-full border-2 border-white object-cover dark:border-slate-800">
                                     @empty
-                                        <span class="text-sm text-slate-500 dark:text-slate-400">No profile photos yet</span>
+                                        <span class="text-sm text-slate-500 dark:text-slate-400">No profile photos
+                                            yet</span>
                                     @endforelse
                                 </div>
                                 @if ($usersWithPhoto->count() > $previewUsers->count())
@@ -112,11 +117,12 @@
                             </div>
 
                             <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">
-                                {{ $usersWithPhoto->count() }} teammate(s) already changed their photo.
+                                အခြား အဖွဲ့ဝင် {{ $usersWithPhoto->count() }} ယောက်က ကိုယ့်ကိုယ်ကို နေ့တိုင်း ကြည့်ဖို့
+                                Profile Photo ထည့်ထားတယ်။
                             </p>
 
                             <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-                                <a href="{{ $announcement['cta_url'] ?? '/profile' }}"
+                                <a href="{{ $announcement['cta_url'] ?? '/profile' }}" x-on:click="open = false"
                                     class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200">
                                     {{ $announcement['cta_text'] ?? 'Update Photo' }}
                                 </a>

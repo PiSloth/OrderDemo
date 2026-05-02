@@ -318,7 +318,7 @@ class MyTasks extends Component
                 ]);
 
                 foreach ($this->submissionPhotos as $index => $photo) {
-                    $path = $resizer->store($photo, 600);
+                    $path = $resizer->store($photo, 900);
                     $storedPaths[] = $path;
 
                     $submission->images()->create([

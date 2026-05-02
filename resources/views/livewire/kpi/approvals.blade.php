@@ -38,6 +38,10 @@
                             class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                             {{ $selectedStep->submission?->instance?->template?->group?->name ?? 'No KPI Group' }}
                         </span>
+                        <span
+                            class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            {{ $selectedStep->submission?->instance?->template?->frequency ?? '' }}
+                        </span>
                     </div>
                     <p class="text-sm text-slate-600 dark:text-slate-300">
                         Employee: {{ $selectedStep->submission?->instance?->user?->name ?? '-' }}
@@ -73,7 +77,6 @@
                         d="M10 11V8a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1Zm0 0v2a4 4 0 0 1-4 4H5m14-6V8a1 1 0 0 0-1-1h-3a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1Zm0 0v2a4 4 0 0 1-4 4h-1" />
                 </svg>
                 <p>{{ $selectedStep->submission?->instance?->template?->guideline ?? 'No guideline available' }}</p>
-
             </blockquote>
 
             <div class="mt-5 space-y-3">
@@ -218,7 +221,8 @@
         </article>
     </section>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section
+        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Decisions</h3>
             <span class="text-sm text-slate-500 dark:text-slate-400">{{ $recentSteps->count() }} item(s)</span>
