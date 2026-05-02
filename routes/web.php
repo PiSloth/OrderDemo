@@ -27,7 +27,6 @@ use App\Livewire\Kpi\Holidays as KpiHolidays;
 use App\Livewire\Kpi\ImportExport as KpiImportExport;
 use App\Livewire\Kpi\Leaderboard as KpiLeaderboard;
 use App\Livewire\Kpi\MyTasks as KpiMyTasks;
-use App\Livewire\Kpi\Cretificate as KpiCertificate;
 use App\Livewire\Kpi\Templates as KpiTemplates;
 use App\Livewire\Order\Psi\Branch\StockUpdate;
 use App\Livewire\Orders\Config;

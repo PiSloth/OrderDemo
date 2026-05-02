@@ -823,6 +823,7 @@
         <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200 mb-4">Monthly Target vs Actual Summary</h3>
 
         <div class="grid grid-cols-1 gap-3 mb-4 md:grid-cols-3 md:items-end">
+
             <div class="md:col-span-2" wire:ignore x-data="{
                 dateFrom: @entangle('target_actual_from').live,
                 dateTo: @entangle('target_actual_to').live,
@@ -996,13 +997,84 @@
 
     <!-- All branch report detail -->
     <div class="max-w-4xl p-6 mx-auto my-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
-        <div class="mb-4">
+        {{-- <div class="mb-4">
             <x-datetime-picker wire:model.live.debounce="report_types_date_filter" without-time='true' label="Date"
                 placeholder="Now" />
+        </div> --}}
+
+        <div class="md:col-span-2" wire:ignore x-data="{
+            dateFrom: @entangle('branch_report_start_date').live,
+            dateTo: @entangle('branch_report_end_date').live,
+            picker: null,
+            initPicker() {
+                if (!window.flatpickr) {
+                    setTimeout(() => this.initPicker(), 100);
+                    return;
+                }
+                if (!this.$refs.range) {
+                    setTimeout(() => this.initPicker(), 50);
+                    return;
+                }
+                if (this.$refs.range._flatpickr) {
+                    return;
+                }
+        
+                const alpine = this;
+        
+                this.picker = window.flatpickr(this.$refs.range, {
+                    mode: 'range',
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'M d, Y',
+                    altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
+                    defaultDate: (alpine.dateFrom && alpine.dateTo) ? [alpine.dateFrom, alpine.dateTo] : null,
+                    allowInput: true,
+                    appendTo: document.body,
+                    onReady(selectedDates, dateStr, instance) {
+                        try {
+                            if (instance && instance.calendarContainer) {
+                                instance.calendarContainer.style.zIndex = '9999';
+                            }
+                        } catch (e) {}
+        
+                        try {
+                            if (instance && instance.altInput) {
+                                instance.altInput.placeholder = 'Select date range';
+                            }
+                        } catch (e) {}
+                    },
+                    onChange(selectedDates, dateStr, instance) {
+                        if (!selectedDates || selectedDates.length === 0 || !dateStr || String(dateStr).trim() === '') {
+                            alpine.dateFrom = '';
+                            alpine.dateTo = '';
+                            $wire.set('branch_report_start_date', '');
+                            $wire.set('branch_report_end_date', '');
+                            return;
+                        }
+        
+                        if (selectedDates.length < 2) {
+                            return;
+                        }
+        
+                        const start = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        const end = instance.formatDate(selectedDates[1], 'Y-m-d');
+                        alpine.dateFrom = start;
+                        alpine.dateTo = end;
+                        $wire.set('branch_report_start_date', start);
+                        $wire.set('branch_report_end_date', end);
+                    }
+                });
+            },
+        }" x-init="$nextTick(() => initPicker())">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date Range</label>
+            <input x-ref="range" type="text" class="w-full" placeholder="Select date range" />
         </div>
 
         <div class="mb-4 text-gray-700 dark:text-gray-200">Report at -
-            {{ \Carbon\Carbon::parse($report_types_date_filter)->format('M, Y') }}</div>
+            {{ $branch_report_start_date ? \Carbon\Carbon::parse($branch_report_start_date)->format('Y-M-d') : \Carbon\Carbon::now()->startOfMonth()->format('Y-M-d') }}
+            &
+            {{ $branch_report_end_date ? \Carbon\Carbon::parse($branch_report_end_date)->format('Y-M-d') : \Carbon\Carbon::now()->endOfMonth()->format('Y-M-d') }}
+        </div>
         @if ($monthlyAllReportTypes)
             <div class="overflow-x-auto">
                 <table
@@ -1213,7 +1285,8 @@
                                         <div>
                                             <label
                                                 class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target
-                                                (grams)</label>
+                                                (grams)
+                                            </label>
                                             <input type="number" step="0.01"
                                                 wire:model="daily_targets.{{ $branch->id }}"
                                                 class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -1719,8 +1792,7 @@
                                 .seriesNames[seriesIndex] || '') : '';
                             const point = (w && w.config && w.config.series && w.config.series[
                                     seriesIndex] && w.config.series[seriesIndex].data) ?
-                                (w.config.series[seriesIndex].data[dataPointIndex] || {}) :
-                                {};
+                                (w.config.series[seriesIndex].data[dataPointIndex] || {}) : {};
 
                             const x = point.x || '';
                             const date = point.date || '';

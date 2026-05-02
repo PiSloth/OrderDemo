@@ -81,6 +81,10 @@ class Dashboard extends Component
     public $achievement_days = 7; // min 7
     public $achievement_metric = 'gram'; // gram | pcs
 
+    //Each Branch report types data
+    public $branch_report_start_date;
+    public $branch_report_end_date;
+
 
     public function mount()
     {
@@ -1128,14 +1132,16 @@ class Dashboard extends Component
 
     private function getMonthlyAllReportTypes()
     {
+        $start = $this->branch_report_start_date ? Carbon::parse($this->branch_report_start_date)->startOfDay() : Carbon::now()->startOfMonth();
+        $end = $this->branch_report_end_date ? Carbon::parse($this->branch_report_end_date)->endOfDay() : Carbon::now()->endOfMonth();
+
         $records = DailyReportRecord::select(
             'branches.name AS branch',
             'daily_reports.name AS type',
             DB::raw('SUM(daily_report_records.number) AS result')
         )
             ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
-            ->whereMonth('daily_report_records.report_date', $this->month_filter)
-            ->whereYear('daily_report_records.report_date', $this->year_filter)
+            ->whereBetween('daily_report_records.report_date', [$start, $end])
             ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
             ->groupBy('branches.name', 'daily_reports.name', 'daily_reports.id')
             ->orderBy('branches.name')

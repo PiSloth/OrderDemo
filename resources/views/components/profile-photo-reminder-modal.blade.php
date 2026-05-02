@@ -122,7 +122,7 @@
                             </p>
 
                             <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-                                <a href="{{ $announcement['cta_url'] ?? '/profile' }}" x-on:click="open = false"
+                                <a href="{{ $announcement['cta_url'] ?? '/profile' }}" wire:navigate
                                     class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200">
                                     {{ $announcement['cta_text'] ?? 'Update Photo' }}
                                 </a>
