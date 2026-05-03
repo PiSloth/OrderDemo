@@ -67,7 +67,7 @@ class Templates extends Component
         $this->groups = KpiGroup::query()
             ->with('department')
             ->withCount('taskTemplates')
-            ->orderBy('name')
+            ->orderByRaw('CAST(name AS UNSIGNED) ASC')
             ->get();
 
         $this->templateEmployees = User::query()
@@ -86,7 +86,7 @@ class Templates extends Component
                     $assignmentQuery->where('user_id', (int) $this->templateEmployeeFilter);
                 });
             })
-            ->orderBy('title')
+            ->orderByRaw("FIELD(frequency, 'daily', 'weekly', 'monthly')")
             ->get();
     }
 
