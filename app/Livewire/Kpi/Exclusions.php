@@ -4,6 +4,7 @@ namespace App\Livewire\Kpi;
 
 use App\Models\Kpi\KpiExclusionRequest;
 use App\Models\Kpi\KpiTaskAssignment;
+use App\Models\User;
 use App\Services\Kpi\KpiAvailabilityService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,20 +24,34 @@ class Exclusions extends Component
     public string $requestTaskAssignmentId = '';
     public string $requestReason = '';
     public array $reviewRemarks = [];
+    public $selectedUserId = null;
+    public $selectedUser = null;
 
     public function mount(): void
     {
         $this->month = now()->format('Y-m');
         $this->requestedDate = now()->toDateString();
+        $this->selectedUserId = Auth::id();
+        $this->selectedUser = Auth::user();
+    }
+
+    public function updatedRequestedDate($value): void
+    {
+        $this->month = Carbon::parse($value)->format('Y-m');
+    }
+
+    public function updatedSelectedUser($value): void
+    {
+        $this->selectedUser = $value ? User::where('id', $value)->first() : null;
     }
 
     public function createRequest(): void
     {
-        $user = Auth::user();
+        $user = $this->selectedUser;
 
-        if (!$user) {
-            abort(403);
-        }
+        // if (!$user) {
+        //     abort(403);
+        // }
 
         $validated = $this->validate([
             'requestType' => ['required', Rule::in(['day', 'task'])],
@@ -62,7 +77,7 @@ class Exclusions extends Component
             $assignment = KpiTaskAssignment::query()
                 ->with('template')
                 ->where('id', (int) $validated['requestTaskAssignmentId'])
-                ->where('user_id', $user->id)
+                ->where('user_id', $this->selectedUserId)
                 ->firstOrFail();
 
             if ($assignment->template?->frequency !== 'daily') {
@@ -75,13 +90,13 @@ class Exclusions extends Component
         }
 
         $duplicateExists = KpiExclusionRequest::query()
-            ->where('user_id', $user->id)
+            ->where('user_id', $this->selectedUserId)
             ->where('request_type', $validated['requestType'])
             ->whereDate('requested_date', $validated['requestedDate'])
             ->when(
                 $assignmentId,
-                fn (Builder $query) => $query->where('task_assignment_id', $assignmentId),
-                fn (Builder $query) => $query->whereNull('task_assignment_id')
+                fn(Builder $query) => $query->where('task_assignment_id', $assignmentId),
+                fn(Builder $query) => $query->whereNull('task_assignment_id')
             )
             ->whereIn('status', ['pending', 'approved'])
             ->exists();
@@ -93,7 +108,7 @@ class Exclusions extends Component
         }
 
         KpiExclusionRequest::query()->create([
-            'user_id' => $user->id,
+            'user_id' => $this->selectedUserId,
             'task_assignment_id' => $assignmentId,
             'request_type' => $validated['requestType'],
             'requested_date' => $validated['requestedDate'],
@@ -145,29 +160,29 @@ class Exclusions extends Component
     {
         $monthStart = $this->monthStart();
         $monthEnd = $monthStart->copy()->endOfMonth();
-        $user = Auth::user();
+        $user = $this->selectedUser;
 
         $assignments = KpiTaskAssignment::query()
             ->with(['template.group'])
-            ->where('user_id', $user?->id)
+            ->where('user_id', $this->selectedUserId)
             ->where('is_active', true)
-            ->whereHas('template', fn (Builder $query) => $query->where('frequency', 'daily'))
-            ->where(function (Builder $query) use ($monthEnd): void {
-                $query
-                    ->whereNull('starts_on')
-                    ->orWhereDate('starts_on', '<=', $monthEnd->toDateString());
-            })
-            ->where(function (Builder $query) use ($monthStart): void {
-                $query
-                    ->whereNull('ends_on')
-                    ->orWhereDate('ends_on', '>=', $monthStart->toDateString());
-            })
+            // ->whereHas('template', fn(Builder $query) => $query->where('frequency', 'daily'))
+            // ->where(function (Builder $query) use ($monthEnd): void {
+            //     $query
+            //         ->whereNull('starts_on')
+            //         ->orWhereDate('starts_on', '<=', $monthEnd->toDateString());
+            // })
+            // ->where(function (Builder $query) use ($monthStart): void {
+            //     $query
+            //         ->whereNull('ends_on')
+            //         ->orWhereDate('ends_on', '>=', $monthStart->toDateString());
+            // })
             ->orderBy('task_template_id')
             ->get();
 
         $myRequests = KpiExclusionRequest::query()
             ->with(['assignment.template.group', 'reviewedBy'])
-            ->where('user_id', $user?->id)
+            ->where('user_id', $this->selectedUserId)
             ->whereBetween('requested_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->latest('requested_date')
             ->latest('id')
@@ -177,7 +192,7 @@ class Exclusions extends Component
 
         if (Gate::allows('kpiApproveExclusions')) {
             $pendingReviews = $this->reviewableRequestsQuery()
-                ->whereBetween('requested_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                // ->whereBetween('requested_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                 ->orderBy('requested_date')
                 ->orderBy('id')
                 ->get();
@@ -208,7 +223,7 @@ class Exclusions extends Component
             ->with(['user.department', 'assignment.template.group'])
             ->where('status', 'pending');
 
-        $user = Auth::user();
+        $user = $this->selectedUser;
 
         if (!$user) {
             return $query->whereRaw('1 = 0');
