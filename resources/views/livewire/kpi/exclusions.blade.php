@@ -21,10 +21,12 @@
 
             <form wire:submit="createRequest" class="mt-4 space-y-4">
                 <div class="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <x-select label="Select User" placeholder="Search employee" wire:model.live="selectedUserId"
-                            :async-data="route('users.index')" option-label="name" option-value="id" />
-                    </div>
+                    @can('kpiApproveExclusions')
+                        <div>
+                            <x-select label="Select User" placeholder="Search employee" wire:model.live="selectedUserId"
+                                :async-data="route('users.index')" option-label="name" option-value="id" />
+                        </div>
+                    @endcan
                     <div>
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Request Type</label>
                         <select wire:model.live="requestType"
@@ -45,7 +47,6 @@
                             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
-                    <span>{{ $month }}</span>
                 </div>
 
                 @if ($requestType === 'task')

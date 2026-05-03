@@ -66,6 +66,10 @@ class Exclusions extends Component
         ]);
 
         $assignmentId = null;
+        $assignmentFrequency = null;
+        $requestedDate = Carbon::parse($validated['requestedDate']);
+        $weekStart = $requestedDate->copy()->startOfWeek();
+        $weekEnd = $requestedDate->copy()->endOfWeek();
 
         if ($validated['requestType'] === 'task') {
             if ($validated['requestTaskAssignmentId'] === '') {
@@ -80,19 +84,24 @@ class Exclusions extends Component
                 ->where('user_id', $this->selectedUserId)
                 ->firstOrFail();
 
-            if ($assignment->template?->frequency !== 'daily') {
+            if (!in_array($assignment->template?->frequency, ['daily', 'weekly'], true)) {
                 throw ValidationException::withMessages([
-                    'requestTaskAssignmentId' => 'Task-level exclusion is currently available only for daily tasks.',
+                    'requestTaskAssignmentId' => 'Task-level exclusion is currently available only for daily and weekly tasks.',
                 ]);
             }
 
             $assignmentId = $assignment->id;
+            $assignmentFrequency = $assignment->template?->frequency;
         }
 
         $duplicateExists = KpiExclusionRequest::query()
             ->where('user_id', $this->selectedUserId)
             ->where('request_type', $validated['requestType'])
-            ->whereDate('requested_date', $validated['requestedDate'])
+            ->when(
+                $validated['requestType'] === 'task' && $assignmentFrequency === 'weekly',
+                fn(Builder $query) => $query->whereBetween('requested_date', [$weekStart->toDateString(), $weekEnd->toDateString()]),
+                fn(Builder $query) => $query->whereDate('requested_date', $validated['requestedDate'])
+            )
             ->when(
                 $assignmentId,
                 fn(Builder $query) => $query->where('task_assignment_id', $assignmentId),
@@ -166,17 +175,17 @@ class Exclusions extends Component
             ->with(['template.group'])
             ->where('user_id', $this->selectedUserId)
             ->where('is_active', true)
-            // ->whereHas('template', fn(Builder $query) => $query->where('frequency', 'daily'))
-            // ->where(function (Builder $query) use ($monthEnd): void {
-            //     $query
-            //         ->whereNull('starts_on')
-            //         ->orWhereDate('starts_on', '<=', $monthEnd->toDateString());
-            // })
-            // ->where(function (Builder $query) use ($monthStart): void {
-            //     $query
-            //         ->whereNull('ends_on')
-            //         ->orWhereDate('ends_on', '>=', $monthStart->toDateString());
-            // })
+            ->whereHas('template', fn(Builder $query) => $query->whereIn('frequency', ['daily', 'weekly']))
+            ->where(function (Builder $query) use ($monthEnd): void {
+                $query
+                    ->whereNull('starts_on')
+                    ->orWhereDate('starts_on', '<=', $monthEnd->toDateString());
+            })
+            ->where(function (Builder $query) use ($monthStart): void {
+                $query
+                    ->whereNull('ends_on')
+                    ->orWhereDate('ends_on', '>=', $monthStart->toDateString());
+            })
             ->orderBy('task_template_id')
             ->get();
 
@@ -192,7 +201,7 @@ class Exclusions extends Component
 
         if (Gate::allows('kpiApproveExclusions')) {
             $pendingReviews = $this->reviewableRequestsQuery()
-                // ->whereBetween('requested_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->whereBetween('requested_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                 ->orderBy('requested_date')
                 ->orderBy('id')
                 ->get();

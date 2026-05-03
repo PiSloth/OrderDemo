@@ -2,6 +2,7 @@
 
 namespace App\Services\Kpi;
 
+use App\Jobs\PushGoogleCalendarEvent;
 use App\Models\Kpi\KpiTaskAssignment;
 use App\Models\Kpi\KpiTaskInstance;
 use App\Models\User;
@@ -169,6 +170,7 @@ class KpiTaskInstanceGenerator
 
         if ($instance->wasRecentlyCreated) {
             $this->availability->syncDailyInstance($instance);
+            $this->dispatchCalendarPush($assignment, $instance, $periodType, $periodStart, $periodEnd);
 
             return true;
         }
@@ -188,6 +190,66 @@ class KpiTaskInstanceGenerator
         $this->availability->syncDailyInstance($instance);
 
         return false;
+    }
+
+    protected function dispatchCalendarPush(
+        KpiTaskAssignment $assignment,
+        KpiTaskInstance $instance,
+        string $periodType,
+        Carbon $periodStart,
+        Carbon $periodEnd
+    ): void {
+        if (!$assignment->calendar_push_enabled) {
+            return;
+        }
+
+        $assignment->loadMissing(['template.group', 'firstApprover', 'finalApprover']);
+
+        $title = (string) ($assignment->template?->title ?? 'KPI Task');
+        $groupName = (string) ($assignment->template?->group?->name ?? '');
+        $frequency = strtoupper($periodType);
+        $summary = trim($frequency . ' KPI: ' . $title);
+
+        if ($groupName !== '') {
+            $summary .= " ({$groupName})";
+        }
+
+        $descriptionParts = [
+            'Task: ' . $title,
+            'Frequency: ' . $frequency,
+            'Due: ' . ($instance->due_at ? $instance->due_at->format('Y-m-d H:i') : 'N/A'),
+        ];
+
+        if ($assignment->template?->description) {
+            $descriptionParts[] = 'Description: ' . $assignment->template->description;
+        }
+
+        $description = implode("\n", $descriptionParts);
+
+        $startsAt = match ($periodType) {
+            'daily' => ($instance->task_date ?? $periodStart)->copy()->startOfDay(),
+            default => $periodStart->copy()->startOfDay(),
+        };
+
+        $endsAt = $instance->due_at
+            ? Carbon::instance($instance->due_at)
+            : $periodEnd->copy()->endOfDay();
+
+        $attendeeEmails = array_values(array_filter([
+            $assignment->firstApprover?->email,
+            $assignment->finalApprover?->email,
+        ]));
+
+        PushGoogleCalendarEvent::dispatch(
+            userId: (int) $assignment->user_id,
+            title: $summary,
+            description: $description,
+            location: null,
+            startsAtRfc3339: $startsAt->toRfc3339String(),
+            endsAtRfc3339: $endsAt->toRfc3339String(),
+            attendeeEmails: $attendeeEmails,
+            sendUpdates: true
+        );
     }
 
     protected function makeDueAt(KpiTaskAssignment $assignment, Carbon $periodEnd): Carbon

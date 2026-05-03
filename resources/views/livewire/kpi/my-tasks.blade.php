@@ -12,6 +12,20 @@
             Use your camera or local gallery, add the required photo titles and remarks, then send the task into
             approval.
         </p>
+        <div class="mt-5 max-w-xs">
+            <label for="selected-kpi-month" class="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-300">
+                Task Month
+            </label>
+            <select id="selected-kpi-month" wire:model.live="selectedMonth"
+                class="block w-full rounded-2xl border border-slate-600 bg-slate-800 px-4 py-2.5 text-sm text-white">
+                @foreach ($this->monthOptions() as $option)
+                    <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
+                @endforeach
+            </select>
+            <p class="mt-2 text-xs text-slate-300">
+                Only current month and previous month are available.
+            </p>
+        </div>
     </section>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -218,7 +232,7 @@
 
     <section class="space-y-4">
         <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Today Must-Do Tasks</h3>
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Daily Tasks</h3>
             <span class="text-sm text-slate-500 dark:text-slate-400">Mobile-first daily list</span>
         </div>
 
@@ -307,7 +321,7 @@
                     @empty
                         <div
                             class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                            No daily task instance for today.
+                            No daily task instance for selected month.
                         </div>
                     @endforelse
                 </div>

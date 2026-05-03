@@ -190,13 +190,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('kpiApproveExclusions', function (User $user) use ($kpiHasPosition) {
-            return $kpiHasPosition($user, ['Super Admin', 'Supervisor', 'Assistant Manager', 'Manager']);
+            return $kpiHasPosition($user, ['Super Admin', 'Assistant Manager', 'Manager']);
         });
 
         Gate::define('kpiViewCompanyLeaderboard', function (User $user) use ($kpiHasPosition) {
             return $kpiHasPosition(
                 $user,
-                ['Super Admin', 'Assistant Manager', 'Manager', 'Assistant General Manager', 'CEO']
+                ['Super Admin', 'Supervisor', 'Assistant Manager', 'Manager', 'Assistant General Manager', 'CEO']
             );
         });
 

@@ -35,6 +35,7 @@ class MyTasks extends Component
     public array $submissionPhotoTitles = [];
     public array $submissionPhotoRemarks = [];
     public string $submissionEmployeeRemark = '';
+    public string $selectedMonth = '';
 
     public function mount(KpiTaskInstanceGenerator $generator): void
     {
@@ -48,17 +49,30 @@ class MyTasks extends Component
         $this->weeklyTasks = collect();
         $this->monthlyTasks = collect();
         $this->overdueTasks = collect();
+        $this->selectedMonth = now()->format('Y-m');
 
+        $this->loadTasks();
+    }
+
+    public function updatedSelectedMonth(string $value): void
+    {
+        if (!in_array($value, $this->allowedMonthValues(), true)) {
+            $this->selectedMonth = now()->format('Y-m');
+        }
+
+        $this->cancelSubmission();
         $this->loadTasks();
     }
 
     public function loadTasks(): void
     {
-        $today = now()->startOfDay();
-        $weekStart = now()->startOfWeek();
-        $weekEnd = now()->endOfWeek();
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
+        if (!in_array($this->selectedMonth, $this->allowedMonthValues(), true)) {
+            $this->selectedMonth = now()->format('Y-m');
+        }
+
+        $selectedMonth = Carbon::createFromFormat('Y-m', $this->selectedMonth)->startOfMonth();
+        $monthStart = $selectedMonth->copy()->startOfMonth();
+        $monthEnd = $selectedMonth->copy()->endOfMonth();
 
         $instances = KpiTaskInstance::query()
             ->with([
@@ -69,18 +83,18 @@ class MyTasks extends Component
             ])
             ->withCount('submissions')
             ->where('user_id', Auth::id())
-            ->where(function ($query) use ($today, $weekStart, $weekEnd, $monthStart, $monthEnd) {
+            ->where(function ($query) use ($monthStart, $monthEnd) {
                 $query
-                    ->where(function ($daily) use ($today) {
+                    ->where(function ($daily) use ($monthStart, $monthEnd) {
                         $daily
                             ->where('period_type', 'daily')
-                            ->whereDate('task_date', $today->toDateString());
+                            ->whereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()]);
                     })
-                    ->orWhere(function ($weekly) use ($weekStart, $weekEnd) {
+                    ->orWhere(function ($weekly) use ($monthStart, $monthEnd) {
                         $weekly
                             ->where('period_type', 'weekly')
-                            ->whereDate('period_start', $weekStart->toDateString())
-                            ->whereDate('period_end', $weekEnd->toDateString());
+                            ->whereDate('period_start', '<=', $monthEnd->toDateString())
+                            ->whereDate('period_end', '>=', $monthStart->toDateString());
                     })
                     ->orWhere(function ($monthly) use ($monthStart, $monthEnd) {
                         $monthly
@@ -241,62 +255,68 @@ class MyTasks extends Component
 
         $template = $instance->template;
 
-        if (!$template || !$template->requires_images) {
+        if (!$template) {
             throw ValidationException::withMessages([
-                'submissionPhotos' => 'This task is not configured for photo submission.',
+                'selectedTaskInstanceId' => 'Task template is missing.',
             ]);
         }
 
         if ($template->requires_table) {
             throw ValidationException::withMessages([
-                'submissionPhotos' => 'This task also requires custom table evidence. Table submission is not built yet.',
+                'submissionPhotos' => 'This task requires custom table evidence. Table submission is not built yet.',
             ]);
         }
 
         $this->validate([
-            'submissionPhotos' => ['array', 'max:20'],
-            'submissionPhotos.*' => ['image', 'max:10240'],
             'submissionEmployeeRemark' => ['nullable', 'string'],
         ], [], [
-            'submissionPhotos' => 'photos',
-            'submissionPhotos.*' => 'photo',
             'submissionEmployeeRemark' => 'remark',
         ]);
 
-        $photoCount = count($this->submissionPhotos);
-        $minImages = (int) ($template->min_images ?? 0);
-        $maxImages = $template->max_images !== null ? (int) $template->max_images : null;
-
-        if ($photoCount < $minImages) {
-            throw ValidationException::withMessages([
-                'submissionPhotos' => "Upload at least {$minImages} photo(s) for this task.",
+        if ($template->requires_images) {
+            $this->validate([
+                'submissionPhotos' => ['array', 'max:20'],
+                'submissionPhotos.*' => ['image', 'max:10240'],
+            ], [], [
+                'submissionPhotos' => 'photos',
+                'submissionPhotos.*' => 'photo',
             ]);
-        }
 
-        if ($maxImages !== null && $photoCount > $maxImages) {
-            throw ValidationException::withMessages([
-                'submissionPhotos' => "This task allows a maximum of {$maxImages} photo(s).",
-            ]);
-        }
+            $photoCount = count($this->submissionPhotos);
+            $minImages = (int) ($template->min_images ?? 0);
+            $maxImages = $template->max_images !== null ? (int) $template->max_images : null;
 
-        foreach ($this->submissionPhotos as $index => $photo) {
-            if (!$photo instanceof TemporaryUploadedFile) {
-                continue;
-            }
-
-            $title = trim((string) ($this->submissionPhotoTitles[$index] ?? ''));
-            $remark = trim((string) ($this->submissionPhotoRemarks[$index] ?? ''));
-
-            if ($title === '') {
+            if ($photoCount < $minImages) {
                 throw ValidationException::withMessages([
-                    "submissionPhotoTitles.{$index}" => 'Each photo needs an action title.',
+                    'submissionPhotos' => "Upload at least {$minImages} photo(s) for this task.",
                 ]);
             }
 
-            if ($template->image_remark_required && $remark === '') {
+            if ($maxImages !== null && $photoCount > $maxImages) {
                 throw ValidationException::withMessages([
-                    "submissionPhotoRemarks.{$index}" => 'Remark is required for each photo on this task.',
+                    'submissionPhotos' => "This task allows a maximum of {$maxImages} photo(s).",
                 ]);
+            }
+
+            foreach ($this->submissionPhotos as $index => $photo) {
+                if (!$photo instanceof TemporaryUploadedFile) {
+                    continue;
+                }
+
+                $title = trim((string) ($this->submissionPhotoTitles[$index] ?? ''));
+                $remark = trim((string) ($this->submissionPhotoRemarks[$index] ?? ''));
+
+                if ($title === '') {
+                    throw ValidationException::withMessages([
+                        "submissionPhotoTitles.{$index}" => 'Each photo needs an action title.',
+                    ]);
+                }
+
+                if ($template->image_remark_required && $remark === '') {
+                    throw ValidationException::withMessages([
+                        "submissionPhotoRemarks.{$index}" => 'Remark is required for each photo on this task.',
+                    ]);
+                }
             }
         }
 
@@ -368,7 +388,7 @@ class MyTasks extends Component
 
     public function canSubmit(KpiTaskInstance $instance): bool
     {
-        if (!$instance->template?->requires_images || $instance->template?->requires_table) {
+        if ($instance->template?->requires_table) {
             return false;
         }
 
@@ -431,9 +451,15 @@ class MyTasks extends Component
 
     protected function ensureSubmissionAllowed(KpiTaskInstance $instance): void
     {
-        if (!$instance->template?->requires_images || $instance->template?->requires_table) {
+        if (!$instance->template) {
             throw ValidationException::withMessages([
-                'selectedTaskInstanceId' => 'This task does not support photo-only submission.',
+                'selectedTaskInstanceId' => 'Task template is missing.',
+            ]);
+        }
+
+        if ($instance->template->requires_table) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'This task requires table evidence and cannot be submitted yet.',
             ]);
         }
 
@@ -465,10 +491,49 @@ class MyTasks extends Component
 
     protected function submissionWindowEndsAt(KpiTaskInstance $instance): ?Carbon
     {
+        if ($this->isPreviousMonthInstance($instance)) {
+            return now()->copy()->endOfMonth();
+        }
+
         return match ($instance->period_type) {
             'daily' => $instance->task_date ? Carbon::parse($instance->task_date)->endOfDay() : null,
             default => $instance->period_end ? Carbon::parse($instance->period_end)->endOfDay() : null,
         };
+    }
+
+    protected function allowedMonthValues(): array
+    {
+        return [
+            now()->format('Y-m'),
+            now()->copy()->subMonth()->format('Y-m'),
+        ];
+    }
+
+    public function monthOptions(): array
+    {
+        $current = now()->startOfMonth();
+        $previous = now()->copy()->subMonth()->startOfMonth();
+
+        return [
+            ['value' => $current->format('Y-m'), 'label' => $current->format('F Y')],
+            ['value' => $previous->format('Y-m'), 'label' => $previous->format('F Y')],
+        ];
+    }
+
+    protected function isPreviousMonthInstance(KpiTaskInstance $instance): bool
+    {
+        $anchor = match ($instance->period_type) {
+            'daily' => $instance->task_date,
+            default => $instance->period_end ?? $instance->period_start,
+        };
+
+        if (!$anchor) {
+            return false;
+        }
+
+        $previousMonth = now()->copy()->subMonth()->startOfMonth();
+
+        return Carbon::parse($anchor)->format('Y-m') === $previousMonth->format('Y-m');
     }
 
     public function isFinalized(KpiTaskInstance $instance): bool

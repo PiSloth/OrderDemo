@@ -69,12 +69,8 @@ class KpiAvailabilityService
             return;
         }
 
-        $date = $request->requested_date->toDateString();
-
         $query = KpiTaskInstance::query()
-            ->where('user_id', $request->user_id)
-            ->where('period_type', 'daily')
-            ->whereDate('task_date', $date);
+            ->where('user_id', $request->user_id);
 
         if ($request->request_type === 'task') {
             if (!$request->task_assignment_id) {
@@ -82,6 +78,31 @@ class KpiAvailabilityService
             }
 
             $query->where('task_assignment_id', $request->task_assignment_id);
+
+            $request->loadMissing('assignment.template');
+            $frequency = $request->assignment?->template?->frequency;
+
+            if ($frequency === 'weekly') {
+                $weekStart = $request->requested_date->copy()->startOfWeek()->toDateString();
+                $weekEnd = $request->requested_date->copy()->endOfWeek()->toDateString();
+
+                $query
+                    ->where('period_type', 'weekly')
+                    ->whereDate('period_start', '<=', $weekEnd)
+                    ->whereDate('period_end', '>=', $weekStart);
+            } else {
+                $date = $request->requested_date->toDateString();
+
+                $query
+                    ->where('period_type', 'daily')
+                    ->whereDate('task_date', $date);
+            }
+        } else {
+            $date = $request->requested_date->toDateString();
+
+            $query
+                ->where('period_type', 'daily')
+                ->whereDate('task_date', $date);
         }
 
         $this->excludeOpenInstances(
@@ -109,7 +130,15 @@ class KpiAvailabilityService
 
     public function syncDailyInstance(KpiTaskInstance $instance): void
     {
-        if ($instance->period_type !== 'daily' || !$instance->task_date) {
+        if (!in_array($instance->period_type, ['daily', 'weekly'], true)) {
+            return;
+        }
+
+        if ($instance->period_type === 'daily' && !$instance->task_date) {
+            return;
+        }
+
+        if ($instance->period_type === 'weekly' && (!$instance->period_start || !$instance->period_end)) {
             return;
         }
 
@@ -119,41 +148,61 @@ class KpiAvailabilityService
 
         $instance->loadMissing(['user']);
 
-        $date = $instance->task_date->toDateString();
         $userId = $instance->user_id;
 
-        $holidayExists = KpiHoliday::query()
-            ->where('is_active', true)
-            ->whereDate('holiday_date', $date)
-            ->where(function (Builder $query) use ($userId): void {
-                $query->where('user_id', $userId)
-                    ->orWhereNull('user_id');
-            })
-            ->exists();
+        if ($instance->period_type === 'daily') {
+            $date = $instance->task_date->toDateString();
 
-        if ($holidayExists) {
-            $this->excludeInstance($instance, 'holiday');
+            $holidayExists = KpiHoliday::query()
+                ->where('is_active', true)
+                ->whereDate('holiday_date', $date)
+                ->where(function (Builder $query) use ($userId): void {
+                    $query->where('user_id', $userId)
+                        ->orWhereNull('user_id');
+                })
+                ->exists();
+
+            if ($holidayExists) {
+                $this->excludeInstance($instance, 'holiday');
+                return;
+            }
+
+            $dayExclusionExists = KpiExclusionRequest::query()
+                ->where('user_id', $instance->user_id)
+                ->where('request_type', 'day')
+                ->where('status', 'approved')
+                ->whereDate('requested_date', $date)
+                ->exists();
+
+            if ($dayExclusionExists) {
+                $this->excludeInstance($instance, 'approved_day_exclusion');
+                return;
+            }
+
+            $taskExclusionExists = KpiExclusionRequest::query()
+                ->where('user_id', $instance->user_id)
+                ->where('request_type', 'task')
+                ->where('status', 'approved')
+                ->where('task_assignment_id', $instance->task_assignment_id)
+                ->whereDate('requested_date', $date)
+                ->exists();
+
+            if ($taskExclusionExists) {
+                $this->excludeInstance($instance, 'approved_task_exclusion');
+            }
+
             return;
         }
 
-        $dayExclusionExists = KpiExclusionRequest::query()
-            ->where('user_id', $instance->user_id)
-            ->where('request_type', 'day')
-            ->where('status', 'approved')
-            ->whereDate('requested_date', $date)
-            ->exists();
-
-        if ($dayExclusionExists) {
-            $this->excludeInstance($instance, 'approved_day_exclusion');
-            return;
-        }
+        $weekStart = $instance->period_start->toDateString();
+        $weekEnd = $instance->period_end->toDateString();
 
         $taskExclusionExists = KpiExclusionRequest::query()
             ->where('user_id', $instance->user_id)
             ->where('request_type', 'task')
             ->where('status', 'approved')
             ->where('task_assignment_id', $instance->task_assignment_id)
-            ->whereDate('requested_date', $date)
+            ->whereBetween('requested_date', [$weekStart, $weekEnd])
             ->exists();
 
         if ($taskExclusionExists) {
