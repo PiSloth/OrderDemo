@@ -464,6 +464,10 @@ class DailyNotesList extends Component
                         ->orWhere('remark', 'like', '%' . $search . '%');
                 });
             })
+            ->whereHas('creator', function ($query) {
+                $user = Auth::user();
+                $query->where('department_id', $user->department_id);
+            })
             ->orderBy('id')
             ->get()
             ->filter(function (NoteTitle $title) use ($notes, $userId) {
@@ -512,6 +516,12 @@ class DailyNotesList extends Component
 
         return NoteTitle::query()
             ->where('is_active', true)
+            //notes which Auth:user() has access based on his departement must same with the note title creator department.
+            //Title table has createdBy field which is the user id of the creator of the title, and user table has department_id field which is the department id of the user, so we can use whereHas to filter the titles based on the creator's department.
+            ->whereHas('creator', function ($query) {
+                $user = Auth::user();
+                $query->where('department_id', $user->department_id);
+            })
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($titleQuery) use ($search) {
                     $titleQuery->where('name', 'like', '%' . $search . '%')

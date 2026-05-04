@@ -74,16 +74,28 @@ class Templates extends Component
             ->whereIn('id', function ($query) {
                 $query->from('kpi_task_assignments')
                     ->select('user_id')
-                    ->whereNotNull('user_id');
+                    ->whereNotNull('user_id')
+                    ->where('is_active', true);
             })
             ->orderBy('name')
             ->get(['id', 'name']);
 
         $this->templates = KpiTaskTemplate::query()
-            ->with(['group.department', 'rule', 'taskAssignments.user', 'taskAssignments.firstApprover', 'taskAssignments.finalApprover'])
+            ->with([
+                'group.department',
+                'rule',
+                'taskAssignments' => function ($assignmentQuery) {
+                    $assignmentQuery->where('is_active', true);
+                },
+                'taskAssignments.user',
+                'taskAssignments.firstApprover',
+                'taskAssignments.finalApprover',
+            ])
             ->when($this->templateEmployeeFilter !== '', function ($query) {
                 $query->whereHas('taskAssignments', function ($assignmentQuery) {
-                    $assignmentQuery->where('user_id', (int) $this->templateEmployeeFilter);
+                    $assignmentQuery
+                        ->where('user_id', (int) $this->templateEmployeeFilter)
+                        ->where('is_active', true);
                 });
             })
             ->orderByRaw("FIELD(frequency, 'daily', 'weekly', 'monthly')")

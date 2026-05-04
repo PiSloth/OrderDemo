@@ -134,6 +134,7 @@ class Audit extends Component
         $holidayMap = $availability->holidayMapForUser($selectedUser->id, $monthStart, $monthEnd);
         $exclusionMaps = $availability->exclusionMapsForUser($selectedUser->id, $monthStart, $monthEnd);
 
+        //add sort by kpy group name with natural sort and case insensitive
         $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $days, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator): array {
             $assignmentInstances = $instances->get($assignment->id, collect());
             $cells = $days->map(fn(Carbon $day) => $this->buildCell($assignment, $assignmentInstances, $day, $holidayMap, $exclusionMaps));
@@ -487,7 +488,7 @@ class Audit extends Component
                         : ($groupEvaluation['passes_rule'] && $summary['all_templates_pass']),
                 ];
             })
-            ->sortBy('group_name')
+            ->sortBy('group_name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
     }
 

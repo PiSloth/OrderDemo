@@ -34,6 +34,7 @@
             <div class="md:w-1/3 w-full">
                 <x-select label="" placeholder="Search employee" wire:model.live="selectedUserId"
                     :async-data="route('users.index')" option-label="name" option-value="id" />
+                <x-checkbox label="Active only" wire:model.live="is_active" class="mt-2" />
             </div>
 
             <div class="mt-4 space-y-3">
@@ -53,7 +54,8 @@
                                         class="rounded-full px-2 py-0.5 text-xs {{ $assignment->ends_on?->isPast() ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700' }}">
                                         {{ $assignment->ends_on?->isPast() ? 'Expired' : 'Ongoing' }}
                                     </span>
-
+                                    <span
+                                        class="uppercase px-2 py-0.5 space-x-2 dark:text-salte-200 text-yellow-600 rounded-full bg-yellow-50 text-xs ">{{ $assignment->template?->frequency ?? '-' }}</span>
                                 </div>
 
                                 <div class="grid gap-2 text-sm text-slate-600 dark:text-slate-300 md:grid-cols-2">
@@ -69,6 +71,7 @@
                                     <p>Final Approver: {{ $assignment->finalApprover?->name ?? 'Not required' }}</p>
                                     <p>Start: {{ $assignment->starts_on?->format('Y-m-d') ?? 'Open' }}</p>
                                     <p>End: {{ $assignment->ends_on?->format('Y-m-d') ?? 'Open' }}</p>
+                                    <p> {{ $assignment->template->guideline }}</p>
                                 </div>
 
                                 <div

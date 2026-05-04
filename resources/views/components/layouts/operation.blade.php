@@ -21,6 +21,11 @@
 
     @yield('styles')
     @stack('styles')
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
 </head>
 
 <body class="antialiased bg-gray-100 dark:bg-gray-800">
@@ -45,19 +50,33 @@
                                     stroke-linejoin="round" />
                             </svg>
                         </a>
-                        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">Operation Dashboard</h1>
+                        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">Operational Collection</h1>
                     </div>
 
-                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                        <a href="{{ route('operation.titles') }}" wire:navigate
-                            class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium {{ request()->routeIs('operation.titles') ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white' }}">
-                            Titles
-                        </a>
-                        <a href="{{ route('operation.daily-notes') }}"
-                            class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium {{ request()->routeIs('operation.daily-notes') ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white' }}">
-                            Daily Notes
-                        </a>
+                    <div class="hidden sm:ml-6 sm:flex sm:items-center">
+                        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                            <button type="button" @click="open = !open"
+                                class="inline-flex items-center gap-2 border-b-2 px-1 pt-1 text-sm font-medium {{ request()->routeIs('operation.titles') || request()->routeIs('operation.daily-notes') ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white' }}">
+                                Branch
+                                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.512a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </button>
 
+                            <div x-cloak x-show="open" x-transition
+                                class="absolute left-0 z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                <a href="{{ route('operation.titles') }}" wire:navigate @click="open = false"
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.titles') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Titles
+                                </a>
+                                <a href="{{ route('operation.daily-notes') }}" wire:navigate @click="open = false"
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.daily-notes') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Daily Notes
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

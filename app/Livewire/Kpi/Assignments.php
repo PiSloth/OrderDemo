@@ -36,6 +36,7 @@ class Assignments extends Component
     public string $assignmentWeeklyMonthlyRefreshTime = '09:15';
     public bool $assignmentPushUntilFinalized = true;
     public bool $assignmentIsActive = true;
+    public bool $is_active = true;
 
     public function mount(): void
     {
@@ -81,13 +82,15 @@ class Assignments extends Component
                 'calendarControl',
             ])
             ->withCount('instances')
-            ->orderByDesc('is_active')
+
             ->orderBy('user_id')
             ->orderBy(
                 KpiTaskTemplate::select('frequency')
                     ->whereColumn('kpi_task_templates.id', 'kpi_task_assignments.task_template_id')
             )
+            ->orderByDesc('is_active')
             ->where("user_id", '=', $this->selectedUserId)
+            ->where('is_active', $this->is_active)
             ->get();
     }
 

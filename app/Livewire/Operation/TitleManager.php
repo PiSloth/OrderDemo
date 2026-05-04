@@ -146,6 +146,10 @@ class TitleManager extends Component
                 ->when($remarkTerm !== '', function ($query) use ($remarkTerm) {
                     $query->where('remark', 'like', '%' . $remarkTerm . '%');
                 })
+                ->whereHas('creator', function ($query) {
+                    $user = Auth::user();
+                    $query->where('department_id', $user->department_id);
+                })
                 ->latest()
                 ->paginate(12),
         ]);
