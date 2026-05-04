@@ -19,11 +19,13 @@ use Livewire\Component;
 class Certificate extends Component
 {
     public string $month = '';
-    public int $selectedUserId;
+    public int $selectedUserId = 0;
     public ?int $selectedSubmissionId = null;
 
     public function mount(): void
     {
+        Gate::authorize('kpiViewCertificateDepartment', [$this->resolveSelectedUser($this->accessibleUsersQuery()->get())]);
+
         $this->month = request()->query('month', now()->format('Y-m'));
         $this->selectedUserId = (int) request()->query('user_id', Auth::id());
     }
@@ -47,7 +49,7 @@ class Certificate extends Component
             ->with(['template.group.department', 'template.rule'])
             ->where('user_id', $selectedUser->id)
             ->where('is_active', true)
-            ->whereHas('template', fn (Builder $query) => $query->where('is_active', true))
+            ->whereHas('template', fn(Builder $query) => $query->where('is_active', true))
             ->where(function (Builder $query) use ($monthEnd): void {
                 $query->whereNull('starts_on')->orWhereDate('starts_on', '<=', $monthEnd->toDateString());
             })
@@ -55,7 +57,7 @@ class Certificate extends Component
                 $query->whereNull('ends_on')->orWhereDate('ends_on', '>=', $monthStart->toDateString());
             })
             ->get()
-            ->sortBy(fn (KpiTaskAssignment $assignment) => sprintf(
+            ->sortBy(fn(KpiTaskAssignment $assignment) => sprintf(
                 '%s|%s',
                 (string) optional($assignment->template?->group)->name,
                 (string) optional($assignment->template)->title
@@ -82,6 +84,7 @@ class Certificate extends Component
                 'groups' => $groupedRows,
             ],
             'appendixRows' => $this->buildAppendixRows($selectedUser->id, $monthStart, $monthEnd),
+            'passedEvidenceRows' => $this->buildPassedEvidenceRows($selectedUser->id, $monthStart, $monthEnd),
             'selectedSubmission' => $this->getSelectedSubmissionProperty(),
         ]);
     }
@@ -148,7 +151,7 @@ class Certificate extends Component
                     ])
                     : $ruleEvaluator->evaluateRule(null, []);
 
-                $allTemplatePass = $rows->every(fn (array $row) => $row['rule_evaluation']['passes_rule'] === true);
+                $allTemplatePass = $rows->every(fn(array $row) => $row['rule_evaluation']['passes_rule'] === true);
                 $groupPass = $templateCount > 1
                     ? (($groupEvaluation['passes_rule'] === true) && $allTemplatePass)
                     : ($rows->first()['rule_evaluation']['passes_rule'] === true);
@@ -221,8 +224,8 @@ class Certificate extends Component
         $remarkRows = $submissions
             ->map(function (KpiTaskSubmission $submission): ?array {
                 $remarks = $submission->approvalSteps
-                    ->filter(fn ($step) => filled($step->remark))
-                    ->map(fn ($step) => [
+                    ->filter(fn($step) => filled($step->remark))
+                    ->map(fn($step) => [
                         'submission_id' => $submission->id,
                         'template_title' => (string) ($submission->instance?->template?->title ?? '-'),
                         'remark' => (string) $step->remark,
@@ -245,14 +248,72 @@ class Certificate extends Component
             ->values();
 
         return $remarkRows
-            ->flatMap(fn (array $group) => $group['remarks'])
+            ->flatMap(fn(array $group) => $group['remarks'])
             ->groupBy('template_title')
-            ->map(fn (Collection $rows, string $templateTitle) => [
+            ->map(fn(Collection $rows, string $templateTitle) => [
                 'template_title' => $templateTitle,
                 'rowspan' => $rows->count(),
                 'rows' => $rows->values(),
             ])
             ->sortBy('template_title')
+            ->values();
+    }
+
+    protected function buildPassedEvidenceRows(int $userId, Carbon $monthStart, Carbon $monthEnd): Collection
+    {
+        $submissions = KpiTaskSubmission::query()
+            ->with([
+                'images',
+                'instance.template.group',
+                'approvalSteps.approver',
+            ])
+            ->whereHas('instance', function (Builder $query) use ($userId, $monthStart, $monthEnd): void {
+                $query
+                    ->where('user_id', $userId)
+                    ->where('status', 'passed')
+                    ->whereDate('period_start', '<=', $monthEnd->toDateString())
+                    ->whereDate('period_end', '>=', $monthStart->toDateString());
+            })
+            ->orderByDesc('submitted_at')
+            ->get();
+
+        return $submissions
+            ->map(function (KpiTaskSubmission $submission): array {
+                $template = $submission->instance?->template;
+                $groupName = (string) ($template?->group?->name ?? 'No KPI Group');
+                $remarks = $submission->approvalSteps
+                    ->filter(fn($step) => filled($step->remark))
+                    ->map(fn($step) => trim((string) $step->remark) . ' (' . ($step->approver?->name ?? 'Approver') . ')')
+                    ->values();
+
+                return [
+                    'group_name' => $groupName,
+                    'template_title' => (string) ($template?->title ?? '-'),
+                    'frequency' => (string) ($template?->frequency ?? '-'),
+                    'requested_date' => $submission->submitted_at ?? $submission->created_at,
+                    'approve_remark' => $remarks->isNotEmpty() ? $remarks->implode(' | ') : '-',
+                    'images' => $submission->images->map(function ($image): array {
+                        return [
+                            'url' => asset('storage/' . ltrim((string) $image->image_path, '/')),
+                            'title' => (string) ($image->title ?? 'Evidence image'),
+                        ];
+                    })->values(),
+                ];
+            })
+            ->groupBy('group_name')
+            ->map(function (Collection $groupRows, string $groupName): array {
+                return [
+                    'group_name' => $groupName,
+                    'templates' => $groupRows
+                        ->groupBy('template_title')
+                        ->map(fn(Collection $templateRows, string $templateTitle) => [
+                            'template_title' => $templateTitle,
+                            'rows' => $templateRows->values(),
+                        ])
+                        ->values(),
+                ];
+            })
+            ->sortBy('group_name')
             ->values();
     }
 

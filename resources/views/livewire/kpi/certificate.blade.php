@@ -1,31 +1,29 @@
+<div class="space-y-4" id="kpi-certificate-root" x-data="{ open: false, activeImage: null, copied: false }">
 
-<div class="space-y-4" id="kpi-certificate-root" x-data="{ open: false, activeImage: null }">
     <div class="flex flex-wrap items-end gap-3">
-        <div>
-            <label class="block text-xs font-medium text-slate-600">Month</label>
-            <input
-                type="month"
-                wire:model.live="month"
-                class="rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500"
-            >
-        </div>
-        <div>
-            <label class="block text-xs font-medium text-slate-600">Employee</label>
-            <select
-                wire:model.live="selectedUserId"
-                class="rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500"
-            >
-                @foreach($users as $user)
-                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <button type="button" onclick="window.print()" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+        @can('kpiManageTemplates')
+            <div>
+                <label class="block text-xs font-medium text-slate-600">Month</label>
+                <input type="month" wire:model.live="month"
+                    class="rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-600">Employee</label>
+                <select wire:model.live="selectedUserId"
+                    class="rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                    @foreach ($users as $user)
+                        <option value="{{ $user->id }}">{{ $user->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endcan
+        <button type="button" onclick="window.print()"
+            class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
             Print
         </button>
     </div>
 
-    @if(!$selectedUser || !$certificate)
+    @if (!$selectedUser || !$certificate)
         <div class="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">
             No certificate data available.
         </div>
@@ -36,6 +34,7 @@
             $overhaul = $overall['percentage'];
             $groupPassCount = $groups->where('group_result', 'Pass')->count();
             $groupFailCount = $groups->where('group_result', 'Fail')->count();
+            $directReportLink = route('kpi.certificate', ['month' => $month, 'user_id' => $selectedUserId]);
         @endphp
 
         <style>
@@ -47,12 +46,30 @@
             }
         </style>
 
-        <div class="mx-auto w-full max-w-[210mm] rounded-xl border border-slate-300 bg-white p-6 text-slate-900 shadow-sm print:shadow-none">
+        <div
+            class="mx-auto w-full max-w-[210mm] rounded-xl border border-slate-300 bg-white p-6 text-slate-900 shadow-sm print:shadow-none">
+            <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                <div class="font-semibold text-slate-700">Direct Report Link</div>
+                <div class="mt-2 flex items-center gap-3">
+                    <button type="button"
+                        @click="navigator.clipboard.writeText('{{ $directReportLink }}').then(() => { copied = true; setTimeout(() => copied = false, 1500); })"
+                        class="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">
+                        Copy Link
+                    </button>
+                    <span x-show="copied" x-transition class="text-xs font-medium text-emerald-600"
+                        style="display: none;">
+                        Copied!
+                    </span>
+                </div>
+            </div>
+
             <div class="flex items-start justify-between gap-6 border-b border-slate-200 pb-4">
                 <div class="space-y-1 text-sm">
                     <div><span class="font-semibold">Employee Name:</span> {{ $selectedUser->name }}</div>
-                    <div><span class="font-semibold">Department:</span> {{ $selectedUser->department?->name ?? '-' }}</div>
-                    <div><span class="font-semibold">As Of Certificate:</span> {{ $certificate['month']->format('F Y') }}</div>
+                    <div><span class="font-semibold">Department:</span> {{ $selectedUser->department?->name ?? '-' }}
+                    </div>
+                    <div><span class="font-semibold">As Of Certificate:</span>
+                        {{ $certificate['month']->format('F Y') }}</div>
                 </div>
                 <img src="{{ asset('images/logo.png') }}" alt="Company Logo" class="h-16 w-auto object-contain">
             </div>
@@ -62,10 +79,7 @@
                     <div class="text-sm font-semibold">Overhaul Percentage</div>
                     <input type="hidden" id="kpi-overhaul-value" value="{{ number_format($overhaul, 2, '.', '') }}">
                     <div class="mt-3 flex items-end gap-4" wire:ignore>
-                        <div
-                            id="kpi-overhaul-half-chart"
-                            class="h-28 w-48"
-                        ></div>
+                        <div id="kpi-overhaul-half-chart" class="h-28 w-48"></div>
                         <!-- <div class="text-right" id="kpi-overhaul-meta">
                             <div class="text-3xl font-bold text-slate-900 dark:text-slate-100">{{ number_format($overhaul, 2) }}%</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">{{ $overall['passed_count'] }} / {{ $overall['must_do_count'] }} passed</div>
@@ -93,43 +107,123 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-                        @foreach($groups as $group)
-                            @if($group['show_group_result'])
+                        @foreach ($groups as $group)
+                            @if ($group['show_group_result'])
                                 @php $rowspan = count($group['templates']) + 1; @endphp
                                 <tr class="bg-slate-50 font-semibold dark:bg-slate-800/70">
-                                    <td class="px-3 py-2 align-top" rowspan="{{ $rowspan }}">{{ $group['no'] }}</td>
+                                    <td class="px-3 py-2 align-top" rowspan="{{ $rowspan }}">{{ $group['no'] }}
+                                    </td>
                                     <td class="px-3 py-2">{{ $group['group_name'] }} (Group)</td>
                                     <td class="px-3 py-2 text-center">{{ $group['summary']['late_count'] }}</td>
                                     <td class="px-3 py-2 text-center">{{ $group['summary']['absent_count'] }}</td>
-                                    <td class="px-3 py-2 text-center">{{ number_format($group['summary']['score'], 2) }}%</td>
-                                    <td class="px-3 py-2 text-center {{ $group['group_result'] === 'Pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">{{ $group['group_result'] }}</td>
+                                    <td class="px-3 py-2 text-center">
+                                        {{ number_format($group['summary']['score'], 2) }}%</td>
+                                    <td
+                                        class="px-3 py-2 text-center {{ $group['group_result'] === 'Pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                        {{ $group['group_result'] }}</td>
                                 </tr>
                             @else
                                 @php $rowspan = count($group['templates']); @endphp
                             @endif
 
-                            @foreach($group['templates'] as $templateIndex => $template)
+                            @foreach ($group['templates'] as $templateIndex => $template)
                                 <tr>
-                                    @if(!$group['show_group_result'] && $templateIndex === 0)
-                                        <td class="px-3 py-2 align-top" rowspan="{{ $rowspan }}">{{ $group['no'] }}</td>
+                                    @if (!$group['show_group_result'] && $templateIndex === 0)
+                                        <td class="px-3 py-2 align-top" rowspan="{{ $rowspan }}">
+                                            {{ $group['no'] }}</td>
                                     @endif
                                     <td class="px-3 py-2">{{ $template['title'] }}</td>
                                     <td class="px-3 py-2 text-center">{{ $template['summary']['late_count'] }}</td>
                                     <td class="px-3 py-2 text-center">{{ $template['summary']['absent_count'] }}</td>
-                                    <td class="px-3 py-2 text-center">{{ number_format($template['summary']['score'], 2) }}%</td>
-                                    <td class="px-3 py-2 text-center {{ $template['result'] === 'Pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">{{ $template['result'] }}</td>
+                                    <td class="px-3 py-2 text-center">
+                                        {{ number_format($template['summary']['score'], 2) }}%</td>
+                                    <td
+                                        class="px-3 py-2 text-center {{ $template['result'] === 'Pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                        {{ $template['result'] }}</td>
                                 </tr>
                             @endforeach
                             <tr>
-                                <td colspan="6" class="h-0 border-b-2 border-slate-300 dark:border-slate-600 p-0"></td>
+                                <td colspan="6" class="h-0 border-b-2 border-slate-300 dark:border-slate-600 p-0">
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <div class="mt-3 rounded-md bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                Master Report: Final KPI Result Pass: <span class="text-emerald-600 dark:text-emerald-400">{{ $groupPassCount }}</span>
-                
+            <div
+                class="mt-3 rounded-md bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                Master Report: Final KPI Result Pass: <span
+                    class="text-emerald-600 dark:text-emerald-400">{{ $groupPassCount }}</span>
+
+            </div>
+
+            <div class="mt-8">
+                <h4 class="text-base font-semibold text-slate-900 dark:text-slate-100">Evidence of Passed KPI Group</h4>
+                <div class="mt-3 space-y-4">
+                    @forelse($passedEvidenceRows as $group)
+                        <section class="rounded-xl border-2 border-teal-500 p-4">
+                            <h5 class="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                                {{ $group['group_name'] }}</h5>
+                            <div class="mt-3 space-y-3">
+                                @foreach ($group['templates'] as $template)
+                                    <article class="rounded-lg border-2 border-emerald-500 p-3">
+                                        <div class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                            {{ $template['template_title'] }}</div>
+                                        <div class="mt-3 space-y-3">
+                                            @foreach ($template['rows'] as $row)
+                                                <div
+                                                    class="rounded-md border border-slate-200 p-3 text-sm dark:border-slate-700">
+                                                    <div class="grid gap-2 md:grid-cols-2">
+                                                        <div><span class="font-semibold">Group Name:</span>
+                                                            {{ $row['group_name'] }}</div>
+                                                        <div><span class="font-semibold">Template Title:</span>
+                                                            {{ $row['template_title'] }}</div>
+                                                        <div>
+                                                            <span class="font-semibold">Frequency:</span>
+                                                            <span
+                                                                class="ml-1 rounded-full px-2 py-0.5 text-xs font-semibold uppercase {{ $row['frequency'] === 'daily' ? 'bg-emerald-100 text-emerald-700' : ($row['frequency'] === 'weekly' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700') }}">
+                                                                {{ $row['frequency'] }}
+                                                            </span>
+                                                        </div>
+                                                        <div><span class="font-semibold">Requested Date:</span>
+                                                            {{ optional($row['requested_date'])->format('Y-m-d H:i') ?? '-' }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="mt-2"><span class="font-semibold">Approve
+                                                            Remark:</span> {{ $row['approve_remark'] }}</div>
+                                                    <div class="mt-3">
+                                                        <div class="mb-2 font-semibold">Evidence Images:</div>
+                                                        @if (collect($row['images'])->isNotEmpty())
+                                                            <div class="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                                                @foreach ($row['images'] as $image)
+                                                                    <button type="button"
+                                                                        @click="activeImage = '{{ $image['url'] }}'; open = true"
+                                                                        class="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
+                                                                        <img src="{{ $image['url'] }}"
+                                                                            alt="{{ $image['title'] }}"
+                                                                            class="h-24 w-full object-cover">
+                                                                    </button>
+                                                                @endforeach
+                                                            </div>
+                                                        @else
+                                                            <div class="text-xs text-slate-500">No evidence image.
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </article>
+                                @endforeach
+                            </div>
+                        </section>
+                    @empty
+                        <div
+                            class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                            No passed KPI evidence found for this month.
+                        </div>
+                    @endforelse
+                </div>
             </div>
 
             <div class="mt-12 grid grid-cols-2 gap-10 text-sm">
@@ -156,28 +250,29 @@
                         </thead>
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                             @forelse($appendixRows as $templateGroup)
-                                @foreach($templateGroup['rows'] as $index => $row)
+                                @foreach ($templateGroup['rows'] as $index => $row)
                                     <tr>
-                                        @if($index === 0)
-                                            <td class="px-3 py-2 align-top font-medium text-slate-900 dark:text-slate-100" rowspan="{{ $templateGroup['rowspan'] }}">
+                                        @if ($index === 0)
+                                            <td class="px-3 py-2 align-top font-medium text-slate-900 dark:text-slate-100"
+                                                rowspan="{{ $templateGroup['rowspan'] }}">
                                                 {{ $templateGroup['template_title'] }}
                                             </td>
                                         @endif
                                         <td class="px-3 py-2">
-                                            <button
-                                                type="button"
+                                            <button type="button"
                                                 wire:click="openSubmissionDetail({{ $row['submission_id'] }})"
-                                                class="text-left underline decoration-dotted {{ $row['is_rejected'] ? 'text-rose-700 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200' }}"
-                                            >
+                                                class="text-left underline decoration-dotted {{ $row['is_rejected'] ? 'text-rose-700 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200' }}">
                                                 {{ $row['remark'] }}
                                             </button>
                                         </td>
-                                        <td class="px-3 py-2 text-slate-600 dark:text-slate-300">{{ $row['remark_by'] }}</td>
+                                        <td class="px-3 py-2 text-slate-600 dark:text-slate-300">
+                                            {{ $row['remark_by'] }}</td>
                                     </tr>
                                 @endforeach
                             @empty
                                 <tr>
-                                    <td colspan="3" class="px-3 py-4 text-center text-slate-500 dark:text-slate-400">
+                                    <td colspan="3"
+                                        class="px-3 py-4 text-center text-slate-500 dark:text-slate-400">
                                         No approver remarks for this month.
                                     </td>
                                 </tr>
@@ -213,7 +308,8 @@
                         </p>
                         <div class="grid gap-2 text-sm text-slate-500 dark:text-slate-400 md:grid-cols-2">
                             <p>Submitted: {{ $selectedSubmission->submitted_at?->format('Y-m-d H:i') ?? '-' }}</p>
-                            <p>Due: {{ $selectedSubmission->instance?->due_at?->format('Y-m-d H:i') ?? 'No cutoff' }}</p>
+                            <p>Due: {{ $selectedSubmission->instance?->due_at?->format('Y-m-d H:i') ?? 'No cutoff' }}
+                            </p>
                             <p>On Time: {{ $selectedSubmission->is_late ? 'Late' : 'On time' }}</p>
                             <p>Submitted By: {{ $selectedSubmission->submittedBy?->name ?? '-' }}</p>
                         </div>
@@ -312,29 +408,60 @@
             if (el.__apexchart) {
                 el.__apexchart.updateOptions({
                     colors: [passColor],
-                    plotOptions: { radialBar: { track: { background: trackColor }, dataLabels: { value: { color: labelColor } } } },
+                    plotOptions: {
+                        radialBar: {
+                            track: {
+                                background: trackColor
+                            },
+                            dataLabels: {
+                                value: {
+                                    color: labelColor
+                                }
+                            }
+                        }
+                    },
                 }, false, true);
                 el.__apexchart.updateSeries([value], true);
                 return;
             }
 
             const chart = new window.ApexCharts(el, {
-                chart: { type: 'radialBar', height: 170, sparkline: { enabled: true } },
+                chart: {
+                    type: 'radialBar',
+                    height: 170,
+                    sparkline: {
+                        enabled: true
+                    }
+                },
                 series: [value],
                 colors: [passColor],
                 plotOptions: {
                     radialBar: {
                         startAngle: -90,
                         endAngle: 90,
-                        hollow: { size: '58%' },
-                        track: { background: trackColor, strokeWidth: '100%' },
+                        hollow: {
+                            size: '58%'
+                        },
+                        track: {
+                            background: trackColor,
+                            strokeWidth: '100%'
+                        },
                         dataLabels: {
-                            name: { show: false },
-                            value: { offsetY: -2, fontSize: '16px', color: labelColor, formatter: (v) => `${v.toFixed(2)}%` }
+                            name: {
+                                show: false
+                            },
+                            value: {
+                                offsetY: -2,
+                                fontSize: '16px',
+                                color: labelColor,
+                                formatter: (v) => `${v.toFixed(2)}%`
+                            }
                         }
                     }
                 },
-                stroke: { lineCap: 'round' }
+                stroke: {
+                    lineCap: 'round'
+                }
             });
             el.__apexchart = chart;
             chart.render();
@@ -345,14 +472,18 @@
         document.addEventListener('change', (event) => {
             const target = event.target;
             if (!target) return;
-            if (target.matches('input[type="month"][wire\\:model\\.live="month"], select[wire\\:model\\.live="selectedUserId"]')) {
+            if (target.matches(
+                    'input[type="month"][wire\\:model\\.live="month"], select[wire\\:model\\.live="selectedUserId"]'
+                    )) {
                 setTimeout(renderKpiOverhaulHalfChart, 80);
             }
         });
         document.addEventListener('livewire:init', () => {
             if (window.Livewire && !window.__kpiOverhaulHookBound) {
                 window.__kpiOverhaulHookBound = true;
-                window.Livewire.hook('morph.updated', ({ el }) => {
+                window.Livewire.hook('morph.updated', ({
+                    el
+                }) => {
                     if (
                         el &&
                         (

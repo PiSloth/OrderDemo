@@ -206,5 +206,23 @@ class AppServiceProvider extends ServiceProvider
                 ['Super Admin', 'Supervisor', 'Assistant Manager', 'Manager', 'Assistant General Manager', 'CEO']
             );
         });
+
+        //Allow to view certificate if user from Hr department or user is Super Admin and user itself. We use department id from user table.
+        Gate::define('kpiViewCertificateDepartment', function (User $user, User $certificateOwner) {
+            if ($user->id === $certificateOwner->id) {
+                return true;
+            }
+
+            //if user is Super Admin, allow to view certificate
+            if ($user->position->name === 'Super Admin') {
+                return true;
+            }
+
+            //get user from url and add his department name to allowed departments array, then check if user department is in allowed departments array
+            $authorizedDepartments = ['HR', 'Audit', optional($certificateOwner->department)->name];
+            $userDepartment = optional($user->department)->name;
+
+            return in_array($userDepartment, $authorizedDepartments, true) || $user->position->name === 'Super Admin';
+        });
     }
 }
