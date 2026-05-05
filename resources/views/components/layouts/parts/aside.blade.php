@@ -84,7 +84,9 @@
                                     ? 'whiteboard'
                                     : ($jewelryGroupActive
                                         ? 'jewelry'
-                                        : ($documentGroupActive ? 'document' : ''))))))));
+                                        : ($documentGroupActive
+                                            ? 'document'
+                                            : ''))))))));
 
         $linkBase =
             'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
@@ -114,10 +116,10 @@
 
             <!-- Performance Group -->
             <li class="mt-2">
-                <button type="button"
-                    @click="openGroup = openGroup === 'performance' ? '' : 'performance'"
+                <button type="button" @click="openGroup = openGroup === 'performance' ? '' : 'performance'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'performance' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'performance' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="trending-up" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Performance</span>
@@ -153,7 +155,8 @@
             <li class="mt-3">
                 <button type="button" @click="openGroup = openGroup === 'order' ? '' : 'order'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'order' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'order' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="clipboard-list" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Order</span>
@@ -253,7 +256,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'psi' ? '' : 'psi'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'psi' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'psi' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="view-grid" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">PSI</span>
@@ -311,7 +315,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'todo' ? '' : 'todo'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'todo' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'todo' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="check-circle" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Todo</span>
@@ -347,7 +352,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'operation' ? '' : 'operation'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'operation' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'operation' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="globe" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Operation</span>
@@ -383,7 +389,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'kpi' ? '' : 'kpi'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'kpi' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'kpi' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="clipboard-check" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">KPI Tasks</span>
@@ -429,7 +436,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'whiteboard' ? '' : 'whiteboard'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'whiteboard' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'whiteboard' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="view-grid" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Whiteboard</span>
@@ -498,7 +506,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'jewelry' ? '' : 'jewelry'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'jewelry' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'jewelry' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="clipboard-list" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Jewelry</span>
@@ -534,7 +543,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'document' ? '' : 'document'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'document' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-200'">
+                    x-bind:class="openGroup === 'document' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="folder" class="w-5 h-5 text-slate-400" />
                         <span class="ml-3">Document</span>
@@ -600,4 +610,3 @@
         </ul>
     </div>
 </aside>
-

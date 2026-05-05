@@ -6,6 +6,12 @@ use App\Http\Controllers\Calendar\GoogleCalendarEventsController;
 use App\Http\Controllers\Calendar\GoogleSocialiteAuthController;
 use App\Http\Controllers\Document\CompanyDocumentImageController;
 use App\Http\Controllers\Document\EmailListExportController;
+use App\Livewire\Operation\IT\Issue\Configure as ItIssueConfigure;
+use App\Livewire\Operation\IT\Issue\Create as ItIssueCreate;
+use App\Livewire\Operation\IT\Issue\Index as ItIssueIndex;
+use App\Http\Controllers\Operation\IT\IssueAssignmentController;
+use App\Http\Controllers\Operation\IT\IssueMessageController;
+use App\Http\Controllers\Operation\IT\IssueStatusController;
 use App\Http\Controllers\Kpi\ImportExportController as KpiImportExportController;
 use App\Livewire\BranchReport\Dashboard as BranchReportDashboard;
 use App\Livewire\BranchReport\SaleAndRepurchase;
@@ -216,6 +222,15 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
     Route::get('/titles', \App\Livewire\Operation\TitleManager::class)
         // ->middleware('can:manageOperationTitles')
         ->name('titles');
+
+    Route::prefix('it')->name('it.')->group(function () {
+        Route::get('/issues/configure', ItIssueConfigure::class)->name('issues.configure');
+        Route::get('/issues', ItIssueIndex::class)->name('issues.index');
+        Route::get('/issues/create', ItIssueCreate::class)->name('issues.create');
+        Route::patch('/issues/{issue}/status', [IssueStatusController::class, 'update'])->name('issues.status.update');
+        Route::patch('/issues/{issue}/assignment', [IssueAssignmentController::class, 'update'])->name('issues.assignment.update');
+        Route::post('/issues/{issue}/messages', [IssueMessageController::class, 'store'])->name('issues.messages.store');
+    });
 });
 
 Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function () {

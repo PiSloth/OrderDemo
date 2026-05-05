@@ -552,6 +552,11 @@ class MyTasks extends Component
             $this->submissionPhotoSources[] = $source;
             $this->submissionPhotoTitles[] = '';
             $this->submissionPhotoRemarks[] = '';
+
+            // Add temporary URL for preview
+            if (method_exists($photo, 'temporaryUrl')) {
+                $this->submissionPhotoSources[] = $photo->temporaryUrl();
+            }
         }
     }
 }
