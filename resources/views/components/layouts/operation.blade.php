@@ -76,6 +76,18 @@
                                     class="block px-4 py-2 text-sm {{ request()->routeIs('operation.daily-notes') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
                                     Daily Notes
                                 </a>
+                                <a href="{{ route('operation.branch.checklists') }}" wire:navigate @click="open = false"
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.branch.checklists') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Checklist Operation
+                                </a>
+                                <a href="{{ route('operation.branch.checklists.config') }}" wire:navigate @click="open = false"
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.branch.checklists.config') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Checklist Config
+                                </a>
+                                <a href="{{ route('operation.branch.checklists.report') }}" wire:navigate @click="open = false"
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.branch.checklists.report') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Checklist Report
+                                </a>
                             </div>
                         </div>
                         {{-- IT Droptdown --}}

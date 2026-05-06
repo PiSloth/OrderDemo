@@ -9,6 +9,9 @@ use App\Http\Controllers\Document\EmailListExportController;
 use App\Livewire\Operation\IT\Issue\Configure as ItIssueConfigure;
 use App\Livewire\Operation\IT\Issue\Create as ItIssueCreate;
 use App\Livewire\Operation\IT\Issue\Index as ItIssueIndex;
+use App\Livewire\Operation\Branch\BranchChecklist\Crud\Index as BranchChecklistCrudIndex;
+use App\Livewire\Operation\Branch\BranchChecklist\Operation as BranchChecklistOperation;
+use App\Livewire\Operation\Branch\BranchChecklist\Report as BranchChecklistReport;
 use App\Http\Controllers\Operation\IT\IssueAssignmentController;
 use App\Http\Controllers\Operation\IT\IssueMessageController;
 use App\Http\Controllers\Operation\IT\IssueStatusController;
@@ -222,6 +225,11 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
     Route::get('/titles', \App\Livewire\Operation\TitleManager::class)
         // ->middleware('can:manageOperationTitles')
         ->name('titles');
+    Route::prefix('branch')->name('branch.')->group(function () {
+        Route::get('/checklists', BranchChecklistOperation::class)->name('checklists');
+        Route::get('/checklists/config', BranchChecklistCrudIndex::class)->name('checklists.config');
+        Route::get('/checklists/report', BranchChecklistReport::class)->name('checklists.report');
+    });
 
     Route::prefix('it')->name('it.')->group(function () {
         Route::get('/issues/configure', ItIssueConfigure::class)->name('issues.configure');

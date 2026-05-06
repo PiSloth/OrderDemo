@@ -124,6 +124,11 @@ class User extends Authenticatable
         return $this->hasMany(DailyNoteAcknowledgement::class);
     }
 
+    public function branchChecklistHistories(): HasMany
+    {
+        return $this->hasMany(BranchChecklistHistory::class);
+    }
+
     public function acknowledgedDailyNotes(): BelongsToMany
     {
         return $this->belongsToMany(DailyNote::class, 'daily_note_acknowledgements', 'user_id', 'note_id')

@@ -87,6 +87,36 @@
         @enderror
     </div>
 
+    <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="grid gap-3 md:grid-cols-3">
+            <x-select label="Export Branches" placeholder="Select branches" multiselect searchable :options="$branchOptions"
+                option-label="name" option-value="id" wire:model.live="exportBranchIds" />
+
+            <x-select label="Export Titles" placeholder="Select titles" multiselect searchable :options="$titleOptions"
+                option-label="name" option-value="id" wire:model.live="exportTitleIds" />
+
+            <div wire:ignore x-data="{ range: @entangle('exportDateRange').live }" x-init="setTimeout(() => {
+                if (!window.flatpickr) return;
+                flatpickr($refs.exportRange, {
+                    mode: 'range',
+                    dateFormat: 'Y-m-d',
+                    onChange: (_, dateStr) => { range = dateStr; },
+                });
+            }, 0)">
+                <label class="mb-1 block text-sm font-medium text-slate-700">Export Date Range</label>
+                <input x-ref="exportRange" type="text" placeholder="YYYY-MM-DD to YYYY-MM-DD"
+                    class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">
+            </div>
+        </div>
+
+        <div class="mt-3 flex justify-end">
+            <button type="button" wire:click="exportDailyNotesReport"
+                class="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700">
+                Export Daily Notes
+            </button>
+        </div>
+    </section>
+
     @if ($viewMode === 'card' && $activeTab === 'opened')
         <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             @forelse ($openedCards as $card)
