@@ -38,6 +38,7 @@ class Index extends Component
     public string $message = '';
     public bool $isDiscussionMode = true;
     public array $selectedRootCauseIds = [];
+    public bool $is_erp = true;
 
     public function selectIssue(int $issueId): void
     {
@@ -80,6 +81,13 @@ class Index extends Component
     {
         $this->showPlanModal = false;
     }
+
+    // public function openMessageModal(): void
+    // {
+    //     $this->showMessageModal = true;
+    //     $this->message = '';
+    //     $this->isDiscussionMode = true;
+    // }
 
     public function openMessageModal(): void
     {

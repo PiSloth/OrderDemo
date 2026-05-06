@@ -373,6 +373,16 @@
                         </a>
                     </li>
 
+                    @php $active = request()->routeIs('operation.it.issues.create') || request()->routeIs('operation.it.issues.index'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('operation.it.issues.create') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="ticket"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">ERP Tickets</span>
+                        </a>
+                    </li>
+
                     {{-- @php $active = request()->routeIs('operation.titles'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('operation.titles') }}"

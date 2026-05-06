@@ -6,8 +6,8 @@
     <div x-show="showForm">
         <form wire:submit="save" class="space-y-4 rounded-2xl border bg-white p-6">
             <div class="flex gap-2"><button type="button" @click="tab='erp'" class="rounded-xl px-4 py-2 text-sm"
-                    :class="tab === 'erp' ? 'bg-slate-900 text-white' : 'bg-slate-200'">ERP</button><button type="button"
-                    @click="tab='it'" class="rounded-xl px-4 py-2 text-sm"
+                    :class="tab === 'erp' ? 'bg-slate-900 text-white' : 'bg-slate-200'">ERP</button><button
+                    type="button" @click="tab='it'" class="rounded-xl px-4 py-2 text-sm"
                     :class="tab === 'it' ? 'bg-slate-900 text-white' : 'bg-slate-200'">IT Support</button></div>
             <select wire:model="issue_category_id" class="w-full rounded-xl border px-3 py-2" required>
                 <option value="">Category</option>
@@ -26,12 +26,15 @@
             <textarea wire:model="description" class="w-full rounded-xl border px-3 py-2" rows="4"
                 placeholder="Issue description" required></textarea>
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <x-select label="Reported By" placeholder="Search employee" wire:model="issue_by_user_id"
+                    :async-data="route('users.index')" option-label="name" option-value="id" />
+                {{-- 
                 <select wire:model="issue_by_user_id" class="rounded-xl border px-3 py-2" required>
                     <option value="">Issue By (Current or Other User)</option>
                     @foreach ($users as $user)
                         <option value="{{ $user->id }}">{{ $user->name }}</option>
                     @endforeach
-                </select>
+                </select> --}}
             </div>
             <div>
                 <label class="text-sm font-medium text-slate-700">Photos</label>
