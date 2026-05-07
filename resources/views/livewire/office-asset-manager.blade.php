@@ -2,15 +2,15 @@
     <div class="mb-6 flex justify-between items-center">
         <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">Office Assets</h2>
         <div class="flex gap-2">
-            <x-button flat label="Category" wire:click="createCategory" />
-            <x-button flat label="Item" wire:click="createItem" />
-            <x-button flat label="Batch" wire:click="createBatch" />
+            <x-button flat label="Category" wire:click="openCategoryCrud" />
+            <x-button flat label="Item" wire:click="openItemCrud" />
+            <x-button flat label="Batch" wire:click="openBatchCrud" />
             <x-button primary label="Create Asset" wire:click="createAsset" icon="plus" />
         </div>
     </div>
 
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
             <x-input wire:model.live="search" placeholder="Search assets..." icon="search" />
             <x-native-select wire:model.live="filterCategory">
                 <option value="">All Categories</option>
@@ -36,39 +36,46 @@
                     <option value="{{ $department->id }}">{{ $department->name }}</option>
                 @endforeach
             </x-native-select>
+            <x-native-select wire:model.live="groupBy">
+                <option value="none">No Group</option>
+                <option value="category">Group By Category</option>
+            </x-native-select>
         </div>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Photo</th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Name</th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Category</th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Batch</th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Branch / Dept</th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Balance</th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Actions</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                @forelse($assets as $asset)
+    @if ($groupBy === 'category')
+        @include('livewire.office-asset.partials.grouped-category-tree')
+    @else
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Photo</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Name</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Category</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Batch</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Branch / Dept</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Balance</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    @forelse($assets as $asset)
+                        <tr>
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if ($asset->photo)
                                 <img src="{{ Storage::url($asset->photo) }}" alt="{{ $asset->name }}"
@@ -146,20 +153,21 @@
                             <x-button.circle primary icon="pencil" wire:click="editAsset({{ $asset->id }})"
                                 title="Edit" />
                         </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                            No assets found.
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-        <div class="px-6 py-4">
-            {{ $assets->links() }}
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                                No assets found.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+            <div class="px-6 py-4">
+                {{ $assets->links() }}
+            </div>
         </div>
-    </div>
+    @endif
 
     <!-- Asset Modal -->
     <x-modal wire:model.defer="showAssetModal">
@@ -216,6 +224,139 @@
                     <x-button primary label="Save" wire:click="saveAsset" />
                 </div>
             </x-slot>
+        </x-card>
+    </x-modal>
+
+    <x-modal wire:model.defer="showCategoryCrudModal">
+        <x-card title="Category Management">
+            <div class="mb-3 flex justify-end">
+                <x-button sm primary label="Create Category" wire:click="createCategory" />
+            </div>
+            <div class="max-h-96 overflow-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Name</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        @forelse($categories as $category)
+                            <tr>
+                                <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                    <div class="font-medium">{{ $category->name }}</div>
+                                    @if ($category->description)
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ $category->description }}</div>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-right whitespace-nowrap">
+                                    <x-button.circle xs primary icon="pencil"
+                                        wire:click="editCategory({{ $category->id }})" />
+                                    <x-button.circle xs negative icon="trash"
+                                        onclick="confirm('Delete this category?') || event.stopImmediatePropagation()"
+                                        wire:click="deleteCategory({{ $category->id }})" />
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                    No categories
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
+    </x-modal>
+
+    <x-modal wire:model.defer="showItemCrudModal">
+        <x-card title="Item Management">
+            <div class="mb-3 flex justify-end">
+                <x-button sm primary label="Create Item" wire:click="createItem" />
+            </div>
+            <div class="max-h-96 overflow-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Name</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        @forelse($items as $item)
+                            <tr>
+                                <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                    <div class="font-medium">{{ $item->name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $item->category->name ?? '-' }}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2 text-right whitespace-nowrap">
+                                    <x-button.circle xs primary icon="pencil" wire:click="editItem({{ $item->id }})" />
+                                    <x-button.circle xs negative icon="trash"
+                                        onclick="confirm('Delete this item?') || event.stopImmediatePropagation()"
+                                        wire:click="deleteItem({{ $item->id }})" />
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                    No items
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
+    </x-modal>
+
+    <x-modal wire:model.defer="showBatchCrudModal">
+        <x-card title="Batch Management">
+            <div class="mb-3 flex justify-end">
+                <x-button sm primary label="Create Batch" wire:click="createBatch" />
+            </div>
+            <div class="max-h-96 overflow-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Name</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        @forelse($batches as $batch)
+                            <tr>
+                                <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                    <div class="font-medium">{{ $batch->name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $batch->department->name ?? '-' }}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2 text-right whitespace-nowrap">
+                                    <x-button.circle xs primary icon="pencil" wire:click="editBatch({{ $batch->id }})" />
+                                    <x-button.circle xs negative icon="trash"
+                                        onclick="confirm('Delete this batch?') || event.stopImmediatePropagation()"
+                                        wire:click="deleteBatch({{ $batch->id }})" />
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                    No batches
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </x-card>
     </x-modal>
 
