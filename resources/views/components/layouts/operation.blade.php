@@ -110,8 +110,12 @@
                                     Configure
                                 </a>
                                 <a href="{{ route('operation.it.issues.index') }}" @click="open = false" wire:navigate
-                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.it.issues.*') && !request()->routeIs('operation.it.issues.configure') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.it.issues.index') || request()->routeIs('operation.it.issues.create') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
                                     Issues
+                                </a>
+                                <a href="{{ route('operation.it.issues.dashboard') }}" @click="open = false" wire:navigate
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.it.issues.dashboard') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Dashboard
                                 </a>
                             </div>
                         </div>

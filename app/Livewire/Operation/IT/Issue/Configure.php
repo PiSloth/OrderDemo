@@ -27,9 +27,24 @@ class Configure extends Component
     public ?int $editLevel = null;
     public string $editCode = '';
     public bool $editIsErp = false;
+    public array $defaultCategoryNames = ['Sale Module', 'Purchase Module', 'Inventory Module', 'Finance Module','Shwetatar Module', 'Accounting  Module', 'HR Module', 'Payroll Module', 'Report Module', 'Other Module'];
+
+
+    // public function mount (): void
+    // {
+    //     // Optionally seed default data on mount
+    //     $this->seedDefaults();
+    // }
 
     public function seedDefaults(): void
     {
+
+        $initialCount = IssueCategory::count() + IssuePriority::count() + IssueImportanceLevel::count() + IssueStatus::count() + IssueRootCause::count();
+        if ($initialCount > 0) {
+            session()->flash('message', 'Default data already exists. No new data created.');
+            return;
+        }
+
         foreach ([['Low', 1], ['Medium', 2], ['High', 3], ['Critical', 4]] as [$name, $level]) {
             IssuePriority::firstOrCreate(['name' => $name], ['level' => $level]);
         }
@@ -39,11 +54,15 @@ class Configure extends Component
         foreach ([['OPEN', 'Open'], ['ASSIGNED', 'Assigned'], ['IN_PROGRESS', 'In Progress'], ['PENDING', 'Pending'], ['DONE', 'Done'], ['CLOSED', 'Closed']] as [$code, $name]) {
             IssueStatus::firstOrCreate(['code' => $code], ['name' => $name]);
         }
-        foreach (['User Fault', 'SOP Unclear', 'SOP Careless', 'System Fault', 'Third Party'] as $name) {
+        foreach (['User Fault', 'SOP Unclear', 'SOP Careless', 'System Fault'] as $name) {
             IssueRootCause::firstOrCreate(['name' => $name]);
         }
-        IssueCategory::firstOrCreate(['name' => 'ERP'], ['is_erp' => true]);
-        IssueCategory::firstOrCreate(['name' => 'IT Support'], ['is_erp' => false]);
+
+        foreach ($this->defaultCategoryNames as $name) {
+            IssueCategory::firstOrCreate(['name' => $name], ['is_erp' => true]);
+        }
+        // IssueCategory::firstOrCreate(['name' => 'ERP'], ['is_erp' => true]);
+        // IssueCategory::firstOrCreate(['name' => 'IT Support'], ['is_erp' => false]);
 
         session()->flash('message', 'Default setup data created.');
     }
@@ -82,6 +101,11 @@ class Configure extends Component
         if ($entity === 'statuses') { $data['code'] = $this->editCode; }
         $row->update($data);
 
+        $this->cancelEdit();
+    }
+
+    public function cancelEdit(): void
+    {
         $this->reset(['editId', 'editName', 'editLevel', 'editCode', 'editIsErp']);
     }
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\Document\CompanyDocumentImageController;
 use App\Http\Controllers\Document\EmailListExportController;
 use App\Livewire\Operation\IT\Issue\Configure as ItIssueConfigure;
 use App\Livewire\Operation\IT\Issue\Create as ItIssueCreate;
+use App\Livewire\Operation\IT\Issue\Dashboard as ItIssueDashboard;
 use App\Livewire\Operation\IT\Issue\Index as ItIssueIndex;
 use App\Livewire\Operation\Branch\BranchChecklist\Crud\Index as BranchChecklistCrudIndex;
 use App\Livewire\Operation\Branch\BranchChecklist\Operation as BranchChecklistOperation;
@@ -233,6 +234,7 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
 
     Route::prefix('it')->name('it.')->group(function () {
         Route::get('/issues/configure', ItIssueConfigure::class)->name('issues.configure');
+        Route::get('/issues/dashboard', ItIssueDashboard::class)->name('issues.dashboard');
         Route::get('/issues', ItIssueIndex::class)->name('issues.index');
         Route::get('/issues/create', ItIssueCreate::class)->name('issues.create');
         Route::patch('/issues/{issue}/status', [IssueStatusController::class, 'update'])->name('issues.status.update');
