@@ -84,6 +84,11 @@
             <form wire:submit="submitTask" class="mt-5 space-y-5">
                 <div>
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Photos</label>
+                    @if (!$selectedTaskInstance->template?->requires_images && !$selectedTaskInstance->template?->requires_table)
+                        <div class="mt-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+                            This task does not require image or table evidence. You can submit directly from task list.
+                        </div>
+                    @endif
                     <div
                         class="mt-2 rounded-3xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
                         <input id="kpi-camera-photo" type="file" wire:model="cameraPhoto" accept="image/*"
@@ -125,8 +130,8 @@
                                 @foreach ($submissionPhotos as $index => $photo)
                                     <article
                                         class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-                                        @if (method_exists($photo, 'temporaryUrl'))
-                                            <img src="{{ $photo->temporaryUrl() }}"
+                                        @if (!empty($submissionPhotoPreviews[$index]))
+                                            <img src="{{ $submissionPhotoPreviews[$index] }}"
                                                 alt="Submission preview {{ $index + 1 }}"
                                                 class="h-48 w-full object-cover">
                                         @endif
@@ -215,8 +220,12 @@
 
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="text-xs text-slate-500 dark:text-slate-400">
-                        <p>Minimum photos: {{ $selectedTaskInstance->template?->min_images ?? 0 }}</p>
-                        <p>Maximum photos: {{ $selectedTaskInstance->template?->max_images ?? 'No limit' }}</p>
+                        @if ($selectedTaskInstance->template?->requires_images)
+                            <p>Minimum photos: {{ $selectedTaskInstance->template?->min_images ?? 0 }}</p>
+                            <p>Maximum photos: {{ $selectedTaskInstance->template?->max_images ?? 'No limit' }}</p>
+                        @else
+                            <p>No evidence required for this task.</p>
+                        @endif
                     </div>
 
                     <button type="submit"
@@ -282,10 +291,10 @@
                                         </div>
                                     @endif
 
-                                    @if (!$task->template?->requires_images)
+                                    @if (!$task->template?->requires_images && !$task->template?->requires_table)
                                         <div
-                                            class="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                                            This task is not configured for photo evidence.
+                                            class="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
+                                            No evidence is required. You can submit directly.
                                         </div>
                                     @endif
 
@@ -302,7 +311,12 @@
                                 </div>
 
                                 <div class="flex w-full flex-col gap-3 lg:w-56">
-                                    @if ($this->canSubmit($task))
+                                    @if ($this->canDirectSubmitNoEvidence($task))
+                                        <button type="button" wire:click="submitNoEvidence({{ $task->id }})" x-on:click="close"
+                                            class="inline-flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800">
+                                            Submit (No Evidence)
+                                        </button>
+                                    @elseif ($this->canSubmit($task))
                                         <button type="button" wire:click="openSubmission({{ $task->id }})"
                                             x-on:click="close"
                                             class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800">

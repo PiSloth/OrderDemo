@@ -15,9 +15,15 @@ class ChecklistService
     public function generateForToday(User $user): int
     {
         $today = Carbon::today();
+        $branchId = $user->branch_id;
+
+        if (!$branchId) {
+            return 0;
+        }
 
         $alreadyGenerated = BranchChecklistHistory::query()
             ->where('user_id', $user->id)
+            ->where('branch_id', $branchId)
             ->whereDate('checked_at', $today)
             ->exists();
 
@@ -27,7 +33,7 @@ class ChecklistService
 
         $templates = BranchChecklist::query()
             ->where('is_active', true)
-            ->where('branch_id', $user->branch_id)
+            ->where('branch_id', $branchId)
             ->orderBy('id')
             ->get();
 
@@ -39,7 +45,7 @@ class ChecklistService
         $rows = $templates->map(fn (BranchChecklist $item) => [
             'check_list_id' => $item->id,
             'user_id' => $user->id,
-            'branch_id' => $user->branch_id,
+            'branch_id' => $branchId,
             'department_id' => $user->department_id,
             'location_id' => $user->location_id,
             'remark' => null,

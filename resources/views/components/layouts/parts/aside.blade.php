@@ -386,7 +386,7 @@
                         </a>
                     </li>
                     <li>
-                        <a wire:navigate href="{{ route('operation.it.issues.index') }}"
+                        <a href="{{ route('operation.it.issues.index') }}"
                             class="{{ $linkBase }} ">
                             <x-icon name="ticket"
                                 class="w-5 h-5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200" />

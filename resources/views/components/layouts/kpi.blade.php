@@ -41,9 +41,11 @@
             ['label' => 'Certificate', 'route' => 'kpi.certificate', 'gate' => null],
             ['label' => 'Exclusions', 'route' => 'kpi.exclusions', 'gate' => null],
             ['label' => 'Approvals', 'route' => 'kpi.approvals', 'gate' => null],
+            ['label' => 'Associate Tasks', 'route' => 'kpi.associate-tasks', 'gate' => null],
             ['label' => 'Holidays', 'route' => 'kpi.holidays', 'gate' => 'kpiManageHolidays'],
             ['label' => 'Templates', 'route' => 'kpi.templates', 'gate' => 'kpiManageTemplates'],
             ['label' => 'Assignments', 'route' => 'kpi.assignments', 'gate' => 'kpiManageAssignments'],
+            ['label' => 'KPI Manual', 'route' => 'kpi.manual', 'gate' => 'kpiManageAssignments'],
             ['label' => 'Import / Export', 'route' => 'kpi.import-export', 'gate' => 'kpiManageImports'],
             ['label' => 'Leaderboard', 'route' => 'kpi.leaderboard', 'gate' => null],
         ];
@@ -54,8 +56,9 @@
             @click="mobileMenuOpen = false"></div>
 
         <aside
-            class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full border-r border-slate-200 bg-white transition-transform duration-200 ease-out dark:border-slate-800 dark:bg-slate-900 lg:static lg:min-h-screen lg:translate-x-0"
+            class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full border-r border-slate-200 bg-white transition-transform duration-200 ease-out dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
             :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'">
+            <div class="flex h-full flex-col overflow-y-auto">
             <div class="flex items-center justify-between px-5 py-4">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">KPI
@@ -99,7 +102,7 @@
                 </ul>
             </nav>
 
-            <div class="border-t border-slate-200 px-5 py-4 dark:border-slate-800">
+            <div class="mt-auto border-t border-slate-200 px-5 py-4 dark:border-slate-800">
                 <p class="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Current Rules</p>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                     <li>One employee per task assignment</li>
@@ -107,6 +110,7 @@
                     <li>Daily reminder starts at 08:45 AM</li>
                     <li>Late approved means completed but failed</li>
                 </ul>
+            </div>
             </div>
         </aside>
 

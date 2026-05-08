@@ -28,6 +28,7 @@ use App\Livewire\Document\Library\Browser as DocumentLibraryBrowser;
 use App\Livewire\Document\Library\Create as DocumentLibraryCreate;
 use App\Livewire\Document\Library\Edit as DocumentLibraryEdit;
 use App\Livewire\Kpi\Approvals as KpiApprovals;
+use App\Livewire\Kpi\AssociateTasks as KpiAssociateTasks;
 use App\Livewire\Kpi\Audit as KpiAudit;
 use App\Livewire\Kpi\Assignments as KpiAssignments;
 use App\Livewire\Kpi\Certificate as KpiCertificate;
@@ -57,6 +58,7 @@ use App\Livewire\Jewelry\Purchasing\Dashboard as JewelryPurchasingDashboard;
 use App\Livewire\Jewelry\Purchasing\Groups\Index as JewelryGroupsIndex;
 use App\Livewire\Jewelry\Purchasing\Groups\Show as JewelryGroupsShow;
 use App\Http\Controllers\Jewelry\JewelryTemplateController;
+use App\Livewire\Kpi\Manual;
 use App\Livewire\Order\Psi\CrateProduct;
 use App\Livewire\Order\Psi\CreateProduct;
 use App\Livewire\Order\Psi\DailySale;
@@ -190,6 +192,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::get('/certificate', KpiCertificate::class)->name('certificate');
     Route::get('/exclusions', KpiExclusions::class)->name('exclusions');
     Route::get('/approvals', KpiApprovals::class)->name('approvals');
+    Route::get('/associate-tasks', KpiAssociateTasks::class)->name('associate-tasks');
     Route::get('/holidays', KpiHolidays::class)->middleware('can:kpiManageHolidays')->name('holidays');
     Route::get('/templates', KpiTemplates::class)->middleware('can:kpiManageTemplates')->name('templates');
     Route::get('/assignments', KpiAssignments::class)->middleware('can:kpiManageAssignments')->name('assignments');
@@ -207,6 +210,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
         ->middleware('can:kpiManageImports')
         ->name('import-export.errors');
     Route::get('/leaderboard', KpiLeaderboard::class)->name('leaderboard');
+    Route::get('/manual', Manual::class)->middleware('can:kpiManageAssignments')->name('manual');
     Route::get('/certificate', KpiCertificate::class)->name('certificate');
 });
 

@@ -5,7 +5,7 @@
 
     <div class="mb-4 flex items-center justify-between">
         <h1 class="text-2xl font-semibold">Issues</h1>
-        <a href="{{ route('operation.it.issues.create') }}" wire:navigate
+        <a href="{{ route('operation.it.issues.create') }}"
             class="rounded-xl bg-slate-900 px-4 py-2 text-white">New Issue</a>
     </div>
     <section class="mb-4 rounded-2xl border bg-white p-4">
@@ -116,6 +116,7 @@
                             <th class="p-2 text-left">Priority / Important</th>
                             <th class="p-2 text-left">Due Date</th>
                             <th class="p-2 text-left">Assign to Developer</th>
+                            <th class="p-2 text-left">Status</th>
                             <th class="p-2 text-left">Action</th>
                         </tr>
                     </thead>
@@ -177,6 +178,7 @@
                                         class="inline-block h-5 w-5 transform rounded-full bg-white transition duration-200 {{ $issue->is_third_party_resolver ? 'translate-x-8' : 'translate-x-1' }}"></span>
                                 </button>
                             </td>
+                            <td class="p-2"> <x-badge rounded flat  fuchsia label="{{ $issue->status->name }}" /></td>
                             <td class="p-2">
                                 <div class="flex gap-2">
                                     <x-button.circle icon="sparkles" wire:click="selectIssue({{ $issue->id }})" positive flat />
@@ -211,6 +213,7 @@
                             <th class="p-2 text-left"></th>
                             <th class="p-2 text-left">Issue</th>
                             <th class="p-2 text-left">Priority / Important</th>
+                            <th class="p-2 text-left">Status</th>
                             <th class="p-2 text-left">Followed Up Today</th>
                             <th class="p-2 text-left">Last Follow Up</th>
                             <th class="p-2 text-left">Follow Up By</th>
@@ -257,7 +260,8 @@
                                     </span>
                                 </span>
                             </td>
-                            <td class="p-2">{{ $issue->follow_up_date?->isToday() ? 'Yes' : 'No' }}</td>
+                            <td class="p-2"> <x-badge rounded flat  fuchsia label="{{ $issue->status->name }}" /></td>
+                            <td class="p-2">{{ $issue->follow_up_date?->isToday() ? '💃' : '-' }}</td>
                             <td class="p-2">{{ $issue->follow_up_date?->format('Y-m-d H:i') ?? '-' }}</td>
                             <td class="p-2">{{ $issue->followUpUpdater?->name ?? '-' }}</td>
                             <td class="p-2">{{ $issue->resolution_days }} day(s)</td>

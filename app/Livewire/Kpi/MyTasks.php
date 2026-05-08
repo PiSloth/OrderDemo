@@ -32,6 +32,7 @@ class MyTasks extends Component
     public array $galleryPhotos = [];
     public array $submissionPhotos = [];
     public array $submissionPhotoSources = [];
+    public array $submissionPhotoPreviews = [];
     public array $submissionPhotoTitles = [];
     public array $submissionPhotoRemarks = [];
     public string $submissionEmployeeRemark = '';
@@ -168,6 +169,7 @@ class MyTasks extends Component
         $this->galleryPhotos = [];
         $this->submissionPhotos = [];
         $this->submissionPhotoSources = [];
+        $this->submissionPhotoPreviews = [];
         $this->submissionPhotoTitles = [];
         $this->submissionPhotoRemarks = [];
         $this->submissionEmployeeRemark = '';
@@ -181,6 +183,7 @@ class MyTasks extends Component
         $this->galleryPhotos = [];
         $this->submissionPhotos = [];
         $this->submissionPhotoSources = [];
+        $this->submissionPhotoPreviews = [];
         $this->submissionPhotoTitles = [];
         $this->submissionPhotoRemarks = [];
         $this->submissionEmployeeRemark = '';
@@ -230,12 +233,14 @@ class MyTasks extends Component
         unset(
             $this->submissionPhotos[$index],
             $this->submissionPhotoSources[$index],
+            $this->submissionPhotoPreviews[$index],
             $this->submissionPhotoTitles[$index],
             $this->submissionPhotoRemarks[$index]
         );
 
         $this->submissionPhotos = array_values($this->submissionPhotos);
         $this->submissionPhotoSources = array_values($this->submissionPhotoSources);
+        $this->submissionPhotoPreviews = array_values($this->submissionPhotoPreviews);
         $this->submissionPhotoTitles = array_values($this->submissionPhotoTitles);
         $this->submissionPhotoRemarks = array_values($this->submissionPhotoRemarks);
     }
@@ -403,6 +408,84 @@ class MyTasks extends Component
         return in_array($instance->status, ['pending', 'rejected'], true);
     }
 
+    public function canDirectSubmitNoEvidence(KpiTaskInstance $instance): bool
+    {
+        if (!$this->canSubmit($instance)) {
+            return false;
+        }
+
+        $template = $instance->template;
+
+        if (!$template) {
+            return false;
+        }
+
+        return !$template->requires_images && !$template->requires_table;
+    }
+
+    public function submitNoEvidence(int $taskInstanceId): void
+    {
+        $instance = $this->findOwnedInstance($taskInstanceId);
+        $this->ensureSubmissionAllowed($instance);
+
+        $template = $instance->template;
+
+        if (!$template) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'Task template is missing.',
+            ]);
+        }
+
+        if ($template->requires_images || $template->requires_table) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'This task requires evidence. Open submission form instead.',
+            ]);
+        }
+
+        DB::transaction(function () use ($instance): void {
+            $submittedAt = now();
+            $sequence = (int) $instance->submissions()->max('sequence') + 1;
+
+            $submission = KpiTaskSubmission::create([
+                'task_instance_id' => $instance->id,
+                'submitted_by_user_id' => Auth::id(),
+                'submitted_at' => $submittedAt,
+                'is_late' => $instance->due_at ? $submittedAt->gt($instance->due_at) : false,
+                'sequence' => $sequence,
+                'status' => 'submitted',
+                'employee_remark' => null,
+            ]);
+
+            $submission->approvalSteps()->create([
+                'step_order' => 1,
+                'approver_user_id' => $instance->assignment?->first_approver_user_id,
+                'role_label' => 'First Approver',
+                'status' => 'pending',
+            ]);
+
+            if ($instance->assignment?->final_approver_user_id) {
+                $submission->approvalSteps()->create([
+                    'step_order' => 2,
+                    'approver_user_id' => $instance->assignment->final_approver_user_id,
+                    'role_label' => 'Final Approver',
+                    'status' => 'pending',
+                ]);
+            }
+
+            $instance->update([
+                'submitted_at' => $submittedAt,
+                'status' => 'waiting_first_approval',
+                'is_on_time' => $instance->due_at ? $submittedAt->lte($instance->due_at) : true,
+                'failure_reason' => null,
+            ]);
+        });
+
+        $this->cancelSubmission();
+        $this->loadTasks();
+
+        session()->flash('message', ($template->title ?? 'Task') . ' submitted without evidence.');
+    }
+
     public function submissionWindowLabel(KpiTaskInstance $instance): string
     {
         $windowEnd = $this->submissionWindowEndsAt($instance);
@@ -550,13 +633,11 @@ class MyTasks extends Component
 
             $this->submissionPhotos[] = $photo;
             $this->submissionPhotoSources[] = $source;
+            $this->submissionPhotoPreviews[] = method_exists($photo, 'temporaryUrl')
+                ? $photo->temporaryUrl()
+                : null;
             $this->submissionPhotoTitles[] = '';
             $this->submissionPhotoRemarks[] = '';
-
-            // Add temporary URL for preview
-            if (method_exists($photo, 'temporaryUrl')) {
-                $this->submissionPhotoSources[] = $photo->temporaryUrl();
-            }
         }
     }
 }
