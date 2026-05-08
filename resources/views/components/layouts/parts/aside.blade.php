@@ -382,7 +382,15 @@
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
                             <x-icon name="ticket"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                            <span class="ml-3">ERP Tickets</span>
+                            <span class="ml-3">New Tickets</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a wire:navigate href="{{ route('operation.it.issues.index') }}"
+                            class="{{ $linkBase }} ">
+                            <x-icon name="ticket"
+                                class="w-5 h-5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200" />
+                            <span class="ml-3">All Tickets</span>
                         </a>
                     </li>
 
