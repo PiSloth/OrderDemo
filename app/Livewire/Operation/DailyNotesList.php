@@ -134,6 +134,8 @@ class DailyNotesList extends Component
             $headers[] = $title->name . ' - Note';
             $headers[] = $title->name . ' - Contact Note Message With User';
             $headers[] = $title->name . ' - Acknowledged By';
+            $headers[] = $title->name . ' - Late Status';
+            $headers[] = $title->name . ' - Late Ack';
         }
 
         $grouped = $notes->groupBy(function (DailyNote $note) {
@@ -166,6 +168,8 @@ class DailyNotesList extends Component
                     $row[] = '-';
                     $row[] = '-';
                     $row[] = '-';
+                    $row[] = '-';
+                    $row[] = '-';
                     continue;
                 }
 
@@ -183,9 +187,27 @@ class DailyNotesList extends Component
                     ->unique()
                     ->implode(', ');
 
+                $lateAckText = $titleNote->acknowledgements
+                    ->map(function ($ack) use ($titleNote) {
+                        $name = $ack->user?->name;
+
+                        if (!$name) {
+                            return null;
+                        }
+
+                        return $this->isLateAcknowledgement($titleNote, $ack)
+                            ? $name . ' (Late Ack)'
+                            : $name . ' (On Time)';
+                    })
+                    ->filter()
+                    ->unique()
+                    ->implode(', ');
+
                 $row[] = $titleNote->note ?: '-';
                 $row[] = $messageText !== '' ? $messageText : '-';
                 $row[] = $ackText !== '' ? $ackText : '-';
+                $row[] = $this->isBackDateNote($titleNote) ? 'Back Date Note' : 'On Time';
+                $row[] = $lateAckText !== '' ? $lateAckText : '-';
             }
 
             $writer->addRow($row);
@@ -731,6 +753,27 @@ class DailyNotesList extends Component
             ->get();
     }
 
+    protected function isBackDateNote(DailyNote $note): bool
+    {
+        if (!$note->created_at || !$note->date) {
+            return false;
+        }
+
+        return Carbon::parse($note->created_at)->toDateString() > Carbon::parse($note->date)->toDateString();
+    }
+
+    protected function isLateAcknowledgement(DailyNote $note, DailyNoteAcknowledgement $ack): bool
+    {
+        if (!$ack->acknowledged_at || !$note->date) {
+            return false;
+        }
+
+        $deadlineDate = Carbon::parse($note->date)->addDay()->toDateString();
+        $ackDate = Carbon::parse($ack->acknowledged_at)->toDateString();
+
+        return $ackDate > $deadlineDate;
+    }
+
     protected function tableViewGroups(): Collection
     {
         $userId = (int) Auth::id();
@@ -765,6 +808,8 @@ class DailyNotesList extends Component
                         ->values();
                     $isAcknowledgedByMe = $note->acknowledgements
                         ->contains(fn($ack) => (int) $ack->user_id === $userId);
+                    $myAcknowledgement = $note->acknowledgements
+                        ->first(fn($ack) => (int) $ack->user_id === $userId);
 
                     return [
                         'title_id' => $note->title_id,
@@ -776,6 +821,10 @@ class DailyNotesList extends Component
                         'branch_name' => $note->branch?->name ?? '-',
                         'ack_users' => $ackUsers,
                         'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                        'late_status' => $this->isBackDateNote($note) ? 'Back Date Note' : 'On Time',
+                        'late_ack_status' => !$myAcknowledgement
+                            ? 'Pending'
+                            : ($this->isLateAcknowledgement($note, $myAcknowledgement) ? 'Late Ack' : 'On Time'),
                         'unread_message_count' => $note->unread_messages_count ?? 0,
                     ];
                 });
@@ -796,6 +845,8 @@ class DailyNotesList extends Component
                         'branch_name' => $user->branch?->name ?? '-',
                         'ack_users' => collect(),
                         'is_acknowledged_by_me' => false,
+                        'late_status' => '-',
+                        'late_ack_status' => '-',
                         'unread_message_count' => 0,
                     ]]);
                 }
@@ -861,6 +912,10 @@ class DailyNotesList extends Component
                         'branch_name' => $note?->branch?->name ?? ($user->branch?->name ?? '-'),
                         'ack_users' => $ackUsers,
                         'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                        'late_status' => $note ? ($this->isBackDateNote($note) ? 'Back Date Note' : 'On Time') : '-',
+                        'late_ack_status' => $note && $isAcknowledgedByMe
+                            ? (($myAck = $note->acknowledgements->first(fn($ack) => (int) $ack->user_id === $userId)) && $this->isLateAcknowledgement($note, $myAck) ? 'Late Ack' : 'On Time')
+                            : ($note ? 'Pending' : '-'),
                         'unread_message_count' => $note?->unread_messages_count ?? 0,
                     ]]),
                     'has_unacknowledged' => $note
@@ -892,6 +947,10 @@ class DailyNotesList extends Component
                             'branch_name' => $note->branch?->name ?? '-',
                             'ack_users' => $ackUsers,
                             'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                            'late_status' => $this->isBackDateNote($note) ? 'Back Date Note' : 'On Time',
+                            'late_ack_status' => !$isAcknowledgedByMe
+                                ? 'Pending'
+                                : (($myAck = $note->acknowledgements->first(fn($ack) => (int) $ack->user_id === $userId)) && $this->isLateAcknowledgement($note, $myAck) ? 'Late Ack' : 'On Time'),
                             'unread_message_count' => $note->unread_messages_count ?? 0,
                         ];
                     });
@@ -933,6 +992,10 @@ class DailyNotesList extends Component
                             'branch_name' => $note->branch?->name ?? '-',
                             'ack_users' => $ackUsers,
                             'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                            'late_status' => $this->isBackDateNote($note) ? 'Back Date Note' : 'On Time',
+                            'late_ack_status' => !$isAcknowledgedByMe
+                                ? 'Pending'
+                                : (($myAck = $note->acknowledgements->first(fn($ack) => (int) $ack->user_id === $userId)) && $this->isLateAcknowledgement($note, $myAck) ? 'Late Ack' : 'On Time'),
                             'unread_message_count' => $note->unread_messages_count ?? 0,
                         ];
                     });

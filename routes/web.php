@@ -10,7 +10,7 @@ use App\Livewire\Operation\IT\Issue\Configure as ItIssueConfigure;
 use App\Livewire\Operation\IT\Issue\Create as ItIssueCreate;
 use App\Livewire\Operation\IT\Issue\Dashboard as ItIssueDashboard;
 use App\Livewire\Operation\IT\Issue\Index as ItIssueIndex;
-use App\Livewire\Operation\Branch\BranchChecklist\Crud\Index as BranchChecklistCrudIndex;
+use App\Livewire\Operation\Branch\BranchConfig;
 use App\Livewire\Operation\Branch\BranchChecklist\Operation as BranchChecklistOperation;
 use App\Livewire\Operation\Branch\BranchChecklist\Report as BranchChecklistReport;
 use App\Http\Controllers\Operation\IT\IssueAssignmentController;
@@ -232,7 +232,8 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
         ->name('titles');
     Route::prefix('branch')->name('branch.')->group(function () {
         Route::get('/checklists', BranchChecklistOperation::class)->name('checklists');
-        Route::get('/checklists/config', BranchChecklistCrudIndex::class)->name('checklists.config');
+        Route::get('/config', BranchConfig::class)->name('config');
+        Route::get('/checklists/config', BranchConfig::class)->name('checklists.config');
         Route::get('/checklists/report', BranchChecklistReport::class)->name('checklists.report');
     });
 

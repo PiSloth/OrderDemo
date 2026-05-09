@@ -397,6 +397,12 @@
                                         Branch</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Late Status</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Late Ack</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
                                         Action</th>
                                 </tr>
                             </thead>
@@ -421,6 +427,22 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-slate-700">{{ $row['branch_name'] ?: '-' }}
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-slate-700">
+                                            @php $lateStatus = $row['late_status'] ?? '-'; @endphp
+                                            <span
+                                                class="rounded-full px-2.5 py-1 text-xs font-medium
+                                                {{ $lateStatus === 'Back Date Note' ? 'bg-amber-100 text-amber-700' : ($lateStatus === 'On Time' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600') }}">
+                                                {{ $lateStatus }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-slate-700">
+                                            @php $lateAckStatus = $row['late_ack_status'] ?? '-'; @endphp
+                                            <span
+                                                class="rounded-full px-2.5 py-1 text-xs font-medium
+                                                {{ $lateAckStatus === 'Late Ack' ? 'bg-rose-100 text-rose-700' : ($lateAckStatus === 'On Time' ? 'bg-emerald-100 text-emerald-700' : ($lateAckStatus === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600')) }}">
+                                                {{ $lateAckStatus }}
+                                            </span>
                                         </td>
                                         <td class="px-4 py-3">
                                             @if ($row['note_id'])

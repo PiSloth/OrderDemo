@@ -16,24 +16,32 @@ class ChecklistService
     {
         $today = Carbon::today();
         $branchId = $user->branch_id;
-
-        if (!$branchId) {
-            return 0;
-        }
-
-        $alreadyGenerated = BranchChecklistHistory::query()
-            ->where('user_id', $user->id)
-            ->where('branch_id', $branchId)
-            ->whereDate('checked_at', $today)
-            ->exists();
-
-        if ($alreadyGenerated) {
-            return 0;
-        }
+        $departmentId = $user->department_id;
+        $locationId = $user->location_id;
 
         $templates = BranchChecklist::query()
             ->where('is_active', true)
-            ->where('branch_id', $branchId)
+            ->where(function (Builder $query) use ($branchId) {
+                $query->whereNull('branch_id');
+
+                if ($branchId) {
+                    $query->orWhere('branch_id', $branchId);
+                }
+            })
+            ->where(function (Builder $query) use ($departmentId) {
+                $query->whereNull('department_id');
+
+                if ($departmentId) {
+                    $query->orWhere('department_id', $departmentId);
+                }
+            })
+            ->where(function (Builder $query) use ($locationId) {
+                $query->whereNull('location_id');
+
+                if ($locationId) {
+                    $query->orWhere('location_id', $locationId);
+                }
+            })
             ->orderBy('id')
             ->get();
 
@@ -41,13 +49,27 @@ class ChecklistService
             return 0;
         }
 
+        $existingChecklistIds = BranchChecklistHistory::query()
+            ->where('user_id', $user->id)
+            ->whereDate('checked_at', $today)
+            ->pluck('check_list_id')
+            ->all();
+
+        $templatesToGenerate = $templates->reject(
+            fn (BranchChecklist $item) => in_array($item->id, $existingChecklistIds, true)
+        );
+
+        if ($templatesToGenerate->isEmpty()) {
+            return 0;
+        }
+
         $now = now();
-        $rows = $templates->map(fn (BranchChecklist $item) => [
+        $rows = $templatesToGenerate->map(fn (BranchChecklist $item) => [
             'check_list_id' => $item->id,
             'user_id' => $user->id,
-            'branch_id' => $branchId,
-            'department_id' => $user->department_id,
-            'location_id' => $user->location_id,
+            'branch_id' => $item->branch_id,
+            'department_id' => $item->department_id,
+            'location_id' => $item->location_id,
             'remark' => null,
             'is_done' => false,
             'checked_at' => $today->toDateString(),

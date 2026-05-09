@@ -62,9 +62,9 @@ $logout = function (Logout $logout) {
                                 {{ __('Daily Notes') }}
                             </a>
                             @can('manageOperationTitles')
-                                <a href="{{ route('operation.titles') }}" wire:navigate
-                                    class="mt-1 block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('operation.titles') ? 'bg-indigo-50 text-indigo-700 dark:bg-gray-700 dark:text-gray-100' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
-                                    {{ __('Titles') }}
+                                <a href="{{ route('operation.branch.config') }}" wire:navigate
+                                    class="mt-1 block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('operation.branch.config') || request()->routeIs('operation.branch.checklists.config') ? 'bg-indigo-50 text-indigo-700 dark:bg-gray-700 dark:text-gray-100' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    {{ __('Branch Config') }}
                                 </a>
                             @endcan
                         </div>
@@ -162,8 +162,8 @@ $logout = function (Logout $logout) {
                         {{ __('Daily Notes') }}
                     </x-responsive-nav-link>
                     @can('manageOperationTitles')
-                        <x-responsive-nav-link :href="route('operation.titles')" :active="request()->routeIs('operation.titles')" wire:navigate>
-                            {{ __('Titles') }}
+                        <x-responsive-nav-link :href="route('operation.branch.config')" :active="request()->routeIs('operation.branch.config') || request()->routeIs('operation.branch.checklists.config')" wire:navigate>
+                            {{ __('Branch Config') }}
                         </x-responsive-nav-link>
                     @endcan
                 </div>
