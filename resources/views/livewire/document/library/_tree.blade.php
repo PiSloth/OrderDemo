@@ -30,13 +30,32 @@
             </div>
         </div>
 
-        <div class="mt-3">
-            <input type="text" placeholder="Search..." wire:model.live.debounce.300ms="search"
+        <div x-data="{ searching: false }" x-on:document-search-finished.window="searching = false" class="mt-3">
+            <input type="text" placeholder="Search docs... (/)" wire:model.live.debounce.350ms="search"
+                x-on:input.debounce.100ms="searching = true"
+                x-ref="searchInput"
                 class="block w-full border rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+            <div x-show="searching" x-cloak class="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
+                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-30"></circle>
+                    <path d="M22 12a10 10 0 0 1-10 10" stroke-width="3"></path>
+                </svg>
+                Searching documents...
+            </div>
+
+            <div x-show="searching" x-cloak
+                class="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-30"></circle>
+                    <path d="M22 12a10 10 0 0 1-10 10" stroke-width="3"></path>
+                </svg>
+                Updating list...
+            </div>
         </div>
     </div>
 
-    <div class="p-2 flex-1 overflow-y-auto">
+    <div class="p-2 flex-1 overflow-y-auto relative">
+
         @php
             $tree = $mode === 'type' ? $treeByType : $treeByDepartment;
         @endphp
@@ -60,8 +79,9 @@
                             <ul class="pl-4 py-1 space-y-1">
                                 @foreach ($items as $docItem)
                                     @php $active = (string) $docItem->id === (string) $doc; @endphp
-                                    <li>
+                                    <li wire:key="tree-doc-{{ $docItem->id }}">
                                         <button type="button" wire:click="openDocument({{ $docItem->id }})"
+                                            wire:loading.attr="disabled" wire:target="openDocument"
                                             @if ($mobile) x-on:click="$dispatch('tree-close')" @endif
                                             class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded text-left {{ $active ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700' }}">
                                             <x-icon name="document-text" class="w-4 h-4 {{ $active ? 'text-indigo-600 dark:text-indigo-200' : 'text-slate-400' }}" />

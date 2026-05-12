@@ -13,6 +13,7 @@ class CompanyDocumentService
     {
         return DB::transaction(function () use ($attributes, $userId) {
             $attributes['body'] = $this->sanitizeHtml((string) ($attributes['body'] ?? ''));
+            $attributes['content_text'] = $this->toSearchableText($attributes['body']);
 
             $document = CompanyDocument::create([
                 ...$attributes,
@@ -30,6 +31,7 @@ class CompanyDocumentService
     {
         return DB::transaction(function () use ($document, $attributes, $userId) {
             $attributes['body'] = $this->sanitizeHtml((string) ($attributes['body'] ?? ''));
+            $attributes['content_text'] = $this->toSearchableText($attributes['body']);
 
             $document->update([
                 ...$attributes,
@@ -129,5 +131,14 @@ class CompanyDocumentService
         }
 
         return trim($out);
+    }
+
+    private function toSearchableText(string $html): string
+    {
+        $text = strip_tags($html);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text) ?? '';
+
+        return trim($text);
     }
 }

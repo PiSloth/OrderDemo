@@ -26,6 +26,23 @@
                 Only current month and previous month are available.
             </p>
         </div>
+
+        @if ($isSuperAdmin)
+            <div class="mt-5 max-w-xl">
+                <label for="selected-kpi-user" class="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-300">
+                    Employee
+                </label>
+                <select id="selected-kpi-user" wire:model.live="selectedUserId"
+                    class="block w-full rounded-2xl border border-slate-600 bg-slate-800 px-4 py-2.5 text-sm text-white">
+                    @foreach ($employeeOptions as $employee)
+                        <option value="{{ $employee['value'] }}">{{ $employee['label'] }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-2 text-xs text-slate-300">
+                    Super Admin can switch employee task list. Submission is read-only when viewing another employee.
+                </p>
+            </div>
+        @endif
     </section>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -43,6 +60,12 @@
 
     @if ($selectedTaskInstance)
         <section class="rounded-3xl border border-sky-200 bg-white p-5 shadow-sm dark:border-sky-900 dark:bg-slate-900">
+            @if (!$this->canModifyViewedTasks())
+                <div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    You are viewing another employee's task list in read-only mode.
+                </div>
+            @endif
+
             <div id="top" class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div class="space-y-2">
                     <div class="flex flex-wrap items-center gap-2">
@@ -84,7 +107,11 @@
             <form wire:submit="submitTask" class="mt-5 space-y-5">
                 <div>
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Photos</label>
-                    <div
+                    <div x-data="{ uploading: false, progress: 0 }" x-on:livewire-upload-start="uploading = true"
+                        x-on:livewire-upload-finish="uploading = false; progress = 0"
+                        x-on:livewire-upload-error="uploading = false"
+                        x-on:livewire-upload-cancel="uploading = false; progress = 0"
+                        x-on:livewire-upload-progress="progress = $event.detail.progress"
                         class="mt-2 rounded-3xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
                         <input id="kpi-camera-photo" type="file" wire:model="cameraPhoto" accept="image/*"
                             capture="environment" class="hidden">
@@ -93,7 +120,8 @@
 
                         <div class="flex flex-wrap items-center gap-3">
                             <label for="kpi-camera-photo"
-                                class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800">
+                                class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                                :class="{ 'pointer-events-none opacity-60': uploading }">
                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="1.8" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -104,7 +132,8 @@
                             </label>
 
                             <label for="kpi-gallery-photos"
-                                class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-700">
+                                class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-700"
+                                :class="{ 'pointer-events-none opacity-60': uploading }">
                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="1.8" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4" />
@@ -115,20 +144,52 @@
                             </label>
                         </div>
 
+                        <div x-cloak x-show="uploading"
+                            class="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/20">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.15em] text-sky-700 dark:text-sky-300">
+                                    Uploading Photos
+                                </p>
+                                <p class="text-xs font-semibold text-sky-700 dark:text-sky-300"
+                                    x-text="`${progress}%`"></p>
+                            </div>
+                            <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-sky-100 dark:bg-sky-900/40">
+                                <div class="h-full rounded-full bg-sky-600 transition-all duration-200"
+                                    :style="`width: ${progress}%`"></div>
+                            </div>
+                        </div>
+
                         <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
                             Choose camera or upload. Each selected photo will appear below in this same section with
                             preview, title, and remark.
+                        </p>
+                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            Supported formats: JPG, PNG, WEBP.
                         </p>
 
                         @if (count($submissionPhotos) > 0)
                             <div class="mt-5 grid gap-4 lg:grid-cols-2">
                                 @foreach ($submissionPhotos as $index => $photo)
-                                    <article
+                                    <article x-data="{ imageLoaded: false }"
                                         class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                                         @if (method_exists($photo, 'temporaryUrl'))
-                                            <img src="{{ $photo->temporaryUrl() }}"
+                                            <div class="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                                <div x-cloak x-show="!imageLoaded"
+                                                    class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4">
+                                                    <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">
+                                                        Loading Preview
+                                                    </p>
+                                                    <div class="h-2 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                                        <div class="h-full w-1/2 animate-pulse rounded-full bg-slate-500 dark:bg-slate-300"></div>
+                                                    </div>
+                                                </div>
+
+                                                <img x-ref="previewImage" x-init="$nextTick(() => { if ($refs.previewImage?.complete) imageLoaded = true; })"
+                                                    x-on:load="imageLoaded = true" x-show="imageLoaded" x-transition.opacity
+                                                    src="{{ $photo->temporaryUrl() }}"
                                                 alt="Submission preview {{ $index + 1 }}"
                                                 class="h-48 w-full object-cover">
+                                            </div>
                                         @endif
 
                                         <div class="space-y-3 p-4">
@@ -221,7 +282,7 @@
 
                     <button type="submit"
                         class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        wire:loading.attr="disabled" wire:target="submissionPhotos,submitTask">
+                        wire:loading.attr="disabled" wire:target="cameraPhoto,galleryPhotos,submitTask">
                         <span wire:loading.remove wire:target="submitTask">Submit For Approval</span>
                         <span wire:loading wire:target="submitTask">Submitting...</span>
                     </button>

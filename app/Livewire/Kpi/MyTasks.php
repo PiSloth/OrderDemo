@@ -4,12 +4,14 @@ namespace App\Livewire\Kpi;
 
 use App\Models\Kpi\KpiTaskInstance;
 use App\Models\Kpi\KpiTaskSubmission;
+use App\Models\User;
 use App\Services\Kpi\KpiSubmissionImageResizer;
 use App\Services\Kpi\KpiTaskInstanceGenerator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -36,6 +38,9 @@ class MyTasks extends Component
     public array $submissionPhotoRemarks = [];
     public string $submissionEmployeeRemark = '';
     public string $selectedMonth = '';
+    public ?int $selectedUserId = null;
+    public bool $isSuperAdmin = false;
+    public array $employeeOptions = [];
 
     public function mount(KpiTaskInstanceGenerator $generator): void
     {
@@ -45,12 +50,47 @@ class MyTasks extends Component
             $generator->generateForUser($user);
         }
 
+        $this->isSuperAdmin = (bool) ($user?->can('isSuperAdmin') ?? false);
+        $this->selectedUserId = $user?->id;
+
+        if ($this->isSuperAdmin) {
+            $this->employeeOptions = User::query()
+                ->where('suspended', false)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+                ->map(fn(User $employee): array => [
+                    'value' => $employee->id,
+                    'label' => "{$employee->name} ({$employee->email})",
+                ])
+                ->values()
+                ->all();
+        }
+
         $this->todayTasks = collect();
         $this->weeklyTasks = collect();
         $this->monthlyTasks = collect();
         $this->overdueTasks = collect();
         $this->selectedMonth = now()->format('Y-m');
 
+        $this->loadTasks();
+    }
+
+    public function updatedSelectedUserId($value): void
+    {
+        if (!$this->isSuperAdmin) {
+            $this->selectedUserId = Auth::id();
+            return;
+        }
+
+        $selectedId = (int) $value;
+
+        $exists = User::query()
+            ->where('id', $selectedId)
+            ->where('suspended', false)
+            ->exists();
+
+        $this->selectedUserId = $exists ? $selectedId : Auth::id();
+        $this->cancelSubmission();
         $this->loadTasks();
     }
 
@@ -82,7 +122,7 @@ class MyTasks extends Component
                 'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
             ])
             ->withCount('submissions')
-            ->where('user_id', Auth::id())
+            ->where('user_id', $this->targetUserId())
             ->where(function ($query) use ($monthStart, $monthEnd) {
                 $query
                     ->where(function ($daily) use ($monthStart, $monthEnd) {
@@ -160,6 +200,12 @@ class MyTasks extends Component
 
     public function openSubmission(int $taskInstanceId): void
     {
+        if (!$this->canModifyViewedTasks()) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'Viewing another employee is read-only for submissions.',
+            ]);
+        }
+
         $instance = $this->findOwnedInstance($taskInstanceId);
         $this->ensureSubmissionAllowed($instance);
 
@@ -196,6 +242,16 @@ class MyTasks extends Component
         ]);
 
         if ($this->cameraPhoto instanceof TemporaryUploadedFile) {
+            $errors = [];
+
+            if (!$this->isSupportedForResizing($this->cameraPhoto)) {
+                $errors['cameraPhoto'] = $this->unsupportedImageMessage($this->cameraPhoto);
+            }
+
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
+            }
+
             $this->appendPhotos([$this->cameraPhoto], 'camera');
         }
 
@@ -215,6 +271,22 @@ class MyTasks extends Component
         $photos = array_values($this->galleryPhotos);
 
         if ($photos !== []) {
+            $errors = [];
+
+            foreach ($photos as $index => $photo) {
+                if (!$photo instanceof TemporaryUploadedFile) {
+                    continue;
+                }
+
+                if (!$this->isSupportedForResizing($photo)) {
+                    $errors["galleryPhotos.{$index}"] = $this->unsupportedImageMessage($photo);
+                }
+            }
+
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
+            }
+
             $this->appendPhotos($photos, 'gallery');
         }
 
@@ -303,6 +375,12 @@ class MyTasks extends Component
                     continue;
                 }
 
+                if (!$this->isSupportedForResizing($photo)) {
+                    throw ValidationException::withMessages([
+                        "submissionPhotos.{$index}" => $this->unsupportedImageMessage($photo),
+                    ]);
+                }
+
                 $title = trim((string) ($this->submissionPhotoTitles[$index] ?? ''));
                 $remark = trim((string) ($this->submissionPhotoRemarks[$index] ?? ''));
 
@@ -388,6 +466,10 @@ class MyTasks extends Component
 
     public function canSubmit(KpiTaskInstance $instance): bool
     {
+        if (!$this->canModifyViewedTasks()) {
+            return false;
+        }
+
         if ($instance->template?->requires_table) {
             return false;
         }
@@ -424,7 +506,7 @@ class MyTasks extends Component
                 'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
             ])
             ->where('id', $this->selectedTaskInstanceId)
-            ->where('user_id', Auth::id())
+            ->where('user_id', $this->targetUserId())
             ->first();
     }
 
@@ -445,7 +527,7 @@ class MyTasks extends Component
                 'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
             ])
             ->where('id', $taskInstanceId)
-            ->where('user_id', Auth::id())
+            ->where('user_id', $this->targetUserId())
             ->firstOrFail();
     }
 
@@ -541,6 +623,11 @@ class MyTasks extends Component
         return in_array($instance->status, ['passed', 'failed_late', 'failed_missed', 'excluded'], true);
     }
 
+    public function canModifyViewedTasks(): bool
+    {
+        return Auth::id() === $this->targetUserId();
+    }
+
     protected function appendPhotos(array $photos, string $source): void
     {
         foreach ($photos as $photo) {
@@ -552,11 +639,46 @@ class MyTasks extends Component
             $this->submissionPhotoSources[] = $source;
             $this->submissionPhotoTitles[] = '';
             $this->submissionPhotoRemarks[] = '';
-
-            // Add temporary URL for preview
-            if (method_exists($photo, 'temporaryUrl')) {
-                $this->submissionPhotoSources[] = $photo->temporaryUrl();
-            }
         }
+    }
+
+    protected function isSupportedForResizing(TemporaryUploadedFile $photo): bool
+    {
+        $realPath = $photo->getRealPath();
+        $binary = $realPath ? @file_get_contents($realPath) : false;
+
+        if ($binary === false) {
+            return false;
+        }
+
+        $info = @getimagesizefromstring($binary);
+
+        if (!$info || !isset($info[2])) {
+            return false;
+        }
+
+        $type = (int) $info[2];
+
+        return in_array($type, [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true);
+    }
+
+    protected function unsupportedImageMessage(TemporaryUploadedFile $photo): string
+    {
+        $extension = Str::lower((string) $photo->getClientOriginalExtension());
+
+        if (in_array($extension, ['heic', 'heif'], true)) {
+            return 'HEIC/HEIF photos are not supported yet on this server. Please convert to JPG or PNG first.';
+        }
+
+        return 'This image format is not supported. Please use JPG, PNG, or WEBP.';
+    }
+
+    protected function targetUserId(): int
+    {
+        if ($this->isSuperAdmin && $this->selectedUserId) {
+            return (int) $this->selectedUserId;
+        }
+
+        return (int) Auth::id();
     }
 }
