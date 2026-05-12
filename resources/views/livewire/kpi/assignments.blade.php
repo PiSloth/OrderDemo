@@ -112,6 +112,71 @@
                 @endforelse
             </div>
         </article>
+
+        @if ($canManageInstances)
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Created Task Instances</h3>
+                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                            Super Admin can review, edit, and delete generated KPI instances per employee.
+                        </p>
+                    </div>
+                    <div class="md:w-1/3 w-full">
+                        <x-select label="" placeholder="Filter employee" wire:model.live="instanceUserId"
+                            :async-data="route('users.index')" option-label="name" option-value="id" clearable />
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                    @forelse ($instances as $instance)
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+                            <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                <div class="space-y-2">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <p class="font-semibold text-slate-900 dark:text-slate-100">
+                                            {{ $instance->template?->title ?? '-' }}
+                                        </p>
+                                        <span class="rounded-full px-2 py-0.5 text-xs bg-blue-100 text-blue-700">
+                                            {{ strtoupper($instance->period_type ?? '-') }}
+                                        </span>
+                                        <span class="rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700">
+                                            {{ $instance->status ?? '-' }}
+                                        </span>
+                                    </div>
+
+                                    <div class="grid gap-2 text-sm text-slate-600 dark:text-slate-300 md:grid-cols-2">
+                                        <p>Employee: {{ $instance->user?->name ?? '-' }}</p>
+                                        <p>Group: {{ $instance->template?->group?->name ?? '-' }}</p>
+                                        <p>Task Date: {{ $instance->task_date?->format('Y-m-d') ?? '-' }}</p>
+                                        <p>Due: {{ $instance->due_at?->format('Y-m-d H:i') ?? '-' }}</p>
+                                        <p>Period Start: {{ $instance->period_start?->format('Y-m-d') ?? '-' }}</p>
+                                        <p>Period End: {{ $instance->period_end?->format('Y-m-d') ?? '-' }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button type="button" wire:click="editInstance({{ $instance->id }})"
+                                        @click="$openModal('instanceModal')"
+                                        class="rounded-lg border border-yellow-300 px-3 py-1.5 text-sm font-medium text-yellow-700 hover:bg-yellow-50">
+                                        <x-icon teal name="pencil" class="h-4 w-4" />
+                                    </button>
+                                    <button type="button" wire:click="deleteInstance({{ $instance->id }})"
+                                        wire:confirm="Delete this task instance?"
+                                        class="rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50">
+                                        <x-icon red name="trash" class="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                            No generated instances found.
+                        </div>
+                    @endforelse
+                </div>
+            </article>
+        @endif
     </section>
 
     <x-modal wire:model="assignmentModal">
@@ -276,6 +341,139 @@
                     <x-button primary label="save" right-icon="save" wire:click='updateSale' green />
                 </div>
             </x-slot> --}}
+        </x-card>
+    </x-modal>
+
+    <x-modal wire:model="instanceModal">
+        <x-card title="Edit Task Instance">
+            <form wire:submit.prevent="updateInstance" class="space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Status</label>
+                    <select wire:model.defer="instanceStatus"
+                        class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                        <option value="pending">pending</option>
+                        <option value="rejected">rejected</option>
+                        <option value="waiting_first_approval">waiting_first_approval</option>
+                        <option value="waiting_final_approval">waiting_final_approval</option>
+                        <option value="passed">passed</option>
+                        <option value="failed_late">failed_late</option>
+                        <option value="failed_missed">failed_missed</option>
+                        <option value="excluded">excluded</option>
+                    </select>
+                    @error('instanceStatus')
+                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                @if ($editingSubmissionId)
+                    <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                        <input type="checkbox" wire:model.defer="instanceIsLate"
+                            class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                        Mark this approved submission as late
+                    </label>
+                @endif
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Task Date</label>
+                        <input type="date" wire:model.defer="instanceTaskDate"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                        @error('instanceTaskDate')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Due At</label>
+                        <input type="datetime-local" wire:model.defer="instanceDueAt"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                        @error('instanceDueAt')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Period Start</label>
+                        <input type="date" wire:model.defer="instancePeriodStart"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                        @error('instancePeriodStart')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Period End</label>
+                        <input type="date" wire:model.defer="instancePeriodEnd"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                        @error('instancePeriodEnd')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                @if ($editingSubmissionId)
+                    <div class="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                        <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Submission Photos</p>
+
+                        @if (count($existingSubmissionImages) > 0)
+                            <div class="grid gap-3 md:grid-cols-2">
+                                @foreach ($existingSubmissionImages as $image)
+                                    @php $markedRemove = in_array($image['id'], $removeSubmissionImageIds, true); @endphp
+                                    <div class="rounded-xl border p-3 {{ $markedRemove ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900' }}">
+                                        <img src="{{ $image['url'] }}" alt="Submission image {{ $image['id'] }}"
+                                            class="h-32 w-full rounded-lg object-cover">
+                                        <p class="mt-2 text-xs text-slate-600 dark:text-slate-300">{{ $image['title'] ?: 'No title' }}</p>
+                                        <button type="button" wire:click="markSubmissionImageRemoval({{ $image['id'] }})"
+                                            class="mt-2 rounded-lg border px-2 py-1 text-xs {{ $markedRemove ? 'border-emerald-300 text-emerald-700' : 'border-rose-300 text-rose-700' }}">
+                                            {{ $markedRemove ? 'Keep' : 'Remove' }}
+                                        </button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <div>
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Add New Photos</label>
+                            <input type="file" wire:model="newSubmissionPhotos" multiple accept="image/*"
+                                class="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                            @error('newSubmissionPhotos.*')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        @if (count($newSubmissionPhotos) > 0)
+                            <div class="grid gap-3 md:grid-cols-2">
+                                @foreach ($newSubmissionPhotos as $index => $photo)
+                                    <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                                        @if (method_exists($photo, 'temporaryUrl'))
+                                            <img src="{{ $photo->temporaryUrl() }}" alt="New photo {{ $index + 1 }}"
+                                                class="h-32 w-full rounded-lg object-cover">
+                                        @endif
+                                        <input type="text" wire:model.defer="newSubmissionPhotoTitles.{{ $index }}"
+                                            class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                            placeholder="Title">
+                                        <textarea wire:model.defer="newSubmissionPhotoRemarks.{{ $index }}" rows="2"
+                                            class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                            placeholder="Remark"></textarea>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
+                <div class="flex items-center gap-2">
+                    <button type="submit"
+                        class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                        Update Instance
+                    </button>
+                    <button type="button" wire:click="cancelInstance"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
+                        Cancel
+                    </button>
+                </div>
+            </form>
         </x-card>
     </x-modal>
     <script>

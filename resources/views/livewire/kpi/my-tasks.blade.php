@@ -13,7 +13,8 @@
             approval.
         </p>
         <div class="mt-5 max-w-xs">
-            <label for="selected-kpi-month" class="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-300">
+            <label for="selected-kpi-month"
+                class="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-300">
                 Task Month
             </label>
             <select id="selected-kpi-month" wire:model.live="selectedMonth"
@@ -29,7 +30,8 @@
 
         @if ($isSuperAdmin)
             <div class="mt-5 max-w-xl">
-                <label for="selected-kpi-user" class="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-300">
+                <label for="selected-kpi-user"
+                    class="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-300">
                     Employee
                 </label>
                 <select id="selected-kpi-user" wire:model.live="selectedUserId"
@@ -147,11 +149,12 @@
                         <div x-cloak x-show="uploading"
                             class="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/20">
                             <div class="flex items-center justify-between gap-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.15em] text-sky-700 dark:text-sky-300">
+                                <p
+                                    class="text-xs font-semibold uppercase tracking-[0.15em] text-sky-700 dark:text-sky-300">
                                     Uploading Photos
                                 </p>
-                                <p class="text-xs font-semibold text-sky-700 dark:text-sky-300"
-                                    x-text="`${progress}%`"></p>
+                                <p class="text-xs font-semibold text-sky-700 dark:text-sky-300" x-text="`${progress}%`">
+                                </p>
                             </div>
                             <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-sky-100 dark:bg-sky-900/40">
                                 <div class="h-full rounded-full bg-sky-600 transition-all duration-200"
@@ -173,22 +176,27 @@
                                     <article x-data="{ imageLoaded: false }"
                                         class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                                         @if (method_exists($photo, 'temporaryUrl'))
-                                            <div class="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                            <div
+                                                class="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                                                 <div x-cloak x-show="!imageLoaded"
                                                     class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4">
-                                                    <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">
+                                                    <p
+                                                        class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">
                                                         Loading Preview
                                                     </p>
-                                                    <div class="h-2 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                                                        <div class="h-full w-1/2 animate-pulse rounded-full bg-slate-500 dark:bg-slate-300"></div>
+                                                    <div
+                                                        class="h-2 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                                        <div
+                                                            class="h-full w-1/2 animate-pulse rounded-full bg-slate-500 dark:bg-slate-300">
+                                                        </div>
                                                     </div>
                                                 </div>
 
                                                 <img x-ref="previewImage" x-init="$nextTick(() => { if ($refs.previewImage?.complete) imageLoaded = true; })"
-                                                    x-on:load="imageLoaded = true" x-show="imageLoaded" x-transition.opacity
-                                                    src="{{ $photo->temporaryUrl() }}"
-                                                alt="Submission preview {{ $index + 1 }}"
-                                                class="h-48 w-full object-cover">
+                                                    x-on:load="imageLoaded = true" x-show="imageLoaded"
+                                                    x-transition.opacity src="{{ $photo->temporaryUrl() }}"
+                                                    alt="Submission preview {{ $index + 1 }}"
+                                                    class="h-48 w-full object-cover">
                                             </div>
                                         @endif
 
@@ -276,8 +284,12 @@
 
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="text-xs text-slate-500 dark:text-slate-400">
-                        <p>Minimum photos: {{ $selectedTaskInstance->template?->min_images ?? 0 }}</p>
-                        <p>Maximum photos: {{ $selectedTaskInstance->template?->max_images ?? 'No limit' }}</p>
+                        @if ($selectedTaskInstance->template?->requires_images)
+                            <p>Minimum photos: {{ $selectedTaskInstance->template?->min_images ?? 0 }}</p>
+                            <p>Maximum photos: {{ $selectedTaskInstance->template?->max_images ?? 'No limit' }}</p>
+                        @else
+                            <p>No evidence required for this task.</p>
+                        @endif
                     </div>
 
                     <button type="submit"
@@ -343,10 +355,10 @@
                                         </div>
                                     @endif
 
-                                    @if (!$task->template?->requires_images)
+                                    @if (!$task->template?->requires_images && !$task->template?->requires_table)
                                         <div
-                                            class="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                                            This task is not configured for photo evidence.
+                                            class="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
+                                            No evidence is required. You can submit directly.
                                         </div>
                                     @endif
 
@@ -363,7 +375,13 @@
                                 </div>
 
                                 <div class="flex w-full flex-col gap-3 lg:w-56">
-                                    @if ($this->canSubmit($task))
+                                    @if ($this->canDirectSubmitNoEvidence($task))
+                                        <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
+                                            x-on:click="close"
+                                            class="inline-flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800">
+                                            Submit (No Evidence)
+                                        </button>
+                                    @elseif ($this->canSubmit($task))
                                         <button type="button" wire:click="openSubmission({{ $task->id }})"
                                             x-on:click="close"
                                             class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800">

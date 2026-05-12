@@ -23,6 +23,11 @@ class OfficeAssetManager extends Component
     public $filterBranch = '';
     public $filterDepartment = '';
     public $filterCategory = '';
+    public $groupBy = 'none';
+    public $collapsedCategories = [];
+    public $collapsedBranches = [];
+    public $collapsedItems = [];
+    public $collapseDefaultsInitialized = false;
 
     public $filterLevel = 'all';
 
@@ -41,6 +46,7 @@ class OfficeAssetManager extends Component
     public $minimum_balance;
 
     // Item Form
+    public $showItemCrudModal = false;
     public $showItemModal = false;
     public $itemId;
     public $item_asset_category_id;
@@ -48,12 +54,14 @@ class OfficeAssetManager extends Component
     public $item_photo;
 
     // Category Form
+    public $showCategoryCrudModal = false;
     public $showCategoryModal = false;
     public $categoryId = null;
     public $category_name = '';
     public $category_description = '';
 
     // Batch Form
+    public $showBatchCrudModal = false;
     public $showBatchModal = false;
     public $batchId;
     public $batch_name;
@@ -73,6 +81,10 @@ class OfficeAssetManager extends Component
     public function mount()
     {
         $this->transactionDate = date('Y-m-d');
+        $groupBy = request()->query('groupBy');
+        if (in_array($groupBy, ['none', 'category'], true)) {
+            $this->groupBy = $groupBy;
+        }
     }
 
     public function rules()
@@ -150,6 +162,11 @@ class OfficeAssetManager extends Component
         $this->showCategoryModal = true;
     }
 
+    public function openCategoryCrud()
+    {
+        $this->showCategoryCrudModal = true;
+    }
+
     public function editCategory($id)
     {
         $this->resetCategoryForm();
@@ -192,6 +209,21 @@ class OfficeAssetManager extends Component
     {
         $this->reset(['categoryId', 'category_name', 'category_description']);
         $this->resetValidation();
+    }
+
+    public function deleteCategory($id)
+    {
+        $category = AssetCategory::findOrFail($id);
+
+        $itemCount = OfficeAssetItem::where('asset_category_id', $category->id)->count();
+        $assetCount = OfficeAsset::where('asset_category_id', $category->id)->count();
+        if ($itemCount > 0 || $assetCount > 0) {
+            $this->notification()->error('Cannot delete category because it is in use.');
+            return;
+        }
+
+        $category->delete();
+        $this->notification()->success('Category deleted successfully.');
     }
 
     public function createAsset()
@@ -296,6 +328,11 @@ class OfficeAssetManager extends Component
         $this->showItemModal = true;
     }
 
+    public function openItemCrud()
+    {
+        $this->showItemCrudModal = true;
+    }
+
     public function editItem($id)
     {
         $this->resetItemForm();
@@ -347,10 +384,59 @@ class OfficeAssetManager extends Component
         $this->resetValidation();
     }
 
+    public function deleteItem($id)
+    {
+        $item = OfficeAssetItem::findOrFail($id);
+
+        $assetCount = OfficeAsset::where('office_asset_item_id', $item->id)->count();
+        if ($assetCount > 0) {
+            $this->notification()->error('Cannot delete item because it is in use.');
+            return;
+        }
+
+        $item->delete();
+        $this->notification()->success('Item deleted successfully.');
+    }
+
     public function createBatch()
     {
         $this->resetBatchForm();
         $this->showBatchModal = true;
+    }
+
+    public function openBatchCrud()
+    {
+        $this->showBatchCrudModal = true;
+    }
+
+    public function toggleCategoryCollapse($key)
+    {
+        if (in_array($key, $this->collapsedCategories, true)) {
+            $this->collapsedCategories = array_values(array_diff($this->collapsedCategories, [$key]));
+            return;
+        }
+
+        $this->collapsedCategories[] = $key;
+    }
+
+    public function toggleBranchCollapse($key)
+    {
+        if (in_array($key, $this->collapsedBranches, true)) {
+            $this->collapsedBranches = array_values(array_diff($this->collapsedBranches, [$key]));
+            return;
+        }
+
+        $this->collapsedBranches[] = $key;
+    }
+
+    public function toggleItemCollapse($key)
+    {
+        if (in_array($key, $this->collapsedItems, true)) {
+            $this->collapsedItems = array_values(array_diff($this->collapsedItems, [$key]));
+            return;
+        }
+
+        $this->collapsedItems[] = $key;
     }
 
     public function editBatch($id)
@@ -397,6 +483,20 @@ class OfficeAssetManager extends Component
     {
         $this->reset(['batchId', 'batch_name', 'batch_department_id', 'batch_minimum_cost', 'batch_maximum_cost']);
         $this->resetValidation();
+    }
+
+    public function deleteBatch($id)
+    {
+        $batch = AssetBatch::findOrFail($id);
+
+        $assetCount = OfficeAsset::where('asset_batch_id', $batch->id)->count();
+        if ($assetCount > 0) {
+            $this->notification()->error('Cannot delete batch because it is in use.');
+            return;
+        }
+
+        $batch->delete();
+        $this->notification()->success('Batch deleted successfully.');
     }
 
     public function createTransaction($assetId, $type)
@@ -478,7 +578,7 @@ class OfficeAssetManager extends Component
 
     public function render()
     {
-        $assets = OfficeAsset::with(['item.category', 'category', 'branch', 'department', 'batch.department'])
+        $assetQuery = OfficeAsset::with(['item.category', 'category', 'branch', 'department', 'batch.department'])
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     $q->whereHas('item', function ($iq) {
@@ -516,11 +616,87 @@ class OfficeAssetManager extends Component
                             ->whereColumn('total_cost', '<=', 'maximum_cost');
                     });
                 }
-            })
-            ->paginate(10);
+            });
+
+        $assets = null;
+        $groupedAssets = [];
+
+        if ($this->groupBy === 'category') {
+            $rawAssets = $assetQuery->get();
+
+            $groupedAssets = $rawAssets
+                ->groupBy(fn($asset) => $asset->item->category->name ?? ($asset->category->name ?? 'Uncategorized'))
+                ->map(function ($categoryAssets, $categoryName) {
+                    $categoryTotalCost = $categoryAssets->sum(fn($asset) => ((float) ($asset->cost ?? 0)) * ((int) ($asset->balance ?? 0)));
+                    $categoryTotalBalance = $categoryAssets->sum(fn($asset) => (int) ($asset->balance ?? 0));
+
+                    $branches = $categoryAssets
+                        ->groupBy(fn($asset) => $asset->branch->name ?? 'Unassigned Branch')
+                        ->map(function ($branchAssets, $branchName) use ($categoryName) {
+                            $branchTotalCost = $branchAssets->sum(fn($asset) => ((float) ($asset->cost ?? 0)) * ((int) ($asset->balance ?? 0)));
+                            $branchTotalBalance = $branchAssets->sum(fn($asset) => (int) ($asset->balance ?? 0));
+
+                            $items = $branchAssets
+                                ->groupBy(fn($asset) => $asset->item->name ?? $asset->name ?? 'Unnamed Item')
+                                ->map(function ($itemAssets, $itemName) use ($categoryName, $branchName) {
+                                    $itemTotalCost = $itemAssets->sum(fn($asset) => ((float) ($asset->cost ?? 0)) * ((int) ($asset->balance ?? 0)));
+                                    $itemTotalBalance = $itemAssets->sum(fn($asset) => (int) ($asset->balance ?? 0));
+
+                                    return [
+                                        'key' => md5($categoryName . '|' . $branchName . '|' . $itemName),
+                                        'name' => $itemName,
+                                        'total_cost' => $itemTotalCost,
+                                        'total_balance' => $itemTotalBalance,
+                                        'assets' => $itemAssets->sortBy(fn($asset) => ($asset->department->name ?? '') . '|' . ($asset->batch->name ?? ''))->values(),
+                                    ];
+                                })
+                                ->sortKeys(SORT_NATURAL | SORT_FLAG_CASE)
+                                ->values();
+
+                            return [
+                                'key' => md5($categoryName . '|' . $branchName),
+                                'name' => $branchName,
+                                'total_cost' => $branchTotalCost,
+                                'total_balance' => $branchTotalBalance,
+                                'items' => $items,
+                            ];
+                        })
+                        ->sortKeys(SORT_NATURAL | SORT_FLAG_CASE)
+                        ->values();
+
+                    return [
+                        'key' => md5($categoryName),
+                        'name' => $categoryName,
+                        'total_cost' => $categoryTotalCost,
+                        'total_balance' => $categoryTotalBalance,
+                        'branches' => $branches,
+                    ];
+                })
+                ->sortKeys(SORT_NATURAL | SORT_FLAG_CASE)
+                ->values();
+
+            if (!$this->collapseDefaultsInitialized) {
+                $this->collapsedCategories = collect($groupedAssets)->pluck('key')->all();
+                $this->collapsedBranches = collect($groupedAssets)
+                    ->flatMap(fn($category) => collect($category['branches'])->pluck('key'))
+                    ->values()
+                    ->all();
+                $this->collapsedItems = collect($groupedAssets)
+                    ->flatMap(
+                        fn($category) => collect($category['branches'])
+                            ->flatMap(fn($branch) => collect($branch['items'])->pluck('key'))
+                    )
+                    ->values()
+                    ->all();
+                $this->collapseDefaultsInitialized = true;
+            }
+        } else {
+            $assets = $assetQuery->paginate(10);
+        }
 
         return view('livewire.office-asset-manager', [
             'assets' => $assets,
+            'groupedAssets' => $groupedAssets,
             'categories' => AssetCategory::all(),
             'items' => OfficeAssetItem::with('category')->orderBy('name')->get(),
             'batches' => AssetBatch::with('department')->orderBy('name')->get(),

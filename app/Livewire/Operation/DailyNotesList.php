@@ -10,10 +10,12 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Response;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Spatie\SimpleExcel\SimpleExcelWriter;
 use WireUi\Traits\Actions;
 
 #[Layout('components.layouts.operation')]
@@ -40,6 +42,9 @@ class DailyNotesList extends Component
     public string $search = '';
     public array $selectedBranchIds = [];
     public string $listStatusFilter = 'all';
+    public array $exportBranchIds = [];
+    public array $exportTitleIds = [];
+    public string $exportDateRange = '';
 
     public function mount(): void
     {
@@ -71,6 +76,169 @@ class DailyNotesList extends Component
 
         $this->closeModal();
         $this->closeMessageModal();
+    }
+
+    public function exportDailyNotesReport()
+    {
+        $titleIds = collect($this->exportTitleIds)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($titleIds->isEmpty()) {
+            $this->notification([
+                'title' => 'Title filter required',
+                'description' => 'Please choose at least one title before export.',
+                'icon' => 'warning',
+            ]);
+            return;
+        }
+
+        [$fromDate, $toDate] = $this->resolveExportDateRange();
+
+        $branchIds = collect($this->exportBranchIds)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $notes = DailyNote::query()
+            ->forUser(Auth::user())
+            ->with(['title', 'branch', 'department', 'creator', 'messages.user', 'acknowledgements.user'])
+            ->whereIn('title_id', $titleIds->all())
+            ->when($branchIds->isNotEmpty(), fn($query) => $query->whereIn('branch_id', $branchIds->all()))
+            ->whereBetween('date', [$fromDate->toDateString(), $toDate->toDateString()])
+            ->orderBy('date')
+            ->orderBy('branch_id')
+            ->orderBy('department_id')
+            ->orderBy('created_by')
+            ->get();
+
+        if ($notes->isEmpty()) {
+            $this->notification([
+                'title' => 'No record found',
+                'description' => 'No notes matched your export filters.',
+                'icon' => 'warning',
+            ]);
+            return;
+        }
+
+        $selectedTitles = NoteTitle::query()
+            ->whereIn('id', $titleIds->all())
+            ->orderBy('id')
+            ->get();
+
+        $headers = ['Date', 'Branch Name', 'Department Name', 'Report By Name'];
+        foreach ($selectedTitles as $title) {
+            $headers[] = $title->name . ' - Note';
+            $headers[] = $title->name . ' - Contact Note Message With User';
+            $headers[] = $title->name . ' - Acknowledged By';
+            $headers[] = $title->name . ' - Late Status';
+            $headers[] = $title->name . ' - Late Ack';
+        }
+
+        $grouped = $notes->groupBy(function (DailyNote $note) {
+            return implode('|', [
+                optional($note->date)->format('Y-m-d'),
+                (string) $note->branch_id,
+                (string) $note->department_id,
+                (string) $note->created_by,
+            ]);
+        });
+
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'daily_notes_export_') . '.xlsx';
+        $writer = SimpleExcelWriter::create($tempFilePath)->addHeader($headers);
+
+        foreach ($grouped as $items) {
+            /** @var DailyNote $base */
+            $base = $items->first();
+            $row = [
+                optional($base->date)->format('Y-m-d'),
+                $base->branch?->name ?? '-',
+                $base->department?->name ?? '-',
+                $base->creator?->name ?? '-',
+            ];
+
+            foreach ($selectedTitles as $title) {
+                /** @var DailyNote|null $titleNote */
+                $titleNote = $items->first(fn(DailyNote $n) => (int) $n->title_id === (int) $title->id);
+
+                if (!$titleNote) {
+                    $row[] = '-';
+                    $row[] = '-';
+                    $row[] = '-';
+                    $row[] = '-';
+                    $row[] = '-';
+                    continue;
+                }
+
+                $messageText = $titleNote->messages
+                    ->map(function ($message) {
+                        $author = $message->user?->name ?? 'Unknown';
+                        return $author . ': ' . trim((string) $message->message);
+                    })
+                    ->filter()
+                    ->implode(' | ');
+
+                $ackText = $titleNote->acknowledgements
+                    ->map(fn($ack) => $ack->user?->name)
+                    ->filter()
+                    ->unique()
+                    ->implode(', ');
+
+                $lateAckText = $titleNote->acknowledgements
+                    ->map(function ($ack) use ($titleNote) {
+                        $name = $ack->user?->name;
+
+                        if (!$name) {
+                            return null;
+                        }
+
+                        return $this->isLateAcknowledgement($titleNote, $ack)
+                            ? $name . ' (Late Ack)'
+                            : $name . ' (On Time)';
+                    })
+                    ->filter()
+                    ->unique()
+                    ->implode(', ');
+
+                $row[] = $titleNote->note ?: '-';
+                $row[] = $messageText !== '' ? $messageText : '-';
+                $row[] = $ackText !== '' ? $ackText : '-';
+                $row[] = $this->isBackDateNote($titleNote) ? 'Back Date Note' : 'On Time';
+                $row[] = $lateAckText !== '' ? $lateAckText : '-';
+            }
+
+            $writer->addRow($row);
+        }
+
+        $writer->close();
+
+        return Response::download($tempFilePath, 'daily-notes-report.xlsx')->deleteFileAfterSend(true);
+    }
+
+    protected function resolveExportDateRange(): array
+    {
+        if (trim($this->exportDateRange) === '') {
+            $date = Carbon::parse($this->effectiveDate());
+            return [$date->copy()->startOfDay(), $date->copy()->endOfDay()];
+        }
+
+        if (!str_contains($this->exportDateRange, ' to ')) {
+            $date = Carbon::parse(trim($this->exportDateRange));
+            return [$date->copy()->startOfDay(), $date->copy()->endOfDay()];
+        }
+
+        [$from, $to] = explode(' to ', $this->exportDateRange);
+        $fromDate = Carbon::parse(trim($from))->startOfDay();
+        $toDate = Carbon::parse(trim($to))->endOfDay();
+
+        if ($fromDate->gt($toDate)) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        return [$fromDate, $toDate];
     }
 
     #[On('note-read-updated')]
@@ -585,6 +753,27 @@ class DailyNotesList extends Component
             ->get();
     }
 
+    protected function isBackDateNote(DailyNote $note): bool
+    {
+        if (!$note->created_at || !$note->date) {
+            return false;
+        }
+
+        return Carbon::parse($note->created_at)->toDateString() > Carbon::parse($note->date)->toDateString();
+    }
+
+    protected function isLateAcknowledgement(DailyNote $note, DailyNoteAcknowledgement $ack): bool
+    {
+        if (!$ack->acknowledged_at || !$note->date) {
+            return false;
+        }
+
+        $deadlineDate = Carbon::parse($note->date)->addDay()->toDateString();
+        $ackDate = Carbon::parse($ack->acknowledged_at)->toDateString();
+
+        return $ackDate > $deadlineDate;
+    }
+
     protected function tableViewGroups(): Collection
     {
         $userId = (int) Auth::id();
@@ -619,6 +808,8 @@ class DailyNotesList extends Component
                         ->values();
                     $isAcknowledgedByMe = $note->acknowledgements
                         ->contains(fn($ack) => (int) $ack->user_id === $userId);
+                    $myAcknowledgement = $note->acknowledgements
+                        ->first(fn($ack) => (int) $ack->user_id === $userId);
 
                     return [
                         'title_id' => $note->title_id,
@@ -630,6 +821,10 @@ class DailyNotesList extends Component
                         'branch_name' => $note->branch?->name ?? '-',
                         'ack_users' => $ackUsers,
                         'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                        'late_status' => $this->isBackDateNote($note) ? 'Back Date Note' : 'On Time',
+                        'late_ack_status' => !$myAcknowledgement
+                            ? 'Pending'
+                            : ($this->isLateAcknowledgement($note, $myAcknowledgement) ? 'Late Ack' : 'On Time'),
                         'unread_message_count' => $note->unread_messages_count ?? 0,
                     ];
                 });
@@ -650,6 +845,8 @@ class DailyNotesList extends Component
                         'branch_name' => $user->branch?->name ?? '-',
                         'ack_users' => collect(),
                         'is_acknowledged_by_me' => false,
+                        'late_status' => '-',
+                        'late_ack_status' => '-',
                         'unread_message_count' => 0,
                     ]]);
                 }
@@ -715,6 +912,10 @@ class DailyNotesList extends Component
                         'branch_name' => $note?->branch?->name ?? ($user->branch?->name ?? '-'),
                         'ack_users' => $ackUsers,
                         'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                        'late_status' => $note ? ($this->isBackDateNote($note) ? 'Back Date Note' : 'On Time') : '-',
+                        'late_ack_status' => $note && $isAcknowledgedByMe
+                            ? (($myAck = $note->acknowledgements->first(fn($ack) => (int) $ack->user_id === $userId)) && $this->isLateAcknowledgement($note, $myAck) ? 'Late Ack' : 'On Time')
+                            : ($note ? 'Pending' : '-'),
                         'unread_message_count' => $note?->unread_messages_count ?? 0,
                     ]]),
                     'has_unacknowledged' => $note
@@ -746,6 +947,10 @@ class DailyNotesList extends Component
                             'branch_name' => $note->branch?->name ?? '-',
                             'ack_users' => $ackUsers,
                             'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                            'late_status' => $this->isBackDateNote($note) ? 'Back Date Note' : 'On Time',
+                            'late_ack_status' => !$isAcknowledgedByMe
+                                ? 'Pending'
+                                : (($myAck = $note->acknowledgements->first(fn($ack) => (int) $ack->user_id === $userId)) && $this->isLateAcknowledgement($note, $myAck) ? 'Late Ack' : 'On Time'),
                             'unread_message_count' => $note->unread_messages_count ?? 0,
                         ];
                     });
@@ -787,6 +992,10 @@ class DailyNotesList extends Component
                             'branch_name' => $note->branch?->name ?? '-',
                             'ack_users' => $ackUsers,
                             'is_acknowledged_by_me' => $isAcknowledgedByMe,
+                            'late_status' => $this->isBackDateNote($note) ? 'Back Date Note' : 'On Time',
+                            'late_ack_status' => !$isAcknowledgedByMe
+                                ? 'Pending'
+                                : (($myAck = $note->acknowledgements->first(fn($ack) => (int) $ack->user_id === $userId)) && $this->isLateAcknowledgement($note, $myAck) ? 'Late Ack' : 'On Time'),
                             'unread_message_count' => $note->unread_messages_count ?? 0,
                         ];
                     });
@@ -827,6 +1036,14 @@ class DailyNotesList extends Component
                 ->map(function ($b) {
                     $b->name = ucfirst($b->name);
                     return $b;
+                }),
+            'titleOptions' => NoteTitle::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get()
+                ->map(function ($title) {
+                    $title->name = ucfirst($title->name);
+                    return $title;
                 }),
         ]);
     }

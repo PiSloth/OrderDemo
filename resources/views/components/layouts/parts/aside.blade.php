@@ -67,6 +67,7 @@
         $documentGroupActive = request()->routeIs('document.email-list') || request()->routeIs('document.library.*');
 
         $calendarActive = request()->routeIs('calendar.*');
+        $officeAssetGroupActive = request()->routeIs('office-asset.index');
 
         $initialOpenGroup = $performanceGroupActive
             ? 'performance'
@@ -86,7 +87,9 @@
                                         ? 'jewelry'
                                         : ($documentGroupActive
                                             ? 'document'
-                                            : ''))))))));
+                                            : ($officeAssetGroupActive
+                                                ? 'office-asset'
+                                                : '')))))))));
 
         $linkBase =
             'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
@@ -379,7 +382,15 @@
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
                             <x-icon name="ticket"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                            <span class="ml-3">ERP Tickets</span>
+                            <span class="ml-3">New Tickets</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('operation.it.issues.index') }}"
+                            class="{{ $linkBase }} ">
+                            <x-icon name="ticket"
+                                class="w-5 h-5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200" />
+                            <span class="ml-3">All Tickets</span>
                         </a>
                     </li>
 
@@ -479,15 +490,41 @@
                 </ul>
             </li>
 
-            <!-- Office Asset -->
+            <!-- Office Asset Group -->
             <li class="mt-2">
-                @php $active = request()->routeIs('office-asset.index'); @endphp
-                <a wire:navigate href="{{ route('office-asset.index') }}"
-                    class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
-                    <x-icon name="desktop-computer"
-                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
-                    <span class="ml-3">Office Asset</span>
-                </a>
+                <button type="button" @click="openGroup = openGroup === 'office-asset' ? '' : 'office-asset'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'office-asset' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
+                    <span class="flex items-center">
+                        <x-icon name="desktop-computer" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Office Asset</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': openGroup === 'office-asset' }" />
+                </button>
+
+                <ul x-show="openGroup === 'office-asset'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
+                    @php $active = request()->routeIs('office-asset.index') && request()->query('groupBy') !== 'category'; @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('office-asset.index') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="table"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Asset List</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('office-asset.index') && request()->query('groupBy') === 'category'; @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('office-asset.index', ['groupBy' => 'category']) }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="view-list"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Category Summary</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
 
             <!-- Calendar -->

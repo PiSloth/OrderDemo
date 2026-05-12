@@ -8,7 +8,11 @@ use App\Http\Controllers\Document\CompanyDocumentImageController;
 use App\Http\Controllers\Document\EmailListExportController;
 use App\Livewire\Operation\IT\Issue\Configure as ItIssueConfigure;
 use App\Livewire\Operation\IT\Issue\Create as ItIssueCreate;
+use App\Livewire\Operation\IT\Issue\Dashboard as ItIssueDashboard;
 use App\Livewire\Operation\IT\Issue\Index as ItIssueIndex;
+use App\Livewire\Operation\Branch\BranchConfig;
+use App\Livewire\Operation\Branch\BranchChecklist\Operation as BranchChecklistOperation;
+use App\Livewire\Operation\Branch\BranchChecklist\Report as BranchChecklistReport;
 use App\Http\Controllers\Operation\IT\IssueAssignmentController;
 use App\Http\Controllers\Operation\IT\IssueMessageController;
 use App\Http\Controllers\Operation\IT\IssueStatusController;
@@ -24,6 +28,7 @@ use App\Livewire\Document\Library\Browser as DocumentLibraryBrowser;
 use App\Livewire\Document\Library\Create as DocumentLibraryCreate;
 use App\Livewire\Document\Library\Edit as DocumentLibraryEdit;
 use App\Livewire\Kpi\Approvals as KpiApprovals;
+use App\Livewire\Kpi\AssociateTasks as KpiAssociateTasks;
 use App\Livewire\Kpi\Audit as KpiAudit;
 use App\Livewire\Kpi\Assignments as KpiAssignments;
 use App\Livewire\Kpi\Certificate as KpiCertificate;
@@ -53,6 +58,7 @@ use App\Livewire\Jewelry\Purchasing\Dashboard as JewelryPurchasingDashboard;
 use App\Livewire\Jewelry\Purchasing\Groups\Index as JewelryGroupsIndex;
 use App\Livewire\Jewelry\Purchasing\Groups\Show as JewelryGroupsShow;
 use App\Http\Controllers\Jewelry\JewelryTemplateController;
+use App\Livewire\Kpi\Manual;
 use App\Livewire\Order\Psi\CrateProduct;
 use App\Livewire\Order\Psi\CreateProduct;
 use App\Livewire\Order\Psi\DailySale;
@@ -186,6 +192,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::get('/certificate', KpiCertificate::class)->name('certificate');
     Route::get('/exclusions', KpiExclusions::class)->name('exclusions');
     Route::get('/approvals', KpiApprovals::class)->name('approvals');
+    Route::get('/associate-tasks', KpiAssociateTasks::class)->name('associate-tasks');
     Route::get('/holidays', KpiHolidays::class)->middleware('can:kpiManageHolidays')->name('holidays');
     Route::get('/templates', KpiTemplates::class)->middleware('can:kpiManageTemplates')->name('templates');
     Route::get('/assignments', KpiAssignments::class)->middleware('can:kpiManageAssignments')->name('assignments');
@@ -203,6 +210,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
         ->middleware('can:kpiManageImports')
         ->name('import-export.errors');
     Route::get('/leaderboard', KpiLeaderboard::class)->name('leaderboard');
+    Route::get('/manual', Manual::class)->middleware('can:kpiManageAssignments')->name('manual');
     Route::get('/certificate', KpiCertificate::class)->name('certificate');
 });
 
@@ -222,9 +230,16 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
     Route::get('/titles', \App\Livewire\Operation\TitleManager::class)
         // ->middleware('can:manageOperationTitles')
         ->name('titles');
+    Route::prefix('branch')->name('branch.')->group(function () {
+        Route::get('/checklists', BranchChecklistOperation::class)->name('checklists');
+        Route::get('/config', BranchConfig::class)->name('config');
+        Route::get('/checklists/config', BranchConfig::class)->name('checklists.config');
+        Route::get('/checklists/report', BranchChecklistReport::class)->name('checklists.report');
+    });
 
     Route::prefix('it')->name('it.')->group(function () {
         Route::get('/issues/configure', ItIssueConfigure::class)->name('issues.configure');
+        Route::get('/issues/dashboard', ItIssueDashboard::class)->name('issues.dashboard');
         Route::get('/issues', ItIssueIndex::class)->name('issues.index');
         Route::get('/issues/create', ItIssueCreate::class)->name('issues.create');
         Route::patch('/issues/{issue}/status', [IssueStatusController::class, 'update'])->name('issues.status.update');

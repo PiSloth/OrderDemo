@@ -87,6 +87,36 @@
         @enderror
     </div>
 
+    <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="grid gap-3 md:grid-cols-3">
+            <x-select label="Export Branches" placeholder="Select branches" multiselect searchable :options="$branchOptions"
+                option-label="name" option-value="id" wire:model.live="exportBranchIds" />
+
+            <x-select label="Export Titles" placeholder="Select titles" multiselect searchable :options="$titleOptions"
+                option-label="name" option-value="id" wire:model.live="exportTitleIds" />
+
+            <div wire:ignore x-data="{ range: @entangle('exportDateRange').live }" x-init="setTimeout(() => {
+                if (!window.flatpickr) return;
+                flatpickr($refs.exportRange, {
+                    mode: 'range',
+                    dateFormat: 'Y-m-d',
+                    onChange: (_, dateStr) => { range = dateStr; },
+                });
+            }, 0)">
+                <label class="mb-1 block text-sm font-medium text-slate-700">Export Date Range</label>
+                <input x-ref="exportRange" type="text" placeholder="YYYY-MM-DD to YYYY-MM-DD"
+                    class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700">
+            </div>
+        </div>
+
+        <div class="mt-3 flex justify-end">
+            <button type="button" wire:click="exportDailyNotesReport"
+                class="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700">
+                Export Daily Notes
+            </button>
+        </div>
+    </section>
+
     @if ($viewMode === 'card' && $activeTab === 'opened')
         <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             @forelse ($openedCards as $card)
@@ -367,6 +397,12 @@
                                         Branch</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Late Status</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                                        Late Ack</th>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
                                         Action</th>
                                 </tr>
                             </thead>
@@ -391,6 +427,22 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-slate-700">{{ $row['branch_name'] ?: '-' }}
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-slate-700">
+                                            @php $lateStatus = $row['late_status'] ?? '-'; @endphp
+                                            <span
+                                                class="rounded-full px-2.5 py-1 text-xs font-medium
+                                                {{ $lateStatus === 'Back Date Note' ? 'bg-amber-100 text-amber-700' : ($lateStatus === 'On Time' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600') }}">
+                                                {{ $lateStatus }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-slate-700">
+                                            @php $lateAckStatus = $row['late_ack_status'] ?? '-'; @endphp
+                                            <span
+                                                class="rounded-full px-2.5 py-1 text-xs font-medium
+                                                {{ $lateAckStatus === 'Late Ack' ? 'bg-rose-100 text-rose-700' : ($lateAckStatus === 'On Time' ? 'bg-emerald-100 text-emerald-700' : ($lateAckStatus === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600')) }}">
+                                                {{ $lateAckStatus }}
+                                            </span>
                                         </td>
                                         <td class="px-4 py-3">
                                             @if ($row['note_id'])

@@ -57,7 +57,7 @@
                         {{-- Branch Dropdown --}}
                         <div class="relative" x-data="{ open: false }" @click.outside="open = false">
                             <button type="button" @click="open = !open"
-                                class="inline-flex items-center gap-2 border-b-2 px-1 pt-1 text-sm font-medium {{ request()->routeIs('operation.titles') || request()->routeIs('operation.daily-notes') ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white' }}">
+                                class="inline-flex items-center gap-2 border-b-2 px-1 pt-1 text-sm font-medium {{ request()->routeIs('operation.branch.*') || request()->routeIs('operation.daily-notes') ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white' }}">
                                 Branch
                                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd"
@@ -68,13 +68,17 @@
 
                             <div x-cloak x-show="open" x-transition
                                 class="absolute left-0 z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                                <a href="{{ route('operation.titles') }}" wire:navigate @click="open = false"
-                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.titles') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
-                                    Titles
+                                <a href="{{ route('operation.branch.config') }}" wire:navigate @click="open = false"
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.branch.config') || request()->routeIs('operation.branch.checklists.config') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                     Configuration
                                 </a>
                                 <a href="{{ route('operation.daily-notes') }}" wire:navigate @click="open = false"
                                     class="block px-4 py-2 text-sm {{ request()->routeIs('operation.daily-notes') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
                                     Daily Notes
+                                </a>
+                                <a href="{{ route('operation.branch.checklists') }}" wire:navigate @click="open = false"
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.branch.checklists') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Daily Checklist
                                 </a>
                             </div>
                         </div>
@@ -98,8 +102,12 @@
                                     Configure
                                 </a>
                                 <a href="{{ route('operation.it.issues.index') }}" @click="open = false" wire:navigate
-                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.it.issues.*') && !request()->routeIs('operation.it.issues.configure') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.it.issues.index') || request()->routeIs('operation.it.issues.create') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
                                     Issues
+                                </a>
+                                <a href="{{ route('operation.it.issues.dashboard') }}" @click="open = false" wire:navigate
+                                    class="block px-4 py-2 text-sm {{ request()->routeIs('operation.it.issues.dashboard') ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                    Dashboard
                                 </a>
                             </div>
                         </div>

@@ -4,22 +4,50 @@ namespace App\Livewire\Kpi;
 
 use App\Models\Kpi\KpiTaskAssignment;
 use App\Models\Kpi\KpiTaskCalendarControl;
+use App\Models\Kpi\KpiTaskInstance;
+use App\Models\Kpi\KpiTaskSubmission;
+use App\Models\Kpi\KpiTaskSubmissionImage;
 use App\Models\Kpi\KpiTaskTemplate;
 use App\Models\User;
+use App\Services\Kpi\KpiSubmissionImageResizer;
 use App\Services\Kpi\KpiTaskInstanceGenerator;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 #[Layout('components.layouts.kpi')]
 class Assignments extends Component
 {
+    use WithFileUploads;
+
     public $templates;
     public $users;
     public $assignments;
+    public $instances;
 
     public int $selectedUserId = 0;
+    public int $instanceUserId = 0;
+    public bool $canManageInstances = false;
+
+    public ?int $editingInstanceId = null;
+    public string $instanceStatus = 'pending';
+    public string $instanceTaskDate = '';
+    public string $instancePeriodStart = '';
+    public string $instancePeriodEnd = '';
+    public string $instanceDueAt = '';
+    public ?int $editingSubmissionId = null;
+    public bool $instanceIsLate = false;
+    public array $existingSubmissionImages = [];
+    public array $removeSubmissionImageIds = [];
+    public array $newSubmissionPhotos = [];
+    public array $newSubmissionPhotoTitles = [];
+    public array $newSubmissionPhotoRemarks = [];
 
     public ?int $editingAssignmentId = null;
     public string $assignmentTemplateId = '';
@@ -40,14 +68,22 @@ class Assignments extends Component
 
     public function mount(): void
     {
+        $this->canManageInstances = Gate::allows('isSuperAdmin');
         $this->loadOptions();
-        $this->loadAssignments();
         $this->selectedUserId = auth()->id();
+        $this->instanceUserId = $this->canManageInstances ? 0 : auth()->id();
+        $this->loadAssignments();
+        $this->loadInstances();
     }
 
     public function updatedSelectedUserId(): void
     {
         $this->loadAssignments();
+    }
+
+    public function updatedInstanceUserId(): void
+    {
+        $this->loadInstances();
     }
 
     public function loadOptions(): void
@@ -71,7 +107,7 @@ class Assignments extends Component
 
     public function loadAssignments(): void
     {
-        $this->assignments = KpiTaskAssignment::query()
+        $query = KpiTaskAssignment::query()
             ->with([
                 'template.group',
                 'user.position',
@@ -89,9 +125,37 @@ class Assignments extends Component
                     ->whereColumn('kpi_task_templates.id', 'kpi_task_assignments.task_template_id')
             )
             ->orderByDesc('is_active')
-            ->where("user_id", '=', $this->selectedUserId)
-            ->where('is_active', $this->is_active)
-            ->get();
+            ->where('is_active', $this->is_active);
+
+        if ($this->selectedUserId > 0) {
+            $query->where('user_id', $this->selectedUserId);
+        }
+
+        $this->assignments = $query->get();
+    }
+
+    public function loadInstances(): void
+    {
+        if (!$this->canManageInstances) {
+            $this->instances = collect();
+
+            return;
+        }
+
+        $query = KpiTaskInstance::query()
+            ->with([
+                'template.group',
+                'user.position',
+                'assignment',
+            ])
+            ->orderByDesc('period_start')
+            ->orderByDesc('id');
+
+        if ($this->instanceUserId > 0) {
+            $query->where('user_id', $this->instanceUserId);
+        }
+
+        $this->instances = $query->limit(300)->get();
     }
 
     public function createAssignment(): void
@@ -120,6 +184,7 @@ class Assignments extends Component
 
         $this->resetAssignmentForm();
         $this->loadAssignments();
+        $this->loadInstances();
 
         session()->flash('message', 'Employee task assignment created.');
     }
@@ -185,6 +250,7 @@ class Assignments extends Component
 
         $this->resetAssignmentForm();
         $this->loadAssignments();
+        $this->loadInstances();
 
         session()->flash('message', 'Employee task assignment updated.');
     }
@@ -205,8 +271,182 @@ class Assignments extends Component
 
         $this->resetAssignmentForm();
         $this->loadAssignments();
+        $this->loadInstances();
 
         session()->flash('message', 'Employee task assignment deleted.');
+    }
+
+    public function editInstance(int $instanceId): void
+    {
+        Gate::authorize('isSuperAdmin');
+
+        $instance = KpiTaskInstance::query()
+            ->with([
+                'submissions' => fn($query) => $query->with('images')->latest('sequence')->latest('id'),
+            ])
+            ->findOrFail($instanceId);
+
+        $this->editingInstanceId = $instance->id;
+        $this->instanceStatus = (string) $instance->status;
+        $this->instanceTaskDate = $instance->task_date?->format('Y-m-d') ?? '';
+        $this->instancePeriodStart = $instance->period_start?->format('Y-m-d') ?? '';
+        $this->instancePeriodEnd = $instance->period_end?->format('Y-m-d') ?? '';
+        $this->instanceDueAt = $instance->due_at ? Carbon::parse($instance->due_at)->format('Y-m-d\TH:i') : '';
+        $this->removeSubmissionImageIds = [];
+        $this->newSubmissionPhotos = [];
+        $this->newSubmissionPhotoTitles = [];
+        $this->newSubmissionPhotoRemarks = [];
+
+        $latestSubmission = $instance->submissions->first();
+        $this->editingSubmissionId = $latestSubmission?->id;
+        $this->instanceIsLate = (bool) ($latestSubmission?->is_late ?? false);
+        $this->existingSubmissionImages = $latestSubmission
+            ? $latestSubmission->images->map(fn(KpiTaskSubmissionImage $image): array => [
+                'id' => (int) $image->id,
+                'title' => (string) ($image->title ?? ''),
+                'remark' => (string) ($image->remark ?? ''),
+                'url' => asset('storage/' . ltrim((string) $image->image_path, '/')),
+            ])->values()->all()
+            : [];
+
+        $this->dispatch('openModal', 'instanceModal');
+    }
+
+    public function updateInstance(KpiSubmissionImageResizer $resizer): void
+    {
+        Gate::authorize('isSuperAdmin');
+
+        if (!$this->editingInstanceId) {
+            return;
+        }
+
+        $validated = $this->validate([
+            'instanceStatus' => ['required', 'in:pending,rejected,waiting_first_approval,waiting_final_approval,passed,failed_late,failed_missed,excluded'],
+            'instanceTaskDate' => ['nullable', 'date'],
+            'instancePeriodStart' => ['required', 'date'],
+            'instancePeriodEnd' => ['required', 'date', 'after_or_equal:instancePeriodStart'],
+            'instanceDueAt' => ['nullable', 'date'],
+            'instanceIsLate' => ['boolean'],
+            'newSubmissionPhotos' => ['array', 'max:20'],
+            'newSubmissionPhotos.*' => ['nullable', 'image', 'max:10240'],
+            'newSubmissionPhotoTitles' => ['array'],
+            'newSubmissionPhotoRemarks' => ['array'],
+        ], [], [
+            'instanceStatus' => 'status',
+            'instanceTaskDate' => 'task date',
+            'instancePeriodStart' => 'period start',
+            'instancePeriodEnd' => 'period end',
+            'instanceDueAt' => 'due at',
+            'newSubmissionPhotos.*' => 'submission image',
+        ]);
+
+        $instance = KpiTaskInstance::query()->findOrFail($this->editingInstanceId);
+        $storedPaths = [];
+
+        try {
+            DB::transaction(function () use ($instance, $validated, $resizer, &$storedPaths): void {
+            $status = $validated['instanceStatus'];
+
+            if (in_array($status, ['passed', 'failed_late'], true)) {
+                $status = $validated['instanceIsLate'] ? 'failed_late' : 'passed';
+            }
+
+            $instance->update([
+                'status' => $status,
+                'task_date' => $validated['instanceTaskDate'] !== '' ? $validated['instanceTaskDate'] : null,
+                'period_start' => $validated['instancePeriodStart'],
+                'period_end' => $validated['instancePeriodEnd'],
+                'due_at' => $validated['instanceDueAt'] !== '' ? Carbon::parse($validated['instanceDueAt']) : null,
+                'is_on_time' => $validated['instanceIsLate'] ? false : ($status === 'passed' ? true : $instance->is_on_time),
+            ]);
+
+            if (!$this->editingSubmissionId) {
+                return;
+            }
+
+            $submission = KpiTaskSubmission::query()
+                ->with('images')
+                ->where('id', $this->editingSubmissionId)
+                ->where('task_instance_id', $instance->id)
+                ->firstOrFail();
+
+            $submission->update([
+                'is_late' => (bool) $validated['instanceIsLate'],
+            ]);
+
+            $removeIds = collect($this->removeSubmissionImageIds)
+                ->map(fn($id) => (int) $id)
+                ->filter(fn($id) => $id > 0)
+                ->values();
+
+            if ($removeIds->isNotEmpty()) {
+                $imagesToDelete = $submission->images()->whereIn('id', $removeIds)->get();
+
+                foreach ($imagesToDelete as $image) {
+                    Storage::disk('public')->delete((string) $image->image_path);
+                    $image->delete();
+                }
+            }
+
+            foreach ($this->newSubmissionPhotos as $index => $photo) {
+                if (!$photo instanceof TemporaryUploadedFile) {
+                    continue;
+                }
+
+                $path = $resizer->store($photo, 900);
+                $storedPaths[] = $path;
+
+                $submission->images()->create([
+                    'image_path' => $path,
+                    'title' => trim((string) ($this->newSubmissionPhotoTitles[$index] ?? '')) ?: null,
+                    'remark' => trim((string) ($this->newSubmissionPhotoRemarks[$index] ?? '')) ?: null,
+                    'sort_order' => (int) ($submission->images()->max('sort_order') ?? 0) + $index + 1,
+                ]);
+            }
+            });
+        } catch (\Throwable $exception) {
+            foreach ($storedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
+            throw $exception;
+        }
+
+        $this->resetInstanceForm();
+        $this->loadInstances();
+
+        session()->flash('message', 'Task instance updated.');
+    }
+
+    public function deleteInstance(int $instanceId): void
+    {
+        Gate::authorize('isSuperAdmin');
+
+        KpiTaskInstance::query()->findOrFail($instanceId)->delete();
+
+        $this->resetInstanceForm();
+        $this->loadInstances();
+
+        session()->flash('message', 'Task instance deleted.');
+    }
+
+    public function cancelInstance(): void
+    {
+        $this->resetInstanceForm();
+    }
+
+    public function markSubmissionImageRemoval(int $imageId): void
+    {
+        if (in_array($imageId, $this->removeSubmissionImageIds, true)) {
+            $this->removeSubmissionImageIds = array_values(array_filter(
+                $this->removeSubmissionImageIds,
+                fn($id) => (int) $id !== $imageId
+            ));
+
+            return;
+        }
+
+        $this->removeSubmissionImageIds[] = $imageId;
     }
 
     public function cancelAssignment(): void
@@ -369,6 +609,24 @@ class Assignments extends Component
         $this->assignmentWeeklyMonthlyRefreshTime = '09:15';
         $this->assignmentPushUntilFinalized = true;
         $this->assignmentIsActive = true;
+        $this->resetErrorBag();
+    }
+
+    protected function resetInstanceForm(): void
+    {
+        $this->editingInstanceId = null;
+        $this->editingSubmissionId = null;
+        $this->instanceStatus = 'pending';
+        $this->instanceIsLate = false;
+        $this->instanceTaskDate = '';
+        $this->instancePeriodStart = '';
+        $this->instancePeriodEnd = '';
+        $this->instanceDueAt = '';
+        $this->existingSubmissionImages = [];
+        $this->removeSubmissionImageIds = [];
+        $this->newSubmissionPhotos = [];
+        $this->newSubmissionPhotoTitles = [];
+        $this->newSubmissionPhotoRemarks = [];
         $this->resetErrorBag();
     }
 }
