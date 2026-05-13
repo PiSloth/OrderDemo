@@ -23,6 +23,9 @@
     @error('assignmentDelete')
         <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $message }}</div>
     @enderror
+    @error('assignmentGenerator')
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $message }}</div>
+    @enderror
 
     <section class="grid gap-6 ">
         <div>

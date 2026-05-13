@@ -180,7 +180,18 @@ class Assignments extends Component
         ]);
 
         $this->saveCalendarControl($assignment, $validated);
-        app(KpiTaskInstanceGenerator::class)->generateForAssignment($assignment->fresh(['template.group']));
+
+        try {
+            app(KpiTaskInstanceGenerator::class)->generateForAssignment($assignment->fresh(['template.group']));
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $templateName = (string) ($assignment->template?->title ?? 'Unknown template');
+
+            throw ValidationException::withMessages([
+                'assignmentGenerator' => "Failed to create task instance for template: {$templateName}.",
+            ]);
+        }
 
         $this->resetAssignmentForm();
         $this->loadAssignments();
@@ -246,7 +257,18 @@ class Assignments extends Component
         ]);
 
         $this->saveCalendarControl($assignment, $validated);
-        app(KpiTaskInstanceGenerator::class)->generateForAssignment($assignment->fresh(['template.group']));
+
+        try {
+            app(KpiTaskInstanceGenerator::class)->generateForAssignment($assignment->fresh(['template.group']));
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $templateName = (string) ($assignment->template?->title ?? 'Unknown template');
+
+            throw ValidationException::withMessages([
+                'assignmentGenerator' => "Failed to create task instance for template: {$templateName}.",
+            ]);
+        }
 
         $this->resetAssignmentForm();
         $this->loadAssignments();
