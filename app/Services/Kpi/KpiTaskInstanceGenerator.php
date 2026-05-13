@@ -8,6 +8,7 @@ use App\Models\Kpi\KpiTaskInstance;
 use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\QueryException;
 
 class KpiTaskInstanceGenerator
 {
@@ -156,17 +157,33 @@ class KpiTaskInstanceGenerator
             'period_index' => $periodIndex,
         ];
 
-        $instance = KpiTaskInstance::query()->firstOrCreate(
-            $attributes,
-            [
-                'task_date' => $taskDate?->toDateString(),
-                'due_at' => $this->makeDueAt($assignment, $periodEnd),
-                'status' => 'pending',
-                'final_outcome' => null,
-                'is_on_time' => null,
-                'failure_reason' => null,
-            ]
-        );
+        try {
+            $instance = KpiTaskInstance::query()->firstOrCreate(
+                $attributes,
+                [
+                    'task_date' => $taskDate?->toDateString(),
+                    'due_at' => $this->makeDueAt($assignment, $periodEnd),
+                    'status' => 'pending',
+                    'final_outcome' => null,
+                    'is_on_time' => null,
+                    'failure_reason' => null,
+                ]
+            );
+        } catch (QueryException $e) {
+            // Handle race condition: another process inserted the same unique period row.
+            $isDuplicateKey = (string) $e->getCode() === '23000'
+                || str_contains((string) $e->getMessage(), '1062 Duplicate entry');
+
+            if (!$isDuplicateKey) {
+                throw $e;
+            }
+
+            $instance = KpiTaskInstance::query()->where($attributes)->first();
+
+            if (!$instance) {
+                throw $e;
+            }
+        }
 
         if ($instance->wasRecentlyCreated) {
             $this->availability->syncDailyInstance($instance);
