@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Order System'),
+    'name' => env('APP_NAME', 'Office Website'),
 
     /*
     |--------------------------------------------------------------------------
