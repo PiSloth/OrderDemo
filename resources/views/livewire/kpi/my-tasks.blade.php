@@ -109,9 +109,24 @@
             <form wire:submit="submitTask" class="mt-5 space-y-5">
                 <div>
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Photos</label>
-                    <div x-data="{ uploading: false, progress: 0 }" x-on:livewire-upload-start="uploading = true"
+                    <div x-data="{ uploading: false, progress: 0, uploadErrorMessage: '' }"
+                        x-on:livewire-upload-start="uploading = true; uploadErrorMessage = ''"
                         x-on:livewire-upload-finish="uploading = false; progress = 0"
-                        x-on:livewire-upload-error="uploading = false"
+                        x-on:livewire-upload-error="
+                            uploading = false;
+                            progress = 0;
+                            const detail = $event.detail || {};
+                            const message = detail.message || '';
+                            const status = detail.status || '';
+
+                            if (status === 401 || message.includes('401')) {
+                                uploadErrorMessage = 'Upload failed: 401 Unauthorized. Signed upload URL is invalid or expired. Please refresh and try again.';
+                            } else if (message) {
+                                uploadErrorMessage = `Upload failed: ${message}`;
+                            } else {
+                                uploadErrorMessage = 'Upload failed. Possible reasons: session expired, file too large, unsupported file type, or server rejected temporary upload request.';
+                            }
+                        "
                         x-on:livewire-upload-cancel="uploading = false; progress = 0"
                         x-on:livewire-upload-progress="progress = $event.detail.progress"
                         class="mt-2 rounded-3xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
@@ -168,6 +183,9 @@
                         </p>
                         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                             Supported formats: JPG, PNG, WEBP.
+                        </p>
+                        <p x-cloak x-show="uploadErrorMessage" x-text="uploadErrorMessage"
+                            class="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                         </p>
 
                         @if (count($submissionPhotos) > 0)
