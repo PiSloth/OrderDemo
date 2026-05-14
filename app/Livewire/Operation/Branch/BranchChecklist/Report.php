@@ -9,12 +9,14 @@ use Illuminate\Support\Facades\Response;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 
 #[Layout('components.layouts.operation')]
 #[Title('Branch Checklist Report')]
 class Report extends Component
 {
+    use WithPagination;
     public array $selectedBranchIds = [];
     public string $dateRange = '';
 
