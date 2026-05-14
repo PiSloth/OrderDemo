@@ -109,7 +109,33 @@
             <form wire:submit="submitTask" class="mt-5 space-y-5">
                 <div>
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Photos</label>
-                    <div x-data="{ uploading: false, progress: 0, uploadErrorMessage: '' }"
+                    <div x-data="{
+                        uploading: false,
+                        progress: 0,
+                        uploadErrorMessage: '',
+                        previews: [],
+                        addFiles(files) {
+                            Array.from(files || []).forEach((file) => {
+                                if (!file || !file.type || !file.type.startsWith('image/')) return;
+                                this.previews.push({
+                                    name: file.name,
+                                    url: URL.createObjectURL(file),
+                                });
+                            });
+                        },
+                        removePreviewAt(index) {
+                            const removed = this.previews.splice(index, 1);
+                            if (removed.length && removed[0].url) {
+                                URL.revokeObjectURL(removed[0].url);
+                            }
+                        },
+                        clearPreviews() {
+                            this.previews.forEach((p) => {
+                                if (p.url) URL.revokeObjectURL(p.url);
+                            });
+                            this.previews = [];
+                        },
+                    }"
                         x-on:livewire-upload-start="uploading = true; uploadErrorMessage = ''"
                         x-on:livewire-upload-finish="uploading = false; progress = 0"
                         x-on:livewire-upload-error="
@@ -131,8 +157,10 @@
                         x-on:livewire-upload-progress="progress = $event.detail.progress"
                         class="mt-2 rounded-3xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
                         <input id="kpi-camera-photo" type="file" wire:model="cameraPhoto" accept="image/*"
+                            x-on:change="addFiles($event.target.files)"
                             capture="environment" class="hidden">
                         <input id="kpi-gallery-photos" type="file" wire:model="galleryPhotos" accept="image/*"
+                            x-on:change="addFiles($event.target.files)"
                             multiple class="hidden">
 
                         <div class="flex flex-wrap items-center gap-3">
@@ -193,30 +221,28 @@
                                 @foreach ($submissionPhotos as $index => $photo)
                                     <article x-data="{ imageLoaded: false }"
                                         class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-                                        @if (method_exists($photo, 'temporaryUrl'))
-                                            <div
-                                                class="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                                                <div x-cloak x-show="!imageLoaded"
-                                                    class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4">
-                                                    <p
-                                                        class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">
-                                                        Loading Preview
-                                                    </p>
+                                        <div class="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                            <div x-cloak x-show="!imageLoaded"
+                                                class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4">
+                                                <p
+                                                    class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">
+                                                    Loading Preview
+                                                </p>
+                                                <div
+                                                    class="h-2 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                                     <div
-                                                        class="h-2 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                                                        <div
-                                                            class="h-full w-1/2 animate-pulse rounded-full bg-slate-500 dark:bg-slate-300">
-                                                        </div>
+                                                        class="h-full w-1/2 animate-pulse rounded-full bg-slate-500 dark:bg-slate-300">
                                                     </div>
                                                 </div>
-
-                                                <img x-ref="previewImage" x-init="$nextTick(() => { if ($refs.previewImage?.complete) imageLoaded = true; })"
-                                                    x-on:load="imageLoaded = true" x-show="imageLoaded"
-                                                    x-transition.opacity src="{{ $photo->temporaryUrl() }}"
-                                                    alt="Submission preview {{ $index + 1 }}"
-                                                    class="h-48 w-full object-cover">
                                             </div>
-                                        @endif
+
+                                            <img x-ref="previewImage"
+                                                x-init="$nextTick(() => { if ($refs.previewImage?.complete) imageLoaded = true; })"
+                                                x-on:load="imageLoaded = true" x-show="imageLoaded"
+                                                x-transition.opacity :src="previews[{{ $index }}]?.url || ''"
+                                                alt="Submission preview {{ $index + 1 }}"
+                                                class="h-48 w-full object-cover">
+                                        </div>
 
                                         <div class="space-y-3 p-4">
                                             <div class="flex items-start justify-between gap-3">
@@ -231,6 +257,7 @@
 
                                                 <button type="button"
                                                     wire:click="removeSubmissionPhoto({{ $index }})"
+                                                    x-on:click="removePreviewAt({{ $index }})"
                                                     class="text-xs font-medium text-rose-600 transition hover:text-rose-700">
                                                     Remove
                                                 </button>
