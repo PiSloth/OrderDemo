@@ -7,6 +7,7 @@ use App\Models\DailyNoteAcknowledgement;
 use App\Models\DailyNote;
 use App\Models\NoteTitle;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +24,8 @@ use WireUi\Traits\Actions;
 class DailyNotesList extends Component
 {
     use Actions;
+    protected const NOTE_MAX_WORDS = 50;
+    protected const NOTE_MAX_CHARS = 255;
     public string $activeTab = 'opened';
     public string $viewMode = 'list';
     public string $selectedDate = '';
@@ -42,6 +45,8 @@ class DailyNotesList extends Component
     public string $search = '';
     public array $selectedBranchIds = [];
     public string $listStatusFilter = 'all';
+    public ?int $editingListTitleId = null;
+    public array $listNoteDrafts = [];
     public array $exportBranchIds = [];
     public array $exportTitleIds = [];
     public string $exportDateRange = '';
@@ -249,7 +254,7 @@ class DailyNotesList extends Component
 
     public function openTitle(int $titleId): void
     {
-        $title = NoteTitle::query()->where('is_active', true)->findOrFail($titleId);
+        $title = $this->scopedActiveTitlesQuery()->findOrFail($titleId);
         $note = $this->findDailyNote($title);
 
         $this->activeTitleId = $title->id;
@@ -473,6 +478,104 @@ class DailyNotesList extends Component
         $this->closeModal();
     }
 
+    public function startInlineNoteEdit(int $titleId): void
+    {
+        $title = $this->scopedActiveTitlesQuery()->findOrFail($titleId);
+        $note = $this->findDailyNote($title);
+
+        $this->editingListTitleId = $titleId;
+        $this->listNoteDrafts[$titleId] = (string) ($note->note ?? '');
+    }
+
+    public function saveInlineNote(int $titleId): void
+    {
+        $title = $this->scopedActiveTitlesQuery()->findOrFail($titleId);
+        $noteText = trim((string) ($this->listNoteDrafts[$titleId] ?? ''));
+
+        if (mb_strlen($noteText) > self::NOTE_MAX_CHARS) {
+            $this->dialog()->error(
+                $title = 'Character limit exceeded',
+                $description = 'Note cannot exceed ' . self::NOTE_MAX_CHARS . ' characters.'
+            );
+            return;
+        }
+
+        if ($this->exceedsNoteWordLimit($noteText)) {
+            $this->dialog()->error(
+                $title = 'Word limit exceeded',
+                $description = 'Note cannot exceed ' . self::NOTE_MAX_WORDS . ' words.'
+            );
+            return;
+        }
+
+        $note = $this->findDailyNote($title);
+
+        if (!$note && $noteText === '') {
+            $this->editingListTitleId = null;
+            return;
+        }
+
+        if (!$note) {
+            $user = Auth::user();
+            DailyNote::query()->create([
+                'title_id' => $titleId,
+                'location_id' => $user->location_id,
+                'department_id' => $user->department_id,
+                'branch_id' => $user->branch_id,
+                'date' => $this->effectiveDate(),
+                'created_by' => $user->id,
+                'note' => $noteText !== '' ? $noteText : null,
+                'is_number' => false,
+            ]);
+        } else {
+            $note->update([
+                'note' => $noteText !== '' ? $noteText : null,
+            ]);
+        }
+
+        $this->listNoteDrafts[$titleId] = $noteText;
+        $this->editingListTitleId = null;
+    }
+
+    public function updatedListNoteDrafts($value, $key): void
+    {
+        $text = (string) $value;
+
+        if (mb_strlen($text) > self::NOTE_MAX_CHARS) {
+            $this->listNoteDrafts[$key] = mb_substr($text, 0, self::NOTE_MAX_CHARS);
+
+            $this->dialog()->error(
+                $title = 'Character limit exceeded',
+                $description = 'Maximum ' . self::NOTE_MAX_CHARS . ' characters allowed.'
+            );
+            return;
+        }
+
+        if ($this->exceedsNoteWordLimit($text)) {
+            $words = preg_split('/\s+/', trim($text), -1, PREG_SPLIT_NO_EMPTY);
+            $this->listNoteDrafts[$key] = collect($words ?: [])
+                ->take(self::NOTE_MAX_WORDS)
+                ->implode(' ');
+
+            $this->dialog()->error(
+                $title = 'Word limit exceeded',
+                $description = 'Maximum ' . self::NOTE_MAX_WORDS . ' words allowed.'
+            );
+        }
+    }
+
+    protected function exceedsNoteWordLimit(string $text): bool
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return false;
+        }
+
+        $words = preg_split('/\s+/', $text, -1, PREG_SPLIT_NO_EMPTY);
+
+        return count($words ?: []) > self::NOTE_MAX_WORDS;
+    }
+
     protected function persistNote(): bool
     {
         $this->validate([
@@ -624,17 +727,12 @@ class DailyNotesList extends Component
         $search = trim($this->search);
         $notes = $this->baseTodayNotes()->open()->get()->keyBy('title_id');
 
-        return NoteTitle::query()
-            ->where('is_active', true)
+        return $this->scopedActiveTitlesQuery()
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($titleQuery) use ($search) {
                     $titleQuery->where('name', 'like', '%' . $search . '%')
                         ->orWhere('remark', 'like', '%' . $search . '%');
                 });
-            })
-            ->whereHas('creator', function ($query) {
-                $user = Auth::user();
-                $query->where('department_id', $user->department_id);
             })
             ->orderBy('id')
             ->get()
@@ -682,14 +780,7 @@ class DailyNotesList extends Component
         $search = trim($this->search);
         $notes = $this->baseTodayNotes()->get()->keyBy('title_id');
 
-        return NoteTitle::query()
-            ->where('is_active', true)
-            //notes which Auth:user() has access based on his departement must same with the note title creator department.
-            //Title table has createdBy field which is the user id of the creator of the title, and user table has department_id field which is the department id of the user, so we can use whereHas to filter the titles based on the creator's department.
-            ->whereHas('creator', function ($query) {
-                $user = Auth::user();
-                $query->where('department_id', $user->department_id);
-            })
+        return $this->scopedActiveTitlesQuery()
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($titleQuery) use ($search) {
                     $titleQuery->where('name', 'like', '%' . $search . '%')
@@ -794,8 +885,7 @@ class DailyNotesList extends Component
             ->get()
             ->groupBy('title_id');
 
-        return NoteTitle::query()
-            ->where('is_active', true)
+        return $this->scopedActiveTitlesQuery()
             ->orderBy('id')
             ->get()
             ->map(function (NoteTitle $title) use ($notesByTitle, $userId, $user) {
@@ -867,6 +957,32 @@ class DailyNotesList extends Component
             ->values();
     }
 
+    protected function scopedActiveTitlesQuery(): Builder
+    {
+        $user = Auth::user();
+        $scopeIds = $user->scopes()->pluck('scopes.id');
+
+        return NoteTitle::query()
+            ->where('is_active', true)
+            ->whereHas('creator', function ($query) use ($user) {
+                $query->where('department_id', $user->department_id);
+            })
+            ->when(
+                $scopeIds->isNotEmpty(),
+                function (Builder $query) use ($scopeIds) {
+                    $query->where(function (Builder $scopeQuery) use ($scopeIds) {
+                        $scopeQuery->whereDoesntHave('scopes')
+                            ->orWhereHas('scopes', function (Builder $titleScopeQuery) use ($scopeIds) {
+                                $titleScopeQuery->whereIn('scopes.id', $scopeIds->all());
+                            });
+                    });
+                },
+                function (Builder $query) {
+                    $query->whereDoesntHave('scopes');
+                }
+            );
+    }
+
     public function render()
     {
         $userId = (int) Auth::id();
@@ -878,7 +994,7 @@ class DailyNotesList extends Component
         $recentNotes = $this->recentNotes();
         $tableGroups = collect();
         $activeNote = $this->activeNoteId ? $this->currentNote() : null;
-        $activeTitle = $this->activeTitleId ? NoteTitle::query()->find($this->activeTitleId) : null;
+        $activeTitle = $this->activeTitleId ? $this->scopedActiveTitlesQuery()->find($this->activeTitleId) : null;
         $user = Auth::user();
 
         if ($this->viewMode === 'table') {
@@ -1037,8 +1153,7 @@ class DailyNotesList extends Component
                     $b->name = ucfirst($b->name);
                     return $b;
                 }),
-            'titleOptions' => NoteTitle::query()
-                ->where('is_active', true)
+            'titleOptions' => $this->scopedActiveTitlesQuery()
                 ->orderBy('name')
                 ->get()
                 ->map(function ($title) {

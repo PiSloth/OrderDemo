@@ -4,18 +4,23 @@
     @touchend="
         const dx = $event.changedTouches[0].screenX - (window.__branchCfgTouchX || 0);
         if (Math.abs(dx) > 50) {
-            tab = dx < 0 ? 'checklists' : 'titles';
+            tab = dx < 0 ? (tab === 'titles' ? 'scopes' : 'checklists') : (tab === 'checklists' ? 'scopes' : 'titles');
         }
     ">
     <section class="rounded-3xl bg-white p-4 shadow-sm">
-        <div class="relative inline-grid w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 sm:w-auto">
-            <div class="absolute top-1 bottom-1 w-1/2 rounded-xl bg-white shadow-sm transition-all duration-300"
-                :class="tab === 'titles' ? 'left-1' : 'left-1/2'"></div>
+        <div class="relative inline-grid w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 sm:w-auto">
+            <div class="absolute top-1 bottom-1 w-1/3 rounded-xl bg-white shadow-sm transition-all duration-300"
+                :class="tab === 'titles' ? 'left-1' : (tab === 'scopes' ? 'left-1/3' : 'left-2/3')"></div>
 
             <button type="button" @click="tab = 'titles'"
                 class="relative z-10 rounded-xl px-4 py-2 text-sm font-semibold transition"
                 :class="tab === 'titles' ? 'text-slate-900' : 'text-slate-600'">
                 Title Manager
+            </button>
+            <button type="button" @click="tab = 'scopes'"
+                class="relative z-10 rounded-xl px-4 py-2 text-sm font-semibold transition"
+                :class="tab === 'scopes' ? 'text-slate-900' : 'text-slate-600'">
+                User Scope
             </button>
             <button type="button" @click="tab = 'checklists'"
                 class="relative z-10 rounded-xl px-4 py-2 text-sm font-semibold transition"
@@ -25,12 +30,15 @@
         </div>
     </section>
 
-    <div x-show="tab === 'titles'" x-transition.opacity>
+    <div x-cloak x-show="tab === 'titles'" x-transition.opacity>
         <livewire:operation.title-manager />
     </div>
 
-    <div x-show="tab === 'checklists'" x-transition.opacity>
+    <div x-cloak x-show="tab === 'scopes'" x-transition.opacity>
+        <livewire:operation.branch.user-scope-config />
+    </div>
+
+    <div x-cloak x-show="tab === 'checklists'" x-transition.opacity>
         <livewire:operation.branch.branch-checklist.crud.index />
     </div>
 </div>
-

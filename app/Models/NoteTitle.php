@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class NoteTitle extends Model
@@ -30,5 +31,10 @@ class NoteTitle extends Model
     public function dailyNotes(): HasMany
     {
         return $this->hasMany(DailyNote::class, 'title_id');
+    }
+
+    public function scopes(): BelongsToMany
+    {
+        return $this->belongsToMany(Scope::class, 'note_title_scope')->withTimestamps();
     }
 }

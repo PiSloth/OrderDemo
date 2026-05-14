@@ -3,6 +3,7 @@
 namespace App\Livewire\Operation;
 
 use App\Models\NoteTitle;
+use App\Models\Scope;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -23,6 +24,7 @@ class TitleManager extends Component
     public string $formRemark = '';
     public string $searchTitle = '';
     public string $searchRemark = '';
+    public array $formScopeIds = [];
 
     // public function mount(): void
     // {
@@ -42,7 +44,7 @@ class TitleManager extends Component
     public function openCreateModal(): void
     {
         $this->resetValidation();
-        $this->reset('editingId', 'formName', 'formRemark');
+        $this->reset('editingId', 'formName', 'formRemark', 'formScopeIds');
         $this->showModal = true;
     }
 
@@ -54,6 +56,7 @@ class TitleManager extends Component
         $this->editingId = $title->id;
         $this->formName = $title->name;
         $this->formRemark = (string) ($title->remark ?? '');
+        $this->formScopeIds = $title->scopes()->pluck('scopes.id')->map(fn($id) => (int) $id)->all();
         $this->showModal = true;
     }
 
@@ -61,7 +64,7 @@ class TitleManager extends Component
     {
         $this->showModal = false;
         $this->resetValidation();
-        $this->reset('editingId', 'formName', 'formRemark');
+        $this->reset('editingId', 'formName', 'formRemark', 'formScopeIds');
     }
 
     public function save(): void
@@ -70,7 +73,16 @@ class TitleManager extends Component
         $validated = $this->validate([
             'formName' => ['required', 'string', 'max:255', 'unique:note_titles,name,' . ($titleId ?? 'NULL') . ',id'],
             'formRemark' => ['nullable', 'string', 'max:255'],
+            'formScopeIds' => ['array'],
+            'formScopeIds.*' => ['integer', 'exists:scopes,id'],
         ]);
+
+        $scopeIds = collect($validated['formScopeIds'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
 
         if ($titleId) {
             $title = NoteTitle::findOrFail($titleId);
@@ -78,6 +90,7 @@ class TitleManager extends Component
                 'name' => $validated['formName'],
                 'remark' => $validated['formRemark'] !== '' ? $validated['formRemark'] : null,
             ]);
+            $title->scopes()->sync($scopeIds);
 
             $this->notification([
                 'title' => 'Success',
@@ -85,12 +98,13 @@ class TitleManager extends Component
                 'icon' => 'success',
             ]);
         } else {
-            NoteTitle::create([
+            $title = NoteTitle::create([
                 'name' => $validated['formName'],
                 'remark' => $validated['formRemark'] !== '' ? $validated['formRemark'] : null,
                 'created_by' => Auth::id(),
                 'is_active' => true,
             ]);
+            $title->scopes()->sync($scopeIds);
 
             $this->notification([
                 'title' => 'Success',
@@ -139,7 +153,7 @@ class TitleManager extends Component
         return view('livewire.operation.title-manager', [
             'titles' => NoteTitle::query()
                 ->withCount('dailyNotes')
-                ->with('creator')
+                ->with(['creator', 'scopes'])
                 ->when($titleTerm !== '', function ($query) use ($titleTerm) {
                     $query->where('name', 'like', '%' . $titleTerm . '%');
                 })
@@ -152,6 +166,10 @@ class TitleManager extends Component
                 })
                 ->latest()
                 ->paginate(12),
+            'scopeOptions' => Scope::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 }

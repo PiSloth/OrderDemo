@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+
+class Scope extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'scope_user')->withTimestamps();
+    }
+
+    public function noteTitles(): BelongsToMany
+    {
+        return $this->belongsToMany(NoteTitle::class, 'note_title_scope')->withTimestamps();
+    }
+}
+

@@ -54,6 +54,9 @@
                                 Remark</th>
                             <th
                                 class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                Scope</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 Action</th>
                         </tr>
                     </thead>
@@ -75,6 +78,13 @@
                                 </td>
                                 <td class="px-4 py-3 text-sm text-slate-600">
                                     {{ $title->remark ?: '-' }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-600">
+                                    @if ($title->scopes->isEmpty())
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">Global</span>
+                                    @else
+                                        <p>{{ $title->scopes->pluck('name')->join(', ') }}</p>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-2">
@@ -113,7 +123,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="3" class="px-4 py-8 text-center text-sm text-slate-500">
+                                <td colspan="4" class="px-4 py-8 text-center text-sm text-slate-500">
                                     No title records found.
                                 </td>
                             </tr>
@@ -163,6 +173,12 @@
                         @error('formRemark')
                             <p class="mt-2 text-sm text-rose-600">{{ $message }}</p>
                         @enderror
+                    </div>
+
+                    <div>
+                        <x-select label="Scope (optional)" placeholder="Select scopes" multiselect searchable :options="$scopeOptions"
+                            option-label="name" option-value="id" wire:model.defer="formScopeIds" />
+                        <p class="mt-1 text-xs text-slate-500">Leave empty to make this title global.</p>
                     </div>
 
                     <div class="flex flex-wrap gap-3">

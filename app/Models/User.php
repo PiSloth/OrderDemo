@@ -92,6 +92,11 @@ class User extends Authenticatable
         return $this->hasMany(NoteTitle::class, 'created_by');
     }
 
+    public function scopes(): BelongsToMany
+    {
+        return $this->belongsToMany(Scope::class, 'scope_user')->withTimestamps();
+    }
+
     public function dailyNotes(): HasMany
     {
         return $this->hasMany(DailyNote::class, 'created_by');

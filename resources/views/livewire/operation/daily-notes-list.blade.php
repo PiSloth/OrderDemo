@@ -195,7 +195,7 @@
                                 </th>
                                 <th
                                     class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-emerald-800">
-                                    Status
+                                    Note
                                 </th>
 
                                 <th
@@ -210,27 +210,43 @@
                         </thead>
                         <tbody class="divide-y divide-emerald-100">
                             @forelse ($filteredListCards as $card)
-                                <tr wire:click="openTitle({{ $card['title']->id }})"
-                                    class="cursor-pointer transition odd:bg-emerald-50/40 even:bg-emerald-50/70 hover:bg-emerald-100">
+                                <tr class=" transition odd:bg-emerald-50/40 even:bg-emerald-50/70">
                                     <td class="px-4 py-3 text-sm text-slate-800">
                                         <p class="font-semibold">{{ $card['title']->name }}</p>
                                         <p class="text-xs text-slate-600">{{ $card['title']->remark ?: '-' }}</p>
                                     </td>
-                                    <td class="px-4 py-3 text-sm">
-                                        @if (trim((string) ($card['note']?->note ?? '')) === '')
-                                            <span
-                                                class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">Empty
-                                                note</span>
+                                    <td class="px-4 py-3 text-sm text-slate-700">
+                                        @if ($editingListTitleId === $card['title']->id)
+                                            <div x-data="{ focused: false, countChars(value) { return (value || '').length; } }">
+                                                <textarea wire:model.live="listNoteDrafts.{{ $card['title']->id }}"
+                                                    wire:keydown.enter.prevent="saveInlineNote({{ $card['title']->id }})"
+                                                    wire:blur="saveInlineNote({{ $card['title']->id }})" wire:click.stop maxlength="255" rows="2"
+                                                    @focus="focused = true" @blur="focused = false"
+                                                    class="w-full min-h-[56px] resize-none rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm leading-6 text-slate-700 focus:border-emerald-500 focus:ring-emerald-500"
+                                                    placeholder="Write note and press Enter"></textarea>
+                                                <p x-show="focused" x-cloak class="mt-1 text-[11px] text-slate-500">
+                                                    <span
+                                                        x-text="'Remaining characters: ' + Math.max(0, 255 - countChars($wire.listNoteDrafts?.[{{ $card['title']->id }}]))"></span>
+                                                </p>
+                                            </div>
                                         @else
-                                            <span
-                                                class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Noted</span>
+                                            @php
+                                                $noteText = trim((string) ($card['note']?->note ?? ''));
+                                            @endphp
+                                            <button type="button"
+                                                wire:click="startInlineNoteEdit({{ $card['title']->id }})"
+                                                class=" inline-flex w-full min-h-[56px] items-start rounded-xl px-3 py-2 text-left text-xs font-medium leading-5 {{ $noteText === '' ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' }}">
+                                                <span
+                                                    class="whitespace-normal break-words">{{ $noteText === '' ? 'Click to add note' : $noteText }}</span>
+                                            </button>
                                         @endif
                                     </td>
 
                                     <td class="px-4 py-3 text-sm text-slate-700">
                                         <x-badge amber class="absolute w-3 h-4 -ml-1" rounded primary
                                             label="{{ $card['message_count'] }}" />
-                                        <x-button sm positive icon="chat-alt-2" label="" />
+                                        <x-button wire:click="openTitle({{ $card['title']->id }})" sm positive
+                                            icon="chat-alt-2" label="" />
 
                                         @if ($card['unread_message_count'] > 0)
                                             <span
