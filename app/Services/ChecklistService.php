@@ -56,7 +56,7 @@ class ChecklistService
             ->all();
 
         $templatesToGenerate = $templates->reject(
-            fn (BranchChecklist $item) => in_array($item->id, $existingChecklistIds, true)
+            fn(BranchChecklist $item) => in_array($item->id, $existingChecklistIds, true)
         );
 
         if ($templatesToGenerate->isEmpty()) {
@@ -64,7 +64,7 @@ class ChecklistService
         }
 
         $now = now();
-        $rows = $templatesToGenerate->map(fn (BranchChecklist $item) => [
+        $rows = $templatesToGenerate->map(fn(BranchChecklist $item) => [
             'check_list_id' => $item->id,
             'user_id' => $user->id,
             'branch_id' => $item->branch_id,
@@ -107,10 +107,13 @@ class ChecklistService
         return BranchChecklistHistory::query()
             ->with(['checklist', 'user', 'branch', 'department', 'location'])
             ->when(!empty($branchIds), function (Builder $query) use ($branchIds) {
-                $query->whereIn('branch_id', $branchIds);
+                // We look for the 'branches' relationship we just defined in the User model
+                $query->whereHas('user', function ($q) use ($branchIds) {
+                    $q->whereIn('branch_id', $branchIds);
+                });
             })
-            ->when($from, fn (Builder $query) => $query->whereDate('checked_at', '>=', $from->toDateString()))
-            ->when($to, fn (Builder $query) => $query->whereDate('checked_at', '<=', $to->toDateString()))
+            ->when($from, fn(Builder $query) => $query->whereDate('checked_at', '>=', $from->toDateString()))
+            ->when($to, fn(Builder $query) => $query->whereDate('checked_at', '<=', $to->toDateString()))
             ->orderByDesc('checked_at')
             ->orderByDesc('id');
     }

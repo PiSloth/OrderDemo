@@ -521,9 +521,9 @@
                                 <label class="text-sm font-medium text-slate-700">Summary note</label>
                                 <x-button rounded teal wire:click="editNote" icon="pencil" />
                             </div>
-                            <x-textarea type="text" wire:model="note"
-                                class="mt-2 block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700"
-                                placeholder="Short summary for today" />
+                            <textarea type="text" wire:model="note" {{ $edit_mode ? '' : 'disabled' }} maxlength="255" rows="4"
+                                class="mt-2 block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700 {{ $edit_mode ? '' : 'cursor-not-allowed' }}"
+                                placeholder="Short summary for today"></textarea>
                             @error('note')
                                 <p class="mt-2 text-sm text-rose-600">{{ $message }}</p>
                             @enderror
@@ -560,7 +560,7 @@
 
                                 @if ($quickInputMode === 'number')
                                     <div class="mt-3 flex items-center gap-2">
-                                        <input type="number" wire:model.defer="quickNumber" step="any"
+                                        <input type="number" wire:model.live="quickNumber" step="any"
                                             class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700"
                                             placeholder="Enter number">
                                         <button type="button" wire:click="appendQuickNumber"
