@@ -146,28 +146,30 @@ class KpiTaskInstanceGenerator
         int $periodIndex,
         ?Carbon $taskDate = null
     ): bool {
-        $attributes = [
+        $uniqueAttributes = [
             'task_assignment_id' => $assignment->id,
-            'task_template_id' => $assignment->task_template_id,
-            'kpi_group_id' => $assignment->template->kpi_group_id,
-            'user_id' => $assignment->user_id,
             'period_type' => $periodType,
             'period_start' => $periodStart->toDateString(),
             'period_end' => $periodEnd->toDateString(),
             'period_index' => $periodIndex,
         ];
 
+        $values = [
+            'task_template_id' => $assignment->task_template_id,
+            'kpi_group_id' => $assignment->template->kpi_group_id,
+            'user_id' => $assignment->user_id,
+            'task_date' => $taskDate?->toDateString(),
+            'due_at' => $this->makeDueAt($assignment, $periodEnd),
+            'status' => 'pending',
+            'final_outcome' => null,
+            'is_on_time' => null,
+            'failure_reason' => null,
+        ];
+
         try {
             $instance = KpiTaskInstance::query()->firstOrCreate(
-                $attributes,
-                [
-                    'task_date' => $taskDate?->toDateString(),
-                    'due_at' => $this->makeDueAt($assignment, $periodEnd),
-                    'status' => 'pending',
-                    'final_outcome' => null,
-                    'is_on_time' => null,
-                    'failure_reason' => null,
-                ]
+                $uniqueAttributes,
+                $values
             );
         } catch (QueryException $e) {
             // Handle race condition: another process inserted the same unique period row.
@@ -178,7 +180,7 @@ class KpiTaskInstanceGenerator
                 throw $e;
             }
 
-            $instance = KpiTaskInstance::query()->where($attributes)->first();
+            $instance = KpiTaskInstance::query()->where($uniqueAttributes)->first();
 
             if (!$instance) {
                 throw $e;
@@ -191,6 +193,11 @@ class KpiTaskInstanceGenerator
 
             return true;
         }
+
+        // Keep instance aligned when assignment/template/user/group changes later.
+        $instance->task_template_id = $assignment->task_template_id;
+        $instance->kpi_group_id = $assignment->template->kpi_group_id;
+        $instance->user_id = $assignment->user_id;
 
         if (!$instance->task_date && $taskDate) {
             $instance->task_date = $taskDate->toDateString();
