@@ -521,8 +521,9 @@
                                 <label class="text-sm font-medium text-slate-700">Summary note</label>
                                 <x-button rounded teal wire:click="editNote" icon="pencil" />
                             </div>
-                            <textarea type="text" wire:model="note" {{ $edit_mode ? '' : 'disabled' }} maxlength="255" rows="4"
-                                class="mt-2 block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700 {{ $edit_mode ? '' : 'cursor-not-allowed' }}"
+                            <textarea type="text" wire:model="note" {{ $edit_mode || !$note ? '' : 'disabled' }} maxlength="255"
+                                rows="4"
+                                class="mt-2 block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700 {{ $edit_mode || !$note ? '' : 'cursor-not-allowed' }}"
                                 placeholder="Short summary for today"></textarea>
                             @error('note')
                                 <p class="mt-2 text-sm text-rose-600">{{ $message }}</p>
