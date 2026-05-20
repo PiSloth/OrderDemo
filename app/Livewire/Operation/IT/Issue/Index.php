@@ -10,10 +10,12 @@ use App\IssueTracking\Services\IssueWorkflowService;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\User;
+use Illuminate\Support\Facades\Response;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Spatie\SimpleExcel\SimpleExcelWriter;
 use WireUi\Traits\Actions;
 
 #[Layout('components.layouts.operation')]
@@ -52,6 +54,100 @@ class Index extends Component
     public ?string $issueDateEnd = null;
     public ?string $statusFilter = null;
     public ?int $branchFilter = null;
+    public string $activeIssueTab = 'must';
+
+    public function exportIssues()
+    {
+        $issues = Issue::query()
+            ->with(['status', 'priority', 'importance', 'category', 'creator', 'messages' => fn($q) => $q->with('creator')->where('is_log_note', true)->latest()])
+            ->when(
+                $this->activeIssueTab === 'third',
+                fn($q) => $q->where('is_third_party_resolver', true),
+                fn($q) => $q->where('is_third_party_resolver', false)
+            )
+            ->when(
+                $this->statusFilter,
+                fn($q) => $q->whereHas('status', fn($s) => $s->where('code', $this->statusFilter)),
+                fn($q) => $q->whereHas('status', fn($s) => $s->where('code', '!=', 'CLOSED'))
+            )
+            ->when($this->branchFilter, fn($q) => $q->whereHas('creator', fn($c) => $c->where('branch_id', $this->branchFilter)))
+            ->when($this->issueDateStart, fn($q) => $q->whereDate('issue_at', '>=', $this->issueDateStart))
+            ->when($this->issueDateEnd, fn($q) => $q->whereDate('issue_at', '<=', $this->issueDateEnd))
+            ->orderByRaw('CASE WHEN resolution_sequence IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('resolution_sequence')
+            ->orderByDesc(IssuePriority::query()->select('level')->whereColumn('issue_priorities.id', 'issues.issue_priority_id'))
+            ->orderByDesc(IssueImportanceLevel::query()->select('level')->whereColumn('issue_importance_levels.id', 'issues.issue_importance_id'))
+            ->orderByDesc('issue_at')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($issues->isEmpty()) {
+            $this->notification([
+                'title' => 'No record found',
+                'description' => 'No issues matched your current filters.',
+                'icon' => 'warning',
+            ]);
+            return;
+        }
+
+        $headers = [
+            'Sequence',
+            'Created Date',
+            'Title',
+            'Description',
+            'Report By',
+            'Issue Category',
+            'Priority / Important',
+            'Due Date',
+            'Status',
+            'Concat Log Note',
+        ];
+
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'issues_export_') . '.xlsx';
+        $writer = SimpleExcelWriter::create($tempFilePath);
+        // OpenSpout width is character-based; ~76 chars is roughly 6 inches in Excel.
+        $writer->getWriter()->getOptions()->setColumnWidth(76, 4);
+        $writer->getWriter()->getOptions()->setColumnWidth(76, 10);
+        $writer->addHeader($headers);
+
+        foreach ($issues as $issue) {
+            $priorityImportant = trim(
+                ($issue->priority?->name ?? '-') . ' / ' . ($issue->importance?->name ?? '-')
+            );
+
+            $logNotes = $issue->messages
+                ->where('is_log_note', true)
+                ->map(function ($message) {
+                    $author = $message->creator?->name ?? 'Unknown';
+                    $time = $message->created_at?->format('Y-m-d H:i') ?? '-';
+                    $text = trim((string) $message->message);
+
+                    return $author . ' [' . $time . ']: ' . $text;
+                })
+                ->filter()
+                ->implode(' | ');
+
+            $writer->addRow([
+                $issue->resolution_sequence ?? '-',
+                $issue->issue_at?->format('Y-m-d H:i') ?? $issue->created_at?->format('Y-m-d H:i') ?? '-',
+                trim((string) $issue->title) !== '' ? $issue->title : '-',
+                trim((string) $issue->description) !== '' ? $issue->description : '-',
+                $issue->creator?->name ?? '-',
+                $issue->category?->name ?? '-',
+                $priorityImportant,
+                $issue->due_date?->format('Y-m-d H:i') ?? '-',
+                $issue->status?->name ?? '-',
+                $logNotes !== '' ? $logNotes : '-',
+            ]);
+        }
+
+        $writer->close();
+
+        return Response::download(
+            $tempFilePath,
+            'issues-report-' . $this->activeIssueTab . '-' . now()->format('Ymd_His') . '.xlsx'
+        )->deleteFileAfterSend(true);
+    }
 
     public function selectIssue(int $issueId): void
     {

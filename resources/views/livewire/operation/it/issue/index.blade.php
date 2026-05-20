@@ -5,8 +5,13 @@
 
     <div class="mb-4 flex items-center justify-between">
         <h1 class="text-2xl font-semibold">Issues</h1>
-        <a href="{{ route('operation.it.issues.create') }}"
-            class="rounded-xl bg-slate-900 px-4 py-2 text-white">New Issue</a>
+        <div class="flex items-center gap-2">
+            <button wire:click="exportIssues" class="rounded-xl bg-emerald-600 px-4 py-2 text-white">
+                Export Excel
+            </button>
+            <a href="{{ route('operation.it.issues.create') }}"
+                class="rounded-xl bg-slate-900 px-4 py-2 text-white">New Issue</a>
+        </div>
     </div>
     <section class="mb-4 rounded-2xl border bg-white p-4">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -76,7 +81,7 @@
 
 
 <section class="mb-6 rounded-2xl border bg-white p-4"
-    x-data="{ tab: 'must', prevTab: 'must', setTab(next) { if (this.tab === next) return; this.prevTab = this.tab; this.tab = next; }, swipeStartX: 0 }"
+    x-data="{ tab: @entangle('activeIssueTab').live, prevTab: @entangle('activeIssueTab').live, setTab(next) { if (this.tab === next) return; this.prevTab = this.tab; this.tab = next; }, swipeStartX: 0 }"
     @touchstart="swipeStartX = $event.changedTouches[0].screenX"
     @touchend="
             const endX = $event.changedTouches[0].screenX;
