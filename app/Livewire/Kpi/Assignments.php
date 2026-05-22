@@ -366,65 +366,70 @@ class Assignments extends Component
         $storedPaths = [];
 
         try {
-            DB::transaction(function () use ($instance, $validated, $resizer, &$storedPaths): void {
-            $status = $validated['instanceStatus'];
-
-            if (in_array($status, ['passed', 'failed_late'], true)) {
-                $status = $validated['instanceIsLate'] ? 'failed_late' : 'passed';
-            }
-
-            $instance->update([
-                'status' => $status,
-                'task_date' => $validated['instanceTaskDate'] !== '' ? $validated['instanceTaskDate'] : null,
-                'period_start' => $validated['instancePeriodStart'],
-                'period_end' => $validated['instancePeriodEnd'],
-                'due_at' => $validated['instanceDueAt'] !== '' ? Carbon::parse($validated['instanceDueAt']) : null,
-                'is_on_time' => $validated['instanceIsLate'] ? false : ($status === 'passed' ? true : $instance->is_on_time),
-            ]);
-
-            if (!$this->editingSubmissionId) {
-                return;
-            }
-
-            $submission = KpiTaskSubmission::query()
-                ->with('images')
-                ->where('id', $this->editingSubmissionId)
-                ->where('task_instance_id', $instance->id)
-                ->firstOrFail();
-
-            $submission->update([
-                'is_late' => (bool) $validated['instanceIsLate'],
-            ]);
-
-            $removeIds = collect($this->removeSubmissionImageIds)
-                ->map(fn($id) => (int) $id)
-                ->filter(fn($id) => $id > 0)
-                ->values();
-
-            if ($removeIds->isNotEmpty()) {
-                $imagesToDelete = $submission->images()->whereIn('id', $removeIds)->get();
-
-                foreach ($imagesToDelete as $image) {
-                    Storage::disk('public')->delete((string) $image->image_path);
-                    $image->delete();
-                }
-            }
-
             foreach ($this->newSubmissionPhotos as $index => $photo) {
-                if (!$photo instanceof TemporaryUploadedFile) {
-                    continue;
+                if ($photo instanceof TemporaryUploadedFile) {
+                    $path = $resizer->store($photo, 900);
+                    $storedPaths[$index] = $path;
+                }
+            }
+
+            DB::transaction(function () use ($instance, $validated, $storedPaths): void {
+                $status = $validated['instanceStatus'];
+
+                if (in_array($status, ['passed', 'failed_late'], true)) {
+                    $status = $validated['instanceIsLate'] ? 'failed_late' : 'passed';
                 }
 
-                $path = $resizer->store($photo, 900);
-                $storedPaths[] = $path;
-
-                $submission->images()->create([
-                    'image_path' => $path,
-                    'title' => trim((string) ($this->newSubmissionPhotoTitles[$index] ?? '')) ?: null,
-                    'remark' => trim((string) ($this->newSubmissionPhotoRemarks[$index] ?? '')) ?: null,
-                    'sort_order' => (int) ($submission->images()->max('sort_order') ?? 0) + $index + 1,
+                $instance->update([
+                    'status' => $status,
+                    'task_date' => $validated['instanceTaskDate'] !== '' ? $validated['instanceTaskDate'] : null,
+                    'period_start' => $validated['instancePeriodStart'],
+                    'period_end' => $validated['instancePeriodEnd'],
+                    'due_at' => $validated['instanceDueAt'] !== '' ? Carbon::parse($validated['instanceDueAt']) : null,
+                    'is_on_time' => $validated['instanceIsLate'] ? false : ($status === 'passed' ? true : $instance->is_on_time),
                 ]);
-            }
+
+                if (!$this->editingSubmissionId) {
+                    return;
+                }
+
+                $submission = KpiTaskSubmission::query()
+                    ->with('images')
+                    ->where('id', $this->editingSubmissionId)
+                    ->where('task_instance_id', $instance->id)
+                    ->firstOrFail();
+
+                $submission->update([
+                    'is_late' => (bool) $validated['instanceIsLate'],
+                ]);
+
+                $removeIds = collect($this->removeSubmissionImageIds)
+                    ->map(fn($id) => (int) $id)
+                    ->filter(fn($id) => $id > 0)
+                    ->values();
+
+                if ($removeIds->isNotEmpty()) {
+                    $imagesToDelete = $submission->images()->whereIn('id', $removeIds)->get();
+
+                    foreach ($imagesToDelete as $image) {
+                        Storage::disk('public')->delete((string) $image->image_path);
+                        $image->delete();
+                    }
+                }
+
+                foreach ($this->newSubmissionPhotos as $index => $photo) {
+                    $path = $storedPaths[$index] ?? null;
+                    if ($path === null) {
+                        continue;
+                    }
+
+                    $submission->images()->create([
+                        'image_path' => $path,
+                        'title' => trim((string) ($this->newSubmissionPhotoTitles[$index] ?? '')) ?: null,
+                        'remark' => trim((string) ($this->newSubmissionPhotoRemarks[$index] ?? '')) ?: null,
+                        'sort_order' => (int) ($submission->images()->max('sort_order') ?? 0) + $index + 1,
+                    ]);
+                }
             });
         } catch (\Throwable $exception) {
             foreach ($storedPaths as $path) {

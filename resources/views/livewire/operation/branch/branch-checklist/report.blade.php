@@ -12,7 +12,7 @@
                     onChange: (selectedDates, dateStr) => { val = dateStr; }
                 });
             }, 0)">
-                <label class="mb-1 block text-sm font-medium text-slate-700">Date Range</label>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Date Range Select</label>
                 <input x-ref="range" type="text" placeholder="YYYY-MM-DD to YYYY-MM-DD"
                     class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm" />
             </div>
@@ -49,7 +49,8 @@
                             <td class="px-4 py-3 text-sm">{{ $row->checklist?->title ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm">{{ $row->user?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm">
-                                <span class="rounded-full px-2 py-1 text-xs {{ $row->is_done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700' }}">
+                                <span
+                                    class="rounded-full px-2 py-1 text-xs {{ $row->is_done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700' }}">
                                     {{ $row->is_done ? 'Done' : 'Not Done' }}
                                 </span>
                             </td>

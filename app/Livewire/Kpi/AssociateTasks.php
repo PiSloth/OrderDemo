@@ -209,65 +209,81 @@ class AssociateTasks extends Component
             'submissionRemark' => ['nullable', 'string'],
         ]);
 
-        DB::transaction(function () use ($run, $resizer): void {
-            $submission = $run->submission;
+        $storedPaths = [];
 
-            if ($submission) {
-                $oldImages = $submission->images()->get();
-                foreach ($oldImages as $oldImage) {
-                    Storage::disk('public')->delete((string) $oldImage->image_path);
-                    $oldImage->delete();
-                }
-
-                $submission->update([
-                    'submitted_by_user_id' => Auth::id(),
-                    'submitted_at' => now(),
-                    'status' => 'submitted',
-                    'employee_remark' => $this->submissionRemark !== '' ? $this->submissionRemark : null,
-                    'rejection_reason' => null,
-                    'reopened_at' => now(),
-                ]);
-            } else {
-                $submission = KpiDependencyGroupSubmission::create([
-                    'dependency_group_run_id' => $run->id,
-                    'submitted_by_user_id' => Auth::id(),
-                    'submitted_at' => now(),
-                    'status' => 'submitted',
-                    'employee_remark' => $this->submissionRemark !== '' ? $this->submissionRemark : null,
-                ]);
-            }
-
+        try {
             foreach ($this->submissionPhotos as $index => $photo) {
-                if (!$photo instanceof TemporaryUploadedFile) {
-                    continue;
+                if ($photo instanceof TemporaryUploadedFile) {
+                    $path = $resizer->store($photo, 900);
+                    $storedPaths[$index] = $path;
                 }
-
-                $path = $resizer->store($photo, 900);
-
-                $submission->images()->create([
-                    'image_path' => $path,
-                    'title' => trim((string) ($this->submissionPhotoTitles[$index] ?? '')) ?: null,
-                    'remark' => trim((string) ($this->submissionPhotoRemarks[$index] ?? '')) ?: null,
-                    'sort_order' => $index + 1,
-                ]);
             }
 
-            $run->members()->update([
-                'member_status' => 'pending',
-                'acted_at' => null,
-                'comment' => null,
-                'rejection_comment' => null,
-            ]);
+            DB::transaction(function () use ($run, $storedPaths): void {
+                $submission = $run->submission;
 
-            $run->approvalSteps()->delete();
-            $run->update([
-                'status' => 'waiting_member_acceptance',
-                'submitted_at' => now(),
-                'first_confirmed_at' => null,
-                'fully_confirmed_at' => null,
-                'confirmed_member_count' => 0,
-            ]);
-        });
+                if ($submission) {
+                    $oldImages = $submission->images()->get();
+                    foreach ($oldImages as $oldImage) {
+                        Storage::disk('public')->delete((string) $oldImage->image_path);
+                        $oldImage->delete();
+                    }
+
+                    $submission->update([
+                        'submitted_by_user_id' => Auth::id(),
+                        'submitted_at' => now(),
+                        'status' => 'submitted',
+                        'employee_remark' => $this->submissionRemark !== '' ? $this->submissionRemark : null,
+                        'rejection_reason' => null,
+                        'reopened_at' => now(),
+                    ]);
+                } else {
+                    $submission = KpiDependencyGroupSubmission::create([
+                        'dependency_group_run_id' => $run->id,
+                        'submitted_by_user_id' => Auth::id(),
+                        'submitted_at' => now(),
+                        'status' => 'submitted',
+                        'employee_remark' => $this->submissionRemark !== '' ? $this->submissionRemark : null,
+                    ]);
+                }
+
+                foreach ($this->submissionPhotos as $index => $photo) {
+                    $path = $storedPaths[$index] ?? null;
+                    if ($path === null) {
+                        continue;
+                    }
+
+                    $submission->images()->create([
+                        'image_path' => $path,
+                        'title' => trim((string) ($this->submissionPhotoTitles[$index] ?? '')) ?: null,
+                        'remark' => trim((string) ($this->submissionPhotoRemarks[$index] ?? '')) ?: null,
+                        'sort_order' => $index + 1,
+                    ]);
+                }
+
+                $run->members()->update([
+                    'member_status' => 'pending',
+                    'acted_at' => null,
+                    'comment' => null,
+                    'rejection_comment' => null,
+                ]);
+
+                $run->approvalSteps()->delete();
+                $run->update([
+                    'status' => 'waiting_member_acceptance',
+                    'submitted_at' => now(),
+                    'first_confirmed_at' => null,
+                    'fully_confirmed_at' => null,
+                    'confirmed_member_count' => 0,
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            foreach ($storedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
+            throw $exception;
+        }
 
         $this->submissionPhotos = [];
         $this->submissionPhotoTitles = [];

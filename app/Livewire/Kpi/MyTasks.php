@@ -406,7 +406,14 @@ class MyTasks extends Component
         $storedPaths = [];
 
         try {
-            DB::transaction(function () use ($instance, $template, $resizer, &$storedPaths): void {
+            foreach ($this->submissionPhotos as $index => $photo) {
+                if ($photo instanceof TemporaryUploadedFile) {
+                    $path = $resizer->store($photo, 900);
+                    $storedPaths[$index] = $path;
+                }
+            }
+
+            DB::transaction(function () use ($instance, $template, $storedPaths): void {
                 $submittedAt = now();
                 $sequence = (int) $instance->submissions()->max('sequence') + 1;
 
@@ -421,8 +428,10 @@ class MyTasks extends Component
                 ]);
 
                 foreach ($this->submissionPhotos as $index => $photo) {
-                    $path = $resizer->store($photo, 900);
-                    $storedPaths[] = $path;
+                    $path = $storedPaths[$index] ?? null;
+                    if ($path === null) {
+                        continue;
+                    }
 
                     $submission->images()->create([
                         'image_path' => $path,
