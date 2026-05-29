@@ -117,7 +117,8 @@
         </article>
 
         @if ($canManageInstances)
-            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <article
+                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Created Task Instances</h3>
@@ -125,15 +126,49 @@
                             Super Admin can review, edit, and delete generated KPI instances per employee.
                         </p>
                     </div>
-                    <div class="md:w-1/3 w-full">
-                        <x-select label="" placeholder="Filter employee" wire:model.live="instanceUserId"
-                            :async-data="route('users.index')" option-label="name" option-value="id" clearable />
+                </div>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div>
+                        <x-select label="Who?" placeholder="Filter employee" wire:model.live="instanceUserId"
+                            :async-data="route('users.index')" option-label="name" option-value="id" />
                     </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Status</label>
+                        <select wire:model.live="instanceStatusFilter"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                            @foreach ($this->instanceStatusOptions as $statusValue => $statusLabel)
+                                <option value="{{ $statusValue }}">{{ $statusLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Task Date</label>
+                        <input type="date" wire:model.live="instanceDateFilter"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Search</label>
+                        <input type="text" wire:model.live.debounce.300ms="instanceSearch"
+                            placeholder="Template, employee, group, status"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
+                    </div>
+                </div>
+
+                <div class="mt-3 flex justify-end">
+                    <button type="button" wire:click="clearInstanceFilters"
+                        class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                        Clear filters
+                    </button>
                 </div>
 
                 <div class="mt-4 space-y-3">
                     @forelse ($instances as $instance)
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+                        <div
+                            class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
                             <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                 <div class="space-y-2">
                                     <div class="flex flex-wrap items-center gap-2">
@@ -173,7 +208,8 @@
                             </div>
                         </div>
                     @empty
-                        <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                        <div
+                            class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
                             No generated instances found.
                         </div>
                     @endforelse
@@ -423,11 +459,14 @@
                             <div class="grid gap-3 md:grid-cols-2">
                                 @foreach ($existingSubmissionImages as $image)
                                     @php $markedRemove = in_array($image['id'], $removeSubmissionImageIds, true); @endphp
-                                    <div class="rounded-xl border p-3 {{ $markedRemove ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900' }}">
+                                    <div
+                                        class="rounded-xl border p-3 {{ $markedRemove ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900' }}">
                                         <img src="{{ $image['url'] }}" alt="Submission image {{ $image['id'] }}"
                                             class="h-32 w-full rounded-lg object-cover">
-                                        <p class="mt-2 text-xs text-slate-600 dark:text-slate-300">{{ $image['title'] ?: 'No title' }}</p>
-                                        <button type="button" wire:click="markSubmissionImageRemoval({{ $image['id'] }})"
+                                        <p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                                            {{ $image['title'] ?: 'No title' }}</p>
+                                        <button type="button"
+                                            wire:click="markSubmissionImageRemoval({{ $image['id'] }})"
                                             class="mt-2 rounded-lg border px-2 py-1 text-xs {{ $markedRemove ? 'border-emerald-300 text-emerald-700' : 'border-rose-300 text-rose-700' }}">
                                             {{ $markedRemove ? 'Keep' : 'Remove' }}
                                         </button>
@@ -437,7 +476,8 @@
                         @endif
 
                         <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Add New Photos</label>
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Add New
+                                Photos</label>
                             <input type="file" wire:model="newSubmissionPhotos" multiple accept="image/*"
                                 class="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
                             @error('newSubmissionPhotos.*')
@@ -448,12 +488,15 @@
                         @if (count($newSubmissionPhotos) > 0)
                             <div class="grid gap-3 md:grid-cols-2">
                                 @foreach ($newSubmissionPhotos as $index => $photo)
-                                    <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                                    <div
+                                        class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
                                         @if (method_exists($photo, 'temporaryUrl'))
-                                            <img src="{{ $photo->temporaryUrl() }}" alt="New photo {{ $index + 1 }}"
+                                            <img src="{{ $photo->temporaryUrl() }}"
+                                                alt="New photo {{ $index + 1 }}"
                                                 class="h-32 w-full rounded-lg object-cover">
                                         @endif
-                                        <input type="text" wire:model.defer="newSubmissionPhotoTitles.{{ $index }}"
+                                        <input type="text"
+                                            wire:model.defer="newSubmissionPhotoTitles.{{ $index }}"
                                             class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                             placeholder="Title">
                                         <textarea wire:model.defer="newSubmissionPhotoRemarks.{{ $index }}" rows="2"

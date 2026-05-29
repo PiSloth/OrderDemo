@@ -33,6 +33,9 @@ class Assignments extends Component
 
     public int $selectedUserId = 0;
     public int $instanceUserId = 0;
+    public string $instanceStatusFilter = 'all';
+    public string $instanceDateFilter = '';
+    public string $instanceSearch = '';
     public bool $canManageInstances = false;
 
     public ?int $editingInstanceId = null;
@@ -83,6 +86,30 @@ class Assignments extends Component
 
     public function updatedInstanceUserId(): void
     {
+        $this->loadInstances();
+    }
+
+    public function updatedInstanceStatusFilter(): void
+    {
+        $this->loadInstances();
+    }
+
+    public function updatedInstanceDateFilter(): void
+    {
+        $this->loadInstances();
+    }
+
+    public function updatedInstanceSearch(): void
+    {
+        $this->loadInstances();
+    }
+
+    public function clearInstanceFilters(): void
+    {
+        $this->instanceUserId = $this->canManageInstances ? 0 : auth()->id();
+        $this->instanceStatusFilter = 'all';
+        $this->instanceDateFilter = '';
+        $this->instanceSearch = '';
         $this->loadInstances();
     }
 
@@ -153,6 +180,33 @@ class Assignments extends Component
 
         if ($this->instanceUserId > 0) {
             $query->where('user_id', $this->instanceUserId);
+        }
+
+        if ($this->instanceStatusFilter !== 'all' && $this->instanceStatusFilter !== '') {
+            $query->where('status', $this->instanceStatusFilter);
+        }
+
+        if ($this->instanceDateFilter !== '') {
+            $query->whereDate('task_date', $this->instanceDateFilter);
+        }
+
+        $search = trim($this->instanceSearch);
+        if ($search !== '') {
+            $query->where(function ($nestedQuery) use ($search): void {
+                $like = '%' . $search . '%';
+
+                $nestedQuery->where('status', 'like', $like)
+                    ->orWhere('period_type', 'like', $like)
+                    ->orWhereHas('template', function ($templateQuery) use ($like): void {
+                        $templateQuery->where('title', 'like', $like)
+                            ->orWhereHas('group', function ($groupQuery) use ($like): void {
+                                $groupQuery->where('name', 'like', $like);
+                            });
+                    })
+                    ->orWhereHas('user', function ($userQuery) use ($like): void {
+                        $userQuery->where('name', 'like', $like);
+                    });
+            });
         }
 
         $this->instances = $query->limit(300)->get();
@@ -655,5 +709,20 @@ class Assignments extends Component
         $this->newSubmissionPhotoTitles = [];
         $this->newSubmissionPhotoRemarks = [];
         $this->resetErrorBag();
+    }
+
+    public function getInstanceStatusOptionsProperty(): array
+    {
+        return [
+            'all' => 'All statuses',
+            'pending' => 'Pending',
+            'rejected' => 'Rejected',
+            'waiting_first_approval' => 'Waiting first approval',
+            'waiting_final_approval' => 'Waiting final approval',
+            'passed' => 'Passed',
+            'failed_late' => 'Failed late',
+            'failed_missed' => 'Failed missed',
+            'excluded' => 'Excluded',
+        ];
     }
 }
