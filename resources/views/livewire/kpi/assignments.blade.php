@@ -412,6 +412,17 @@
                     </label>
                 @endif
 
+                <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    <p class="font-semibold text-slate-900 dark:text-slate-100">Image evidence requirement</p>
+                    <p class="mt-1">{{ $instanceEvidenceSummary }}</p>
+                    @if ($instanceRequiresImages && $editingSubmissionId)
+                        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                            Current submission photos:
+                            {{ count($existingSubmissionImages) - count($removeSubmissionImageIds) + count($newSubmissionPhotos) }}
+                        </p>
+                    @endif
+                </div>
+
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Task Date</label>

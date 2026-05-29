@@ -46,6 +46,10 @@ class Assignments extends Component
     public string $instanceDueAt = '';
     public ?int $editingSubmissionId = null;
     public bool $instanceIsLate = false;
+    public bool $instanceRequiresImages = false;
+    public int $instanceMinImages = 0;
+    public ?int $instanceMaxImages = null;
+    public string $instanceEvidenceSummary = '';
     public array $existingSubmissionImages = [];
     public array $removeSubmissionImageIds = [];
     public array $newSubmissionPhotos = [];
@@ -359,6 +363,7 @@ class Assignments extends Component
         $instance = KpiTaskInstance::query()
             ->with([
                 'submissions' => fn($query) => $query->with('images')->latest('sequence')->latest('id'),
+                'template',
             ])
             ->findOrFail($instanceId);
 
@@ -372,6 +377,10 @@ class Assignments extends Component
         $this->newSubmissionPhotos = [];
         $this->newSubmissionPhotoTitles = [];
         $this->newSubmissionPhotoRemarks = [];
+        $this->instanceRequiresImages = (bool) ($instance->template?->requires_images ?? false);
+        $this->instanceMinImages = (int) ($instance->template?->min_images ?? 0);
+        $this->instanceMaxImages = $instance->template?->max_images !== null ? (int) $instance->template->max_images : null;
+        $this->instanceEvidenceSummary = $this->buildImageEvidenceSummary($instance->template?->requires_images ?? false, $instance->template?->min_images ?? 0, $instance->template?->max_images);
 
         $latestSubmission = $instance->submissions->first();
         $this->editingSubmissionId = $latestSubmission?->id;
@@ -708,7 +717,32 @@ class Assignments extends Component
         $this->newSubmissionPhotos = [];
         $this->newSubmissionPhotoTitles = [];
         $this->newSubmissionPhotoRemarks = [];
+        $this->instanceRequiresImages = false;
+        $this->instanceMinImages = 0;
+        $this->instanceMaxImages = null;
+        $this->instanceEvidenceSummary = '';
         $this->resetErrorBag();
+    }
+
+    protected function buildImageEvidenceSummary(bool $requiresImages, int $minImages, ?int $maxImages): string
+    {
+        if (!$requiresImages) {
+            return 'No image evidence required for this task.';
+        }
+
+        if ($maxImages !== null && $maxImages > 0) {
+            if ($minImages > 0 && $minImages === $maxImages) {
+                return "Image evidence required: {$minImages} photo(s).";
+            }
+
+            return "Image evidence required: {$minImages} to {$maxImages} photo(s).";
+        }
+
+        if ($minImages > 0) {
+            return "Image evidence required: at least {$minImages} photo(s).";
+        }
+
+        return 'Image evidence is required.';
     }
 
     public function getInstanceStatusOptionsProperty(): array
