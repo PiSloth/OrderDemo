@@ -423,20 +423,6 @@
                     @endif
                 </div>
 
-                @if ($instanceRequiresImages)
-                    <div>
-                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Required image count</label>
-                        <input type="number" min="0" max="20" wire:model.defer="instanceRequiredImageCount"
-                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Clear this field to use the template default, or change it for this task instance only.
-                        </p>
-                        @error('instanceRequiredImageCount')
-                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                @endif
-
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Task Date</label>

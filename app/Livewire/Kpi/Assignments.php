@@ -49,7 +49,6 @@ class Assignments extends Component
     public bool $instanceRequiresImages = false;
     public int $instanceMinImages = 0;
     public ?int $instanceMaxImages = null;
-    public ?int $instanceRequiredImageCount = null;
     public string $instanceEvidenceSummary = '';
     public array $existingSubmissionImages = [];
     public array $removeSubmissionImageIds = [];
@@ -378,9 +377,6 @@ class Assignments extends Component
         $this->newSubmissionPhotos = [];
         $this->newSubmissionPhotoTitles = [];
         $this->newSubmissionPhotoRemarks = [];
-        $this->instanceRequiredImageCount = $instance->required_image_count !== null
-            ? (int) $instance->required_image_count
-            : (int) ($instance->template?->min_images ?? 0);
         $this->instanceRequiresImages = (bool) ($instance->template?->requires_images ?? false);
         $this->instanceMinImages = (int) ($instance->template?->min_images ?? 0);
         $this->instanceMaxImages = $instance->template?->max_images !== null ? (int) $instance->template->max_images : null;
@@ -421,7 +417,6 @@ class Assignments extends Component
             'instancePeriodEnd' => ['required', 'date', 'after_or_equal:instancePeriodStart'],
             'instanceDueAt' => ['nullable', 'date'],
             'instanceIsLate' => ['boolean'],
-            'instanceRequiredImageCount' => ['nullable', 'integer', 'min:0', 'max:20'],
             'newSubmissionPhotos' => ['array', 'max:20'],
             'newSubmissionPhotos.*' => ['nullable', 'image', 'max:10240'],
             'newSubmissionPhotoTitles' => ['array'],
@@ -432,7 +427,6 @@ class Assignments extends Component
             'instancePeriodStart' => 'period start',
             'instancePeriodEnd' => 'period end',
             'instanceDueAt' => 'due at',
-            'instanceRequiredImageCount' => 'image evidence count',
             'newSubmissionPhotos.*' => 'submission image',
         ]);
 
@@ -460,7 +454,6 @@ class Assignments extends Component
                     'period_start' => $validated['instancePeriodStart'],
                     'period_end' => $validated['instancePeriodEnd'],
                     'due_at' => $validated['instanceDueAt'] !== '' ? Carbon::parse($validated['instanceDueAt']) : null,
-                    'required_image_count' => $validated['instanceRequiredImageCount'] !== null ? (int) $validated['instanceRequiredImageCount'] : null,
                     'is_on_time' => $validated['instanceIsLate'] ? false : ($status === 'passed' ? true : $instance->is_on_time),
                 ]);
 
@@ -732,7 +725,6 @@ class Assignments extends Component
         $this->instanceRequiresImages = false;
         $this->instanceMinImages = 0;
         $this->instanceMaxImages = null;
-        $this->instanceRequiredImageCount = null;
         $this->instanceEvidenceSummary = '';
         $this->resetErrorBag();
     }
