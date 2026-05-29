@@ -20,6 +20,7 @@ class KpiTaskInstance extends Model
         'submitted_at' => 'datetime',
         'finalized_at' => 'datetime',
         'is_on_time' => 'boolean',
+        'required_image_count' => 'integer',
     ];
 
     public function assignment(): BelongsTo

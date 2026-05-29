@@ -330,8 +330,12 @@
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="text-xs text-slate-500 dark:text-slate-400">
                         @if ($selectedTaskInstance->template?->requires_images)
-                            <p>Minimum photos: {{ $selectedTaskInstance->template?->min_images ?? 0 }}</p>
-                            <p>Maximum photos: {{ $selectedTaskInstance->template?->max_images ?? 'No limit' }}</p>
+                            @if ($selectedTaskInstance->required_image_count !== null)
+                                <p>Required photos: {{ $selectedTaskInstance->required_image_count }}</p>
+                            @else
+                                <p>Minimum photos: {{ $selectedTaskInstance->template?->min_images ?? 0 }}</p>
+                                <p>Maximum photos: {{ $selectedTaskInstance->template?->max_images ?? 'No limit' }}</p>
+                            @endif
                         @else
                             <p>No evidence required for this task.</p>
                         @endif

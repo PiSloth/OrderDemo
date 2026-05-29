@@ -360,8 +360,11 @@ class MyTasks extends Component
             ]);
 
             $photoCount = count($this->submissionPhotos);
-            $minImages = (int) ($template->min_images ?? 0);
-            $maxImages = $template->max_images !== null ? (int) $template->max_images : null;
+            $requiredImageCount = $instance->required_image_count !== null
+                ? (int) $instance->required_image_count
+                : null;
+            $minImages = $requiredImageCount ?? (int) ($template->min_images ?? 0);
+            $maxImages = $requiredImageCount ?? ($template->max_images !== null ? (int) $template->max_images : null);
 
             if ($photoCount < $minImages) {
                 throw ValidationException::withMessages([
