@@ -73,7 +73,7 @@ class Certificate extends Component
             ->get()
             ->groupBy('task_assignment_id');
 
-        $groupedRows = $this->buildGroupedRows($assignments, $instances, $ruleEvaluator);
+        $groupedRows = $this->buildGroupedRows($assignments, $instances, $ruleEvaluator, $monthlySuccessService);
         $overall = $this->buildOverallMetrics($groupedRows);
 
         return view('livewire.kpi.certificate', [
@@ -110,7 +110,7 @@ class Certificate extends Component
         return $this->findVisibleSubmission($this->selectedSubmissionId, false);
     }
 
-    protected function buildGroupedRows(Collection $assignments, Collection $instancesByAssignment, KpiRuleEvaluationService $ruleEvaluator): Collection
+    protected function buildGroupedRows(Collection $assignments, Collection $instancesByAssignment, KpiRuleEvaluationService $ruleEvaluator, KpiMonthlySuccessService $monthlySuccessService): Collection
     {
         $templateRows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instancesByAssignment, $ruleEvaluator, $monthlySuccessService): array {
             $instances = $instancesByAssignment->get($assignment->id, collect());
