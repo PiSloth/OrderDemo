@@ -165,6 +165,7 @@ class Audit extends Component
                 'employeeAsyncData' => $this->buildEmployeeAsyncData(collect()),
                 'selectedSubmission' => null,
                 'selectedInstance' => null,
+                'pendingApprovalSubmissions' => collect(),
             ]);
         }
 
@@ -183,8 +184,16 @@ class Audit extends Component
                 'employeeAsyncData' => $this->buildEmployeeAsyncData($users),
                 'selectedSubmission' => null,
                 'selectedInstance' => null,
+                'pendingApprovalSubmissions' => collect(),
             ]);
         }
+
+        $pendingApprovalSubmissions = $instances
+            ->flatMap(fn(Collection $assignmentInstances) => $assignmentInstances)
+            ->map(fn(KpiTaskInstance $instance) => $instance->latestSubmission)
+            ->filter(fn($submission) => $submission && in_array((string) $submission->status, ['waiting_first_approval', 'waiting_final_approval'], true))
+            ->sortBy(fn($submission) => $submission->submitted_at?->timestamp ?? 0)
+            ->values();
 
         $days = collect(range(1, $monthEnd->day))
             ->map(fn(int $day) => $monthStart->copy()->day($day));
@@ -260,6 +269,7 @@ class Audit extends Component
             'employeeAsyncData' => $this->buildEmployeeAsyncData($users),
             'selectedSubmission' => $this->getSelectedSubmissionProperty(),
             'selectedInstance' => $this->getSelectedInstanceProperty(),
+            'pendingApprovalSubmissions' => $pendingApprovalSubmissions,
         ]);
     }
 

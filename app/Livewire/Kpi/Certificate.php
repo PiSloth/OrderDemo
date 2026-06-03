@@ -112,7 +112,7 @@ class Certificate extends Component
 
     protected function buildGroupedRows(Collection $assignments, Collection $instancesByAssignment, KpiRuleEvaluationService $ruleEvaluator): Collection
     {
-        $templateRows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instancesByAssignment, $ruleEvaluator): array {
+        $templateRows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instancesByAssignment, $ruleEvaluator, $monthlySuccessService): array {
             $instances = $instancesByAssignment->get($assignment->id, collect());
             $summary = $this->buildSummary($instances, $monthlySuccessService);
             $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, [

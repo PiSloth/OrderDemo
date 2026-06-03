@@ -58,6 +58,60 @@
             </article>
         </section>
 
+        <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-amber-900 dark:text-amber-100">Waiting Approval</h3>
+                    <p class="text-sm text-amber-700 dark:text-amber-200">
+                        Resubmitted overdue tasks appear here until Super Admin reviews them.
+                    </p>
+                </div>
+                <span class="text-sm font-medium text-amber-700 dark:text-amber-200">
+                    {{ $pendingApprovalSubmissions->count() }} task(s)
+                </span>
+            </div>
+
+            <div class="mt-4 space-y-3">
+                @forelse ($pendingApprovalSubmissions as $submission)
+                    <button type="button" wire:click="openSubmissionDetail({{ $submission->id }})"
+                        class="w-full rounded-2xl border border-amber-200 bg-white p-4 text-left shadow-sm transition hover:border-amber-300 hover:bg-amber-50 dark:border-amber-900/50 dark:bg-slate-900 dark:hover:bg-slate-800">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <p class="font-medium text-slate-900 dark:text-slate-100">
+                                    {{ $submission->instance?->template?->title ?? 'Task' }}</p>
+                                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                                    {{ $submission->instance?->user?->name ?? '-' }} •
+                                    {{ $submission->instance?->template?->group?->name ?? 'No KPI Group' }}
+                                </p>
+                                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                    Submitted {{ $submission->submitted_at?->format('Y-m-d H:i') ?? '-' }}
+                                    @if ($submission->instance?->due_at)
+                                        • Due {{ $submission->instance->due_at->format('Y-m-d H:i') }}
+                                    @endif
+                                </p>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em] text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                                    {{ str_replace('_', ' ', $submission->status) }}
+                                </span>
+                                <span
+                                    class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                    Review
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                @empty
+                    <div
+                        class="rounded-2xl border border-dashed border-amber-200 bg-white px-4 py-6 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-slate-900 dark:text-amber-200">
+                        No tasks are waiting for approval right now.
+                    </div>
+                @endforelse
+            </div>
+        </section>
+
         <section class="grid gap-4 md:grid-cols-3">
             <article
                 class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
