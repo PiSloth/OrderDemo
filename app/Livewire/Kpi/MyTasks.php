@@ -41,6 +41,7 @@ class MyTasks extends Component
     public string $selectedMonth = '';
     public ?int $selectedUserId = null;
     public bool $isSuperAdmin = false;
+    public bool $isResubmissionMode = false;
     public array $employeeOptions = [];
 
     public function mount(KpiTaskInstanceGenerator $generator): void
@@ -219,6 +220,31 @@ class MyTasks extends Component
         $this->submissionPhotoTitles = [];
         $this->submissionPhotoRemarks = [];
         $this->submissionEmployeeRemark = '';
+        $this->isResubmissionMode = false;
+        $this->resetErrorBag();
+    }
+
+    public function openResubmitSubmission(int $taskInstanceId): void
+    {
+        if (!$this->isSuperAdmin) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'Only Super Admin can resubmit overdue tasks for employees.',
+            ]);
+        }
+
+        $instance = $this->findOwnedInstance($taskInstanceId);
+        $this->ensureOverdueResubmissionAllowed($instance);
+
+        $this->selectedTaskInstanceId = $instance->id;
+        $this->cameraPhoto = null;
+        $this->galleryPhotos = [];
+        $this->submissionPhotos = [];
+        $this->submissionPhotoSources = [];
+        $this->submissionPhotoPreviews = [];
+        $this->submissionPhotoTitles = [];
+        $this->submissionPhotoRemarks = [];
+        $this->submissionEmployeeRemark = '';
+        $this->isResubmissionMode = true;
         $this->resetErrorBag();
     }
 
@@ -233,6 +259,7 @@ class MyTasks extends Component
         $this->submissionPhotoTitles = [];
         $this->submissionPhotoRemarks = [];
         $this->submissionEmployeeRemark = '';
+        $this->isResubmissionMode = false;
         $this->resetErrorBag();
     }
 
@@ -319,6 +346,222 @@ class MyTasks extends Component
 
     public function submitTask(KpiSubmissionImageResizer $resizer): void
     {
+        $this->submitTaskInternal($resizer, false);
+    }
+
+    public function canSubmit(KpiTaskInstance $instance): bool
+    {
+        if (!$this->canModifyViewedTasks()) {
+            return false;
+        }
+
+        if ($instance->template?->requires_table) {
+            return false;
+        }
+
+        if ($this->isFinalized($instance)) {
+            return false;
+        }
+
+        if ($this->submissionWindowClosed($instance)) {
+            return false;
+        }
+
+        return in_array($instance->status, ['pending', 'rejected'], true);
+    }
+
+    public function canDirectSubmitNoEvidence(KpiTaskInstance $instance): bool
+    {
+        if (!$this->canSubmit($instance)) {
+            return false;
+        }
+
+        $template = $instance->template;
+
+        if (!$template) {
+            return false;
+        }
+
+        return !$template->requires_images && !$template->requires_table;
+    }
+
+    public function canResubmitOverdueTask(KpiTaskInstance $instance): bool
+    {
+        if (!$this->isSuperAdmin) {
+            return false;
+        }
+
+        if ($this->isFinalized($instance)) {
+            return false;
+        }
+
+        if (!$this->isOverdue($instance)) {
+            return false;
+        }
+
+        if (!in_array($instance->status, ['pending', 'rejected'], true)) {
+            return false;
+        }
+
+        return (bool) $instance->template && !$instance->template->requires_table;
+    }
+
+    public function canSuperAdminResubmitWithoutEvidence(KpiTaskInstance $instance): bool
+    {
+        return $this->canResubmitOverdueTask($instance)
+            && !$instance->template?->requires_images
+            && !$instance->template?->requires_table;
+    }
+
+    public function canSuperAdminResubmitWithEvidence(KpiTaskInstance $instance): bool
+    {
+        return $this->canResubmitOverdueTask($instance)
+            && (bool) $instance->template?->requires_images;
+    }
+
+    public function overdueResubmitUnavailableReason(KpiTaskInstance $instance): ?string
+    {
+        if (!$this->isSuperAdmin) {
+            return null;
+        }
+
+        if (!$this->isOverdue($instance)) {
+            return 'This task is not overdue yet.';
+        }
+
+        if (!$instance->template) {
+            return 'Task template is missing.';
+        }
+
+        if ($instance->template->requires_table) {
+            return 'This task requires table evidence, so resubmission is not available here.';
+        }
+
+        if (!in_array($instance->status, ['pending', 'rejected'], true)) {
+            return 'This task is already waiting for approval.';
+        }
+
+        return null;
+    }
+
+    public function submitNoEvidence(int $taskInstanceId): void
+    {
+        $this->submitNoEvidenceInternal($taskInstanceId, false);
+    }
+
+    public function resubmitTask(KpiSubmissionImageResizer $resizer): void
+    {
+        $this->submitTaskInternal($resizer, true);
+    }
+
+    public function resubmitNoEvidence(int $taskInstanceId): void
+    {
+        $this->submitNoEvidenceInternal($taskInstanceId, true);
+    }
+
+    public function submissionWindowLabel(KpiTaskInstance $instance): string
+    {
+        $windowEnd = $this->submissionWindowEndsAt($instance);
+
+        return $windowEnd ? $windowEnd->format('Y-m-d H:i') : 'N/A';
+    }
+
+    public function getSelectedTaskInstanceProperty(): ?KpiTaskInstance
+    {
+        if (!$this->selectedTaskInstanceId) {
+            return null;
+        }
+
+        return KpiTaskInstance::query()
+            ->with([
+                'template.group',
+                'assignment.firstApprover',
+                'assignment.finalApprover',
+                'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
+            ])
+            ->where('id', $this->selectedTaskInstanceId)
+            ->where('user_id', $this->targetUserId())
+            ->first();
+    }
+
+    public function render()
+    {
+        return view('livewire.kpi.my-tasks', [
+            'selectedTaskInstance' => $this->getSelectedTaskInstanceProperty(),
+        ]);
+    }
+
+    protected function findOwnedInstance(int $taskInstanceId): KpiTaskInstance
+    {
+        return KpiTaskInstance::query()
+            ->with([
+                'template.group',
+                'assignment.firstApprover',
+                'assignment.finalApprover',
+                'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
+            ])
+            ->where('id', $taskInstanceId)
+            ->where('user_id', $this->targetUserId())
+            ->firstOrFail();
+    }
+
+    protected function ensureSubmissionAllowed(KpiTaskInstance $instance): void
+    {
+        $this->ensureSubmissionAllowedWithMode($instance, false);
+    }
+
+    protected function ensureSubmissionAllowedWithMode(KpiTaskInstance $instance, bool $allowClosedWindow): void
+    {
+        if (!$instance->template) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'Task template is missing.',
+            ]);
+        }
+
+        if ($instance->template->requires_table) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'This task requires table evidence and cannot be submitted yet.',
+            ]);
+        }
+
+        if ($this->isFinalized($instance)) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'This task is already finalized.',
+            ]);
+        }
+
+        if (!$allowClosedWindow && $this->submissionWindowClosed($instance)) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'The submission window for this task is already closed.',
+            ]);
+        }
+
+        if (!in_array($instance->status, ['pending', 'rejected'], true)) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'This task is already waiting for approval.',
+            ]);
+        }
+    }
+
+    protected function ensureOverdueResubmissionAllowed(KpiTaskInstance $instance): void
+    {
+        if (!$this->isSuperAdmin) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'Only Super Admin can resubmit overdue tasks for employees.',
+            ]);
+        }
+
+        if (!$this->isOverdue($instance)) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'This task is not overdue yet.',
+            ]);
+        }
+
+        $this->ensureSubmissionAllowedWithMode($instance, true);
+    }
+
+    protected function submitTaskInternal(KpiSubmissionImageResizer $resizer, bool $allowClosedWindow): void
+    {
         $instance = $this->getSelectedTaskInstanceProperty();
 
         if (!$instance) {
@@ -328,7 +571,12 @@ class MyTasks extends Component
         }
 
         $instance = $this->findOwnedInstance($instance->id);
-        $this->ensureSubmissionAllowed($instance);
+
+        if ($allowClosedWindow) {
+            $this->ensureOverdueResubmissionAllowed($instance);
+        } else {
+            $this->ensureSubmissionAllowed($instance);
+        }
 
         $template = $instance->template;
 
@@ -478,49 +726,20 @@ class MyTasks extends Component
         $this->cancelSubmission();
         $this->loadTasks();
 
-        session()->flash('message', $template->title . ' submitted for approval.');
+        session()->flash('message', $allowClosedWindow
+            ? $template->title . ' resubmitted for approval by Super Admin.'
+            : $template->title . ' submitted for approval.');
     }
 
-    public function canSubmit(KpiTaskInstance $instance): bool
-    {
-        if (!$this->canModifyViewedTasks()) {
-            return false;
-        }
-
-        if ($instance->template?->requires_table) {
-            return false;
-        }
-
-        if ($this->isFinalized($instance)) {
-            return false;
-        }
-
-        if ($this->submissionWindowClosed($instance)) {
-            return false;
-        }
-
-        return in_array($instance->status, ['pending', 'rejected'], true);
-    }
-
-    public function canDirectSubmitNoEvidence(KpiTaskInstance $instance): bool
-    {
-        if (!$this->canSubmit($instance)) {
-            return false;
-        }
-
-        $template = $instance->template;
-
-        if (!$template) {
-            return false;
-        }
-
-        return !$template->requires_images && !$template->requires_table;
-    }
-
-    public function submitNoEvidence(int $taskInstanceId): void
+    protected function submitNoEvidenceInternal(int $taskInstanceId, bool $allowClosedWindow): void
     {
         $instance = $this->findOwnedInstance($taskInstanceId);
-        $this->ensureSubmissionAllowed($instance);
+
+        if ($allowClosedWindow) {
+            $this->ensureOverdueResubmissionAllowed($instance);
+        } else {
+            $this->ensureSubmissionAllowed($instance);
+        }
 
         $template = $instance->template;
 
@@ -577,86 +796,14 @@ class MyTasks extends Component
         $this->cancelSubmission();
         $this->loadTasks();
 
-        session()->flash('message', ($template->title ?? 'Task') . ' submitted without evidence.');
+        session()->flash('message', $allowClosedWindow
+            ? ($template->title ?? 'Task') . ' resubmitted without evidence by Super Admin.'
+            : ($template->title ?? 'Task') . ' submitted without evidence.');
     }
 
-    public function submissionWindowLabel(KpiTaskInstance $instance): string
+    protected function isOverdue(KpiTaskInstance $instance): bool
     {
-        $windowEnd = $this->submissionWindowEndsAt($instance);
-
-        return $windowEnd ? $windowEnd->format('Y-m-d H:i') : 'N/A';
-    }
-
-    public function getSelectedTaskInstanceProperty(): ?KpiTaskInstance
-    {
-        if (!$this->selectedTaskInstanceId) {
-            return null;
-        }
-
-        return KpiTaskInstance::query()
-            ->with([
-                'template.group',
-                'assignment.firstApprover',
-                'assignment.finalApprover',
-                'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
-            ])
-            ->where('id', $this->selectedTaskInstanceId)
-            ->where('user_id', $this->targetUserId())
-            ->first();
-    }
-
-    public function render()
-    {
-        return view('livewire.kpi.my-tasks', [
-            'selectedTaskInstance' => $this->getSelectedTaskInstanceProperty(),
-        ]);
-    }
-
-    protected function findOwnedInstance(int $taskInstanceId): KpiTaskInstance
-    {
-        return KpiTaskInstance::query()
-            ->with([
-                'template.group',
-                'assignment.firstApprover',
-                'assignment.finalApprover',
-                'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
-            ])
-            ->where('id', $taskInstanceId)
-            ->where('user_id', $this->targetUserId())
-            ->firstOrFail();
-    }
-
-    protected function ensureSubmissionAllowed(KpiTaskInstance $instance): void
-    {
-        if (!$instance->template) {
-            throw ValidationException::withMessages([
-                'selectedTaskInstanceId' => 'Task template is missing.',
-            ]);
-        }
-
-        if ($instance->template->requires_table) {
-            throw ValidationException::withMessages([
-                'selectedTaskInstanceId' => 'This task requires table evidence and cannot be submitted yet.',
-            ]);
-        }
-
-        if ($this->isFinalized($instance)) {
-            throw ValidationException::withMessages([
-                'selectedTaskInstanceId' => 'This task is already finalized.',
-            ]);
-        }
-
-        if ($this->submissionWindowClosed($instance)) {
-            throw ValidationException::withMessages([
-                'selectedTaskInstanceId' => 'The submission window for this task is already closed.',
-            ]);
-        }
-
-        if (!in_array($instance->status, ['pending', 'rejected'], true)) {
-            throw ValidationException::withMessages([
-                'selectedTaskInstanceId' => 'This task is already waiting for approval.',
-            ]);
-        }
+        return $instance->due_at ? Carbon::parse($instance->due_at)->lt(now()) : false;
     }
 
     protected function submissionWindowClosed(KpiTaskInstance $instance): bool

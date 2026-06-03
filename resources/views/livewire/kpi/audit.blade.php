@@ -83,8 +83,9 @@
             class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">KPI Group Result</h3>
-                <p class="text-sm text-slate-500 dark:text-slate-400">A KPI group passes only when the group rule passes
-                    and every template under that group passes too.</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    This month’s result is projected to month-end, so upcoming open tasks are treated as passed.
+                </p>
             </div>
 
             <div class="mt-4 overflow-x-auto">
@@ -177,6 +178,8 @@
                             </p>
                             <p>On Time: {{ $selectedSubmission->is_late ? 'Late' : 'On time' }}</p>
                             <p>Submitted By: {{ $selectedSubmission->submittedBy?->name ?? '-' }}</p>
+                            <p>Task Status: {{ str_replace('_', ' ', $selectedSubmission->instance?->status ?? '-') }}</p>
+                            <p>Final Outcome: {{ str_replace('_', ' ', $selectedSubmission->instance?->final_outcome ?? '-') }}</p>
                         </div>
                     </div>
 
@@ -192,6 +195,74 @@
                             Employee Remark</p>
                         <p class="mt-2 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">
                             {{ $selectedSubmission->employee_remark }}</p>
+                    </div>
+                @endif
+
+                @if ($isSuperAdmin)
+                    <div class="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/20">
+                        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-rose-600 dark:text-rose-300">
+                                    Second Approver Review
+                                </p>
+                                <p class="mt-1 text-sm text-rose-700 dark:text-rose-200">
+                                    Update this task status as the audit reviewer.
+                                </p>
+                            </div>
+
+                            @if ($selectedSubmission->instance?->failure_reason)
+                                <p class="text-xs text-rose-600 dark:text-rose-300">
+                                    Current note saved on task status.
+                                </p>
+                            @endif
+                        </div>
+
+                        <form wire:submit.prevent="saveAuditInstanceStatus" class="mt-4 space-y-4">
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Task Status</label>
+                                    <select wire:model.defer="auditInstanceStatus"
+                                        class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                                        <option value="pending">pending</option>
+                                        <option value="rejected">rejected</option>
+                                        <option value="waiting_first_approval">waiting_first_approval</option>
+                                        <option value="waiting_final_approval">waiting_final_approval</option>
+                                        <option value="passed">passed</option>
+                                        <option value="failed_late">failed_late</option>
+                                        <option value="failed_missed">failed_missed</option>
+                                        <option value="excluded">excluded</option>
+                                    </select>
+                                    @error('auditInstanceStatus')
+                                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Reason</label>
+                                    <textarea wire:model.defer="auditInstanceReason" rows="3"
+                                        class="mt-1 block w-full rounded-xl border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                        placeholder="Explain this audit decision"></textarea>
+                                    @error('auditInstanceReason')
+                                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            @if ($selectedSubmission->instance?->failure_reason)
+                                <div class="rounded-2xl border border-rose-200 bg-white p-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-200">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.15em] text-rose-500 dark:text-rose-300">
+                                        Second approver note</p>
+                                    <p class="mt-1 whitespace-pre-line">{{ $selectedSubmission->instance->failure_reason }}</p>
+                                </div>
+                            @endif
+
+                            <div class="flex justify-end">
+                                <button type="submit"
+                                    class="inline-flex items-center justify-center rounded-2xl bg-rose-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-800"
+                                    wire:loading.attr="disabled">
+                                    Save Audit Status
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 @endif
 
@@ -242,6 +313,92 @@
                         @endforeach
                     </div>
                 </div>
+            </section>
+        </div>
+    @endif
+
+    @if ($selectedInstance)
+        <div class="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm" wire:click="closeSubmissionDetail"></div>
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <section
+                class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-rose-200 bg-white p-5 shadow-2xl dark:border-rose-900 dark:bg-slate-900">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="space-y-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h3 class="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                                {{ $selectedInstance->template?->title }}</h3>
+                            <span class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-rose-700">
+                                {{ str_replace('_', ' ', $selectedInstance->status) }}
+                            </span>
+                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.15em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                {{ $selectedInstance->template?->group?->name ?? 'No KPI Group' }}
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-300">
+                            Employee: {{ $selectedInstance->user?->name ?? '-' }}
+                        </p>
+                        <div class="grid gap-2 text-sm text-slate-500 dark:text-slate-400 md:grid-cols-2">
+                            <p>Due: {{ $selectedInstance->due_at?->format('Y-m-d H:i') ?? 'No cutoff' }}</p>
+                            <p>Task Status: {{ str_replace('_', ' ', $selectedInstance->status) }}</p>
+                            <p>Final Outcome: {{ str_replace('_', ' ', $selectedInstance->final_outcome ?? '-') }}</p>
+                            <p>Failure Note: {{ $selectedInstance->failure_reason ?: '-' }}</p>
+                        </div>
+                    </div>
+
+                    <button type="button" wire:click="closeSubmissionDetail"
+                        class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100">
+                        Close
+                    </button>
+                </div>
+
+                @if ($isSuperAdmin)
+                    <div class="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/20">
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-rose-600 dark:text-rose-300">
+                            Second Approver Review</p>
+                        <p class="mt-1 text-sm text-rose-700 dark:text-rose-200">
+                            Change the task status for this overdue instance.
+                        </p>
+
+                        <form wire:submit.prevent="saveAuditInstanceStatus" class="mt-4 space-y-4">
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Task Status</label>
+                                    <select wire:model.defer="auditInstanceStatus"
+                                        class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                                        <option value="pending">pending</option>
+                                        <option value="rejected">rejected</option>
+                                        <option value="waiting_first_approval">waiting_first_approval</option>
+                                        <option value="waiting_final_approval">waiting_final_approval</option>
+                                        <option value="passed">passed</option>
+                                        <option value="failed_late">failed_late</option>
+                                        <option value="failed_missed">failed_missed</option>
+                                        <option value="excluded">excluded</option>
+                                    </select>
+                                    @error('auditInstanceStatus')
+                                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Reason</label>
+                                    <textarea wire:model.defer="auditInstanceReason" rows="3"
+                                        class="mt-1 block w-full rounded-xl border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                        placeholder="Explain this audit decision"></textarea>
+                                    @error('auditInstanceReason')
+                                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <button type="submit"
+                                    class="inline-flex items-center justify-center rounded-2xl bg-rose-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-800"
+                                    wire:loading.attr="disabled">
+                                    Save Audit Status
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                @endif
             </section>
         </div>
     @endif
@@ -328,7 +485,7 @@
                                         class="flex min-h-[4rem] flex-wrap items-center justify-center gap-1 text-center">
                                         @if ($cell['markers']->isNotEmpty())
                                             @foreach ($cell['markers'] as $marker)
-                                                @if ($marker['submission_id'])
+                                                @if ($marker['submission_id'] ?? false)
                                                     <button type="button"
                                                         wire:click="openSubmissionDetail({{ $marker['submission_id'] }})"
                                                         title="{{ $marker['label'] }}"
@@ -336,7 +493,7 @@
                                                         @if ($marker['type'] === 'approved')
                                                             &#10003;
                                                         @else
-                                                            @if ($marker['type'] === 'failed')
+                                                            @if (in_array($marker['type'], ['failed', 'overdue'], true))
                                                                 &#10005;
                                                             @else
                                                                 @if ($marker['type'] === 'pending')
@@ -351,13 +508,20 @@
                                                             @endif
                                                         @endif
                                                     </button>
+                                                @elseif ($marker['instance_id'] ?? false)
+                                                    <button type="button"
+                                                        wire:click="openInstanceDetail({{ $marker['instance_id'] }})"
+                                                        title="{{ $marker['label'] }}"
+                                                        class="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-semibold transition hover:scale-105 {{ $marker['classes'] }}">
+                                                        &#10005;
+                                                    </button>
                                                 @else
                                                     <span title="{{ $marker['label'] }}"
                                                         class="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-semibold {{ $marker['classes'] }}">
                                                         @if ($marker['type'] === 'approved')
                                                             &#10003;
                                                         @else
-                                                            @if ($marker['type'] === 'failed')
+                                                            @if (in_array($marker['type'], ['failed', 'overdue'], true))
                                                                 &#10005;
                                                             @else
                                                                 @if ($marker['type'] === 'pending')

@@ -64,7 +64,11 @@
         <section class="rounded-3xl border border-sky-200 bg-white p-5 shadow-sm dark:border-sky-900 dark:bg-slate-900">
             @if (!$this->canModifyViewedTasks())
                 <div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                    You are viewing another employee's task list in read-only mode.
+                    @if ($isSuperAdmin && $isResubmissionMode)
+                        Super Admin resubmission mode is active for this overdue task.
+                    @else
+                        You are viewing another employee's task list in read-only mode.
+                    @endif
                 </div>
             @endif
 
@@ -106,7 +110,7 @@
                 </div>
             @endif
 
-            <form wire:submit="submitTask" class="mt-5 space-y-5">
+            <form wire:submit="{{ $isResubmissionMode ? 'resubmitTask' : 'submitTask' }}" class="mt-5 space-y-5">
                 <div>
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Photos</label>
                     <div x-data="{
@@ -339,13 +343,20 @@
                         @else
                             <p>No evidence required for this task.</p>
                         @endif
+                        @if ($isSuperAdmin && $isResubmissionMode)
+                            <p class="mt-1 text-rose-600">Submitting as Super Admin after the due date.</p>
+                        @endif
                     </div>
 
                     <button type="submit"
                         class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        wire:loading.attr="disabled" wire:target="cameraPhoto,galleryPhotos,submitTask">
-                        <span wire:loading.remove wire:target="submitTask">Submit For Approval</span>
-                        <span wire:loading wire:target="submitTask">Submitting...</span>
+                        wire:loading.attr="disabled" wire:target="cameraPhoto,galleryPhotos,submitTask,resubmitTask">
+                        <span wire:loading.remove wire:target="submitTask,resubmitTask">
+                            {{ $isResubmissionMode ? 'Resubmit For Approval' : 'Submit For Approval' }}
+                        </span>
+                        <span wire:loading wire:target="submitTask,resubmitTask">
+                            {{ $isResubmissionMode ? 'Resubmitting...' : 'Submitting...' }}
+                        </span>
                     </button>
                 </div>
             </form>
@@ -563,11 +574,49 @@
     @if ($overdueTasks->isNotEmpty())
         <section class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
             <h3 class="text-lg font-semibold text-rose-800">Overdue</h3>
-            <div class="mt-3 space-y-2">
+            <div class="mt-3 space-y-3">
                 @foreach ($overdueTasks as $task)
-                    <p class="text-sm text-rose-700">
-                        {{ $task->template?->title }} - due {{ $task->due_at?->format('Y-m-d H:i') }}
-                    </p>
+                    <article class="rounded-2xl border border-rose-200 bg-white px-4 py-3">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-rose-800">
+                                    {{ $task->template?->title }}
+                                </p>
+                                <p class="text-xs text-rose-600">
+                                    Employee: {{ $task->user?->name ?? 'Unknown' }}
+                                </p>
+                                <p class="text-xs text-rose-600">
+                                    Due {{ $task->due_at?->format('Y-m-d H:i') }}
+                                </p>
+                            </div>
+
+                            @if ($isSuperAdmin)
+                                <div class="flex flex-col gap-2 sm:items-end">
+                                    @if ($this->canSuperAdminResubmitWithoutEvidence($task))
+                                        <button type="button" wire:click="resubmitNoEvidence({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-2xl bg-rose-700 px-4 py-2 text-xs font-medium text-white transition hover:bg-rose-800">
+                                            Resubmit No Evidence
+                                        </button>
+                                    @elseif ($this->canSuperAdminResubmitWithEvidence($task))
+                                        <button type="button" wire:click="openResubmitSubmission({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-2xl bg-rose-700 px-4 py-2 text-xs font-medium text-white transition hover:bg-rose-800">
+                                            Open Resubmit Form
+                                        </button>
+                                    @else
+                                        <span class="rounded-2xl bg-rose-100 px-3 py-2 text-xs text-rose-700">
+                                            Resubmit unavailable
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+
+                        @if ($isSuperAdmin && !$this->canResubmitOverdueTask($task))
+                            <p class="mt-2 text-xs text-rose-600">
+                                {{ $this->overdueResubmitUnavailableReason($task) }}
+                            </p>
+                        @endif
+                    </article>
                 @endforeach
             </div>
         </section>

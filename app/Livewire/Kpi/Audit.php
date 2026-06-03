@@ -11,8 +11,10 @@ use App\Services\Kpi\KpiRuleEvaluationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -22,11 +24,16 @@ class Audit extends Component
     public string $month = '';
     public int $selectedUserId;
     public ?int $selectedSubmissionId = null;
+    public ?int $selectedInstanceId = null;
+    public bool $isSuperAdmin = false;
+    public string $auditInstanceStatus = 'pending';
+    public string $auditInstanceReason = '';
 
     public function mount(): void
     {
         $this->month = now()->format('Y-m');
         $this->selectedUserId = auth()->user()->id;
+        $this->isSuperAdmin = Gate::allows('isSuperAdmin');
     }
 
 
@@ -35,11 +42,91 @@ class Audit extends Component
         $submission = $this->findVisibleSubmission($submissionId);
 
         $this->selectedSubmissionId = $submission->id;
+        $this->selectedInstanceId = null;
+        $this->auditInstanceStatus = (string) ($submission->instance?->status ?? 'pending');
+        $this->auditInstanceReason = (string) ($submission->instance?->failure_reason ?? '');
+        $this->resetErrorBag();
+    }
+
+    public function openInstanceDetail(int $instanceId): void
+    {
+        $instance = $this->findVisibleInstance($instanceId);
+
+        $this->selectedInstanceId = $instance->id;
+        $this->selectedSubmissionId = null;
+        $this->auditInstanceStatus = (string) $instance->status;
+        $this->auditInstanceReason = (string) ($instance->failure_reason ?? '');
+        $this->resetErrorBag();
     }
 
     public function closeSubmissionDetail(): void
     {
         $this->selectedSubmissionId = null;
+        $this->selectedInstanceId = null;
+        $this->auditInstanceStatus = 'pending';
+        $this->auditInstanceReason = '';
+        $this->resetErrorBag();
+    }
+
+    public function getSelectedInstanceProperty(): ?KpiTaskInstance
+    {
+        if (!$this->selectedInstanceId) {
+            return null;
+        }
+
+        return $this->findVisibleInstance($this->selectedInstanceId, false);
+    }
+
+    public function saveAuditInstanceStatus(): void
+    {
+        Gate::authorize('isSuperAdmin');
+
+        $submission = $this->getSelectedSubmissionProperty();
+        $instance = $this->getSelectedInstanceProperty();
+
+        if (!$submission && !$instance) {
+            throw ValidationException::withMessages([
+                'auditInstanceStatus' => 'Select a submission or task instance before changing status.',
+            ]);
+        }
+
+        $validated = $this->validate([
+            'auditInstanceStatus' => ['required', 'in:pending,rejected,waiting_first_approval,waiting_final_approval,passed,failed_late,failed_missed,excluded'],
+            'auditInstanceReason' => ['required', 'string', 'max:1000'],
+        ], [], [
+            'auditInstanceStatus' => 'status',
+            'auditInstanceReason' => 'reason',
+        ]);
+
+        DB::transaction(function () use ($submission, $instance, $validated): void {
+            $taskInstance = $instance
+                ? KpiTaskInstance::query()->whereKey($instance->id)->lockForUpdate()->firstOrFail()
+                : KpiTaskInstance::query()
+                    ->whereKey($submission->task_instance_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+            $now = now();
+            $status = $validated['auditInstanceStatus'];
+            $reason = trim((string) $validated['auditInstanceReason']);
+
+            $taskInstance->update([
+                'status' => $status,
+                'final_outcome' => in_array($status, ['passed', 'failed_late', 'failed_missed', 'excluded'], true) ? $status : null,
+                'finalized_at' => in_array($status, ['passed', 'failed_late', 'failed_missed', 'excluded'], true) ? $now : null,
+                'failure_reason' => $reason,
+            ]);
+        });
+
+        if ($submission) {
+            $this->openSubmissionDetail($submission->id);
+        } else {
+            $this->openInstanceDetail($instance->id);
+        }
+
+        $this->resetErrorBag();
+
+        session()->flash('message', 'Task status updated by Super Admin.');
     }
 
     public function getSelectedSubmissionProperty(): ?KpiTaskSubmission
@@ -72,6 +159,7 @@ class Audit extends Component
                 'legendItems' => $this->legendItems(),
                 'employeeAsyncData' => $this->buildEmployeeAsyncData(collect()),
                 'selectedSubmission' => null,
+                'selectedInstance' => null,
             ]);
         }
 
@@ -89,6 +177,7 @@ class Audit extends Component
                 'legendItems' => $this->legendItems(),
                 'employeeAsyncData' => $this->buildEmployeeAsyncData($users),
                 'selectedSubmission' => null,
+                'selectedInstance' => null,
             ]);
         }
 
@@ -165,6 +254,7 @@ class Audit extends Component
             'legendItems' => $this->legendItems(),
             'employeeAsyncData' => $this->buildEmployeeAsyncData($users),
             'selectedSubmission' => $this->getSelectedSubmissionProperty(),
+            'selectedInstance' => $this->getSelectedInstanceProperty(),
         ]);
     }
 
@@ -262,6 +352,25 @@ class Audit extends Component
         $latestSubmissionDate = $instance->latestSubmission?->submitted_at?->toDateString()
             ?? $instance->submitted_at?->toDateString();
 
+        if (
+            $instance->due_at
+            && Carbon::parse($instance->due_at)->lt(now())
+            && in_array($status, ['pending', 'rejected'], true)
+        ) {
+            $overdueDate = Carbon::parse($instance->due_at)->toDateString();
+
+            if ($overdueDate !== $dateKey) {
+                return null;
+            }
+
+            return [
+                'type' => 'overdue',
+                'label' => 'Overdue',
+                'classes' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+                'instance_id' => $instance->id,
+            ];
+        }
+
         $markDate = match ($status) {
             'passed' => $latestSubmissionDate,
             'failed_late' => $latestSubmissionDate,
@@ -352,6 +461,8 @@ class Audit extends Component
             return $this->buildDailySummary($cells, $evaluationEnd);
         }
 
+        $today = now()->startOfDay();
+
         $eligibleInstances = $instances
             ->filter(function (KpiTaskInstance $instance) use ($evaluationEnd): bool {
                 $anchorDate = $instance->task_date
@@ -362,10 +473,47 @@ class Audit extends Component
             })
             ->values();
 
-        $passed = $eligibleInstances->where('status', 'passed')->count();
-        $failed = $eligibleInstances->whereIn('status', ['failed_late', 'failed_missed'])->count();
-        $excluded = $eligibleInstances->where('status', 'excluded')->count();
-        $pending = $eligibleInstances->whereIn('status', ['pending', 'waiting_first_approval', 'waiting_final_approval', 'rejected'])->count();
+        $passed = 0;
+        $failed = 0;
+        $excluded = 0;
+        $pending = 0;
+
+        foreach ($eligibleInstances as $instance) {
+            $anchorDate = $instance->task_date
+                ?? $instance->period_start
+                ?? $instance->period_end;
+
+            if (!$anchorDate) {
+                continue;
+            }
+
+            $anchorDay = $anchorDate->copy()->startOfDay();
+
+            if ($anchorDay->gt($today) && !$instance->latestSubmission) {
+                $passed++;
+                continue;
+            }
+
+            if ($instance->status === 'passed') {
+                $passed++;
+                continue;
+            }
+
+            if (in_array($instance->status, ['failed_late', 'failed_missed'], true)) {
+                $failed++;
+                continue;
+            }
+
+            if ($instance->status === 'excluded') {
+                $excluded++;
+                continue;
+            }
+
+            if (in_array($instance->status, ['pending', 'waiting_first_approval', 'waiting_final_approval', 'rejected'], true)) {
+                $pending++;
+            }
+        }
+
         $mustDo = $passed + $failed + $pending;
 
         return [
@@ -384,13 +532,10 @@ class Audit extends Component
         $failed = 0;
         $excluded = 0;
         $pending = 0;
+        $today = now()->startOfDay();
 
         foreach ($cells as $cell) {
             $date = Carbon::parse($cell['date'])->startOfDay();
-
-            if ($date->gt($evaluationEnd)) {
-                continue;
-            }
 
             if ($cell['label'] === '--') {
                 continue;
@@ -398,6 +543,11 @@ class Audit extends Component
 
             if (str_contains((string) $cell['classes'], 'bg-slate-200')) {
                 $excluded++;
+                continue;
+            }
+
+            if ($date->gt($today) && $cell['markers']->isEmpty()) {
+                $passed++;
                 continue;
             }
 
@@ -575,6 +725,24 @@ class Audit extends Component
             ->whereHas('instance', function (Builder $query) use ($visibleUserIds): void {
                 $query->whereIn('user_id', $visibleUserIds);
             });
+
+        return $fail ? $query->firstOrFail() : $query->first();
+    }
+
+    protected function findVisibleInstance(int $instanceId, bool $fail = true): ?KpiTaskInstance
+    {
+        $visibleUserIds = $this->accessibleUsersQuery()->pluck('users.id');
+
+        $query = KpiTaskInstance::query()
+            ->with([
+                'latestSubmission.images',
+                'latestSubmission.submittedBy',
+                'latestSubmission.approvalSteps.approver',
+                'template.group',
+                'user',
+            ])
+            ->whereKey($instanceId)
+            ->whereIn('user_id', $visibleUserIds);
 
         return $fail ? $query->firstOrFail() : $query->first();
     }
