@@ -107,6 +107,11 @@ class PushGoogleCalendarEvent implements ShouldQueue
     private function makeGoogleClient(): GoogleClient
     {
         $client = new GoogleClient();
+        if (config('app.env') === 'local') {
+            $client->setHttpClient(new \GuzzleHttp\Client([
+                'verify' => false,
+            ]));
+        }
         $client->setApplicationName(config('app.name'));
         $client->setClientId(config('services.google.client_id'));
         $client->setClientSecret(config('services.google.client_secret'));
@@ -125,6 +130,20 @@ class PushGoogleCalendarEvent implements ShouldQueue
     {
         try {
             $newToken = $client->fetchAccessTokenWithRefreshToken((string) $user->google_refresh_token);
+
+            if (is_array($newToken) && isset($newToken['error'])) {
+                $message = strtolower((string) ($newToken['error_description'] ?? $newToken['error']));
+                if (str_contains($message, 'invalid_grant') || str_contains($message, 'unauthorized')) {
+                    $user->forceFill([
+                        'google_token' => null,
+                        'google_refresh_token' => null,
+                        'google_token_expires_at' => null,
+                    ])->save();
+
+                    Log::info('Google refresh token invalid_grant returned; cleared tokens', ['user_id' => $user->id]);
+                }
+                return;
+            }
 
             if (!is_array($newToken) || empty($newToken['access_token'])) {
                 return;
