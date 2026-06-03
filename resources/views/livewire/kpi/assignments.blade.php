@@ -462,11 +462,11 @@
                     </div>
                 </div>
 
-                @if ($editingSubmissionId)
+                @if ($editingSubmissionId || $instanceStatus === 'pending' || count($newSubmissionPhotos) > 0)
                     <div class="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
                         <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Submission Photos</p>
 
-                        @if (count($existingSubmissionImages) > 0)
+                        @if ($editingSubmissionId && count($existingSubmissionImages) > 0)
                             <div class="grid gap-3 md:grid-cols-2">
                                 @foreach ($existingSubmissionImages as $image)
                                     @php $markedRemove = in_array($image['id'], $removeSubmissionImageIds, true); @endphp
@@ -484,6 +484,10 @@
                                     </div>
                                 @endforeach
                             </div>
+                        @elseif (!$editingSubmissionId)
+                            <p class="text-xs text-slate-500 dark:text-slate-400">
+                                No submission exists yet. Upload photos below to create one for this instance.
+                            </p>
                         @endif
 
                         <div>

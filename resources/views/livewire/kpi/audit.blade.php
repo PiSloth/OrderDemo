@@ -287,8 +287,9 @@
                             Task
                         </th>
                         @foreach ($days as $day)
+                            @php($isMonday = $day->isMonday())
                             <th
-                                class="min-w-[4.5rem] border-b border-r border-slate-200 px-2 py-3 text-center font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                class="min-w-[4.5rem] border-b border-r border-slate-200 px-2 py-3 text-center font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400 {{ $isMonday ? 'border-l-2 border-l-slate-400 dark:border-l-slate-600' : '' }}">
                                 <div>{{ $day->format('d') }}</div>
                                 <div class="mt-1 text-[11px] uppercase">{{ $day->format('D') }}</div>
                             </th>
@@ -319,9 +320,10 @@
                                 </p>
                             </td>
 
-                            @foreach ($row['cells'] as $cell)
+                            @foreach ($row['cells'] as $index => $cell)
+                                @php($isMonday = $days[$index]->isMonday())
                                 <td
-                                    class="border-b border-r border-slate-200 px-1 py-2 align-middle dark:border-slate-700 {{ $cell['classes'] }}">
+                                    class="border-b border-r border-slate-200 px-1 py-2 align-middle dark:border-slate-700 {{ $isMonday ? 'border-l-2 border-l-slate-400 dark:border-l-slate-600' : '' }} {{ $cell['classes'] }}">
                                     <div
                                         class="flex min-h-[4rem] flex-wrap items-center justify-center gap-1 text-center">
                                         @if ($cell['markers']->isNotEmpty())

@@ -443,9 +443,25 @@ class Assignments extends Component
 
             DB::transaction(function () use ($instance, $validated, $storedPaths): void {
                 $status = $validated['instanceStatus'];
+                $shouldCreateSubmission = $this->editingSubmissionId || $storedPaths !== [];
+                $submission = null;
 
-                if (in_array($status, ['passed', 'failed_late'], true)) {
-                    $status = $validated['instanceIsLate'] ? 'failed_late' : 'passed';
+                if ($this->editingSubmissionId) {
+                    $submission = KpiTaskSubmission::query()
+                        ->with('images')
+                        ->where('id', $this->editingSubmissionId)
+                        ->where('task_instance_id', $instance->id)
+                        ->firstOrFail();
+                } elseif ($shouldCreateSubmission) {
+                    $submission = KpiTaskSubmission::create([
+                        'task_instance_id' => $instance->id,
+                        'submitted_by_user_id' => Auth::id(),
+                        'submitted_at' => now(),
+                        'is_late' => (bool) $validated['instanceIsLate'],
+                        'sequence' => (int) $instance->submissions()->max('sequence') + 1,
+                        'status' => 'submitted',
+                        'employee_remark' => null,
+                    ]);
                 }
 
                 $instance->update([
@@ -454,18 +470,15 @@ class Assignments extends Component
                     'period_start' => $validated['instancePeriodStart'],
                     'period_end' => $validated['instancePeriodEnd'],
                     'due_at' => $validated['instanceDueAt'] !== '' ? Carbon::parse($validated['instanceDueAt']) : null,
-                    'is_on_time' => $validated['instanceIsLate'] ? false : ($status === 'passed' ? true : $instance->is_on_time),
+                    'submitted_at' => $submission?->submitted_at ?? $instance->submitted_at,
+                    'is_on_time' => $validated['instanceIsLate']
+                        ? false
+                        : (in_array($status, ['passed', 'failed_late', 'failed_missed'], true) ? $status === 'passed' : $instance->is_on_time),
                 ]);
 
-                if (!$this->editingSubmissionId) {
+                if (!$submission) {
                     return;
                 }
-
-                $submission = KpiTaskSubmission::query()
-                    ->with('images')
-                    ->where('id', $this->editingSubmissionId)
-                    ->where('task_instance_id', $instance->id)
-                    ->firstOrFail();
 
                 $submission->update([
                     'is_late' => (bool) $validated['instanceIsLate'],
