@@ -229,7 +229,7 @@ class Audit extends Component
         $exclusionMaps = $availability->exclusionMapsForUser($selectedUser->id, $monthStart, $monthEnd);
 
         //add sort by kpy group name with natural sort and case insensitive
-        $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $days, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator): array {
+        $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $days, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator, $monthlySuccessService): array {
             $assignmentInstances = $instances->get($assignment->id, collect());
             $cells = $days->map(fn(Carbon $day) => $this->buildCell($assignment, $assignmentInstances, $day, $holidayMap, $exclusionMaps));
             $summary = $this->buildSummary($assignment, $assignmentInstances, $cells, $evaluationEnd, $monthlySuccessService);
