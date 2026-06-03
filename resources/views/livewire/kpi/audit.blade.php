@@ -513,7 +513,23 @@
                                                         wire:click="openInstanceDetail({{ $marker['instance_id'] }})"
                                                         title="{{ $marker['label'] }}"
                                                         class="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-semibold transition hover:scale-105 {{ $marker['classes'] }}">
-                                                        &#10005;
+                                                        @if ($marker['type'] === 'approved')
+                                                            &#10003;
+                                                        @else
+                                                            @if (in_array($marker['type'], ['failed', 'overdue'], true))
+                                                                &#10005;
+                                                            @else
+                                                                @if ($marker['type'] === 'pending')
+                                                                    &bull;
+                                                                @else
+                                                                    @if ($marker['type'] === 'rejected')
+                                                                        !
+                                                                    @else
+                                                                        &bull;
+                                                                    @endif
+                                                                @endif
+                                                            @endif
+                                                        @endif
                                                     </button>
                                                 @else
                                                     <span title="{{ $marker['label'] }}"

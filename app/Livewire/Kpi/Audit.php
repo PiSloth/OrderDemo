@@ -7,6 +7,7 @@ use App\Models\Kpi\KpiTaskInstance;
 use App\Models\Kpi\KpiTaskSubmission;
 use App\Models\User;
 use App\Services\Kpi\KpiAvailabilityService;
+use App\Services\Kpi\KpiMonthlySuccessService;
 use App\Services\Kpi\KpiRuleEvaluationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -138,7 +139,11 @@ class Audit extends Component
         return $this->findVisibleSubmission($this->selectedSubmissionId, false);
     }
 
-    public function render(KpiAvailabilityService $availability, KpiRuleEvaluationService $ruleEvaluator)
+    public function render(
+        KpiAvailabilityService $availability,
+        KpiRuleEvaluationService $ruleEvaluator,
+        KpiMonthlySuccessService $monthlySuccessService
+    )
     {
         $monthStart = $this->monthStart();
         $monthEnd = $monthStart->copy()->endOfMonth();
@@ -227,7 +232,7 @@ class Audit extends Component
         $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $days, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator): array {
             $assignmentInstances = $instances->get($assignment->id, collect());
             $cells = $days->map(fn(Carbon $day) => $this->buildCell($assignment, $assignmentInstances, $day, $holidayMap, $exclusionMaps));
-            $summary = $this->buildSummary($assignment, $assignmentInstances, $cells, $evaluationEnd);
+            $summary = $this->buildSummary($assignment, $assignmentInstances, $cells, $evaluationEnd, $monthlySuccessService);
             $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, $this->summaryMetrics($summary));
 
             return [
@@ -351,6 +356,10 @@ class Audit extends Component
         $status = (string) $instance->status;
         $latestSubmissionDate = $instance->latestSubmission?->submitted_at?->toDateString()
             ?? $instance->submitted_at?->toDateString();
+        $anchorDate = $instance->due_at?->toDateString()
+            ?? $instance->task_date?->toDateString()
+            ?? $instance->period_end?->toDateString()
+            ?? $latestSubmissionDate;
 
         if (
             $instance->due_at
@@ -372,13 +381,11 @@ class Audit extends Component
         }
 
         $markDate = match ($status) {
-            'passed' => $latestSubmissionDate,
-            'failed_late' => $latestSubmissionDate,
-            'failed_missed' => $instance->due_at?->toDateString()
-                ?? $instance->task_date?->toDateString()
-                ?? $instance->period_end?->toDateString(),
+            'passed' => $latestSubmissionDate ?? $anchorDate,
+            'failed_late' => $latestSubmissionDate ?? $anchorDate,
+            'failed_missed' => $anchorDate,
             'waiting_first_approval', 'waiting_final_approval' => $latestSubmissionDate,
-            'rejected' => $latestSubmissionDate,
+            'rejected' => $latestSubmissionDate ?? $anchorDate,
             default => null,
         };
 
@@ -392,24 +399,34 @@ class Audit extends Component
                 'label' => 'Approved',
                 'classes' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
                 'submission_id' => $instance->latestSubmission?->id,
+                'instance_id' => $instance->id,
             ],
             'failed_late', 'failed_missed' => [
                 'type' => 'failed',
                 'label' => 'Failed',
                 'classes' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
                 'submission_id' => $instance->latestSubmission?->id,
+                'instance_id' => $instance->id,
             ],
             'waiting_first_approval', 'waiting_final_approval' => [
                 'type' => 'pending',
                 'label' => 'Pending Approval',
                 'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
                 'submission_id' => $instance->latestSubmission?->id,
+                'instance_id' => $instance->id,
             ],
             'rejected' => [
                 'type' => 'rejected',
                 'label' => 'Rejected',
                 'classes' => 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
                 'submission_id' => $instance->latestSubmission?->id,
+                'instance_id' => $instance->id,
+            ],
+            'pending' => [
+                'type' => 'pending',
+                'label' => 'Pending',
+                'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                'instance_id' => $instance->id,
             ],
             default => null,
         };
@@ -455,74 +472,39 @@ class Audit extends Component
         return $this->accessibleUsersQuery()->value('users.id');
     }
 
-    protected function buildSummary(KpiTaskAssignment $assignment, Collection $instances, Collection $cells, Carbon $evaluationEnd): array
+    protected function buildSummary(
+        KpiTaskAssignment $assignment,
+        Collection $instances,
+        Collection $cells,
+        Carbon $evaluationEnd,
+        KpiMonthlySuccessService $monthlySuccessService
+    ): array
     {
         if ($assignment->template?->frequency === 'daily') {
             return $this->buildDailySummary($cells, $evaluationEnd);
         }
 
-        $today = now()->startOfDay();
-
         $eligibleInstances = $instances
             ->filter(function (KpiTaskInstance $instance) use ($evaluationEnd): bool {
                 $anchorDate = $instance->task_date
                     ?? $instance->period_start
-                    ?? $instance->period_end;
+                    ?? $instance->period_end
+                    ?? $instance->due_at
+                    ?? $instance->submitted_at;
 
                 return $anchorDate ? $anchorDate->copy()->startOfDay()->lte($evaluationEnd) : false;
             })
             ->values();
 
-        $passed = 0;
-        $failed = 0;
-        $excluded = 0;
-        $pending = 0;
-
-        foreach ($eligibleInstances as $instance) {
-            $anchorDate = $instance->task_date
-                ?? $instance->period_start
-                ?? $instance->period_end;
-
-            if (!$anchorDate) {
-                continue;
-            }
-
-            $anchorDay = $anchorDate->copy()->startOfDay();
-
-            if ($anchorDay->gt($today) && !$instance->latestSubmission) {
-                $passed++;
-                continue;
-            }
-
-            if ($instance->status === 'passed') {
-                $passed++;
-                continue;
-            }
-
-            if (in_array($instance->status, ['failed_late', 'failed_missed'], true)) {
-                $failed++;
-                continue;
-            }
-
-            if ($instance->status === 'excluded') {
-                $excluded++;
-                continue;
-            }
-
-            if (in_array($instance->status, ['pending', 'waiting_first_approval', 'waiting_final_approval', 'rejected'], true)) {
-                $pending++;
-            }
-        }
-
-        $mustDo = $passed + $failed + $pending;
+        $summary = $monthlySuccessService->summarize($eligibleInstances);
 
         return [
-            'passed' => $passed,
-            'failed' => $failed,
-            'excluded' => $excluded,
-            'pending' => $pending,
-            'must_do' => $mustDo,
-            'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
+            'passed' => $summary['passed_count'],
+            'failed' => $summary['late_count'] + $summary['absent_count'],
+            'excluded' => $summary['excluded_count'],
+            'pending' => $summary['pending_count'],
+            'must_do' => $summary['must_do_count'],
+            'percentage' => $summary['score'],
         ];
     }
 

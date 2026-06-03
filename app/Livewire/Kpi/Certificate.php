@@ -6,6 +6,7 @@ use App\Models\Kpi\KpiTaskAssignment;
 use App\Models\Kpi\KpiTaskInstance;
 use App\Models\Kpi\KpiTaskSubmission;
 use App\Models\User;
+use App\Services\Kpi\KpiMonthlySuccessService;
 use App\Services\Kpi\KpiRuleEvaluationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,7 +31,7 @@ class Certificate extends Component
         $this->selectedUserId = (int) request()->query('user_id', Auth::id());
     }
 
-    public function render(KpiRuleEvaluationService $ruleEvaluator)
+    public function render(KpiRuleEvaluationService $ruleEvaluator, KpiMonthlySuccessService $monthlySuccessService)
     {
         $monthStart = $this->monthStart();
         $monthEnd = $monthStart->copy()->endOfMonth();
@@ -113,7 +114,7 @@ class Certificate extends Component
     {
         $templateRows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instancesByAssignment, $ruleEvaluator): array {
             $instances = $instancesByAssignment->get($assignment->id, collect());
-            $summary = $this->buildSummary($instances);
+            $summary = $this->buildSummary($instances, $monthlySuccessService);
             $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, [
                 'pass_rate' => $summary['score'],
                 'failed_count' => $summary['late_count'] + $summary['absent_count'],
@@ -175,21 +176,9 @@ class Certificate extends Component
             });
     }
 
-    protected function buildSummary(Collection $instances): array
+    protected function buildSummary(Collection $instances, KpiMonthlySuccessService $monthlySuccessService): array
     {
-        $eligible = $instances->where('status', '!=', 'excluded')->values();
-        $mustDo = $eligible->count();
-        $passed = $eligible->where('status', 'passed')->count();
-        $late = $eligible->where('status', 'failed_late')->count();
-        $absent = $eligible->where('status', 'failed_missed')->count();
-
-        return [
-            'must_do_count' => $mustDo,
-            'passed_count' => $passed,
-            'late_count' => $late,
-            'absent_count' => $absent,
-            'score' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
-        ];
+        return $monthlySuccessService->summarize($instances);
     }
 
     protected function buildOverallMetrics(Collection $groups): array
