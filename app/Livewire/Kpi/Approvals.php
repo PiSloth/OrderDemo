@@ -5,6 +5,7 @@ namespace App\Livewire\Kpi;
 use App\Models\Kpi\KpiTaskApprovalStep;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -90,6 +91,7 @@ class Approvals extends Component
         $this->selectedStepId = $step->id;
         $this->decisionRemark = '';
         $this->resetErrorBag();
+        $this->dispatch('close-first-step-queue');
     }
 
     public function cancelDecision(): void
@@ -135,6 +137,9 @@ class Approvals extends Component
             'selectedStep' => $this->getSelectedStepProperty(),
             'pendingFirstSteps' => $this->pendingSteps->where('step_order', 1)->values(),
             'pendingFinalSteps' => $this->pendingSteps->where('step_order', '>', 1)->values(),
+            'pendingFirstStepGroups' => $this->buildFirstStepQueueGroups(
+                $this->pendingSteps->where('step_order', 1)->values()
+            ),
         ]);
     }
 
@@ -296,5 +301,45 @@ class Approvals extends Component
             'submission.instance.user',
             'submission.instance.template',
         ];
+    }
+
+    protected function buildFirstStepQueueGroups(Collection $steps): array
+    {
+        return $steps
+            ->groupBy(function (KpiTaskApprovalStep $step): string {
+                return $step->submission?->submittedBy?->name ?? $step->submission?->instance?->user?->name ?? 'Unknown submitter';
+            })
+            ->sortKeys()
+            ->map(function (Collection $submitterSteps, string $submitterName): array {
+                $requestedDateGroups = $submitterSteps
+                    ->groupBy(function (KpiTaskApprovalStep $step): string {
+                        $requestedAt = $step->submission?->submitted_at ?? $step->submission?->created_at;
+
+                        return $requestedAt?->toDateString() ?? 'Unknown date';
+                    })
+                    ->sortKeysDesc()
+                    ->map(function (Collection $datedSteps, string $requestedDate): array {
+                        return [
+                            'requested_date' => $requestedDate,
+                            'requested_date_label' => $requestedDate === 'Unknown date'
+                                ? 'Unknown date'
+                                : \Illuminate\Support\Carbon::parse($requestedDate)->format('F j, Y'),
+                            'items' => $datedSteps
+                                ->sortByDesc(fn (KpiTaskApprovalStep $step) => $step->submitted_at?->timestamp ?? $step->created_at?->timestamp ?? 0)
+                                ->values()
+                                ->all(),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                return [
+                    'submitter_name' => $submitterName,
+                    'items_count' => $submitterSteps->count(),
+                    'requested_dates' => $requestedDateGroups,
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

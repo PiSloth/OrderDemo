@@ -1,4 +1,4 @@
-<div class="space-y-6" x-data="{ open: false, activeImage: null }">
+<div class="space-y-6" x-data="{ firstStepQueueOpen: false, imageOpen: false, activeImage: null }">
     @if (session()->has('message'))
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             {{ session('message') }}
@@ -85,7 +85,7 @@
                     <div class="grid gap-4 lg:grid-cols-2">
                         @foreach ($selectedStep->submission->images as $image)
                             @php $fullImagePath = asset('storage/' . ltrim($image->image_path, '/')); @endphp
-                            <article @click="activeImage = '{{ $fullImagePath }}'; open = true"
+                                <article @click="activeImage = '{{ $fullImagePath }}'; imageOpen = true"
                                 class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
                                 <img src="{{ $fullImagePath }}" alt="{{ $image->title ?: 'Submission image' }}"
                                     class="h-56 w-full object-cover">
@@ -153,35 +153,20 @@
     <section class="grid gap-6 xl:grid-cols-2">
         <article
             class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">First-Step Queue</h3>
-                <span class="text-sm text-slate-500 dark:text-slate-400">{{ $pendingFirstSteps->count() }}
-                    item(s)</span>
-            </div>
-
-            <div class="mt-4 space-y-3">
-                @forelse ($pendingFirstSteps as $step)
-                    <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <p class="font-medium text-slate-900 dark:text-slate-100">
-                                    {{ $step->submission?->instance?->template?->title }}</p>
-                                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                                    {{ $step->submission?->instance?->user?->name ?? '-' }}</p>
-                                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                    Submitted {{ $step->submission?->submitted_at?->format('Y-m-d H:i') ?? '-' }}
-                                </p>
-                            </div>
-
-                            <button type="button" wire:click="openStep({{ $step->id }})"
-                                class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
-                                Review
-                            </button>
-                        </div>
-                    </div>
-                @empty
-                    <p class="text-sm text-slate-500 dark:text-slate-400">No pending first-step approvals.</p>
-                @endforelse
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">First-Step Queue</h3>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        Grouped by submitter, then requested date.
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-slate-500 dark:text-slate-400">{{ $pendingFirstSteps->count() }} item(s)</span>
+                    <button type="button" @click="firstStepQueueOpen = true"
+                        class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
+                        Open Queue
+                    </button>
+                </div>
             </div>
         </article>
 
@@ -256,15 +241,119 @@
         </div>
     </section>
 
+    <div x-show="firstStepQueueOpen" x-transition.opacity @keydown.escape.window="firstStepQueueOpen = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" style="display: none;" x-cloak>
+        <div class="absolute inset-0" @click="firstStepQueueOpen = false"></div>
+
+        <div class="relative max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900">
+            <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-700">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
+                        First-Step Queue
+                    </p>
+                    <h3 class="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                        Review by submitter and requested date
+                    </h3>
+                </div>
+                <button type="button" @click="firstStepQueueOpen = false"
+                    class="text-3xl leading-none text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
+                    &times;
+                </button>
+            </div>
+
+            <div class="max-h-[calc(90vh-88px)] overflow-y-auto p-6">
+                <div class="space-y-4">
+                    @forelse ($pendingFirstStepGroups as $submitterGroup)
+                        <details
+                            class="group rounded-2xl border border-slate-200 bg-slate-50 p-4 open:bg-white dark:border-slate-700 dark:bg-slate-800/80 dark:open:bg-slate-900">
+                            <summary
+                                class="flex cursor-pointer list-none items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-base font-semibold text-slate-900 dark:text-slate-100">
+                                        Submitted by {{ $submitterGroup['submitter_name'] }}
+                                    </p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">
+                                        {{ $submitterGroup['items_count'] }} submission(s)
+                                    </p>
+                                </div>
+                                <span
+                                    class="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-700 transition group-open:bg-slate-900 group-open:text-white dark:bg-slate-700 dark:text-slate-200">
+                                    Toggle
+                                </span>
+                            </summary>
+
+                            <div class="mt-4 space-y-3 pl-0 sm:pl-2">
+                                @foreach ($submitterGroup['requested_dates'] as $requestedDateGroup)
+                                    <details
+                                        class="group rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                                        <summary
+                                            class="flex cursor-pointer list-none items-center justify-between gap-4">
+                                            <div>
+                                                <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                    Requested date: {{ $requestedDateGroup['requested_date_label'] }}
+                                                </p>
+                                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                                    {{ count($requestedDateGroup['items']) }} item(s)
+                                                </p>
+                                            </div>
+                                            <span
+                                                class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 transition group-open:bg-sky-100 group-open:text-sky-700 dark:bg-slate-800 dark:text-slate-300 dark:group-open:bg-sky-950/50 dark:group-open:text-sky-300">
+                                                Toggle
+                                            </span>
+                                        </summary>
+
+                                        <div class="mt-4 grid gap-3">
+                                            @foreach ($requestedDateGroup['items'] as $step)
+                                                <div
+                                                    class="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+                                                    wire:key="first-step-{{ $step->id }}">
+                                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                        <div class="space-y-1">
+                                                            <p class="font-medium text-slate-900 dark:text-slate-100">
+                                                                {{ $step->submission?->instance?->template?->title }}
+                                                            </p>
+                                                            <p class="text-sm text-slate-600 dark:text-slate-300">
+                                                                Employee: {{ $step->submission?->instance?->user?->name ?? '-' }}
+                                                            </p>
+                                                            <p class="text-sm text-slate-500 dark:text-slate-400">
+                                                                Requested
+                                                                {{ $step->submission?->submitted_at?->format('Y-m-d H:i') ?? $step->submission?->created_at?->format('Y-m-d H:i') ?? '-' }}
+                                                            </p>
+                                                        </div>
+
+                                                        <button type="button"
+                                                            @click="firstStepQueueOpen = false"
+                                                            wire:click="openStep({{ $step->id }})"
+                                                            class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
+                                                            Review
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </details>
+                                @endforeach
+                            </div>
+                        </details>
+                    @empty
+                        <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                            No pending first-step approvals.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- SINGLE MODAL (Shared by all images) -->
-    <div x-show="open" x-transition.opacity @keydown.escape.window="open = false"
+    <div x-show="imageOpen" x-transition.opacity @keydown.escape.window="imageOpen = false"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" style="display: none;" x-cloak>
 
         <!-- Close Overlay Click -->
-        <div class="absolute inset-0" @click="open = false"></div>
+        <div class="absolute inset-0" @click="imageOpen = false"></div>
 
         <div class="relative max-w-5xl max-h-screen">
-            <button @click="open = false" class="absolute -top-10 right-0 text-white text-3xl">&times;</button>
+            <button @click="imageOpen = false" class="absolute -top-10 right-0 text-3xl text-white">&times;</button>
 
             <!-- This image tag updates automatically because it is bound to 'activeImage' -->
             <img :src="activeImage" class="max-w-full max-h-[90vh] rounded shadow-2xl">
