@@ -157,26 +157,26 @@
                             <template x-if="steps[carouselIndex]?.submission?.employee_remark">
                                 <div class="mt-4 rounded-xl bg-white p-3 shadow-sm dark:bg-slate-800">
                                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Employee Remark</p>
-                                    <p class="mt-1 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200" x-text="steps[carouselIndex].submission.employee_remark"></p>
+                                    <p class="mt-1 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200" x-text="steps[carouselIndex]?.submission?.employee_remark"></p>
                                 </div>
                             </template>
 
                             <template x-if="steps[carouselIndex]?.submission?.instance?.template?.guideline">
                                 <div class="mt-4 rounded-xl bg-sky-50/50 p-4 border border-sky-100/50 dark:bg-sky-950/20 dark:border-sky-900/30">
                                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:text-sky-400">Guideline</p>
-                                    <p class="mt-1 text-sm text-slate-700 italic dark:text-slate-300" x-text="steps[carouselIndex].submission.instance.template.guideline"></p>
+                                    <p class="mt-1 text-sm text-slate-700 italic dark:text-slate-300" x-text="steps[carouselIndex]?.submission?.instance?.template?.guideline"></p>
                                 </div>
                             </template>
 
                             <!-- Photos -->
                             <div class="mt-4 space-y-2">
                                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Submitted Photos</p>
-                                <template x-if="steps[carouselIndex]?.submission?.images && steps[carouselIndex].submission.images.length > 0">
+                                <template x-if="steps[carouselIndex]?.submission?.images?.length > 0">
                                     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                        <template x-for="image in steps[carouselIndex].submission.images" :key="image.id">
-                                            <div @click="activeImage = '/storage/' + image.image_path.replace(/^\//, ''); imageOpen = true"
+                                        <template x-for="image in (steps[carouselIndex]?.submission?.images || [])" :key="image.id">
+                                            <div @click="activeImage = '/storage/' + (image.image_path || '').replace(/^\//, ''); imageOpen = true"
                                                  class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer dark:border-slate-700 dark:bg-slate-800">
-                                                <img :src="'/storage/' + image.image_path.replace(/^\//, '')" :alt="image.title || 'Submission image'"
+                                                <img :src="'/storage/' + (image.image_path || '').replace(/^\//, '')" :alt="image.title || 'Submission image'"
                                                      class="h-32 w-full object-cover transition duration-300 group-hover:scale-105">
                                                 <div class="p-2 bg-white/90 dark:bg-slate-800/90 text-xs">
                                                     <p class="font-medium text-slate-900 dark:text-slate-100 truncate" x-text="image.title || 'No title'"></p>
@@ -185,7 +185,7 @@
                                         </template>
                                     </div>
                                 </template>
-                                <template x-if="!steps[carouselIndex]?.submission?.images || steps[carouselIndex].submission.images.length === 0">
+                                <template x-if="!steps[carouselIndex]?.submission?.images || steps[carouselIndex]?.submission?.images?.length === 0">
                                     <div class="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800">
                                         No images found on this submission.
                                     </div>
