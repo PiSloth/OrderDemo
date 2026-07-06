@@ -63,10 +63,60 @@
                     </div>
                 </div>
 
-                <!-- Month Filter (Date Input) -->
-                <div>
+                <!-- Month Filter (Flatpickr Month Select) -->
+                <div class="relative" wire:ignore x-data="{
+                    monthYear: @entangle('filterDate').live,
+                    picker: null,
+                    initPicker() {
+                        if (!window.flatpickr || !window.monthSelectPlugin) {
+                            setTimeout(() => this.initPicker(), 100);
+                            return;
+                        }
+                        if (!this.$refs.monthPicker) {
+                            setTimeout(() => this.initPicker(), 50);
+                            return;
+                        }
+                        if (this.$refs.monthPicker._flatpickr) {
+                            return;
+                        }
+                
+                        const alpine = this;
+                
+                        this.picker = window.flatpickr(this.$refs.monthPicker, {
+                            plugins: [new window.monthSelectPlugin({
+                                shorthand: true,
+                                dateFormat: 'Y-m',
+                                altFormat: 'F Y',
+                            })],
+                            altInput: true,
+                            altInputClass: 'mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-sky-500 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100',
+                            allowInput: true,
+                            defaultDate: (alpine.monthYear && String(alpine.monthYear).length === 7) ? alpine.monthYear : null,
+                            appendTo: document.body,
+                            onReady(selectedDates, dateStr, instance) {
+                                try {
+                                    if (instance && instance.calendarContainer) {
+                                        instance.calendarContainer.style.zIndex = '9999';
+                                    }
+                                } catch (e) {}
+                                if (instance?.altInput) {
+                                    instance.altInput.placeholder = 'Select Month';
+                                }
+                            },
+                            onChange(selectedDates, dateStr) {
+                                alpine.monthYear = dateStr;
+                            }
+                        });
+                
+                        this.$watch('monthYear', (newVal) => {
+                            if (this.picker) {
+                                this.picker.setDate(newVal || null, false);
+                            }
+                        });
+                    }
+                }" x-init="initPicker()">
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Month</label>
-                    <input type="date" wire:model.live="filterDate" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-sky-500 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                    <input type="text" x-ref="monthPicker" class="hidden">
                 </div>
 
                 <!-- Template Filter (Searchable) -->
