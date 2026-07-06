@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
-use Livewire\Component;
+use Livewire\Attributes\Url;
 
 #[Layout('components.layouts.kpi')]
 class Approvals extends Component
@@ -20,8 +20,13 @@ class Approvals extends Component
     public ?int $selectedStepId = null;
     public string $decisionRemark = '';
 
+    #[Url(keep: true)]
     public $filterEmployeeId = 'all';
+
+    #[Url(keep: true)]
     public $filterDate = '';
+
+    #[Url(keep: true)]
     public $filterTemplateId = 'all';
 
     public array $filterEmployees = [];
