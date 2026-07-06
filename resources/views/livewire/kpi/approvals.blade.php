@@ -33,34 +33,15 @@
             
             <!-- Filters -->
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 md:w-auto">
-                <!-- Employee Filter (Searchable) -->
-                <div x-data="{ open: false, search: '' }" class="relative">
+                <!-- Employee Filter (No search) -->
+                <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Employee</label>
-                    <div class="relative mt-1">
-                        <button @click="open = !open" type="button" class="flex items-center justify-between w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-                            <span x-text="$wire.filterEmployeeId === 'all' ? 'All Employees' : ($wire.filterEmployees.find(e => e.id == $wire.filterEmployeeId)?.name || 'All Employees')"></span>
-                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                        
-                        <div x-show="open" @click.away="open = false" class="absolute left-0 z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800" style="display: none;" x-cloak>
-                            <input type="text" x-model="search" placeholder="Search employee..." class="w-full mb-2 rounded-lg border border-slate-300 px-2.5 py-1 text-xs dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500">
-                            <div class="max-h-48 overflow-y-auto space-y-1">
-                                <button @click="$wire.set('filterEmployeeId', 'all'); open = false; search = ''" type="button" class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
-                                    All Employees
-                                </button>
-                                <template x-for="emp in $wire.filterEmployees" :key="emp.id">
-                                    <button x-show="emp.name.toLowerCase().includes(search.toLowerCase())"
-                                            @click="$wire.set('filterEmployeeId', emp.id); open = false; search = ''"
-                                            type="button"
-                                            class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
-                                        <span x-text="emp.name"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
+                    <x-native-select wire:model.live="filterEmployeeId" class="mt-1">
+                        <option value="all">All Employees</option>
+                        @foreach($filterEmployees as $emp)
+                            <option value="{{ $emp['id'] }}">{{ $emp['name'] }}</option>
+                        @endforeach
+                    </x-native-select>
                 </div>
 
                 <!-- Month Filter (Flatpickr Month Select) -->
@@ -119,40 +100,18 @@
                     <input type="text" x-ref="monthPicker" class="hidden">
                 </div>
 
-                <!-- Template Filter (Searchable) -->
-                <div x-data="{ open: false, search: '' }" class="relative">
+                <!-- Template Filter (Searchable with WireUI Select) -->
+                <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Template</label>
-                    <div class="relative mt-1">
-                        <button @click="open = !open" type="button" class="flex items-center justify-between w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-                            <span x-text="$wire.filterTemplateId === 'all' ? 'All Templates' : ($wire.filterTemplates.find(t => t.id == $wire.filterTemplateId)?.title || 'All Templates')"></span>
-                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                        
-                        <div x-show="open" @click.away="open = false" class="absolute right-0 z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800" style="display: none;" x-cloak>
-                            <input type="text" x-model="search" placeholder="Search template..." class="w-full mb-2 rounded-lg border border-slate-300 px-2.5 py-1 text-xs dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500">
-                            <div class="max-h-48 overflow-y-auto space-y-1">
-                                <button @click="$wire.set('filterTemplateId', 'all'); open = false; search = ''" type="button" class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
-                                    All Templates
-                                </button>
-                                <template x-for="tmpl in $wire.filterTemplates" :key="tmpl.id">
-                                    <button x-show="tmpl.title.toLowerCase().includes(search.toLowerCase())"
-                                            @click="$wire.set('filterTemplateId', tmpl.id); open = false; search = ''"
-                                            type="button"
-                                            class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
-                                        <span x-text="tmpl.title"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
+                    <x-select placeholder="Search template" wire:model.live="filterTemplateId"
+                        :options="$filterTemplates" option-label="title" option-value="id" />
                 </div>
             </div>
         </div>
 
         @if ($filteredSteps->isNotEmpty())
             <div x-data="{ carouselIndex: 0, count: {{ $filteredSteps->count() }}, remark: '' }" 
+                 wire:ignore.self
                  x-effect="count = {{ $filteredSteps->count() }}; if (carouselIndex >= count) { carouselIndex = Math.max(0, count - 1); }"
                  class="relative mt-6 overflow-hidden">
                 
