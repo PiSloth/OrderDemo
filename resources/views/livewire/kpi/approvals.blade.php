@@ -112,8 +112,10 @@
         @if ($filteredSteps->isNotEmpty())
             <div x-data="{ carouselIndex: 0, steps: [], remark: '' }" 
                  wire:ignore.self
-                 x-effect="steps = {{ $filteredSteps->toJson() }}; if (carouselIndex >= steps.length) { carouselIndex = Math.max(0, steps.length - 1); }"
                  class="relative mt-6 overflow-hidden">
+                
+                <!-- Hidden helper to feed Livewire's updated steps data into Alpine JS without re-evaluating parent x-data -->
+                <div x-effect="steps = {{ $filteredSteps->toJson() }}; if (carouselIndex >= steps.length) { carouselIndex = Math.max(0, steps.length - 1); }" class="hidden"></div>
                 
                 <div class="relative min-h-[400px]">
                     <div x-show="steps.length > 0 && steps[carouselIndex]" class="space-y-6">
