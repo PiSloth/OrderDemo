@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
+use Livewire\Component;
 
 #[Layout('components.layouts.kpi')]
 class Approvals extends Component
