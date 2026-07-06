@@ -20,6 +20,14 @@ class Approvals extends Component
     public ?int $selectedStepId = null;
     public string $decisionRemark = '';
 
+    public $filterEmployeeId = 'all';
+    public $filterDate = '';
+    public $filterTemplateId = 'all';
+
+    public array $filterEmployees = [];
+    public array $filterMonths = [];
+    public array $filterTemplates = [];
+
     public function mount(): void
     {
         $this->pendingSteps = collect();
@@ -50,6 +58,21 @@ class Approvals extends Component
 
         $this->pendingSteps = $pendingSteps;
         $this->recentSteps = $recentSteps;
+
+        $this->filterEmployees = $pendingSteps->map(function ($step) {
+            $user = $step->submission?->instance?->user;
+            return $user ? ['id' => $user->id, 'name' => $user->name] : null;
+        })->filter()->unique('id')->values()->toArray();
+
+        $this->filterMonths = $pendingSteps->map(function ($step) {
+            $date = $step->submission?->submitted_at ?? $step->submission?->created_at ?? $step->submission?->instance?->task_date;
+            return $date ? $date->format('Y-m') : null;
+        })->filter()->unique()->sort()->values()->toArray();
+
+        $this->filterTemplates = $pendingSteps->map(function ($step) {
+            $template = $step->submission?->instance?->template;
+            return $template ? ['id' => $template->id, 'title' => $template->title] : null;
+        })->filter()->unique('id')->values()->toArray();
 
         $this->summaryCards = [
             [
@@ -131,6 +154,52 @@ class Approvals extends Component
             ->first();
     }
 
+    public function getFilteredStepsProperty()
+    {
+        $steps = $this->pendingSteps;
+
+        if ($this->filterEmployeeId && $this->filterEmployeeId !== 'all') {
+            $steps = $steps->filter(function ($step) {
+                return ($step->submission?->instance?->user_id ?? null) == $this->filterEmployeeId;
+            });
+        }
+
+        if ($this->filterDate) {
+            $monthStr = \Illuminate\Support\Carbon::parse($this->filterDate)->format('Y-m');
+            $steps = $steps->filter(function ($step) use ($monthStr) {
+                $date = $step->submission?->submitted_at ?? $step->submission?->created_at ?? $step->submission?->instance?->task_date;
+                return $date ? $date->format('Y-m') === $monthStr : false;
+            });
+        }
+
+        if ($this->filterTemplateId && $this->filterTemplateId !== 'all') {
+            $steps = $steps->filter(function ($step) {
+                return ($step->submission?->instance?->task_template_id ?? null) == $this->filterTemplateId;
+            });
+        }
+
+        return $steps->values();
+    }
+
+    public function approveStepDirectly(int $stepId, string $remark = ''): void
+    {
+        $this->selectedStepId = $stepId;
+        $this->decisionRemark = $remark;
+        $this->decideSelected('approved');
+    }
+
+    public function rejectStepDirectly(int $stepId, string $remark): void
+    {
+        $this->selectedStepId = $stepId;
+        $this->decisionRemark = $remark;
+        if (trim($remark) === '') {
+            throw ValidationException::withMessages([
+                'decisionRemark' => 'Remark is required when rejecting a submission.',
+            ]);
+        }
+        $this->decideSelected('rejected');
+    }
+
     public function render()
     {
         return view('livewire.kpi.approvals', [
@@ -140,6 +209,7 @@ class Approvals extends Component
             'pendingFirstStepGroups' => $this->buildFirstStepQueueGroups(
                 $this->pendingSteps->where('step_order', 1)->values()
             ),
+            'filteredSteps' => $this->filteredSteps,
         ]);
     }
 

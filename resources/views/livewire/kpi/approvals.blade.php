@@ -23,6 +23,270 @@
         @endforeach
     </section>
 
+    <!-- QUICK CAROUSEL APPROVALS -->
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-5 dark:border-slate-800">
+            <div>
+                <h3 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Quick Approval Carousel</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Filter and approve submissions slide-by-slide.</p>
+            </div>
+            
+            <!-- Filters -->
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 md:w-auto">
+                <!-- Employee Filter (Searchable) -->
+                <div x-data="{ open: false, search: '' }" class="relative">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Employee</label>
+                    <div class="relative mt-1">
+                        <button @click="open = !open" type="button" class="flex items-center justify-between w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                            <span x-text="$wire.filterEmployeeId === 'all' ? 'All Employees' : ($wire.filterEmployees.find(e => e.id == $wire.filterEmployeeId)?.name || 'All Employees')"></span>
+                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        
+                        <div x-show="open" @click.away="open = false" class="absolute left-0 z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800" style="display: none;" x-cloak>
+                            <input type="text" x-model="search" placeholder="Search employee..." class="w-full mb-2 rounded-lg border border-slate-300 px-2.5 py-1 text-xs dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500">
+                            <div class="max-h-48 overflow-y-auto space-y-1">
+                                <button @click="$wire.set('filterEmployeeId', 'all'); open = false; search = ''" type="button" class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                    All Employees
+                                </button>
+                                <template x-for="emp in $wire.filterEmployees" :key="emp.id">
+                                    <button x-show="emp.name.toLowerCase().includes(search.toLowerCase())"
+                                            @click="$wire.set('filterEmployeeId', emp.id); open = false; search = ''"
+                                            type="button"
+                                            class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                        <span x-text="emp.name"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Month Filter (Date Input) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Month</label>
+                    <input type="date" wire:model.live="filterDate" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-sky-500 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                </div>
+
+                <!-- Template Filter (Searchable) -->
+                <div x-data="{ open: false, search: '' }" class="relative">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Template</label>
+                    <div class="relative mt-1">
+                        <button @click="open = !open" type="button" class="flex items-center justify-between w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                            <span x-text="$wire.filterTemplateId === 'all' ? 'All Templates' : ($wire.filterTemplates.find(t => t.id == $wire.filterTemplateId)?.title || 'All Templates')"></span>
+                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        
+                        <div x-show="open" @click.away="open = false" class="absolute right-0 z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800" style="display: none;" x-cloak>
+                            <input type="text" x-model="search" placeholder="Search template..." class="w-full mb-2 rounded-lg border border-slate-300 px-2.5 py-1 text-xs dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500">
+                            <div class="max-h-48 overflow-y-auto space-y-1">
+                                <button @click="$wire.set('filterTemplateId', 'all'); open = false; search = ''" type="button" class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                    All Templates
+                                </button>
+                                <template x-for="tmpl in $wire.filterTemplates" :key="tmpl.id">
+                                    <button x-show="tmpl.title.toLowerCase().includes(search.toLowerCase())"
+                                            @click="$wire.set('filterTemplateId', tmpl.id); open = false; search = ''"
+                                            type="button"
+                                            class="w-full text-left rounded-lg px-2.5 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                        <span x-text="tmpl.title"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if ($filteredSteps->isNotEmpty())
+            <div x-data="{ carouselIndex: 0, count: {{ $filteredSteps->count() }}, remark: '' }" 
+                 x-effect="count = {{ $filteredSteps->count() }}; if (carouselIndex >= count) { carouselIndex = Math.max(0, count - 1); }"
+                 class="relative mt-6 overflow-hidden">
+                
+                <div class="relative min-h-[400px]">
+                    @foreach ($filteredSteps as $index => $step)
+                        <div x-show="carouselIndex === {{ $index }}" 
+                             x-transition:enter="transition ease-out duration-300 transform" 
+                             x-transition:enter-start="opacity-0 translate-x-12" 
+                             x-transition:enter-end="opacity-100 translate-x-0" 
+                             x-transition:leave="transition ease-in duration-200 transform absolute top-0 left-0 w-full" 
+                             x-transition:leave-start="opacity-100 translate-x-0" 
+                             x-transition:leave-end="opacity-0 -translate-x-12" 
+                             class="space-y-6"
+                             wire:key="carousel-step-{{ $step->id }}">
+                            
+                            <!-- Card Content Wrapper -->
+                            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+                                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div class="space-y-2">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h4 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                                                {{ $step->submission?->instance?->template?->title }}
+                                            </h4>
+                                            <span class="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium uppercase tracking-[0.15em] text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                                                Step {{ $step->step_order }}
+                                            </span>
+                                            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium uppercase tracking-[0.15em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                {{ $step->submission?->instance?->template?->group?->name ?? 'No KPI Group' }}
+                                            </span>
+                                            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium uppercase tracking-[0.15em] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                {{ $step->submission?->instance?->template?->frequency ?? '' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                            Employee: <span class="text-slate-900 dark:text-white font-semibold">{{ $step->submission?->instance?->user?->name ?? '-' }}</span>
+                                        </p>
+                                        <div class="grid gap-2 text-sm text-slate-500 dark:text-slate-400 md:grid-cols-2">
+                                            <p>Submitted: {{ $step->submission?->submitted_at?->format('Y-m-d H:i') ?? '-' }}</p>
+                                            <p>Due: {{ $step->submission?->instance?->due_at?->format('Y-m-d H:i') ?? 'No cutoff' }}</p>
+                                            <p>On Time: <span class="{{ $step->submission?->is_late ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold' }}">{{ $step->submission?->is_late ? 'Late' : 'On time' }}</span></p>
+                                            <p>Submitted By: {{ $step->submission?->submittedBy?->name ?? '-' }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Info Badge -->
+                                    <div class="text-right text-xs text-slate-400 dark:text-slate-500">
+                                        Card {{ $index + 1 }} of {{ $filteredSteps->count() }}
+                                    </div>
+                                </div>
+
+                                @if ($step->submission?->employee_remark)
+                                    <div class="mt-4 rounded-xl bg-white p-3 shadow-sm dark:bg-slate-800">
+                                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Employee Remark</p>
+                                        <p class="mt-1 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">
+                                            {{ $step->submission->employee_remark }}
+                                        </p>
+                                    </div>
+                                @endif
+
+                                @if ($step->submission?->instance?->template?->guideline)
+                                    <div class="mt-4 rounded-xl bg-sky-50/50 p-4 border border-sky-100/50 dark:bg-sky-950/20 dark:border-sky-900/30">
+                                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:text-sky-400">Guideline</p>
+                                        <p class="mt-1 text-sm text-slate-700 italic dark:text-slate-300">
+                                            {{ $step->submission->instance->template->guideline }}
+                                        </p>
+                                    </div>
+                                @endif
+
+                                <!-- Photos -->
+                                <div class="mt-4 space-y-2">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Submitted Photos</p>
+                                    @if ($step->submission?->images?->isNotEmpty())
+                                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                            @foreach ($step->submission->images as $image)
+                                                @php $fullImagePath = asset('storage/' . ltrim($image->image_path, '/')); @endphp
+                                                <div @click="activeImage = '{{ $fullImagePath }}'; imageOpen = true"
+                                                     class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer dark:border-slate-700 dark:bg-slate-800">
+                                                    <img src="{{ $fullImagePath }}" alt="{{ $image->title ?: 'Submission image' }}"
+                                                         class="h-32 w-full object-cover transition duration-300 group-hover:scale-105">
+                                                    <div class="p-2 bg-white/90 dark:bg-slate-800/90 text-xs">
+                                                        <p class="font-medium text-slate-900 dark:text-slate-100 truncate">
+                                                            {{ $image->title ?: 'No title' }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800">
+                                            No images found on this submission.
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <!-- Previous Approval Steps info -->
+                                <div class="mt-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Previous Steps Status</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach ($step->submission?->approvalSteps?->sortBy('step_order') ?? [] as $apStep)
+                                            <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium border 
+                                                {{ $apStep->status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50' : '' }}
+                                                {{ $apStep->status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50' : '' }}
+                                                {{ $apStep->status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/50' : '' }}
+                                                {{ $apStep->status === 'cancelled' ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/80 dark:text-slate-400 dark:border-slate-700' : '' }}">
+                                                Step {{ $apStep->step_order }}: {{ $apStep->approver?->name ?? 'Unassigned' }} 
+                                                ({{ str_replace('_', ' ', $apStep->status) }})
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <!-- Slide Remark -->
+                                <div class="mt-5">
+                                    <label class="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Approval / Rejection Remark</label>
+                                    <textarea x-model="remark" rows="2"
+                                              class="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                              placeholder="Optional when approving, required when rejecting"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Carousel Card Controls -->
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
+                                <!-- Navigation slide controls -->
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="carouselIndex = Math.max(0, carouselIndex - 1)" :disabled="carouselIndex === 0"
+                                            class="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                    </button>
+                                    
+                                    <span class="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                        {{ $index + 1 }} / {{ $filteredSteps->count() }}
+                                    </span>
+                                    
+                                    <button type="button" @click="carouselIndex = Math.min(count - 1, carouselIndex + 1)" :disabled="carouselIndex === count - 1"
+                                            class="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Action buttons -->
+                                <div class="flex items-center gap-3">
+                                    <!-- Reject -->
+                                    <button type="button" 
+                                            @click="if (remark.trim() === '') { alert('Remark is required to reject!'); return; } $wire.rejectStepDirectly({{ $step->id }}, remark); remark = '';"
+                                            class="inline-flex items-center justify-center rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700">
+                                        Reject
+                                    </button>
+                                    
+                                    <!-- Approve -->
+                                    <button type="button" 
+                                            @click="$wire.approveStepDirectly({{ $step->id }}, remark); remark = '';"
+                                            class="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700">
+                                        Approve
+                                    </button>
+
+                                    <!-- Next Slide (Skip) -->
+                                    @if ($index < $filteredSteps->count() - 1)
+                                        <button type="button" @click="carouselIndex = carouselIndex + 1"
+                                                class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                                            Next Slide
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @else
+            <div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+                <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+                <h4 class="mt-4 text-sm font-semibold text-slate-900 dark:text-white">No pending approvals match filters</h4>
+                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Adjust employee, month, or template filters above.</p>
+            </div>
+        @endif
+    </section>
+
     @if ($selectedStep)
         <section class="rounded-3xl border border-sky-200 bg-white p-5 shadow-sm dark:border-sky-900 dark:bg-slate-900">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
