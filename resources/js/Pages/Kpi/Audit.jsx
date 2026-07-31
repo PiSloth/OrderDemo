@@ -157,9 +157,9 @@ export default function Audit({
                     <div className="overflow-x-auto max-h-[600px] no-scrollbar">
                         <table className="w-full text-left text-xs border-collapse min-w-[1200px]">
                             {/* Table Header */}
-                            <thead className="sticky top-0 z-30 bg-slate-50 dark:bg-slate-800 shadow-xs">
+                            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 shadow-xs">
                                 <tr className="text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                                    <th className="p-3 font-bold sticky left-0 z-40 bg-slate-50 dark:bg-slate-800 min-w-[240px] border-r border-slate-200 dark:border-slate-700 shadow-r">
+                                    <th className="p-3 font-bold sticky left-0 z-10 bg-slate-50 dark:bg-slate-800 min-w-[240px] border-r border-slate-200 dark:border-slate-700 shadow-r">
                                         Task Template
                                     </th>
                                     {days.map((dayStr) => {
@@ -190,7 +190,7 @@ export default function Audit({
                                     filteredRows.map((row, rIdx) => (
                                         <tr key={row.assignment.id || rIdx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                                             {/* Task Name Column */}
-                                            <td className="p-3 sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 font-medium">
+                                            <td className="p-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 font-medium">
                                                 <div className="truncate max-w-[230px] text-slate-800 dark:text-slate-200" title={row.assignment.template?.title}>
                                                     {row.assignment.template?.title || 'Untitled Task'}
                                                 </div>
