@@ -89,7 +89,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
 
     return (
         <>
-            {/* Main Inspection Modal */}
+            {/* Main Inspection Modal (z-50) */}
             <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                 {/* Backdrop click listener */}
                 <div
@@ -302,14 +302,20 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                 </div>
             </div>
 
-            {/* FULL-SCREEN PHOTO CAROUSEL LIGHTBOX MODAL */}
+            {/* FULL-SCREEN PHOTO CAROUSEL LIGHTBOX MODAL (z-[100] to sit strictly above main modal) */}
             {selectedPhotoIndex !== null && images[selectedPhotoIndex] && (
-                <div className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+                    {/* Backdrop click listener */}
+                    <div
+                        className="fixed inset-0"
+                        onClick={() => setSelectedPhotoIndex(null)}
+                    ></div>
+
                     {/* Close Lightbox Button */}
                     <button
                         type="button"
                         onClick={() => setSelectedPhotoIndex(null)}
-                        className="absolute top-4 right-4 z-70 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none"
+                        className="absolute top-4 right-4 z-[110] p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none cursor-pointer"
                         title="Close image view (Esc)"
                     >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,7 +324,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                     </button>
 
                     {/* Image Counter Badge */}
-                    <div className="absolute top-4 left-4 z-70 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-xs font-semibold">
+                    <div className="absolute top-4 left-4 z-[110] px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-xs font-semibold">
                         Image {selectedPhotoIndex + 1} of {images.length}
                     </div>
 
@@ -327,7 +333,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                         <button
                             type="button"
                             onClick={handlePrevPhoto}
-                            className="absolute left-4 z-70 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none"
+                            className="absolute left-4 z-[110] p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none cursor-pointer"
                             title="Previous image (←)"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,7 +347,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                         <button
                             type="button"
                             onClick={handleNextPhoto}
-                            className="absolute right-4 z-70 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none"
+                            className="absolute right-4 z-[110] p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none cursor-pointer"
                             title="Next image (→)"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,7 +357,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                     )}
 
                     {/* Full Size Image Display */}
-                    <div className="max-w-5xl max-h-[85vh] flex flex-col items-center justify-center p-2 select-none">
+                    <div className="relative z-[105] max-w-5xl max-h-[85vh] flex flex-col items-center justify-center p-2 select-none">
                         <img
                             src={images[selectedPhotoIndex].file_url}
                             alt={`Evidence Full View ${selectedPhotoIndex + 1}`}
