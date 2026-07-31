@@ -1,58 +1,98 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex = 0, onClose, onSelectIndex }) {
-    if (!isOpen || !images || images.length === 0 || selectedIndex === null || selectedIndex === undefined) {
-        return null;
-    }
+    const containerRef = useRef(null);
 
-    const safeIndex = Math.max(0, Math.min(selectedIndex, images.length - 1));
-    const currentImage = images[safeIndex] || images[0];
+    const safeIndex = (isOpen && images && images.length > 0 && selectedIndex !== null && selectedIndex !== undefined)
+        ? Math.max(0, Math.min(selectedIndex, images.length - 1))
+        : 0;
 
+    const currentImage = (isOpen && images && images.length > 0) ? (images[safeIndex] || images[0]) : null;
+
+    // Auto-focus the container div on open so keyboard events are captured reliably
     useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (!isOpen) return;
+        if (isOpen && containerRef.current) {
+            containerRef.current.focus();
+        }
+    }, [isOpen]);
 
-            if (e.key === 'Escape') {
+    // Handle keydown directly on the focused container
+    const handleContainerKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+        } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
+            e.preventDefault();
+            e.stopPropagation();
+            const prevIndex = safeIndex === 0 ? images.length - 1 : safeIndex - 1;
+            onSelectIndex(prevIndex);
+        } else if (e.key === 'ArrowRight' || e.key === 'Right') {
+            e.preventDefault();
+            e.stopPropagation();
+            const nextIndex = safeIndex === images.length - 1 ? 0 : safeIndex + 1;
+            onSelectIndex(nextIndex);
+        }
+    };
+
+    // Also keep a window-level listener as fallback when focus escapes
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleWindowKeyDown = (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'Left') {
                 e.preventDefault();
                 e.stopPropagation();
-                onClose();
-            } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
-                e.preventDefault();
-                e.stopPropagation();
-                const prevIndex = safeIndex === 0 ? images.length - 1 : safeIndex - 1;
-                onSelectIndex(prevIndex);
+                onSelectIndex(safeIndex === 0 ? images.length - 1 : safeIndex - 1);
             } else if (e.key === 'ArrowRight' || e.key === 'Right') {
                 e.preventDefault();
                 e.stopPropagation();
-                const nextIndex = safeIndex === images.length - 1 ? 0 : safeIndex + 1;
-                onSelectIndex(nextIndex);
+                onSelectIndex(safeIndex === images.length - 1 ? 0 : safeIndex + 1);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                onClose();
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-
+        window.addEventListener('keydown', handleWindowKeyDown, true); // capture phase
         return () => {
-            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keydown', handleWindowKeyDown, true);
         };
     }, [isOpen, safeIndex, images.length, onClose, onSelectIndex]);
 
     const handlePrev = (e) => {
-        if (e) e.stopPropagation();
-        const prevIndex = safeIndex === 0 ? images.length - 1 : safeIndex - 1;
-        onSelectIndex(prevIndex);
+        e.preventDefault();
+        e.stopPropagation();
+        const newIndex = safeIndex === 0 ? images.length - 1 : safeIndex - 1;
+        onSelectIndex(newIndex);
+        // Re-focus container after button click
+        if (containerRef.current) containerRef.current.focus();
     };
 
     const handleNext = (e) => {
-        if (e) e.stopPropagation();
-        const nextIndex = safeIndex === images.length - 1 ? 0 : safeIndex + 1;
-        onSelectIndex(nextIndex);
+        e.preventDefault();
+        e.stopPropagation();
+        const newIndex = safeIndex === images.length - 1 ? 0 : safeIndex + 1;
+        onSelectIndex(newIndex);
+        // Re-focus container after button click
+        if (containerRef.current) containerRef.current.focus();
     };
+
+    if (!isOpen || !images || images.length === 0 || selectedIndex === null || selectedIndex === undefined) {
+        return null;
+    }
 
     if (typeof document === 'undefined') return null;
 
     return createPortal(
-        <div style={{ position: 'fixed', inset: 0, zIndex: 999999, backgroundColor: 'rgba(2,6,23,0.95)' }} className="backdrop-blur-lg flex items-center justify-center p-4 sm:p-6">
+        <div
+            ref={containerRef}
+            tabIndex={0}
+            onKeyDown={handleContainerKeyDown}
+            style={{ position: 'fixed', inset: 0, zIndex: 999999, backgroundColor: 'rgba(2,6,23,0.95)', outline: 'none' }}
+            className="backdrop-blur-lg flex items-center justify-center p-4 sm:p-6"
+        >
             {/* Backdrop click listener */}
             <div style={{ position: 'fixed', inset: 0 }} onClick={onClose}></div>
 
@@ -72,6 +112,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                     <button
                         type="button"
                         onClick={onClose}
+                        tabIndex={-1}
                         className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition focus:outline-none cursor-pointer"
                         title="Close photo preview (Esc)"
                     >
@@ -88,6 +129,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                         <button
                             type="button"
                             onClick={handlePrev}
+                            tabIndex={-1}
                             className="absolute left-4 z-20 p-3.5 rounded-full bg-slate-900/90 hover:bg-indigo-600 text-white border border-slate-700 shadow-xl transition duration-200 focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
                             title="Previous image (←)"
                         >
@@ -102,6 +144,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                         src={currentImage?.file_url || currentImage?.url || currentImage}
                         alt={`Evidence ${safeIndex + 1}`}
                         className="max-w-full max-h-[60vh] sm:max-h-[68vh] object-contain rounded-xl shadow-2xl transition-all duration-300 select-none"
+                        draggable={false}
                     />
 
                     {/* Next Button */}
@@ -109,6 +152,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                         <button
                             type="button"
                             onClick={handleNext}
+                            tabIndex={-1}
                             className="absolute right-4 z-20 p-3.5 rounded-full bg-slate-900/90 hover:bg-indigo-600 text-white border border-slate-700 shadow-xl transition duration-200 focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
                             title="Next image (→)"
                         >
@@ -126,9 +170,11 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                             <button
                                 key={img.id || idx}
                                 type="button"
+                                tabIndex={-1}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onSelectIndex(idx);
+                                    if (containerRef.current) containerRef.current.focus();
                                 }}
                                 className={`relative w-14 h-10 rounded-lg overflow-hidden border-2 transition shrink-0 cursor-pointer ${
                                     idx === safeIndex
