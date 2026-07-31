@@ -1,0 +1,331 @@
+import React, { useState, useMemo } from 'react';
+import { router } from '@inertiajs/react';
+import KpiLayout from '../../Layouts/KpiLayout';
+import AuditDetailModal from './Components/AuditDetailModal';
+import SearchableUserSelect from './Components/SearchableUserSelect';
+
+export default function Audit({
+    month,
+    users = [],
+    selectedUser,
+    days = [],
+    rows = [],
+    groupSummaries = [],
+    groupCards = { passed: 0, failed: 0, not_set: 0 },
+    isSuperAdmin = false,
+}) {
+    const [selectedMonth, setSelectedMonth] = useState(month || new Date().toISOString().slice(0, 7));
+    const [selectedUserId, setSelectedUserId] = useState(selectedUser?.id || '');
+    const [taskSearch, setTaskSearch] = useState('');
+    const [selectedMarker, setSelectedMarker] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleFilterChange = (newMonth, newUserId) => {
+        const m = newMonth !== undefined ? newMonth : selectedMonth;
+        const u = newUserId !== undefined ? newUserId : selectedUserId;
+
+        setSelectedMonth(m);
+        setSelectedUserId(u);
+
+        router.get('/kpi/audit', { month: m, userId: u }, { preserveState: true, replace: true });
+    };
+
+    const handleOpenMarker = (marker) => {
+        if (!marker || !marker.instance) return;
+        setSelectedMarker(marker);
+        setIsModalOpen(true);
+    };
+
+    // Client-side task filter inside table grid
+    const filteredRows = useMemo(() => {
+        if (!taskSearch.trim()) return rows;
+        const term = taskSearch.toLowerCase();
+        return rows.filter((r) => {
+            const title = r.assignment.template?.title || '';
+            const groupName = r.assignment.template?.group?.name || '';
+            return title.toLowerCase().includes(term) || groupName.toLowerCase().includes(term);
+        });
+    }, [rows, taskSearch]);
+
+    return (
+        <KpiLayout title="KPI Monthly Audit">
+            <div className="space-y-6">
+                {/* Header & Controls Bar */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                            </div>
+                            <span>KPI Monthly Audit Matrix</span>
+                        </h1>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Track daily task completion, monthly score percentages, and group rule evaluations.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        {/* Task Search Input */}
+                        <div className="relative flex items-center min-w-[200px]">
+                            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input
+                                type="text"
+                                value={taskSearch}
+                                onChange={(e) => setTaskSearch(e.target.value)}
+                                placeholder="Filter tasks in grid..."
+                                className="w-full h-10 pl-9 pr-8 text-xs rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-xs"
+                            />
+                            {taskSearch && (
+                                <button
+                                    onClick={() => setTaskSearch('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Month Picker */}
+                        <div className="relative flex items-center h-10 px-3.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition">
+                            <svg className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => handleFilterChange(e.target.value, undefined)}
+                                className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 border-none focus:outline-none cursor-pointer p-0"
+                            />
+                        </div>
+
+                        {/* Searchable Employee Dropdown */}
+                        {users.length > 0 && (
+                            <SearchableUserSelect
+                                users={users}
+                                selectedUserId={selectedUserId}
+                                onChange={(newUserId) => handleFilterChange(undefined, newUserId)}
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {/* Group Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Passed Groups</span>
+                            <h3 className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">{groupCards.passed}</h3>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase tracking-wider">Failed Groups</span>
+                            <h3 className="text-2xl font-black text-rose-700 dark:text-rose-300 mt-1">{groupCards.failed}</h3>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-500/10 border border-slate-500/20 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider">Rule Not Set</span>
+                            <h3 className="text-2xl font-black text-slate-700 dark:text-slate-300 mt-1">{groupCards.not_set}</h3>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-slate-500/20 flex items-center justify-center text-slate-600 dark:text-slate-400">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Audit Grid Table Container */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+                    <div className="overflow-x-auto max-h-[600px] no-scrollbar">
+                        <table className="w-full text-left text-xs border-collapse min-w-[1200px]">
+                            {/* Table Header */}
+                            <thead className="sticky top-0 z-30 bg-slate-50 dark:bg-slate-800 shadow-xs">
+                                <tr className="text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                                    <th className="p-3 font-bold sticky left-0 z-40 bg-slate-50 dark:bg-slate-800 min-w-[240px] border-r border-slate-200 dark:border-slate-700 shadow-r">
+                                        Task Template
+                                    </th>
+                                    {days.map((dayStr) => {
+                                        const dayNum = parseInt(dayStr.split('-')[2], 10);
+                                        return (
+                                            <th key={dayStr} className="p-2 text-center font-semibold w-8 min-w-[32px] border-r border-slate-200/60 dark:border-slate-800/60">
+                                                {dayNum}
+                                            </th>
+                                        );
+                                    })}
+                                    <th className="p-3 font-semibold text-center min-w-[70px]">Must Do</th>
+                                    <th className="p-3 font-semibold text-center min-w-[60px]">Done</th>
+                                    <th className="p-3 font-semibold text-center min-w-[60px]">Fail</th>
+                                    <th className="p-3 font-semibold text-center min-w-[60px]">Score %</th>
+                                    <th className="p-3 font-semibold text-center min-w-[90px]">Rule Status</th>
+                                </tr>
+                            </thead>
+
+                            {/* Table Body */}
+                            <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
+                                {filteredRows.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={days.length + 6} className="p-8 text-center text-slate-400">
+                                            No task assignments matching search in {selectedMonth}.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredRows.map((row, rIdx) => (
+                                        <tr key={row.assignment.id || rIdx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                            {/* Task Name Column */}
+                                            <td className="p-3 sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 font-medium">
+                                                <div className="truncate max-w-[230px] text-slate-800 dark:text-slate-200" title={row.assignment.template?.title}>
+                                                    {row.assignment.template?.title || 'Untitled Task'}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                                    <span className="capitalize">{row.assignment.template?.frequency}</span>
+                                                    <span>•</span>
+                                                    <span>{row.assignment.template?.group?.name || 'No Group'}</span>
+                                                </div>
+                                            </td>
+
+                                            {/* Day Cells */}
+                                            {row.cells.map((cell, cIdx) => (
+                                                <td
+                                                    key={cell.date || cIdx}
+                                                    className={`p-1 text-center align-middle border-r border-slate-200/40 dark:border-slate-800/40 ${cell.classes}`}
+                                                >
+                                                    {cell.markers && cell.markers.length > 0 ? (
+                                                        <div className="flex flex-col items-center justify-center gap-1">
+                                                            {cell.markers.map((m, mIdx) => (
+                                                                <button
+                                                                    key={mIdx}
+                                                                    onClick={() => handleOpenMarker(m)}
+                                                                    className={`w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center shadow-xs transition hover:scale-110 cursor-pointer ${m.classes}`}
+                                                                    title={`${m.label} - Click to inspect`}
+                                                                >
+                                                                    {m.type === 'approved' ? '✓' : m.type === 'failed' ? '✕' : m.type === 'rejected' ? '!' : '•'}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400 font-mono">
+                                                            {cell.label || ''}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            ))}
+
+                                            {/* Summary Columns */}
+                                            <td className="p-2 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
+                                                {row.summary?.must_do || 0}
+                                            </td>
+                                            <td className="p-2 text-center font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                                                {row.summary?.passed || 0}
+                                            </td>
+                                            <td className="p-2 text-center font-mono font-medium text-rose-600 dark:text-rose-400">
+                                                {row.summary?.failed || 0}
+                                            </td>
+                                            <td className="p-2 text-center font-bold text-slate-800 dark:text-slate-200">
+                                                {row.summary?.percentage || 0}%
+                                            </td>
+                                            <td className="p-2 text-center">
+                                                {row.rule_evaluation?.passes_rule === true ? (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                                                        PASS
+                                                    </span>
+                                                ) : row.rule_evaluation?.passes_rule === false ? (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
+                                                        FAIL
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                                        N/A
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* KPI Group Summaries Breakdown */}
+                {groupSummaries.length > 0 && (
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-4">
+                        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <span>KPI Group Aggregated Performance</span>
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {groupSummaries.map((g, idx) => (
+                                <div key={g.group?.id || idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{g.group_name}</h4>
+                                        {g.passes_rule === true ? (
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                                GROUP PASS
+                                            </span>
+                                        ) : g.passes_rule === false ? (
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                                                GROUP FAIL
+                                            </span>
+                                        ) : (
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                                NOT SET
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                                        <div className="p-2 rounded-lg bg-white dark:bg-slate-800 shadow-xs">
+                                            <span className="block text-[10px] text-slate-400">Must-Do</span>
+                                            <span className="font-bold text-slate-800 dark:text-slate-200">{g.must_do}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-white dark:bg-slate-800 shadow-xs">
+                                            <span className="block text-[10px] text-slate-400">Passed</span>
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{g.passed}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-white dark:bg-slate-800 shadow-xs">
+                                            <span className="block text-[10px] text-slate-400">Failed</span>
+                                            <span className="font-bold text-rose-600 dark:text-rose-400">{g.failed}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-white dark:bg-slate-800 shadow-xs">
+                                            <span className="block text-[10px] text-slate-400">Group Score</span>
+                                            <span className="font-bold text-indigo-600 dark:text-indigo-400">{g.percentage}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Audit Inspection Modal */}
+                <AuditDetailModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    selectedMarker={selectedMarker}
+                    isSuperAdmin={isSuperAdmin}
+                />
+            </div>
+        </KpiLayout>
+    );
+}

@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">KPI Template Configuration</h2>
                 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
@@ -8,16 +8,25 @@
                     requirements.
                 </p>
             </div>
-            @can('kpiManageTemplates')
-                <span class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
-                    You can manage templates
-                </span>
-            @else
-                <span
-                    class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    Read-only access
-                </span>
-            @endcan
+            <div class="flex flex-wrap items-center gap-3">
+                @can('kpiManageTemplates')
+                    <button type="button" wire:click="openGroupModal"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Create Group
+                    </button>
+                    <span class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                        You can manage templates
+                    </span>
+                @else
+                    <span
+                        class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        Read-only access
+                    </span>
+                @endcan
+            </div>
         </div>
     </section>
 
@@ -31,125 +40,12 @@
         <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $message }}</div>
     @enderror
 
-    <section class="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-        <article
-            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">KPI Groups</h3>
-                @if ($editingGroupId)
-                    <button type="button" wire:click="cancelGroup"
-                        class="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-                        Cancel
-                    </button>
-                @endif
-            </div>
-
-            @can('kpiManageTemplates')
-                <form wire:submit.prevent="{{ $editingGroupId ? 'updateGroup' : 'createGroup' }}" class="mt-4 space-y-4">
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Code</label>
-                            <input type="text" wire:model.defer="groupCode"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                            @error('groupCode')
-                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Department</label>
-                            <select wire:model.defer="groupDepartmentId"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                <option value="">All Departments</option>
-                                @foreach ($departments as $department)
-                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('groupDepartmentId')
-                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Name</label>
-                        <input type="text" wire:model.defer="groupName"
-                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                        @error('groupName')
-                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Description</label>
-                        <textarea wire:model.defer="groupDescription" rows="3"
-                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500"></textarea>
-                        @error('groupDescription')
-                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Rule Type</label>
-                            <select wire:model.live="groupRuleType"
-                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                <option value="pass_percentage">Pass Percentage</option>
-                                <option value="fail_count">Fail Count</option>
-                                <option value="spend_cost_lte">Spend Cost &lt;= Target</option>
-                            </select>
-                            @error('groupRuleType')
-                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <div>
-                            @if ($groupRuleType === 'pass_percentage')
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target
-                                    Percentage</label>
-                                <input type="number" step="0.01" min="0" max="100"
-                                    wire:model.defer="groupTargetPercentage"
-                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('groupTargetPercentage')
-                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                                @enderror
-                            @elseif ($groupRuleType === 'fail_count')
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Fail Count</label>
-                                <input type="number" min="0" wire:model.defer="groupMaxFailCount"
-                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('groupMaxFailCount')
-                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                                @enderror
-                            @else
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost
-                                    Amount</label>
-                                <input type="number" min="0" step="0.01" wire:model.defer="groupMaxCostAmount"
-                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
-                                @error('groupMaxCostAmount')
-                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                                @enderror
-                            @endif
-                        </div>
-                    </div>
-
-                    <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                        <input type="checkbox" wire:model.defer="groupIsActive"
-                            class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
-                        Active
-                    </label>
-
-                    <button type="submit"
-                        class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                        {{ $editingGroupId ? 'Update Group' : 'Create Group' }}
-                    </button>
-                </form>
-            @endcan
-        </article>
-
-        <article
-            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Task Templates</h3>
-                <span class="text-sm text-slate-500 dark:text-slate-400">Create new task templates here</span>
-            </div>
+    <section
+        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Task Templates</h3>
+            <span class="text-sm text-slate-500 dark:text-slate-400">Create new task templates here</span>
+        </div>
 
             @can('kpiManageTemplates')
                 @if (!$editingTemplateId)
@@ -160,7 +56,7 @@
                                 <select wire:model.defer="templateGroupId"
                                     class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
                                     <option value="">Select Group</option>
-                                    @foreach ($groups as $group)
+                                    @foreach ($allGroups as $group)
                                         <option value="{{ $group->id }}">{{ $group->name }}</option>
                                     @endforeach
                                 </select>
@@ -365,7 +261,7 @@
                             <select wire:model.defer="templateGroupId"
                                 class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-500">
                                 <option value="">Select Group</option>
-                                @foreach ($groups as $group)
+                                @foreach ($allGroups as $group)
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
                                 @endforeach
                             </select>
@@ -552,6 +448,130 @@
         </div>
     @endif
 
+    @if ($showGroupModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
+            <div
+                class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                            {{ $editingGroupId ? 'Edit KPI Group' : 'Create KPI Group' }}
+                        </h3>
+                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                            Configure group properties, type frequency, and evaluation rules.
+                        </p>
+                    </div>
+                    <button type="button" wire:click="cancelGroup"
+                        class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form wire:submit.prevent="{{ $editingGroupId ? 'updateGroup' : 'createGroup' }}" class="mt-6 space-y-4">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Code</label>
+                            <input type="text" wire:model.defer="groupCode" placeholder="e.g. SALES_DAILY"
+                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                            @error('groupCode')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Department</label>
+                            <select wire:model.defer="groupDepartmentId"
+                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                                <option value="">All Departments</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('groupDepartmentId')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Name</label>
+                        <input type="text" wire:model.defer="groupName" placeholder="e.g. Store Operations"
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                        @error('groupName')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Description</label>
+                        <textarea wire:model.defer="groupDescription" rows="3" placeholder="Optional description..."
+                            class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"></textarea>
+                        @error('groupDescription')
+                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Group Rule Type</label>
+                            <select wire:model.live="groupRuleType"
+                                class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                                <option value="pass_percentage">Pass Percentage</option>
+                                <option value="fail_count">Fail Count</option>
+                                <option value="spend_cost_lte">Spend Cost &lt;= Target</option>
+                            </select>
+                            @error('groupRuleType')
+                                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            @if ($groupRuleType === 'pass_percentage')
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Target Percentage (%)</label>
+                                <input type="number" step="0.01" min="0" max="100" wire:model.defer="groupTargetPercentage"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                                @error('groupTargetPercentage')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            @elseif ($groupRuleType === 'fail_count')
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Fail Count</label>
+                                <input type="number" min="0" wire:model.defer="groupMaxFailCount"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                                @error('groupMaxFailCount')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            @else
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Max Cost Amount</label>
+                                <input type="number" min="0" step="0.01" wire:model.defer="groupMaxCostAmount"
+                                    class="mt-1 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                                @error('groupMaxCostAmount')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            @endif
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 pt-2">
+                        <input type="checkbox" wire:model.defer="groupIsActive"
+                            class="rounded border-slate-300 text-slate-900 focus:ring-slate-500">
+                        Active Group
+                    </label>
+
+                    <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+                        <button type="button" wire:click="cancelGroup"
+                            class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200">
+                            {{ $editingGroupId ? 'Update Group' : 'Create Group' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
     <section x-data="{ activeTable: 'groups' }"
         class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -663,6 +683,11 @@
                     </tbody>
                 </table>
             </div>
+            @if ($groups->hasPages())
+                <div class="border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+                    {{ $groups->links(data: ['scrollTo' => false]) }}
+                </div>
+            @endif
         </div>
 
         <div x-show="activeTable === 'templates'" x-transition.opacity.duration.200ms class="mt-6 space-y-4">

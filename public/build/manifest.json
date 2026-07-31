@@ -1,8 +1,10 @@
 {
+  "_bootstrap-bb1363df.js": {
+    "file": "assets/bootstrap-bb1363df.js"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-13d57abe.css",
-    "isEntry": true,
-    "src": "resources/css/app.css"
+    "file": "assets/app-396f60f8.css",
+    "src": "resources/js/app.css"
   },
   "resources/js/app.css": {
     "file": "assets/app-d3ed812b.css",
@@ -12,8 +14,22 @@
     "css": [
       "assets/app-d3ed812b.css"
     ],
-    "file": "assets/app-67b248be.js",
+    "file": "assets/app-62837192.js",
+    "imports": [
+      "_bootstrap-bb1363df.js"
+    ],
     "isEntry": true,
     "src": "resources/js/app.js"
+  },
+  "resources/js/app.jsx": {
+    "css": [
+      "assets/app-396f60f8.css"
+    ],
+    "file": "assets/app-3409a124.js",
+    "imports": [
+      "_bootstrap-bb1363df.js"
+    ],
+    "isEntry": true,
+    "src": "resources/js/app.jsx"
   }
 }

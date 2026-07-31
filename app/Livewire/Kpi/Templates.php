@@ -7,6 +7,7 @@ use App\Models\Kpi\KpiGroup;
 use App\Models\Kpi\KpiTaskRule;
 use App\Models\Kpi\KpiTaskTemplate;
 use App\Models\User;
+use App\Services\Kpi\KpiGroupService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -14,17 +15,20 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('components.layouts.kpi')]
 class Templates extends Component
 {
-    public $groups;
+    use WithPagination;
+
     public $templates;
     public $departments;
     public $templateEmployees;
 
     public string $templateEmployeeFilter = '';
 
+    public bool $showGroupModal = false;
     public ?int $editingGroupId = null;
     public string $groupCode = '';
     public string $groupName = '';
@@ -64,12 +68,6 @@ class Templates extends Component
 
     public function loadData(): void
     {
-        $this->groups = KpiGroup::query()
-            ->with('department')
-            ->withCount('taskTemplates')
-            ->orderByRaw('CAST(name AS UNSIGNED) ASC')
-            ->get();
-
         $this->templateEmployees = User::query()
             ->whereIn('id', function ($query) {
                 $query->from('kpi_task_assignments')
@@ -107,13 +105,20 @@ class Templates extends Component
         $this->loadData();
     }
 
-    public function createGroup(): void
+    public function openGroupModal(): void
+    {
+        Gate::authorize('kpiManageTemplates');
+        $this->resetGroupForm();
+        $this->showGroupModal = true;
+    }
+
+    public function createGroup(KpiGroupService $groupService): void
     {
         Gate::authorize('kpiManageTemplates');
 
         $data = $this->validateGroup();
 
-        KpiGroup::create($data);
+        $groupService->createGroup($data);
 
         $this->resetGroupForm();
         $this->loadData();
@@ -121,11 +126,11 @@ class Templates extends Component
         session()->flash('message', 'KPI group created.');
     }
 
-    public function editGroup(int $groupId): void
+    public function editGroup(int $groupId, KpiGroupService $groupService): void
     {
         Gate::authorize('kpiManageTemplates');
 
-        $group = KpiGroup::findOrFail($groupId);
+        $group = $groupService->findGroup($groupId);
 
         $this->editingGroupId = $group->id;
         $this->groupCode = (string) $group->code;
@@ -137,9 +142,10 @@ class Templates extends Component
         $this->groupTargetPercentage = $group->target_percentage !== null ? (string) $group->target_percentage : '';
         $this->groupMaxFailCount = $group->max_fail_count !== null ? (string) $group->max_fail_count : '';
         $this->groupMaxCostAmount = $group->max_cost_amount !== null ? (string) $group->max_cost_amount : '';
+        $this->showGroupModal = true;
     }
 
-    public function updateGroup(): void
+    public function updateGroup(KpiGroupService $groupService): void
     {
         Gate::authorize('kpiManageTemplates');
 
@@ -147,8 +153,7 @@ class Templates extends Component
             return;
         }
 
-        $group = KpiGroup::findOrFail($this->editingGroupId);
-        $group->update($this->validateGroup());
+        $groupService->updateGroup($this->editingGroupId, $this->validateGroup());
 
         $this->resetGroupForm();
         $this->loadData();
@@ -156,19 +161,11 @@ class Templates extends Component
         session()->flash('message', 'KPI group updated.');
     }
 
-    public function deleteGroup(int $groupId): void
+    public function deleteGroup(int $groupId, KpiGroupService $groupService): void
     {
         Gate::authorize('kpiManageTemplates');
 
-        $group = KpiGroup::query()->withCount('taskTemplates')->findOrFail($groupId);
-
-        if ($group->task_templates_count > 0) {
-            throw ValidationException::withMessages([
-                'groupDelete' => 'Delete or move task templates before deleting this KPI group.',
-            ]);
-        }
-
-        $group->delete();
+        $groupService->deleteGroup($groupId);
 
         $this->resetGroupForm();
         $this->loadData();
@@ -296,9 +293,12 @@ class Templates extends Component
         $this->resetTemplateForm();
     }
 
-    public function render()
+    public function render(KpiGroupService $groupService)
     {
-        return view('livewire.kpi.templates');
+        return view('livewire.kpi.templates', [
+            'groups' => $groupService->getPaginatedGroups(6),
+            'allGroups' => $groupService->getAllGroups(),
+        ]);
     }
 
     protected function validateGroup(): array
@@ -456,6 +456,7 @@ class Templates extends Component
         $this->groupTargetPercentage = '';
         $this->groupMaxFailCount = '';
         $this->groupMaxCostAmount = '';
+        $this->showGroupModal = false;
         $this->resetErrorBag();
     }
 

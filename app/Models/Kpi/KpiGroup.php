@@ -30,6 +30,11 @@ class KpiGroup extends Model
         return $this->hasMany(KpiTaskTemplate::class);
     }
 
+    public function taskInstances(): HasMany
+    {
+        return $this->hasMany(KpiTaskInstance::class, 'kpi_group_id');
+    }
+
     public function periodScores(): HasMany
     {
         return $this->hasMany(EmployeeKpiPeriodScore::class);
