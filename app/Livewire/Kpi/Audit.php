@@ -338,20 +338,21 @@ class Audit extends Component
         $dayRequest = $exclusionMaps['day'][$dateKey] ?? null;
         $taskRequest = $exclusionMaps['task'][$assignment->id][$dateKey] ?? null;
 
-        if ($holiday || $dayRequest || $taskRequest) {
-            return [
-                'date' => $dateKey,
-                'markers' => collect(),
-                'label' => $holiday?->name
-                    ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
-                'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
-            ];
-        }
-
         $markers = $instances
             ->map(fn(KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))
             ->filter()
             ->values();
+
+        if ($holiday || $dayRequest || $taskRequest) {
+            return [
+                'date' => $dateKey,
+                'markers' => $markers,
+                'label' => $markers->isEmpty()
+                    ? ($holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'))
+                    : null,
+                'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+            ];
+        }
 
         return [
             'date' => $dateKey,
