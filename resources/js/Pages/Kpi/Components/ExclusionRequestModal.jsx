@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { router, useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
+import SearchableEmployeeSelect from './SearchableEmployeeSelect';
 
 export default function ExclusionRequestModal({
     isOpen,
@@ -11,7 +12,13 @@ export default function ExclusionRequestModal({
     canManageHolidays = false,
     canApproveExclusions = false,
 }) {
-    const [mode, setMode] = useState('exclusion'); // 'exclusion' | 'holiday'
+    // Default mode: 'holiday' if user can manage holidays, otherwise 'exclusion'
+    const defaultMode = canManageHolidays ? 'holiday' : 'exclusion';
+    const [mode, setMode] = useState(defaultMode);
+
+    // Get the currently signed-in user from Inertia shared props
+    const { auth } = usePage().props;
+    const authUserId = auth?.user?.id ? String(auth.user.id) : '';
 
     // Exclusion form
     const exclusionForm = useForm({
@@ -19,14 +26,14 @@ export default function ExclusionRequestModal({
         requested_date: new Date().toISOString().slice(0, 10),
         task_assignment_id: '',
         reason: '',
-        target_user_id: selectedUserId || '',
+        target_user_id: authUserId,
     });
 
     // Holiday form
     const holidayForm = useForm({
         holiday_date: new Date().toISOString().slice(0, 10),
         name: '',
-        user_id: selectedUserId || '',
+        user_id: authUserId,
         remark: '',
     });
 
@@ -38,14 +45,17 @@ export default function ExclusionRequestModal({
         return () => window.removeEventListener('keydown', handler);
     }, [isOpen, onClose]);
 
-    // Reset forms on open
+    // Reset forms + mode on open, default user = signed-in user
     useEffect(() => {
         if (isOpen) {
+            const newMode = canManageHolidays ? 'holiday' : 'exclusion';
+            setMode(newMode);
             exclusionForm.reset();
             holidayForm.reset();
-            exclusionForm.setData('target_user_id', selectedUserId || '');
-            holidayForm.setData('user_id', selectedUserId || '');
-            setMode('exclusion');
+            exclusionForm.setData('target_user_id', authUserId);
+            exclusionForm.setData('requested_date', new Date().toISOString().slice(0, 10));
+            holidayForm.setData('user_id', authUserId);
+            holidayForm.setData('holiday_date', new Date().toISOString().slice(0, 10));
         }
     }, [isOpen]);
 
@@ -93,12 +103,23 @@ export default function ExclusionRequestModal({
                         <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">New Request</h2>
                     </div>
                     <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
-                {/* Mode tabs */}
+                {/* Mode tabs — Holiday first if user can manage */}
                 <div className="flex border-b border-slate-100 dark:border-slate-800">
+                    {canManageHolidays && (
+                        <button
+                            type="button"
+                            onClick={() => setMode('holiday')}
+                            className={`flex-1 py-2.5 text-xs font-semibold transition cursor-pointer ${mode === 'holiday' ? 'text-emerald-600 border-b-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        >
+                            Add Holiday
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => setMode('exclusion')}
@@ -106,36 +127,86 @@ export default function ExclusionRequestModal({
                     >
                         Day / Task Exclusion
                     </button>
-                    {canManageHolidays && (
-                        <button
-                            type="button"
-                            onClick={() => setMode('holiday')}
-                            className={`flex-1 py-2.5 text-xs font-semibold transition cursor-pointer ${mode === 'holiday' ? 'text-indigo-600 border-b-2 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                        >
-                            Add Holiday
-                        </button>
-                    )}
                 </div>
 
-                <div className="px-6 py-5">
+                <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
+                    {/* ── HOLIDAY FORM ── */}
+                    {mode === 'holiday' && canManageHolidays && (
+                        <form onSubmit={submitHoliday} className="space-y-4">
+                            {/* Employee with search */}
+                            <div>
+                                <label className={labelCls}>Employee</label>
+                                <SearchableEmployeeSelect
+                                    users={users}
+                                    value={holidayForm.data.user_id}
+                                    onChange={(id) => holidayForm.setData('user_id', String(id))}
+                                />
+                                {holidayForm.errors.user_id && <p className={errorCls}>{holidayForm.errors.user_id}</p>}
+                            </div>
+
+                            {/* Date */}
+                            <div>
+                                <label className={labelCls}>Holiday Date</label>
+                                <input
+                                    type="date"
+                                    value={holidayForm.data.holiday_date}
+                                    onChange={e => holidayForm.setData('holiday_date', e.target.value)}
+                                    className={inputCls}
+                                />
+                                {holidayForm.errors.holiday_date && <p className={errorCls}>{holidayForm.errors.holiday_date}</p>}
+                            </div>
+
+                            {/* Name */}
+                            <div>
+                                <label className={labelCls}>Holiday Name</label>
+                                <input
+                                    type="text"
+                                    value={holidayForm.data.name}
+                                    onChange={e => holidayForm.setData('name', e.target.value)}
+                                    placeholder="e.g. Personal Leave"
+                                    className={inputCls}
+                                />
+                                {holidayForm.errors.name && <p className={errorCls}>{holidayForm.errors.name}</p>}
+                            </div>
+
+                            {/* Remark */}
+                            <div>
+                                <label className={labelCls}>Remark <span className="font-normal text-slate-400">(optional)</span></label>
+                                <textarea
+                                    rows={2}
+                                    value={holidayForm.data.remark}
+                                    onChange={e => holidayForm.setData('remark', e.target.value)}
+                                    placeholder="Optional note…"
+                                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={holidayForm.processing}
+                                className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition disabled:opacity-60 cursor-pointer"
+                            >
+                                {holidayForm.processing ? 'Adding…' : 'Add Holiday'}
+                            </button>
+                        </form>
+                    )}
+
                     {/* ── EXCLUSION FORM ── */}
                     {mode === 'exclusion' && (
                         <form onSubmit={submitExclusion} className="space-y-4">
-                            {/* Target user (managers only) */}
+                            {/* Target user with search (managers only) */}
                             {canApproveExclusions && users.length > 0 && (
                                 <div>
                                     <label className={labelCls}>Employee</label>
-                                    <select
+                                    <SearchableEmployeeSelect
+                                        users={users}
                                         value={exclusionForm.data.target_user_id}
-                                        onChange={e => exclusionForm.setData('target_user_id', e.target.value)}
-                                        className={inputCls}
-                                    >
-                                        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                    </select>
+                                        onChange={(id) => exclusionForm.setData('target_user_id', String(id))}
+                                    />
                                 </div>
                             )}
 
-                            {/* Type */}
+                            {/* Type toggle */}
                             <div>
                                 <label className={labelCls}>Request Type</label>
                                 <div className="flex gap-2">
@@ -203,70 +274,6 @@ export default function ExclusionRequestModal({
                                 className="w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-60 cursor-pointer"
                             >
                                 {exclusionForm.processing ? 'Submitting…' : 'Submit Request'}
-                            </button>
-                        </form>
-                    )}
-
-                    {/* ── HOLIDAY FORM ── */}
-                    {mode === 'holiday' && canManageHolidays && (
-                        <form onSubmit={submitHoliday} className="space-y-4">
-                            {/* Employee */}
-                            <div>
-                                <label className={labelCls}>Employee</label>
-                                <select
-                                    value={holidayForm.data.user_id}
-                                    onChange={e => holidayForm.setData('user_id', e.target.value)}
-                                    className={inputCls}
-                                >
-                                    <option value="">Select employee…</option>
-                                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                </select>
-                                {holidayForm.errors.user_id && <p className={errorCls}>{holidayForm.errors.user_id}</p>}
-                            </div>
-
-                            {/* Date */}
-                            <div>
-                                <label className={labelCls}>Holiday Date</label>
-                                <input
-                                    type="date"
-                                    value={holidayForm.data.holiday_date}
-                                    onChange={e => holidayForm.setData('holiday_date', e.target.value)}
-                                    className={inputCls}
-                                />
-                                {holidayForm.errors.holiday_date && <p className={errorCls}>{holidayForm.errors.holiday_date}</p>}
-                            </div>
-
-                            {/* Name */}
-                            <div>
-                                <label className={labelCls}>Holiday Name</label>
-                                <input
-                                    type="text"
-                                    value={holidayForm.data.name}
-                                    onChange={e => holidayForm.setData('name', e.target.value)}
-                                    placeholder="e.g. Personal Leave"
-                                    className={inputCls}
-                                />
-                                {holidayForm.errors.name && <p className={errorCls}>{holidayForm.errors.name}</p>}
-                            </div>
-
-                            {/* Remark */}
-                            <div>
-                                <label className={labelCls}>Remark <span className="font-normal text-slate-400">(optional)</span></label>
-                                <textarea
-                                    rows={2}
-                                    value={holidayForm.data.remark}
-                                    onChange={e => holidayForm.setData('remark', e.target.value)}
-                                    placeholder="Optional note…"
-                                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
-                                />
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={holidayForm.processing}
-                                className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition disabled:opacity-60 cursor-pointer"
-                            >
-                                {holidayForm.processing ? 'Adding…' : 'Add Holiday'}
                             </button>
                         </form>
                     )}

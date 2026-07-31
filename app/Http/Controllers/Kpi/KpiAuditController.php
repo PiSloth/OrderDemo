@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Kpi;
 use App\Http\Controllers\Controller;
 use App\Models\Kpi\KpiExclusionRequest;
 use App\Models\Kpi\KpiHoliday;
+use App\Models\Kpi\KpiTaskApprovalStep;
 use App\Models\Kpi\KpiTaskAssignment;
 use App\Models\Kpi\KpiTaskInstance;
 use App\Models\Kpi\KpiTaskSubmission;
@@ -198,6 +199,8 @@ class KpiAuditController extends Controller
             'isSuperAdmin' => Gate::allows('isSuperAdmin'),
             'canApproveExclusions' => Gate::allows('kpiApproveExclusions'),
             'canManageHolidays' => Gate::allows('kpiManageHolidays'),
+            'canApproveTasks' => Gate::allows('kpiApproveTasks'),
+            'authUserId' => Auth::id(),
             'taskAssignments' => $taskAssignmentsForRequest->values(),
             'pendingExclusions' => $pendingExclusions->values(),
             'pendingExclusionsCount' => $pendingExclusions->count(),
@@ -366,6 +369,87 @@ class KpiAuditController extends Controller
         });
 
         return redirect()->back()->with('message', 'Task instance status updated by Super Admin.');
+    }
+
+    public function approveStep(Request $request, int $stepId): RedirectResponse
+    {
+        Gate::authorize('kpiApproveTasks');
+
+        $remark = trim((string) $request->input('remark', ''));
+
+        DB::transaction(function () use ($stepId, $remark): void {
+            $step = KpiTaskApprovalStep::query()
+                ->where('id', $stepId)
+                ->where('approver_user_id', Auth::id())
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $submission = $step->submission()->with(['instance', 'approvalSteps'])->firstOrFail();
+            $allSteps = $submission->approvalSteps->sortBy('step_order')->values();
+
+            // Ensure prior steps approved
+            $blockedByPrior = $allSteps
+                ->where('step_order', '<', $step->step_order ?? $step->step)
+                ->contains(fn ($s) => $s->status !== 'approved');
+
+            if ($blockedByPrior) {
+                throw ValidationException::withMessages(['step' => 'A previous approval step is still pending.']);
+            }
+
+            $now = now();
+            $step->update(['status' => 'approved', 'acted_at' => $now, 'remark' => $remark ?: null]);
+
+            $nextPending = $allSteps->first(
+                fn ($s) => ($s->step_order ?? $s->step) > ($step->step_order ?? $step->step) && $s->status === 'pending'
+            );
+
+            if ($nextPending) {
+                $submission->update(['status' => 'waiting_final_approval', 'first_approved_at' => $submission->first_approved_at ?: $now]);
+                $submission->instance->update(['status' => 'waiting_final_approval', 'failure_reason' => null]);
+                return;
+            }
+
+            $finalStatus = $submission->is_late ? 'failed_late' : 'passed';
+            $submission->update(['status' => 'approved', 'first_approved_at' => $submission->first_approved_at ?: $now, 'final_approved_at' => $now, 'rejection_reason' => null]);
+            $submission->instance->update(['status' => $finalStatus, 'final_outcome' => $finalStatus, 'finalized_at' => $now, 'failure_reason' => $submission->is_late ? 'Approved after cutoff time.' : null]);
+        });
+
+        return redirect()->back()->with('message', 'Submission approved.');
+    }
+
+    public function rejectStep(Request $request, int $stepId): RedirectResponse
+    {
+        Gate::authorize('kpiApproveTasks');
+
+        $remark = trim((string) $request->input('remark', ''));
+        if ($remark === '') {
+            throw ValidationException::withMessages(['remark' => 'Remark is required when rejecting.']);
+        }
+
+        DB::transaction(function () use ($stepId, $remark): void {
+            $step = KpiTaskApprovalStep::query()
+                ->where('id', $stepId)
+                ->where('approver_user_id', Auth::id())
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $submission = $step->submission()->with(['instance', 'approvalSteps'])->firstOrFail();
+            $now = now();
+
+            $step->update(['status' => 'rejected', 'acted_at' => $now, 'remark' => $remark]);
+
+            $submission->approvalSteps()
+                ->where('step_order', '>', $step->step_order ?? $step->step)
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled', 'acted_at' => $now, 'remark' => 'Stopped because an earlier approver rejected the submission.']);
+
+            $submission->update(['status' => 'rejected', 'rejection_reason' => $remark]);
+            $submission->instance->update(['status' => 'rejected', 'failure_reason' => $remark, 'final_outcome' => null, 'finalized_at' => null]);
+        });
+
+        return redirect()->back()->with('message', 'Submission rejected.');
     }
 
     protected function parseMonth(string $month): Carbon
@@ -559,8 +643,10 @@ class KpiAuditController extends Controller
                 'approval_steps' => $latest->approvalSteps ? $latest->approvalSteps->map(fn ($step) => [
                     'id' => $step->id,
                     'step' => $step->step,
+                    'step_order' => $step->step_order ?? $step->step,
                     'status' => $step->status,
-                    'remarks' => $step->remarks,
+                    'remarks' => $step->remarks ?? $step->remark,
+                    'approver_user_id' => $step->approver_user_id,
                     'approver' => $step->approver ? [
                         'id' => $step->approver->id,
                         'name' => $step->approver->name,

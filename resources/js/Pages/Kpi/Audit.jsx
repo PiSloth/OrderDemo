@@ -17,6 +17,8 @@ export default function Audit({
     isSuperAdmin = false,
     canApproveExclusions = false,
     canManageHolidays = false,
+    canApproveTasks = false,
+    authUserId = null,
     taskAssignments = [],
     pendingExclusions = [],
     pendingExclusionsCount = 0,
@@ -24,7 +26,7 @@ export default function Audit({
     const [selectedMonth, setSelectedMonth] = useState(month || new Date().toISOString().slice(0, 7));
     const [selectedUserId, setSelectedUserId] = useState(selectedUser?.id || '');
     const [taskSearch, setTaskSearch] = useState('');
-    const [selectedMarker, setSelectedMarker] = useState(null);
+    const [selectedMarkerIndex, setSelectedMarkerIndex] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
@@ -39,12 +41,6 @@ export default function Audit({
         router.get('/kpi/audit', { month: m, userId: u }, { preserveState: true, replace: true });
     };
 
-    const handleOpenMarker = (marker) => {
-        if (!marker || !marker.instance) return;
-        setSelectedMarker(marker);
-        setIsModalOpen(true);
-    };
-
     // Client-side task filter inside table grid
     const filteredRows = useMemo(() => {
         if (!taskSearch.trim()) return rows;
@@ -55,6 +51,35 @@ export default function Audit({
             return title.toLowerCase().includes(term) || groupName.toLowerCase().includes(term);
         });
     }, [rows, taskSearch]);
+
+    // Build a flat list of ALL clickable markers across all (unfiltered) rows for prev/next navigation
+    const allMarkersFlat = useMemo(() => {
+        const list = [];
+        rows.forEach((row) => {
+            row.cells.forEach((cell) => {
+                (cell.markers || []).forEach((m) => {
+                    if (m && m.instance) list.push(m);
+                });
+            });
+        });
+        return list;
+    }, [rows]);
+
+    const handleOpenMarker = (marker) => {
+        if (!marker || !marker.instance) return;
+        const idx = allMarkersFlat.findIndex((m) => m.instance?.id === marker.instance?.id);
+        setSelectedMarkerIndex(idx >= 0 ? idx : 0);
+        setIsModalOpen(true);
+    };
+
+    const handleNavigate = (direction) => {
+        setSelectedMarkerIndex((prev) => {
+            if (prev === null) return 0;
+            const next = prev + direction;
+            if (next < 0 || next >= allMarkersFlat.length) return prev;
+            return next;
+        });
+    };
 
     return (
         <KpiLayout title="KPI Monthly Audit">
@@ -86,7 +111,7 @@ export default function Audit({
                                 value={taskSearch}
                                 onChange={(e) => setTaskSearch(e.target.value)}
                                 placeholder="Filter tasks in grid..."
-                                className="w-full h-10 pl-9 pr-8 text-xs rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-xs"
+                                className="w-full h-10 pl-10 pr-8 text-xs rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-xs"
                             />
                             {taskSearch && (
                                 <button
@@ -363,9 +388,14 @@ export default function Audit({
                 {/* Audit Inspection Modal */}
                 <AuditDetailModal
                     isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    selectedMarker={selectedMarker}
+                    onClose={() => { setIsModalOpen(false); setSelectedMarkerIndex(null); }}
+                    selectedMarker={selectedMarkerIndex !== null ? allMarkersFlat[selectedMarkerIndex] : null}
+                    currentIndex={selectedMarkerIndex}
+                    totalCount={allMarkersFlat.length}
+                    onNavigate={handleNavigate}
                     isSuperAdmin={isSuperAdmin}
+                    canApproveTasks={canApproveTasks}
+                    authUserId={authUserId}
                 />
 
                 {/* Exclusion / Holiday Request Modal */}

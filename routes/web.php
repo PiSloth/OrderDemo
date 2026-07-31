@@ -191,6 +191,8 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::get('/tasks', KpiMyTasks::class)->name('tasks');
     Route::get('/audit', [App\Http\Controllers\Kpi\KpiAuditController::class, 'index'])->name('audit');
     Route::post('/audit/instance/{instance}/status', [App\Http\Controllers\Kpi\KpiAuditController::class, 'updateInstanceStatus'])->name('audit.instance.status');
+    Route::post('/audit/step/{stepId}/approve', [App\Http\Controllers\Kpi\KpiAuditController::class, 'approveStep'])->name('audit.step.approve');
+    Route::post('/audit/step/{stepId}/reject', [App\Http\Controllers\Kpi\KpiAuditController::class, 'rejectStep'])->name('audit.step.reject');
     Route::post('/audit/exclusion-request', [App\Http\Controllers\Kpi\KpiAuditController::class, 'storeExclusionRequest'])->name('audit.exclusion-request.store');
     Route::post('/audit/exclusion-request/{id}/approve', [App\Http\Controllers\Kpi\KpiAuditController::class, 'approveExclusionRequest'])->name('audit.exclusion-request.approve');
     Route::post('/audit/exclusion-request/{id}/reject', [App\Http\Controllers\Kpi\KpiAuditController::class, 'rejectExclusionRequest'])->name('audit.exclusion-request.reject');

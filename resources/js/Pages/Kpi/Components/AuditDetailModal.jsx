@@ -1,13 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
+import { createPortal } from 'react-dom';
 import PhotoCarouselModal from './PhotoCarouselModal';
 
-export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSuperAdmin }) {
+export default function AuditDetailModal({
+    isOpen,
+    onClose,
+    selectedMarker,
+    isSuperAdmin,
+    canApproveTasks = false,
+    authUserId = null,
+    currentIndex = null,
+    totalCount = 0,
+    onNavigate,
+}) {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
+    const [rejectRemark, setRejectRemark] = useState('');
+    const [rejectError, setRejectError] = useState('');
+    const [actionProcessing, setActionProcessing] = useState(false);
 
     const instance = selectedMarker?.instance || {};
     const latestSubmission = instance.latest_submission || null;
     const images = latestSubmission?.images || [];
+    const approvalSteps = latestSubmission?.approval_steps || [];
+
+    // Find the pending step this user needs to act on
+    const myPendingStep = canApproveTasks
+        ? approvalSteps.find(
+              (s) => s.status === 'pending' && String(s.approver_user_id) === String(authUserId)
+          )
+        : null;
+
+    const isWaitingApproval = ['waiting_first_approval', 'waiting_final_approval'].includes(instance.status);
+    const showApproveBar = !!(myPendingStep && isWaitingApproval);
 
     const { data, setData, post, processing, errors } = useForm({
         status: instance.status || 'pending',
@@ -22,73 +47,139 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                 failure_reason: instance.failure_reason || '',
             });
             setSelectedPhotoIndex(null);
+            setRejectRemark('');
+            setRejectError('');
         }
     }, [selectedMarker]);
 
-    // Body scroll lock handling
+    // Body scroll lock
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = '';
         }
-
-        return () => {
-            document.body.style.overflow = '';
-        };
+        return () => { document.body.style.overflow = ''; };
     }, [isOpen]);
 
-    // Close on Escape — only when photo carousel is not open
+    // Keyboard: Escape closes, arrows navigate
     useEffect(() => {
         if (!isOpen) return;
-
         const handleKeyDown = (e) => {
-            if (e.key === 'Escape' && selectedPhotoIndex === null) {
+            if (selectedPhotoIndex !== null) return; // let carousel handle keys
+            if (e.key === 'Escape') {
                 e.preventDefault();
                 document.body.style.overflow = '';
                 onClose();
             }
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                onNavigate?.(1);
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                onNavigate?.(-1);
+            }
         };
-
         window.addEventListener('keydown', handleKeyDown);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isOpen, selectedPhotoIndex, onClose]);
-
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, selectedPhotoIndex, onClose, onNavigate]);
 
     const handleSubmitOverride = (e) => {
         e.preventDefault();
-        post(`/kpi/audit/instance/${instance.id}/status`, {
-            onSuccess: () => {
-                onClose();
-            },
+        post(`/kpi/audit/instance/${instance.id}/status`, { onSuccess: onClose });
+    };
+
+    const handleApprove = () => {
+        if (!myPendingStep) return;
+        setActionProcessing(true);
+        router.post(`/kpi/audit/step/${myPendingStep.id}/approve`, { remark: '' }, {
+            preserveScroll: true,
+            onSuccess: () => { setActionProcessing(false); onClose(); },
+            onError: () => setActionProcessing(false),
         });
     };
 
-    if (!isOpen || !selectedMarker) {
-        return null;
-    }
+    const handleReject = () => {
+        if (!myPendingStep) return;
+        if (!rejectRemark.trim()) { setRejectError('Remark is required to reject.'); return; }
+        setRejectError('');
+        setActionProcessing(true);
+        router.post(`/kpi/audit/step/${myPendingStep.id}/reject`, { remark: rejectRemark }, {
+            preserveScroll: true,
+            onSuccess: () => { setActionProcessing(false); onClose(); },
+            onError: (errs) => { setActionProcessing(false); setRejectError(errs?.remark || 'Failed to reject.'); },
+        });
+    };
 
-    return (
+    if (!isOpen || !selectedMarker || typeof document === 'undefined') return null;
+
+    const hasPrev = currentIndex !== null && currentIndex > 0;
+    const hasNext = currentIndex !== null && currentIndex < totalCount - 1;
+
+    return createPortal(
         <>
-            {/* Main Inspection Modal (z-50) - Hidden when photo preview modal is open */}
-            <div className={`fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 ${
-                selectedPhotoIndex !== null ? 'hidden' : ''
-            }`}>
-                {/* Backdrop click listener */}
+            {/* Main Inspection Modal */}
+            <div
+                style={{ position: 'fixed', inset: 0, zIndex: 9100, backgroundColor: 'rgba(2,6,23,0.65)' }}
+                className={`flex items-center justify-center p-4 backdrop-blur-sm ${selectedPhotoIndex !== null ? 'hidden' : ''}`}
+                onClick={() => { document.body.style.overflow = ''; onClose(); }}
+            >
                 <div
-                    className="fixed inset-0"
-                    onClick={() => {
-                        document.body.style.overflow = '';
-                        onClose();
-                    }}
-                ></div>
+                    style={{ position: 'relative', zIndex: 9101 }}
+                    className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh] overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* ── Approve bar (shown only when viewer is the pending approver) ── */}
+                    {showApproveBar && (
+                        <div className="px-5 py-3 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-200 dark:border-emerald-800 space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center">
+                                        <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                                        Your approval is required — Step {myPendingStep.step_order ?? myPendingStep.step}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={actionProcessing}
+                                    onClick={handleApprove}
+                                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-60 cursor-pointer"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    {actionProcessing ? 'Processing…' : 'Approve'}
+                                </button>
+                            </div>
+                            {/* Reject inline */}
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={rejectRemark}
+                                    onChange={e => { setRejectRemark(e.target.value); setRejectError(''); }}
+                                    placeholder="Rejection remark (required)…"
+                                    className="flex-1 h-8 px-3 text-xs rounded-lg border border-rose-200 dark:border-rose-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                />
+                                <button
+                                    type="button"
+                                    disabled={actionProcessing}
+                                    onClick={handleReject}
+                                    className="px-4 h-8 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition disabled:opacity-60 cursor-pointer"
+                                >
+                                    Reject
+                                </button>
+                            </div>
+                            {rejectError && <p className="text-xs text-rose-600 dark:text-rose-400">{rejectError}</p>}
+                        </div>
+                    )}
 
-                {/* Modal Card */}
-                <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden z-10 border border-slate-200 dark:border-slate-800 no-scrollbar max-h-[90vh] flex flex-col">
-                    {/* Header */}
-                    <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+                    {/* ── Header ── */}
+                    <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                                 <span>Task Instance Inspection</span>
@@ -101,22 +192,52 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                             </p>
                         </div>
 
-                        <button
-                            onClick={() => {
-                                document.body.style.overflow = '';
-                                onClose();
-                            }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700 transition"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* Prev / Next navigation */}
+                            {totalCount > 1 && (
+                                <div className="flex items-center gap-1 mr-2">
+                                    <button
+                                        type="button"
+                                        disabled={!hasPrev}
+                                        onClick={() => onNavigate?.(-1)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                                        title="Previous task (←)"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                    </button>
+                                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400 min-w-[48px] text-center">
+                                        {(currentIndex ?? 0) + 1} / {totalCount}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={!hasNext}
+                                        onClick={() => onNavigate?.(1)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                                        title="Next task (→)"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => { document.body.style.overflow = ''; onClose(); }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700 transition cursor-pointer"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Body Content */}
+                    {/* ── Body ── */}
                     <div className="p-6 overflow-y-auto space-y-6 flex-1 no-scrollbar">
-                        {/* Status & Failure Reason overview */}
+                        {/* Status overview */}
                         <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-2">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-slate-500 dark:text-slate-400 font-medium">Current Status:</span>
@@ -155,7 +276,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                                     )}
                                 </div>
 
-                                {/* Images Gallery Thumbnails */}
+                                {/* Images */}
                                 {images.length > 0 && (
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
@@ -163,7 +284,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                                                 Uploaded Evidence ({images.length})
                                             </span>
                                             <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                                                Click photo to view full carousel modal
+                                                Click photo to view full carousel
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2">
@@ -191,28 +312,37 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                                 )}
 
                                 {/* Approval Steps */}
-                                {latestSubmission.approval_steps && latestSubmission.approval_steps.length > 0 && (
+                                {approvalSteps.length > 0 && (
                                     <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                         <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Approval Workflow Steps</span>
                                         <div className="space-y-1.5">
-                                            {latestSubmission.approval_steps.map((step) => (
-                                                <div key={step.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-[10px]">
-                                                            {step.step}
-                                                        </span>
-                                                        <span className="text-slate-700 dark:text-slate-300 font-medium">
-                                                            {step.approver?.name || `Step ${step.step} Approver`}
+                                            {approvalSteps.map((step) => {
+                                                const isMyPending = myPendingStep?.id === step.id;
+                                                return (
+                                                    <div
+                                                        key={step.id}
+                                                        className={`flex items-center justify-between text-xs p-2 rounded-lg ${isMyPending ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-800/60'}`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${isMyPending ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                                                {step.step_order ?? step.step}
+                                                            </span>
+                                                            <span className="text-slate-700 dark:text-slate-300 font-medium">
+                                                                {step.approver?.name || `Step ${step.step} Approver`}
+                                                                {isMyPending && <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-bold">(You)</span>}
+                                                            </span>
+                                                        </div>
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                                                            step.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                                                            step.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
+                                                            step.status === 'cancelled' ? 'bg-slate-200 text-slate-500' :
+                                                            'bg-amber-100 text-amber-700'
+                                                        }`}>
+                                                            {step.status}
                                                         </span>
                                                     </div>
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                                                        step.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                                                        step.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                                                    }`}>
-                                                        {step.status}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -223,7 +353,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                             </div>
                         )}
 
-                        {/* Super Admin Status Override Section */}
+                        {/* Super Admin Override */}
                         {isSuperAdmin && (
                             <form onSubmit={handleSubmitOverride} className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
                                 <div className="flex items-center gap-2">
@@ -237,9 +367,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
 
                                 <div className="space-y-3 bg-amber-500/5 dark:bg-amber-500/10 p-4 rounded-xl border border-amber-500/20">
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                            Override Status
-                                        </label>
+                                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Override Status</label>
                                         <select
                                             value={data.status}
                                             onChange={(e) => setData('status', e.target.value)}
@@ -258,9 +386,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                            Override Reason / Audit Note
-                                        </label>
+                                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Override Reason / Audit Note</label>
                                         <textarea
                                             rows={2}
                                             value={data.failure_reason}
@@ -275,7 +401,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                                         <button
                                             type="submit"
                                             disabled={processing}
-                                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs rounded-lg shadow-sm transition disabled:opacity-50"
+                                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
                                         >
                                             {processing ? 'Saving Override...' : 'Apply Admin Override'}
                                         </button>
@@ -287,7 +413,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                 </div>
             </div>
 
-            {/* Standalone Photo Carousel Modal */}
+            {/* Photo Carousel Modal */}
             <PhotoCarouselModal
                 isOpen={selectedPhotoIndex !== null}
                 images={images}
@@ -295,6 +421,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                 onClose={() => setSelectedPhotoIndex(null)}
                 onSelectIndex={(newIdx) => setSelectedPhotoIndex(newIdx)}
             />
-        </>
+        </>,
+        document.body
     );
 }
