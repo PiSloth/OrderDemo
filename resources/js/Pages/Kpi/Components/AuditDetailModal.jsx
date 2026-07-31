@@ -179,7 +179,7 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                                                 Uploaded Evidence ({images.length})
                                             </span>
                                             <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                                                Click photo to view full carousel
+                                                Click photo to view full carousel modal
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2">
@@ -303,67 +303,97 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
                 </div>
             </div>
 
-            {/* FULL-SCREEN PHOTO CAROUSEL LIGHTBOX PORTAL (Rendered directly at document.body level) */}
+            {/* DEDICATED PHOTO CAROUSEL LIGHTBOX MODAL OVERLAY */}
             {selectedPhotoIndex !== null && images[selectedPhotoIndex] && typeof document !== 'undefined' && createPortal(
-                <div className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[99999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
                     {/* Backdrop click listener */}
                     <div
                         className="fixed inset-0"
                         onClick={() => setSelectedPhotoIndex(null)}
                     ></div>
 
-                    {/* Close Lightbox Button */}
-                    <button
-                        type="button"
-                        onClick={() => setSelectedPhotoIndex(null)}
-                        className="absolute top-4 right-4 z-[100000] p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none cursor-pointer"
-                        title="Close image view (Esc)"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    {/* Photo Modal Card Container */}
+                    <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[100000] flex flex-col max-h-[92vh]">
+                        {/* Header Bar */}
+                        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                            <div className="flex items-center gap-3">
+                                <span className="px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+                                    Photo {selectedPhotoIndex + 1} of {images.length}
+                                </span>
+                                <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+                                    Use ← → arrow keys to navigate carousel
+                                </span>
+                            </div>
 
-                    {/* Image Counter Badge */}
-                    <div className="absolute top-4 left-4 z-[100000] px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-xs font-bold tracking-wide">
-                        Image {selectedPhotoIndex + 1} of {images.length}
-                    </div>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedPhotoIndex(null)}
+                                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition focus:outline-none cursor-pointer"
+                                title="Close photo view (Esc)"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
 
-                    {/* Previous Button */}
-                    {images.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={handlePrevPhoto}
-                            className="absolute left-4 z-[100000] p-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none cursor-pointer"
-                            title="Previous image (←)"
-                        >
-                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
-                    )}
+                        {/* Main Image Stage */}
+                        <div className="relative flex-1 bg-black/60 flex items-center justify-center p-4 min-h-[350px] sm:min-h-[480px]">
+                            {/* Previous Button */}
+                            {images.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={handlePrevPhoto}
+                                    className="absolute left-4 z-10 p-3 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white border border-slate-700/80 shadow-lg transition duration-200 focus:outline-none cursor-pointer"
+                                    title="Previous image (←)"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                            )}
 
-                    {/* Next Button */}
-                    {images.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={handleNextPhoto}
-                            className="absolute right-4 z-[100000] p-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-none cursor-pointer"
-                            title="Next image (→)"
-                        >
-                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    )}
+                            {/* Main Image */}
+                            <img
+                                src={images[selectedPhotoIndex].file_url}
+                                alt={`Evidence ${selectedPhotoIndex + 1}`}
+                                className="max-w-full max-h-[60vh] sm:max-h-[68vh] object-contain rounded-xl shadow-2xl transition-all duration-300"
+                            />
 
-                    {/* Full Size Image Display */}
-                    <div className="relative z-[99999] max-w-6xl max-h-[90vh] flex flex-col items-center justify-center p-2 select-none">
-                        <img
-                            src={images[selectedPhotoIndex].file_url}
-                            alt={`Evidence Full View ${selectedPhotoIndex + 1}`}
-                            className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl transition duration-300"
-                        />
+                            {/* Next Button */}
+                            {images.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={handleNextPhoto}
+                                    className="absolute right-4 z-10 p-3 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white border border-slate-700/80 shadow-lg transition duration-200 focus:outline-none cursor-pointer"
+                                    title="Next image (→)"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Thumbnail Carousel Footer Bar */}
+                        {images.length > 1 && (
+                            <div className="p-3 bg-slate-950 border-t border-slate-800/80 flex items-center justify-center gap-2 overflow-x-auto no-scrollbar">
+                                {images.map((img, idx) => (
+                                    <button
+                                        key={img.id || idx}
+                                        type="button"
+                                        onClick={() => setSelectedPhotoIndex(idx)}
+                                        className={`relative w-14 h-10 rounded-lg overflow-hidden border-2 transition shrink-0 cursor-pointer ${
+                                            idx === selectedPhotoIndex
+                                                ? 'border-indigo-500 scale-105 shadow-md ring-2 ring-indigo-500/40'
+                                                : 'border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-600'
+                                        }`}
+                                    >
+                                        <img src={img.file_url} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>,
                 document.body
