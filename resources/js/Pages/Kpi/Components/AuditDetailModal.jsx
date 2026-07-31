@@ -4,9 +4,7 @@ import { useForm } from '@inertiajs/react';
 export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSuperAdmin }) {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
 
-    if (!isOpen || !selectedMarker) return null;
-
-    const instance = selectedMarker.instance || {};
+    const instance = selectedMarker?.instance || {};
     const latestSubmission = instance.latest_submission || null;
     const images = latestSubmission?.images || [];
 
@@ -15,15 +13,18 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
         failure_reason: instance.failure_reason || '',
     });
 
+    // Reset state when selectedMarker changes
     useEffect(() => {
-        setData({
-            status: instance.status || 'pending',
-            failure_reason: instance.failure_reason || '',
-        });
-        setSelectedPhotoIndex(null);
+        if (selectedMarker) {
+            setData({
+                status: instance.status || 'pending',
+                failure_reason: instance.failure_reason || '',
+            });
+            setSelectedPhotoIndex(null);
+        }
     }, [selectedMarker]);
 
-    // Ensure body scroll is strictly locked when modal is open and restored on close/unmount
+    // Body scroll lock handling
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -36,14 +37,14 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
         };
     }, [isOpen]);
 
-    // Keyboard listener for Escape and Arrow keys (for Carousel)
+    // Keyboard navigation listener
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
                 if (selectedPhotoIndex !== null) {
-                    setSelectedPhotoIndex(null); // Close lightbox first
+                    setSelectedPhotoIndex(null);
                 } else {
-                    onClose(); // Close detail modal
+                    onClose();
                 }
             } else if (selectedPhotoIndex !== null) {
                 if (e.key === 'ArrowLeft') {
@@ -81,6 +82,10 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
             },
         });
     };
+
+    if (!isOpen || !selectedMarker) {
+        return null;
+    }
 
     return (
         <>
