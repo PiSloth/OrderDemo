@@ -191,6 +191,10 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::get('/tasks', KpiMyTasks::class)->name('tasks');
     Route::get('/audit', [App\Http\Controllers\Kpi\KpiAuditController::class, 'index'])->name('audit');
     Route::post('/audit/instance/{instance}/status', [App\Http\Controllers\Kpi\KpiAuditController::class, 'updateInstanceStatus'])->name('audit.instance.status');
+    Route::post('/audit/exclusion-request', [App\Http\Controllers\Kpi\KpiAuditController::class, 'storeExclusionRequest'])->name('audit.exclusion-request.store');
+    Route::post('/audit/exclusion-request/{id}/approve', [App\Http\Controllers\Kpi\KpiAuditController::class, 'approveExclusionRequest'])->name('audit.exclusion-request.approve');
+    Route::post('/audit/exclusion-request/{id}/reject', [App\Http\Controllers\Kpi\KpiAuditController::class, 'rejectExclusionRequest'])->name('audit.exclusion-request.reject');
+    Route::post('/audit/holiday', [App\Http\Controllers\Kpi\KpiAuditController::class, 'storeHoliday'])->name('audit.holiday.store');
     Route::get('/certificate', [KpiCertificateController::class, 'index'])->name('certificate');
     Route::get('/exclusions', KpiExclusions::class)->name('exclusions');
     Route::get('/approvals', KpiApprovals::class)->name('approvals');

@@ -3,6 +3,8 @@ import { router } from '@inertiajs/react';
 import KpiLayout from '../../Layouts/KpiLayout';
 import AuditDetailModal from './Components/AuditDetailModal';
 import SearchableUserSelect from './Components/SearchableUserSelect';
+import ExclusionRequestModal from './Components/ExclusionRequestModal';
+import InboxModal from './Components/InboxModal';
 
 export default function Audit({
     month,
@@ -13,12 +15,19 @@ export default function Audit({
     groupSummaries = [],
     groupCards = { passed: 0, failed: 0, not_set: 0 },
     isSuperAdmin = false,
+    canApproveExclusions = false,
+    canManageHolidays = false,
+    taskAssignments = [],
+    pendingExclusions = [],
+    pendingExclusionsCount = 0,
 }) {
     const [selectedMonth, setSelectedMonth] = useState(month || new Date().toISOString().slice(0, 7));
     const [selectedUserId, setSelectedUserId] = useState(selectedUser?.id || '');
     const [taskSearch, setTaskSearch] = useState('');
     const [selectedMarker, setSelectedMarker] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [requestModalOpen, setRequestModalOpen] = useState(false);
+    const [inboxOpen, setInboxOpen] = useState(false);
 
     const handleFilterChange = (newMonth, newUserId) => {
         const m = newMonth !== undefined ? newMonth : selectedMonth;
@@ -109,6 +118,39 @@ export default function Audit({
                                 selectedUserId={selectedUserId}
                                 onChange={(newUserId) => handleFilterChange(undefined, newUserId)}
                             />
+                        )}
+
+                        {/* ── Request button ── */}
+                        <button
+                            type="button"
+                            onClick={() => setRequestModalOpen(true)}
+                            className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-sm cursor-pointer"
+                            title="Submit holiday or exclusion request"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Request
+                        </button>
+
+                        {/* ── Inbox button (approvers only) ── */}
+                        {canApproveExclusions && (
+                            <button
+                                type="button"
+                                onClick={() => setInboxOpen(true)}
+                                className="relative flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:border-amber-400 hover:text-amber-600 transition shadow-xs cursor-pointer"
+                                title="View pending exclusion requests"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                </svg>
+                                Inbox
+                                {pendingExclusionsCount > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                                        {pendingExclusionsCount > 99 ? '99+' : pendingExclusionsCount}
+                                    </span>
+                                )}
+                            </button>
                         )}
                     </div>
                 </div>
@@ -324,6 +366,24 @@ export default function Audit({
                     onClose={() => setIsModalOpen(false)}
                     selectedMarker={selectedMarker}
                     isSuperAdmin={isSuperAdmin}
+                />
+
+                {/* Exclusion / Holiday Request Modal */}
+                <ExclusionRequestModal
+                    isOpen={requestModalOpen}
+                    onClose={() => setRequestModalOpen(false)}
+                    taskAssignments={taskAssignments}
+                    users={users}
+                    selectedUserId={selectedUser?.id}
+                    canManageHolidays={canManageHolidays}
+                    canApproveExclusions={canApproveExclusions}
+                />
+
+                {/* Inbox Modal */}
+                <InboxModal
+                    isOpen={inboxOpen}
+                    onClose={() => setInboxOpen(false)}
+                    pendingExclusions={pendingExclusions}
                 />
             </div>
         </KpiLayout>

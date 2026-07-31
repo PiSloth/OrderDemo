@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Kpi;
 
 use App\Http\Controllers\Controller;
+use App\Models\Kpi\KpiExclusionRequest;
+use App\Models\Kpi\KpiHoliday;
 use App\Models\Kpi\KpiTaskAssignment;
 use App\Models\Kpi\KpiTaskInstance;
 use App\Models\Kpi\KpiTaskSubmission;
@@ -13,10 +15,12 @@ use App\Services\Kpi\KpiRuleEvaluationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -137,6 +141,52 @@ class KpiAuditController extends Controller
             'not_set' => $groupSummaries->where('passes_rule', null)->count(),
         ];
 
+        // Task assignments for exclusion request dropdown (daily/weekly only)
+        $taskAssignmentsForRequest = KpiTaskAssignment::query()
+            ->with(['template.group'])
+            ->where('user_id', $selectedUserId)
+            ->where('is_active', true)
+            ->whereHas('template', fn (Builder $q) => $q->whereIn('frequency', ['daily', 'weekly']))
+            ->where(fn (Builder $q) => $q->whereNull('starts_on')->orWhereDate('starts_on', '<=', $monthEnd->toDateString()))
+            ->where(fn (Builder $q) => $q->whereNull('ends_on')->orWhereDate('ends_on', '>=', $monthStart->toDateString()))
+            ->get()
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'title' => $a->template?->title ?? '-',
+                'group' => $a->template?->group?->name,
+                'frequency' => $a->template?->frequency,
+            ]);
+
+        // Pending exclusion requests (for inbox badge + inbox modal)
+        $pendingExclusionsQuery = KpiExclusionRequest::query()
+            ->with(['user.department', 'assignment.template.group'])
+            ->where('status', 'pending');
+
+        if (Gate::allows('kpiViewCompanyLeaderboard') || Gate::allows('kpiManageTemplates')) {
+            // all pending
+        } elseif ($selectedUser && $selectedUser->department_id) {
+            $deptId = Auth::user()?->department_id;
+            $pendingExclusionsQuery->whereHas('user', fn (Builder $q) => $q->where('department_id', $deptId));
+        } else {
+            $pendingExclusionsQuery->whereRaw('1 = 0');
+        }
+
+        $pendingExclusions = Gate::allows('kpiApproveExclusions')
+            ? $pendingExclusionsQuery
+                ->orderBy('requested_date')
+                ->get()
+                ->map(fn ($r) => [
+                    'id' => $r->id,
+                    'user_name' => $r->user?->name ?? '-',
+                    'user_dept' => $r->user?->department?->name ?? '-',
+                    'request_type' => $r->request_type,
+                    'requested_date' => $r->requested_date?->toDateString(),
+                    'task_title' => $r->assignment?->template?->title,
+                    'reason' => $r->reason,
+                    'created_at' => $r->created_at?->toDateString(),
+                ])
+            : collect();
+
         return Inertia::render('Kpi/Audit', [
             'month' => $month,
             'users' => $accessibleUsers,
@@ -146,7 +196,150 @@ class KpiAuditController extends Controller
             'groupSummaries' => $groupSummaries->values()->all(),
             'groupCards' => $groupCards,
             'isSuperAdmin' => Gate::allows('isSuperAdmin'),
+            'canApproveExclusions' => Gate::allows('kpiApproveExclusions'),
+            'canManageHolidays' => Gate::allows('kpiManageHolidays'),
+            'taskAssignments' => $taskAssignmentsForRequest->values(),
+            'pendingExclusions' => $pendingExclusions->values(),
+            'pendingExclusionsCount' => $pendingExclusions->count(),
         ]);
+    }
+
+    public function storeExclusionRequest(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+        if (!$user) abort(403);
+
+        $validated = $request->validate([
+            'request_type'           => ['required', Rule::in(['day', 'task'])],
+            'requested_date'         => ['required', 'date'],
+            'task_assignment_id'     => ['nullable'],
+            'reason'                 => ['required', 'string', 'max:1000'],
+            'target_user_id'         => ['nullable', 'exists:users,id'],
+        ]);
+
+        // Managers can submit on behalf of others
+        $targetUserId = Gate::allows('kpiApproveExclusions') && !empty($validated['target_user_id'])
+            ? (int) $validated['target_user_id']
+            : $user->id;
+
+        $assignmentId = null;
+        $assignmentFrequency = null;
+        $requestedDate = Carbon::parse($validated['requested_date']);
+        $weekStart = $requestedDate->copy()->startOfWeek();
+        $weekEnd   = $requestedDate->copy()->endOfWeek();
+
+        if ($validated['request_type'] === 'task') {
+            if (empty($validated['task_assignment_id'])) {
+                throw ValidationException::withMessages(['task_assignment_id' => 'Choose a task for task-level exclusion.']);
+            }
+            $assignment = KpiTaskAssignment::query()
+                ->with('template')
+                ->where('id', (int) $validated['task_assignment_id'])
+                ->where('user_id', $targetUserId)
+                ->firstOrFail();
+
+            if (!in_array($assignment->template?->frequency, ['daily', 'weekly'], true)) {
+                throw ValidationException::withMessages(['task_assignment_id' => 'Task-level exclusion is only available for daily and weekly tasks.']);
+            }
+            $assignmentId = $assignment->id;
+            $assignmentFrequency = $assignment->template?->frequency;
+        }
+
+        $duplicate = KpiExclusionRequest::query()
+            ->where('user_id', $targetUserId)
+            ->where('request_type', $validated['request_type'])
+            ->when(
+                $validated['request_type'] === 'task' && $assignmentFrequency === 'weekly',
+                fn (Builder $q) => $q->whereBetween('requested_date', [$weekStart->toDateString(), $weekEnd->toDateString()]),
+                fn (Builder $q) => $q->whereDate('requested_date', $validated['requested_date'])
+            )
+            ->when($assignmentId, fn (Builder $q) => $q->where('task_assignment_id', $assignmentId), fn (Builder $q) => $q->whereNull('task_assignment_id'))
+            ->whereIn('status', ['pending', 'approved'])
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages(['requested_date' => 'An active exclusion request already exists for this date and scope.']);
+        }
+
+        KpiExclusionRequest::query()->create([
+            'user_id'            => $targetUserId,
+            'task_assignment_id' => $assignmentId,
+            'request_type'       => $validated['request_type'],
+            'requested_date'     => $validated['requested_date'],
+            'reason'             => trim($validated['reason']),
+            'status'             => 'pending',
+        ]);
+
+        return redirect()->back()->with('success', 'Exclusion request submitted.');
+    }
+
+    public function approveExclusionRequest(Request $request, int $id, KpiAvailabilityService $availability): RedirectResponse
+    {
+        Gate::authorize('kpiApproveExclusions');
+
+        $exclusionRequest = KpiExclusionRequest::query()->where('status', 'pending')->findOrFail($id);
+        $remark = trim((string) ($request->input('reviewer_remark', '')));
+
+        $exclusionRequest->update([
+            'status'               => 'approved',
+            'reviewed_by_user_id'  => Auth::id(),
+            'reviewed_at'          => now(),
+            'reviewer_remark'      => $remark !== '' ? $remark : null,
+        ]);
+
+        $availability->applyApprovedExclusionRequest($exclusionRequest->fresh());
+
+        return redirect()->back()->with('success', 'Request approved.');
+    }
+
+    public function rejectExclusionRequest(Request $request, int $id): RedirectResponse
+    {
+        Gate::authorize('kpiApproveExclusions');
+
+        $exclusionRequest = KpiExclusionRequest::query()->where('status', 'pending')->findOrFail($id);
+        $remark = trim((string) ($request->input('reviewer_remark', '')));
+
+        $exclusionRequest->update([
+            'status'              => 'rejected',
+            'reviewed_by_user_id' => Auth::id(),
+            'reviewed_at'         => now(),
+            'reviewer_remark'     => $remark !== '' ? $remark : null,
+        ]);
+
+        return redirect()->back()->with('success', 'Request rejected.');
+    }
+
+    public function storeHoliday(Request $request, KpiAvailabilityService $availability): RedirectResponse
+    {
+        Gate::authorize('kpiManageHolidays');
+
+        $validated = $request->validate([
+            'holiday_date' => ['required', 'date'],
+            'name'         => ['required', 'string', 'max:255'],
+            'user_id'      => ['required', 'exists:users,id'],
+            'remark'       => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $exists = KpiHoliday::query()
+            ->whereDate('holiday_date', $validated['holiday_date'])
+            ->where('user_id', $validated['user_id'])
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages(['holiday_date' => 'A holiday already exists for this user on this date.']);
+        }
+
+        $holiday = KpiHoliday::query()->create([
+            'holiday_date' => $validated['holiday_date'],
+            'name'         => trim($validated['name']),
+            'user_id'      => (int) $validated['user_id'],
+            'remark'       => filled($validated['remark'] ?? null) ? trim($validated['remark']) : null,
+            'is_active'    => true,
+        ]);
+
+        $availability->applyHoliday($holiday);
+
+        return redirect()->back()->with('success', 'Holiday added.');
     }
 
     public function updateInstanceStatus(Request $request, KpiTaskInstance $instance)
