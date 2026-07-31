@@ -32,7 +32,7 @@ use App\Livewire\Kpi\Approvals as KpiApprovals;
 use App\Livewire\Kpi\AssociateTasks as KpiAssociateTasks;
 use App\Livewire\Kpi\Audit as KpiAudit;
 use App\Livewire\Kpi\Assignments as KpiAssignments;
-use App\Livewire\Kpi\Certificate as KpiCertificate;
+use App\Http\Controllers\Kpi\KpiCertificateController;
 use App\Livewire\Kpi\Dashboard as KpiDashboard;
 use App\Livewire\Kpi\Exclusions as KpiExclusions;
 use App\Livewire\Kpi\Holidays as KpiHolidays;
@@ -191,7 +191,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::get('/tasks', KpiMyTasks::class)->name('tasks');
     Route::get('/audit', [App\Http\Controllers\Kpi\KpiAuditController::class, 'index'])->name('audit');
     Route::post('/audit/instance/{instance}/status', [App\Http\Controllers\Kpi\KpiAuditController::class, 'updateInstanceStatus'])->name('audit.instance.status');
-    Route::get('/certificate', KpiCertificate::class)->name('certificate');
+    Route::get('/certificate', [KpiCertificateController::class, 'index'])->name('certificate');
     Route::get('/exclusions', KpiExclusions::class)->name('exclusions');
     Route::get('/approvals', KpiApprovals::class)->name('approvals');
     Route::get('/associate-tasks', KpiAssociateTasks::class)->name('associate-tasks');
@@ -219,7 +219,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
         ->name('import-export.errors');
     Route::get('/leaderboard', KpiLeaderboard::class)->name('leaderboard');
     Route::get('/manual', Manual::class)->middleware('can:kpiManageAssignments')->name('manual');
-    Route::get('/certificate', KpiCertificate::class)->name('certificate');
+    Route::get('/certificate', [KpiCertificateController::class, 'index'])->name('certificate');
 });
 
 Route::middleware(['auth'])->prefix('whiteboard')->name('whiteboard.')->group(function () {

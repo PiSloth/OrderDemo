@@ -1,6 +1,13 @@
 {
-  "_bootstrap-bb1363df.js": {
-    "file": "assets/bootstrap-bb1363df.js"
+  "_apexcharts.common-e36eb5b9.js": {
+    "file": "assets/apexcharts.common-e36eb5b9.js",
+    "imports": [
+      "_bootstrap-b8615e59.js"
+    ],
+    "isDynamicEntry": true
+  },
+  "_bootstrap-b8615e59.js": {
+    "file": "assets/bootstrap-b8615e59.js"
   },
   "resources/css/app.css": {
     "file": "assets/app-396f60f8.css",
@@ -14,9 +21,10 @@
     "css": [
       "assets/app-d3ed812b.css"
     ],
-    "file": "assets/app-62837192.js",
+    "file": "assets/app-052022a1.js",
     "imports": [
-      "_bootstrap-bb1363df.js"
+      "_bootstrap-b8615e59.js",
+      "_apexcharts.common-e36eb5b9.js"
     ],
     "isEntry": true,
     "src": "resources/js/app.js"
@@ -25,9 +33,12 @@
     "css": [
       "assets/app-396f60f8.css"
     ],
-    "file": "assets/app-2f82238f.js",
+    "dynamicImports": [
+      "_apexcharts.common-e36eb5b9.js"
+    ],
+    "file": "assets/app-c514099f.js",
     "imports": [
-      "_bootstrap-bb1363df.js"
+      "_bootstrap-b8615e59.js"
     ],
     "isEntry": true,
     "src": "resources/js/app.jsx"

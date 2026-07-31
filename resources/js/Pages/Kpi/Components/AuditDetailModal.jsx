@@ -38,6 +38,25 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
         };
     }, [isOpen]);
 
+    // Close on Escape — only when photo carousel is not open
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && selectedPhotoIndex === null) {
+                e.preventDefault();
+                document.body.style.overflow = '';
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, selectedPhotoIndex, onClose]);
+
+
     const handleSubmitOverride = (e) => {
         e.preventDefault();
         post(`/kpi/audit/instance/${instance.id}/status`, {
