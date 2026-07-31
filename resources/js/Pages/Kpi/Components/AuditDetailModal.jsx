@@ -53,8 +53,10 @@ export default function AuditDetailModal({ isOpen, onClose, selectedMarker, isSu
 
     return (
         <>
-            {/* Main Inspection Modal (z-50) */}
-            <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            {/* Main Inspection Modal (z-50) - Hidden when photo preview modal is open */}
+            <div className={`fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 ${
+                selectedPhotoIndex !== null ? 'hidden' : ''
+            }`}>
                 {/* Backdrop click listener */}
                 <div
                     className="fixed inset-0"
