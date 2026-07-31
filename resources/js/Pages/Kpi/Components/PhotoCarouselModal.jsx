@@ -52,12 +52,12 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
     if (typeof document === 'undefined') return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[999999] bg-slate-950/95 backdrop-blur-lg flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 999999, backgroundColor: 'rgba(2,6,23,0.95)' }} className="backdrop-blur-lg flex items-center justify-center p-4 sm:p-6">
             {/* Backdrop click listener */}
-            <div className="fixed inset-0" onClick={onClose}></div>
+            <div style={{ position: 'fixed', inset: 0 }} onClick={onClose}></div>
 
             {/* Photo Modal Card Container */}
-            <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[1000000] flex flex-col max-h-[92vh]">
+            <div style={{ position: 'relative', zIndex: 1000000 }} className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
                 {/* Header Bar */}
                 <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 select-none">
                     <div className="flex items-center gap-3">
