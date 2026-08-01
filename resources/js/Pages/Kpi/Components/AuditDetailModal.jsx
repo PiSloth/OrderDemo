@@ -114,7 +114,7 @@ export default function AuditDetailModal({
         failure_reason: instance.failure_reason || '',
     });
 
-    // Reset state when selectedMarker changes
+    // Reset state when selectedMarker or instance status/reason changes
     useEffect(() => {
         if (selectedMarker) {
             setData({
@@ -125,7 +125,7 @@ export default function AuditDetailModal({
             setRejectRemark('');
             setRejectError('');
         }
-    }, [selectedMarker]);
+    }, [selectedMarker, instance.status, instance.failure_reason, instance.id]);
 
     // Body scroll lock
     useEffect(() => {
@@ -162,7 +162,7 @@ export default function AuditDetailModal({
 
     const handleSubmitOverride = (e) => {
         e.preventDefault();
-        post(`/kpi/audit/instance/${instance.id}/status`, { onSuccess: onClose });
+        post(`/kpi/audit/instance/${instance.id}/status`, { preserveScroll: true });
     };
 
     const handleApprove = () => {
@@ -170,7 +170,7 @@ export default function AuditDetailModal({
         setActionProcessing(true);
         router.post(`/kpi/audit/step/${myPendingStep.id}/approve`, { remark: '' }, {
             preserveScroll: true,
-            onSuccess: () => { setActionProcessing(false); onClose(); },
+            onSuccess: () => { setActionProcessing(false); },
             onError: () => setActionProcessing(false),
         });
     };
@@ -182,7 +182,7 @@ export default function AuditDetailModal({
         setActionProcessing(true);
         router.post(`/kpi/audit/step/${myPendingStep.id}/reject`, { remark: rejectRemark }, {
             preserveScroll: true,
-            onSuccess: () => { setActionProcessing(false); onClose(); },
+            onSuccess: () => { setActionProcessing(false); setRejectError(''); },
             onError: (errs) => { setActionProcessing(false); setRejectError(errs?.remark || 'Failed to reject.'); },
         });
     };
