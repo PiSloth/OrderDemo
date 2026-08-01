@@ -121,7 +121,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
             tabIndex={0}
             onKeyDown={handleContainerKeyDown}
             style={{ position: 'fixed', inset: 0, zIndex: 999999, outline: 'none' }}
-            className="bg-black/95 flex flex-col items-center justify-center overflow-hidden"
+            className="bg-black/75 backdrop-blur-md flex flex-col items-center justify-center overflow-hidden"
         >
             {/* Header / Toolbar overlay */}
             <div className="absolute top-0 inset-x-0 z-[1000001] px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
