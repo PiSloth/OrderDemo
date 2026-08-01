@@ -53,6 +53,52 @@ export default function Audit({
         });
     }, [rows, taskSearch]);
 
+    // Parse day metadata and group days into weeks
+    const { daysMeta, weekGroups } = useMemo(() => {
+        const meta = [];
+        const weeks = [];
+        let currentWeekIndex = 0;
+        let currentWeekDays = [];
+
+        days.forEach((dayStr, idx) => {
+            const d = new Date(dayStr + 'T00:00:00');
+            const dayNum = d.getDate();
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }); // Mon, Tue, etc.
+            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+            // A new week starts on Monday (d.getDay() === 1)
+            if (idx > 0 && d.getDay() === 1) {
+                weeks.push({
+                    weekNum: currentWeekIndex + 1,
+                    days: currentWeekDays,
+                });
+                currentWeekIndex++;
+                currentWeekDays = [];
+            }
+
+            const dayObj = {
+                dayStr,
+                dayNum,
+                dayName,
+                isWeekend,
+                weekIndex: currentWeekIndex,
+                isWeekEnd: d.getDay() === 0 || idx === days.length - 1, // Sunday or last day of month
+            };
+
+            currentWeekDays.push(dayObj);
+            meta.push(dayObj);
+        });
+
+        if (currentWeekDays.length > 0) {
+            weeks.push({
+                weekNum: currentWeekIndex + 1,
+                days: currentWeekDays,
+            });
+        }
+
+        return { daysMeta: meta, weekGroups: weeks };
+    }, [days]);
+
     // Build a flat list of ALL clickable markers across all rows
     const allMarkersFlat = useMemo(() => {
         const list = [];
@@ -277,24 +323,61 @@ export default function Audit({
                     <div className="overflow-x-auto max-h-[600px] no-scrollbar">
                         <table className="w-full text-left text-xs border-collapse min-w-[1200px]">
                             {/* Table Header */}
-                            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 shadow-xs">
-                                <tr className="text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                                    <th className="p-3 font-bold sticky left-0 z-10 bg-slate-50 dark:bg-slate-800 min-w-[240px] border-r border-slate-200 dark:border-slate-700 shadow-r">
+                            <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 shadow-xs border-b border-slate-200 dark:border-slate-700 select-none">
+                                {/* Header Row 1: Grouping by Weeks */}
+                                <tr className="text-slate-600 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-800">
+                                    <th rowSpan={2} className="p-3 font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 min-w-[240px] border-r border-slate-200 dark:border-slate-700 shadow-r text-slate-800 dark:text-slate-200">
                                         Task Template
                                     </th>
-                                    {days.map((dayStr) => {
-                                        const dayNum = parseInt(dayStr.split('-')[2], 10);
+                                    {weekGroups.map((w, wIdx) => {
+                                        const isOddWeek = wIdx % 2 === 1;
                                         return (
-                                            <th key={dayStr} className="p-2 text-center font-semibold w-8 min-w-[32px] border-r border-slate-200/60 dark:border-slate-800/60">
-                                                {dayNum}
+                                            <th
+                                                key={w.weekNum}
+                                                colSpan={w.days.length}
+                                                className={`py-1 px-1 text-center font-bold text-[11px] uppercase tracking-wider border-r-2 border-r-indigo-300 dark:border-r-indigo-700/80 ${
+                                                    isOddWeek
+                                                        ? 'bg-indigo-100/70 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                                                        : 'bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300'
+                                                }`}
+                                            >
+                                                Week {w.weekNum}
                                             </th>
                                         );
                                     })}
-                                    <th className="p-3 font-semibold text-center min-w-[70px]">Must Do</th>
-                                    <th className="p-3 font-semibold text-center min-w-[60px]">Done</th>
-                                    <th className="p-3 font-semibold text-center min-w-[60px]">Fail</th>
-                                    <th className="p-3 font-semibold text-center min-w-[60px]">Score %</th>
-                                    <th className="p-3 font-semibold text-center min-w-[90px]">Rule Status</th>
+                                    <th rowSpan={2} className="p-3 font-semibold text-center min-w-[70px] border-l border-slate-200 dark:border-slate-700">Must Do</th>
+                                    <th rowSpan={2} className="p-3 font-semibold text-center min-w-[60px]">Done</th>
+                                    <th rowSpan={2} className="p-3 font-semibold text-center min-w-[60px]">Fail</th>
+                                    <th rowSpan={2} className="p-3 font-semibold text-center min-w-[60px]">Score %</th>
+                                    <th rowSpan={2} className="p-3 font-semibold text-center min-w-[90px]">Rule Status</th>
+                                </tr>
+
+                                {/* Header Row 2: Days (Weekday + Day Number) */}
+                                <tr className="text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                                    {daysMeta.map((d) => {
+                                        const isOddWeek = d.weekIndex % 2 === 1;
+                                        return (
+                                            <th
+                                                key={d.dayStr}
+                                                className={`py-1.5 px-0.5 text-center w-8 min-w-[34px] ${
+                                                    d.isWeekEnd ? 'border-r-2 border-r-indigo-300 dark:border-r-indigo-700/80' : 'border-r border-slate-200/50 dark:border-slate-800/50'
+                                                } ${
+                                                    d.isWeekend
+                                                        ? 'bg-amber-500/15 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                                        : isOddWeek
+                                                        ? 'bg-indigo-50/40 dark:bg-indigo-950/30'
+                                                        : 'bg-slate-50 dark:bg-slate-800'
+                                                }`}
+                                            >
+                                                <div className="text-[9px] uppercase font-extrabold tracking-tight opacity-75">
+                                                    {d.dayName}
+                                                </div>
+                                                <div className="text-xs font-black">
+                                                    {d.dayNum}
+                                                </div>
+                                            </th>
+                                        );
+                                    })}
                                 </tr>
                             </thead>
 
@@ -322,31 +405,45 @@ export default function Audit({
                                             </td>
 
                                             {/* Day Cells */}
-                                            {row.cells.map((cell, cIdx) => (
-                                                <td
-                                                    key={cell.date || cIdx}
-                                                    className={`p-1 text-center align-middle border-r border-slate-200/40 dark:border-slate-800/40 ${cell.classes}`}
-                                                >
-                                                    {cell.markers && cell.markers.length > 0 ? (
-                                                        <div className="flex flex-col items-center justify-center gap-1">
-                                                            {cell.markers.map((m, mIdx) => (
-                                                                <button
-                                                                    key={mIdx}
-                                                                    onClick={() => handleOpenMarker(m)}
-                                                                    className={`w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center shadow-xs transition hover:scale-110 cursor-pointer ${m.classes}`}
-                                                                    title={`${m.label} - Click to inspect`}
-                                                                >
-                                                                    {m.type === 'approved' ? '✓' : m.type === 'failed' ? '✕' : m.type === 'rejected' ? '!' : '•'}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[10px] text-slate-400 font-mono">
-                                                            {cell.label || ''}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            ))}
+                                            {row.cells.map((cell, cIdx) => {
+                                                const d = daysMeta[cIdx] || {};
+                                                const isOddWeek = (d.weekIndex ?? 0) % 2 === 1;
+                                                const isWeekEnd = d.isWeekEnd;
+
+                                                return (
+                                                    <td
+                                                        key={cell.date || cIdx}
+                                                        className={`p-1 text-center align-middle ${
+                                                            isWeekEnd ? 'border-r-2 border-r-indigo-300/80 dark:border-r-indigo-700/60' : 'border-r border-slate-200/40 dark:border-slate-800/40'
+                                                        } ${
+                                                            d.isWeekend
+                                                                ? 'bg-amber-500/5 dark:bg-amber-500/10'
+                                                                : isOddWeek
+                                                                ? 'bg-indigo-50/20 dark:bg-indigo-950/15'
+                                                                : ''
+                                                        } ${cell.classes}`}
+                                                    >
+                                                        {cell.markers && cell.markers.length > 0 ? (
+                                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                                {cell.markers.map((m, mIdx) => (
+                                                                    <button
+                                                                        key={mIdx}
+                                                                        onClick={() => handleOpenMarker(m)}
+                                                                        className={`w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center shadow-xs transition hover:scale-110 cursor-pointer ${m.classes}`}
+                                                                        title={`${m.label} (${d.dayName} ${d.dayNum}) - Click to inspect`}
+                                                                    >
+                                                                        {m.type === 'approved' ? '✓' : m.type === 'failed' ? '✕' : m.type === 'rejected' ? '!' : '•'}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-400 font-mono">
+                                                                {cell.label || ''}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
 
                                             {/* Summary Columns */}
                                             <td className="p-2 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
