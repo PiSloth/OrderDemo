@@ -1,7 +1,79 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import { createPortal } from 'react-dom';
 import PhotoCarouselModal from './PhotoCarouselModal';
+
+// Robust image tile: shows skeleton while loading, retry on error
+function EvidenceImage({ src, alt, onClick }) {
+    const [status, setStatus] = useState('loading'); // loading | loaded | error
+    const [retryKey, setRetryKey] = useState(0);
+
+    // Reset whenever the src changes (new marker)
+    useEffect(() => { setStatus('loading'); setRetryKey(0); }, [src]);
+
+    const handleLoad = () => setStatus('loaded');
+    const handleError = () => setStatus('error');
+    const handleRetry = (e) => { e.stopPropagation(); setStatus('loading'); setRetryKey((k) => k + 1); };
+
+    const bustedSrc = retryKey > 0 ? `${src}${src.includes('?') ? '&' : '?'}_r=${retryKey}` : src;
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="group relative aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-xs"
+        >
+            {/* Skeleton shown while loading */}
+            {status === 'loading' && (
+                <div className="absolute inset-0 animate-pulse bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+            )}
+
+            {/* Error state */}
+            {status === 'error' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-rose-50 dark:bg-rose-950/30">
+                    <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="text-[10px] text-rose-500 font-medium">Failed to load</span>
+                    <button
+                        type="button"
+                        onClick={handleRetry}
+                        className="text-[10px] px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-200 transition font-semibold cursor-pointer"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
+            {/* Actual image — always mounted so browser can load; hidden via opacity until ready */}
+            <img
+                key={bustedSrc}
+                src={bustedSrc}
+                alt={alt}
+                loading="eager"
+                decoding="async"
+                onLoad={handleLoad}
+                onError={handleError}
+                className={`w-full h-full object-cover group-hover:scale-105 transition duration-200 ${
+                    status === 'loaded' ? 'opacity-100' : 'opacity-0'
+                }`}
+            />
+
+            {/* Hover overlay */}
+            {status === 'loaded' && (
+                <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/30 transition flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                    </svg>
+                </div>
+            )}
+        </button>
+    );
+}
 
 export default function AuditDetailModal({
     isOpen,
@@ -13,6 +85,9 @@ export default function AuditDetailModal({
     currentIndex = null,
     totalCount = 0,
     onNavigate,
+    markerTypeFilter = null,
+    markerTypeCounts = {},
+    onTypeFilterChange,
 }) {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
     const [rejectRemark, setRejectRemark] = useState('');
@@ -122,61 +197,55 @@ export default function AuditDetailModal({
             {/* Main Inspection Modal */}
             <div
                 style={{ position: 'fixed', inset: 0, zIndex: 9100, backgroundColor: 'rgba(2,6,23,0.65)' }}
-                className={`flex items-center justify-center p-4 backdrop-blur-sm ${selectedPhotoIndex !== null ? 'hidden' : ''}`}
+                className={`overflow-y-auto flex items-start justify-center py-6 px-4 backdrop-blur-sm ${selectedPhotoIndex !== null ? 'hidden' : ''}`}
                 onClick={() => { document.body.style.overflow = ''; onClose(); }}
             >
                 <div
                     style={{ position: 'relative', zIndex: 9101 }}
-                    className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh] overflow-hidden"
+                    className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col my-auto"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* ── Approve bar (shown only when viewer is the pending approver) ── */}
-                    {showApproveBar && (
-                        <div className="px-5 py-3 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-200 dark:border-emerald-800 space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center">
-                                        <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </div>
-                                    <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                                        Your approval is required — Step {myPendingStep.step_order ?? myPendingStep.step}
-                                    </span>
-                                </div>
-                                <button
-                                    type="button"
-                                    disabled={actionProcessing}
-                                    onClick={handleApprove}
-                                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-60 cursor-pointer"
-                                >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    {actionProcessing ? 'Processing…' : 'Approve'}
-                                </button>
+
+                    {/* ── Status type filter pills ── */}
+                    {Object.keys(markerTypeCounts).length > 0 && (() => {
+                        const typeMeta = {
+                            pending:  { label: 'Needs Approval', color: 'amber',   icon: '•' },
+                            approved: { label: 'Approved',       color: 'emerald',  icon: '✓' },
+                            failed:   { label: 'Failed',         color: 'rose',     icon: '✕' },
+                            rejected: { label: 'Rejected',       color: 'orange',   icon: '!' },
+                            overdue:  { label: 'Overdue',        color: 'rose',     icon: '⚠' },
+                        };
+                        const colorMap = {
+                            amber:   { active: 'bg-amber-500 text-white border-amber-500',   inactive: 'border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30' },
+                            emerald: { active: 'bg-emerald-500 text-white border-emerald-500', inactive: 'border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' },
+                            rose:    { active: 'bg-rose-500 text-white border-rose-500',     inactive: 'border-rose-200 dark:border-rose-700 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30' },
+                            orange:  { active: 'bg-orange-500 text-white border-orange-500', inactive: 'border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30' },
+                        };
+                        return (
+                            <div className="px-5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 flex-wrap flex-shrink-0">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-1">View:</span>
+                                {Object.entries(markerTypeCounts).map(([type, count]) => {
+                                    const meta = typeMeta[type] || { label: type, color: 'amber', icon: '•' };
+                                    const colors = colorMap[meta.color] || colorMap.amber;
+                                    const isActive = markerTypeFilter === type;
+                                    return (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => onTypeFilterChange?.(type)}
+                                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${isActive ? colors.active : `bg-white dark:bg-slate-900 ${colors.inactive}`}`}
+                                        >
+                                            <span>{meta.icon}</span>
+                                            <span>{meta.label}</span>
+                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            {/* Reject inline */}
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    value={rejectRemark}
-                                    onChange={e => { setRejectRemark(e.target.value); setRejectError(''); }}
-                                    placeholder="Rejection remark (required)…"
-                                    className="flex-1 h-8 px-3 text-xs rounded-lg border border-rose-200 dark:border-rose-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                                />
-                                <button
-                                    type="button"
-                                    disabled={actionProcessing}
-                                    onClick={handleReject}
-                                    className="px-4 h-8 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition disabled:opacity-60 cursor-pointer"
-                                >
-                                    Reject
-                                </button>
-                            </div>
-                            {rejectError && <p className="text-xs text-rose-600 dark:text-rose-400">{rejectError}</p>}
-                        </div>
-                    )}
+                        );
+                    })()}
 
                     {/* ── Header ── */}
                     <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
@@ -236,7 +305,7 @@ export default function AuditDetailModal({
                     </div>
 
                     {/* ── Body ── */}
-                    <div className="p-6 overflow-y-auto space-y-6 flex-1 no-scrollbar">
+                    <div className="p-6 space-y-6">
                         {/* Status overview */}
                         <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-2">
                             <div className="flex items-center justify-between text-sm">
@@ -289,25 +358,61 @@ export default function AuditDetailModal({
                                         </div>
                                         <div className="grid grid-cols-3 gap-2">
                                             {images.map((img, idx) => (
-                                                <button
-                                                    key={img.id || idx}
-                                                    type="button"
+                                                <EvidenceImage
+                                                    key={img.id ?? img.file_url ?? idx}
+                                                    src={img.file_url}
+                                                    alt={`Evidence ${idx + 1}`}
                                                     onClick={() => setSelectedPhotoIndex(idx)}
-                                                    className="group relative aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-xs"
-                                                >
-                                                    <img
-                                                        src={img.file_url}
-                                                        alt={`Evidence ${idx + 1}`}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                                                    />
-                                                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/30 transition flex items-center justify-center">
-                                                        <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-                                                        </svg>
-                                                    </div>
-                                                </button>
+                                                />
                                             ))}
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* ── Approve / Reject section (shown when viewer is the pending approver) ── */}
+                                {showApproveBar && (
+                                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4 space-y-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                                                    <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                                                    Your approval required — Step {myPendingStep.step_order ?? myPendingStep.step}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                disabled={actionProcessing}
+                                                onClick={handleApprove}
+                                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-60 cursor-pointer shrink-0"
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                {actionProcessing ? 'Processing…' : 'Approve'}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={rejectRemark}
+                                                onChange={e => { setRejectRemark(e.target.value); setRejectError(''); }}
+                                                placeholder="Rejection remark (required to reject)…"
+                                                className="flex-1 h-8 px-3 text-xs rounded-lg border border-rose-200 dark:border-rose-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                            />
+                                            <button
+                                                type="button"
+                                                disabled={actionProcessing}
+                                                onClick={handleReject}
+                                                className="px-4 h-8 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition disabled:opacity-60 cursor-pointer shrink-0"
+                                            >
+                                                Reject
+                                            </button>
+                                        </div>
+                                        {rejectError && <p className="text-xs text-rose-600 dark:text-rose-400">{rejectError}</p>}
                                     </div>
                                 )}
 

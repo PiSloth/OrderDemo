@@ -112,7 +112,7 @@ Route::view('profile', 'profile')
 
 require __DIR__ . '/auth.php';
 
-Route::view('/', 'welcome')->name('welcome');
+Route::get('/', fn() => inertia('Welcome'))->name('welcome');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/config', Config::class)

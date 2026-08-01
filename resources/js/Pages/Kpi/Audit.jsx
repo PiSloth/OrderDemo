@@ -27,6 +27,7 @@ export default function Audit({
     const [selectedUserId, setSelectedUserId] = useState(selectedUser?.id || '');
     const [taskSearch, setTaskSearch] = useState('');
     const [selectedMarkerIndex, setSelectedMarkerIndex] = useState(null);
+    const [markerTypeFilter, setMarkerTypeFilter] = useState(null); // scoped type for navigation
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
@@ -52,7 +53,7 @@ export default function Audit({
         });
     }, [rows, taskSearch]);
 
-    // Build a flat list of ALL clickable markers across all (unfiltered) rows for prev/next navigation
+    // Build a flat list of ALL clickable markers across all rows
     const allMarkersFlat = useMemo(() => {
         const list = [];
         rows.forEach((row) => {
@@ -65,9 +66,27 @@ export default function Audit({
         return list;
     }, [rows]);
 
+    // Per-type counts (for filter pills in modal)
+    const markerTypeCounts = useMemo(() => {
+        const counts = {};
+        allMarkersFlat.forEach((m) => {
+            counts[m.type] = (counts[m.type] || 0) + 1;
+        });
+        return counts;
+    }, [allMarkersFlat]);
+
+    // Navigation list scoped to current type filter (null = all)
+    const scopedMarkers = useMemo(() => {
+        if (!markerTypeFilter) return allMarkersFlat;
+        return allMarkersFlat.filter((m) => m.type === markerTypeFilter);
+    }, [allMarkersFlat, markerTypeFilter]);
+
     const handleOpenMarker = (marker) => {
         if (!marker || !marker.instance) return;
-        const idx = allMarkersFlat.findIndex((m) => m.instance?.id === marker.instance?.id);
+        // Auto-scope to the clicked marker's type
+        setMarkerTypeFilter(marker.type);
+        const scoped = allMarkersFlat.filter((m) => m.type === marker.type);
+        const idx = scoped.findIndex((m) => m.instance?.id === marker.instance?.id);
         setSelectedMarkerIndex(idx >= 0 ? idx : 0);
         setIsModalOpen(true);
     };
@@ -76,9 +95,14 @@ export default function Audit({
         setSelectedMarkerIndex((prev) => {
             if (prev === null) return 0;
             const next = prev + direction;
-            if (next < 0 || next >= allMarkersFlat.length) return prev;
+            if (next < 0 || next >= scopedMarkers.length) return prev;
             return next;
         });
+    };
+
+    const handleTypeFilterChange = (type) => {
+        setMarkerTypeFilter(type);
+        setSelectedMarkerIndex(0);
     };
 
     return (
@@ -388,11 +412,14 @@ export default function Audit({
                 {/* Audit Inspection Modal */}
                 <AuditDetailModal
                     isOpen={isModalOpen}
-                    onClose={() => { setIsModalOpen(false); setSelectedMarkerIndex(null); }}
-                    selectedMarker={selectedMarkerIndex !== null ? allMarkersFlat[selectedMarkerIndex] : null}
+                    onClose={() => { setIsModalOpen(false); setSelectedMarkerIndex(null); setMarkerTypeFilter(null); }}
+                    selectedMarker={selectedMarkerIndex !== null ? scopedMarkers[selectedMarkerIndex] : null}
                     currentIndex={selectedMarkerIndex}
-                    totalCount={allMarkersFlat.length}
+                    totalCount={scopedMarkers.length}
                     onNavigate={handleNavigate}
+                    markerTypeFilter={markerTypeFilter}
+                    markerTypeCounts={markerTypeCounts}
+                    onTypeFilterChange={handleTypeFilterChange}
                     isSuperAdmin={isSuperAdmin}
                     canApproveTasks={canApproveTasks}
                     authUserId={authUserId}
