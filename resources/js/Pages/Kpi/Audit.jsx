@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import KpiLayout from '../../Layouts/KpiLayout';
 import AuditDetailModal from './Components/AuditDetailModal';
