@@ -124,7 +124,10 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
             className="bg-slate-950/90 backdrop-blur-xl flex flex-col md:flex-row overflow-hidden"
         >
             {/* Left Sidebar for Details */}
-            <div className="w-full md:w-80 lg:w-96 bg-black/40 border-b md:border-b-0 md:border-r border-white/10 p-6 flex flex-col gap-8 shrink-0 z-[1000001] pointer-events-auto overflow-y-auto max-h-[30vh] md:max-h-full">
+            <div
+                style={{ zIndex: 1000001 }}
+                className="w-full md:w-80 lg:w-96 bg-black/40 border-b md:border-b-0 md:border-r border-white/10 p-6 flex flex-col gap-8 shrink-0 pointer-events-auto overflow-y-auto max-h-[30vh] md:max-h-full"
+            >
                 <div className="flex items-center justify-between">
                     <span className="px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold shrink-0 shadow-lg tracking-wide">
                         Photo {safeIndex + 1} of {images.length}
@@ -171,9 +174,12 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
             </div>
 
             {/* Main Content Area (Photo Stage) */}
-            <div className="flex-1 flex flex-col relative overflow-hidden" onClick={onClose}>
+            <div
+                style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                onClick={onClose}
+            >
                 {/* Top Right Close Button (Desktop) */}
-                <div className="hidden md:block absolute top-6 right-6 z-[1000002]">
+                <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 1000002 }} className="hidden md:block">
                     <button
                         type="button"
                         onClick={onClose}
@@ -188,7 +194,10 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                 </div>
 
                 {/* Vertical Toolbar (Zoom/Rotate) on the Right Side */}
-                <div className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-[1000002] flex flex-col gap-2 pointer-events-auto bg-white/10 backdrop-blur-xl p-2 rounded-2xl border border-white/20 shadow-2xl">
+                <div
+                    style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 1000002 }}
+                    className="flex flex-col gap-2 pointer-events-auto bg-white/10 backdrop-blur-xl p-2 rounded-2xl border border-white/20 shadow-2xl"
+                >
                     <button onClick={handleZoomIn} className="p-3 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition cursor-pointer" title="Zoom In (+)">
                         <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6M7 10h6" />
@@ -213,14 +222,17 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                 </div>
 
                 {/* Main Image Stage */}
-                <div className="flex-1 relative flex items-center justify-center p-4">
+                <div
+                    style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', width: '100%' }}
+                >
                     {/* Previous Button */}
                     {images.length > 1 && (
                         <button
                             type="button"
                             onClick={handlePrev}
                             tabIndex={-1}
-                            className="absolute left-4 sm:left-8 z-[1000001] p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur text-white border border-white/20 shadow-xl transition focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
+                            style={{ position: 'absolute', left: '1.5rem', zIndex: 1000001 }}
+                            className="p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur text-white border border-white/20 shadow-xl transition focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
                             title="Previous image (←)"
                         >
                             <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,13 +241,21 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                         </button>
                     )}
 
-                    {/* Image */}
-                    <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                    {/* Image Container */}
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         <img
                             src={currentImage?.file_url || currentImage?.url || currentImage}
                             alt={photoLabel || `Evidence ${safeIndex + 1}`}
-                            className="max-w-full max-h-full object-contain transition-transform duration-300 ease-out select-none shadow-2xl drop-shadow-2xl"
-                            style={{ transform: `scale(${scale}) rotate(${rotation}deg)` }}
+                            style={{
+                                maxWidth: '100%',
+                                maxHeight: '100%',
+                                width: 'auto',
+                                height: 'auto',
+                                objectFit: 'contain',
+                                transform: `scale(${scale}) rotate(${rotation}deg)`,
+                                transition: 'transform 0.2s ease-out'
+                            }}
+                            className="select-none shadow-2xl drop-shadow-2xl"
                             draggable={false}
                             onClick={(e) => e.stopPropagation()} // Prevent close on image click
                         />
@@ -247,7 +267,8 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                             type="button"
                             onClick={handleNext}
                             tabIndex={-1}
-                            className="absolute right-20 sm:right-28 z-[1000001] p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur text-white border border-white/20 shadow-xl transition focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
+                            style={{ position: 'absolute', right: '6.5rem', zIndex: 1000001 }}
+                            className="p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur text-white border border-white/20 shadow-xl transition focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
                             title="Next image (→)"
                         >
                             <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,7 +280,10 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
 
                 {/* Thumbnail Carousel Footer */}
                 {images.length > 1 && (
-                    <div className="shrink-0 h-24 bg-black/40 border-t border-white/10 flex items-center justify-center gap-3 px-6 overflow-x-auto no-scrollbar pointer-events-auto">
+                    <div
+                        style={{ height: '6rem', zIndex: 1000001 }}
+                        className="shrink-0 bg-black/40 border-t border-white/10 flex items-center justify-center gap-3 px-6 overflow-x-auto no-scrollbar pointer-events-auto"
+                    >
                         {images.map((img, idx) => (
                             <button
                                 key={img.id || idx}
@@ -279,7 +303,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                                 <img
                                     src={img.file_url || img.url || img}
                                     alt={`Thumbnail ${idx + 1}`}
-                                    className="w-full h-full object-cover"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                             </button>
                         ))}
