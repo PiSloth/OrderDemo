@@ -91,7 +91,7 @@ export default function TemplateEditModal({
             inactivateMonth: selectedMonth || null,
         };
 
-        router.put(`/templates/${template.id}`, payload, {
+        router.put(`/kpi/templates/${template.id}`, payload, {
             preserveState: true,
             preserveScroll: true,
             onSuccess: () => {
