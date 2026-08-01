@@ -8,6 +8,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, y: 0 });
+    const pinchStartRef = useRef({ dist: 0, scale: 1 });
 
     const safeIndex = (isOpen && images && images.length > 0 && selectedIndex !== null && selectedIndex !== undefined)
         ? Math.max(0, Math.min(selectedIndex, images.length - 1))
@@ -29,19 +30,31 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
         setIsDragging(false);
     }, [safeIndex]);
 
-    const handleZoomIn = (e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 4)); };
+    const handleZoomIn = (e) => { if (e) e.stopPropagation(); setScale(s => Math.min(s + 0.25, 5)); };
     const handleZoomOut = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         setScale(s => {
             const nextScale = Math.max(s - 0.25, 0.25);
             if (nextScale <= 1) setPosition({ x: 0, y: 0 });
             return nextScale;
         });
     };
-    const handleRotateLeft = (e) => { e.stopPropagation(); setRotation(r => r - 90); };
-    const handleRotateRight = (e) => { e.stopPropagation(); setRotation(r => r + 90); };
+    const handleRotateLeft = (e) => { if (e) e.stopPropagation(); setRotation(r => r - 90); };
+    const handleRotateRight = (e) => { if (e) e.stopPropagation(); setRotation(r => r + 90); };
 
-    // Drag / Pan Handlers
+    // Mouse Wheel / Trackpad 2-finger zoom
+    const handleWheel = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = e.deltaY < 0 ? 0.2 : -0.2;
+        setScale(s => {
+            const nextScale = Math.min(Math.max(s + delta, 0.25), 5);
+            if (nextScale <= 1) setPosition({ x: 0, y: 0 });
+            return nextScale;
+        });
+    };
+
+    // Drag / Pan & 2-finger Pinch Handlers
     const handleMouseDown = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -77,21 +90,39 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                 x: touch.clientX - position.x,
                 y: touch.clientY - position.y
             };
+        } else if (e.touches.length === 2) {
+            setIsDragging(false);
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            pinchStartRef.current = { dist, scale };
         }
     };
 
     const handleTouchMove = (e) => {
-        if (isDragging && e.touches.length === 1) {
+        if (e.touches.length === 1 && isDragging) {
             const touch = e.touches[0];
             setPosition({
                 x: touch.clientX - dragStartRef.current.x,
                 y: touch.clientY - dragStartRef.current.y
             });
+        } else if (e.touches.length === 2 && pinchStartRef.current.dist > 0) {
+            if (e.cancelable) e.preventDefault();
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const factor = dist / pinchStartRef.current.dist;
+            const nextScale = Math.min(Math.max(pinchStartRef.current.scale * factor, 0.25), 5);
+            setScale(nextScale);
+            if (nextScale <= 1) setPosition({ x: 0, y: 0 });
         }
     };
 
     const handleTouchEnd = () => {
         setIsDragging(false);
+        pinchStartRef.current = { dist: 0, scale: 1 };
     };
 
     // Auto-focus the container div on open so keyboard events are captured reliably
@@ -375,6 +406,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
 
             {/* Main Stage (Image Display) */}
             <div
+                onWheel={handleWheel}
                 style={{
                     position: 'relative',
                     width: '100vw',
@@ -391,6 +423,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                     <img
                         src={imageSrc}
                         alt={photoLabel || `Evidence ${safeIndex + 1}`}
+                        onWheel={handleWheel}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
