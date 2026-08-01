@@ -115,29 +115,83 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
 
     if (typeof document === 'undefined') return null;
 
+    const imageSrc = typeof currentImage === 'string'
+        ? currentImage
+        : (currentImage?.file_url || currentImage?.url || currentImage?.path || currentImage?.src || '');
+
     return createPortal(
         <div
             ref={containerRef}
             tabIndex={0}
             onKeyDown={handleContainerKeyDown}
-            style={{ position: 'fixed', inset: 0, zIndex: 999999, outline: 'none' }}
-            className="bg-slate-950/90 backdrop-blur-xl flex flex-col md:flex-row overflow-hidden"
+            style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 999999,
+                outline: 'none',
+                backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden'
+            }}
         >
-            {/* Left Sidebar for Details */}
+            {/* Backdrop click listener */}
+            <div style={{ position: 'absolute', inset: 0, zIndex: 1000000 }} onClick={onClose}></div>
+
+            {/* Left Floating Info Panel (Title & Remark) */}
             <div
-                style={{ zIndex: 1000001 }}
-                className="w-full md:w-80 lg:w-96 bg-black/40 border-b md:border-b-0 md:border-r border-white/10 p-6 flex flex-col gap-8 shrink-0 pointer-events-auto overflow-y-auto max-h-[30vh] md:max-h-full"
+                style={{
+                    position: 'absolute',
+                    top: '1.5rem',
+                    left: '1.5rem',
+                    zIndex: 1000002,
+                    width: '300px',
+                    maxWidth: 'calc(100vw - 3rem)',
+                    maxHeight: 'calc(100vh - 12rem)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '1.25rem',
+                    padding: '1.25rem',
+                    color: '#ffffff',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+                    overflowY: 'auto',
+                    pointerEvents: 'auto'
+                }}
             >
-                <div className="flex items-center justify-between">
-                    <span className="px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold shrink-0 shadow-lg tracking-wide">
+                <div style={{ display: 'flex', itemsCenter: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                    <span style={{
+                        padding: '0.35rem 0.85rem',
+                        borderRadius: '9999px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        color: '#ffffff',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        letterSpacing: '0.05em'
+                    }}>
                         Photo {safeIndex + 1} of {images.length}
                     </span>
+
                     {/* Mobile close button */}
                     <button
                         type="button"
                         onClick={onClose}
                         tabIndex={-1}
-                        className="md:hidden p-2 rounded-xl bg-white/10 hover:bg-rose-500/80 border border-white/20 text-white shadow-lg transition focus:outline-none cursor-pointer shrink-0"
+                        style={{
+                            display: 'none',
+                            padding: '0.5rem',
+                            borderRadius: '0.75rem',
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            cursor: 'pointer'
+                        }}
+                        className="sm:hidden"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -145,146 +199,256 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                     </button>
                 </div>
 
-                <div className="flex flex-col gap-6 mt-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {photoLabel && (
-                        <div className="space-y-2">
-                            <h3 className="text-white/50 text-xs font-bold uppercase tracking-widest">Title</h3>
-                            <p className="text-white font-semibold text-lg leading-snug">{photoLabel}</p>
+                        <div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '0.25rem' }}>
+                                Title
+                            </div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: '600', color: '#ffffff', wordBreak: 'break-word' }}>
+                                {photoLabel}
+                            </div>
                         </div>
                     )}
 
                     {photoRemark && (
-                        <div className="space-y-2">
-                            <h3 className="text-white/50 text-xs font-bold uppercase tracking-widest">Remark</h3>
-                            <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-white/90 text-sm italic leading-relaxed shadow-inner">
+                        <div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '0.25rem' }}>
+                                Remark
+                            </div>
+                            <div style={{
+                                padding: '0.85rem',
+                                borderRadius: '0.85rem',
+                                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                border: '1px solid rgba(255, 255, 255, 0.12)',
+                                color: '#f1f5f9',
+                                fontSize: '0.875rem',
+                                fontStyle: 'italic',
+                                lineHeight: '1.5',
+                                wordBreak: 'break-word'
+                            }}>
                                 "{photoRemark}"
                             </div>
                         </div>
                     )}
 
                     {(!photoLabel && !photoRemark) && (
-                        <div className="flex flex-col items-center justify-center py-10 opacity-40">
-                            <svg className="w-12 h-12 mb-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <p className="text-white text-xs font-medium uppercase tracking-widest">No Details Provided</p>
+                        <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            No Details Provided
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Main Content Area (Photo Stage) */}
+            {/* Top Right Close Button */}
+            <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 1000003, pointerEvents: 'auto' }}>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    tabIndex={-1}
+                    style={{
+                        padding: '0.75rem',
+                        borderRadius: '1rem',
+                        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+                    }}
+                    title="Close photo preview (Esc)"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            {/* Right Vertical Zoom / Rotate Toolbar */}
             <div
-                style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-                onClick={onClose}
+                style={{
+                    position: 'absolute',
+                    right: '1.5rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 1000003,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '1rem',
+                    padding: '0.5rem',
+                    pointerEvents: 'auto',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+                }}
             >
-                {/* Top Right Close Button (Desktop) */}
-                <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 1000002 }} className="hidden md:block">
+                <button
+                    onClick={handleZoomIn}
+                    style={{ padding: '0.75rem', borderRadius: '0.75rem', color: '#ffffff', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
+                    title="Zoom In (+)"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6M7 10h6" />
+                    </svg>
+                </button>
+                <button
+                    onClick={handleZoomOut}
+                    style={{ padding: '0.75rem', borderRadius: '0.75rem', color: '#ffffff', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
+                    title="Zoom Out (-)"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM7 10h6" />
+                    </svg>
+                </button>
+                <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.2)', margin: '0.25rem 0' }}></div>
+                <button
+                    onClick={handleRotateLeft}
+                    style={{ padding: '0.75rem', borderRadius: '0.75rem', color: '#ffffff', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
+                    title="Rotate Left"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                </button>
+                <button
+                    onClick={handleRotateRight}
+                    style={{ padding: '0.75rem', borderRadius: '0.75rem', color: '#ffffff', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
+                    title="Rotate Right"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+                    </svg>
+                </button>
+            </div>
+
+            {/* Main Stage (Image Display) */}
+            <div
+                style={{
+                    position: 'relative',
+                    width: '100vw',
+                    height: '100vh',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2rem',
+                    zIndex: 1000001
+                }}
+            >
+                {/* Previous Button */}
+                {images.length > 1 && (
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handlePrev}
                         tabIndex={-1}
-                        className="p-3 rounded-2xl bg-white/10 hover:bg-rose-500/80 border border-white/20 text-white shadow-2xl backdrop-blur-md transition focus:outline-none cursor-pointer hover:scale-105 active:scale-95"
-                        title="Close photo preview (Esc)"
+                        style={{
+                            position: 'absolute',
+                            left: '21rem',
+                            zIndex: 1000003,
+                            padding: '1rem',
+                            borderRadius: '9999px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                            backdropFilter: 'blur(12px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                            pointerEvents: 'auto',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+                        }}
+                        title="Previous image (←)"
                     >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                </div>
+                )}
 
-                {/* Vertical Toolbar (Zoom/Rotate) on the Right Side */}
-                <div
-                    style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 1000002 }}
-                    className="flex flex-col gap-2 pointer-events-auto bg-white/10 backdrop-blur-xl p-2 rounded-2xl border border-white/20 shadow-2xl"
-                >
-                    <button onClick={handleZoomIn} className="p-3 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition cursor-pointer" title="Zoom In (+)">
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6M7 10h6" />
-                        </svg>
-                    </button>
-                    <button onClick={handleZoomOut} className="p-3 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition cursor-pointer" title="Zoom Out (-)">
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM7 10h6" />
-                        </svg>
-                    </button>
-                    <div className="w-full h-px bg-white/20 my-1"></div>
-                    <button onClick={handleRotateLeft} className="p-3 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition cursor-pointer" title="Rotate Left">
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                        </svg>
-                    </button>
-                    <button onClick={handleRotateRight} className="p-3 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition cursor-pointer" title="Rotate Right">
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
-                        </svg>
-                    </button>
-                </div>
-
-                {/* Main Image Stage */}
-                <div
-                    style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', width: '100%' }}
-                >
-                    {/* Previous Button */}
-                    {images.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={handlePrev}
-                            tabIndex={-1}
-                            style={{ position: 'absolute', left: '1.5rem', zIndex: 1000001 }}
-                            className="p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur text-white border border-white/20 shadow-xl transition focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
-                            title="Previous image (←)"
-                        >
-                            <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
-                    )}
-
-                    {/* Image Container */}
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                        <img
-                            src={currentImage?.file_url || currentImage?.url || currentImage}
-                            alt={photoLabel || `Evidence ${safeIndex + 1}`}
-                            style={{
-                                maxWidth: '100%',
-                                maxHeight: '100%',
-                                width: 'auto',
-                                height: 'auto',
-                                objectFit: 'contain',
-                                transform: `scale(${scale}) rotate(${rotation}deg)`,
-                                transition: 'transform 0.2s ease-out'
-                            }}
-                            className="select-none shadow-2xl drop-shadow-2xl"
-                            draggable={false}
-                            onClick={(e) => e.stopPropagation()} // Prevent close on image click
-                        />
+                {/* The Image */}
+                {imageSrc ? (
+                    <img
+                        src={imageSrc}
+                        alt={photoLabel || `Evidence ${safeIndex + 1}`}
+                        style={{
+                            maxWidth: 'calc(100vw - 26rem)',
+                            maxHeight: 'calc(100vh - 10rem)',
+                            width: 'auto',
+                            height: 'auto',
+                            objectFit: 'contain',
+                            borderRadius: '0.75rem',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+                            transform: `scale(${scale}) rotate(${rotation}deg)`,
+                            transition: 'transform 0.2s ease-out',
+                            pointerEvents: 'auto'
+                        }}
+                        draggable={false}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                ) : (
+                    <div style={{ color: '#ffffff', fontSize: '1rem', opacity: 0.6 }}>
+                        No Image Available
                     </div>
+                )}
 
-                    {/* Next Button (shifted left slightly to avoid toolbar) */}
-                    {images.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={handleNext}
-                            tabIndex={-1}
-                            style={{ position: 'absolute', right: '6.5rem', zIndex: 1000001 }}
-                            className="p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur text-white border border-white/20 shadow-xl transition focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
-                            title="Next image (→)"
-                        >
-                            <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-
-                {/* Thumbnail Carousel Footer */}
+                {/* Next Button */}
                 {images.length > 1 && (
-                    <div
-                        style={{ height: '6rem', zIndex: 1000001 }}
-                        className="shrink-0 bg-black/40 border-t border-white/10 flex items-center justify-center gap-3 px-6 overflow-x-auto no-scrollbar pointer-events-auto"
+                    <button
+                        type="button"
+                        onClick={handleNext}
+                        tabIndex={-1}
+                        style={{
+                            position: 'absolute',
+                            right: '6rem',
+                            zIndex: 1000003,
+                            padding: '1rem',
+                            borderRadius: '9999px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                            backdropFilter: 'blur(12px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                            pointerEvents: 'auto',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+                        }}
+                        title="Next image (→)"
                     >
-                        {images.map((img, idx) => (
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                )}
+            </div>
+
+            {/* Bottom Thumbnail Carousel Footer */}
+            {images.length > 1 && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: '1.25rem',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 1000003,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.5rem 1rem',
+                        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                        backdropFilter: 'blur(16px)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '1.25rem',
+                        maxWidth: '90vw',
+                        overflowX: 'auto',
+                        pointerEvents: 'auto',
+                        boxShadow: '0 15px 25px -5px rgba(0, 0, 0, 0.6)'
+                    }}
+                >
+                    {images.map((img, idx) => {
+                        const thumbSrc = typeof img === 'string' ? img : (img?.file_url || img?.url || img?.path || img?.src || '');
+                        const isSelected = idx === safeIndex;
+                        return (
                             <button
                                 key={img.id || idx}
                                 type="button"
@@ -294,22 +458,30 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                                     onSelectIndex(idx);
                                     if (containerRef.current) containerRef.current.focus();
                                 }}
-                                className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 transition shrink-0 cursor-pointer shadow-lg ${
-                                    idx === safeIndex
-                                        ? 'border-white scale-110 ring-2 ring-white/50 shadow-white/20'
-                                        : 'border-white/20 opacity-50 hover:opacity-100 hover:border-white/50'
-                                }`}
+                                style={{
+                                    position: 'relative',
+                                    width: '4rem',
+                                    height: '3rem',
+                                    borderRadius: '0.6rem',
+                                    overflow: 'hidden',
+                                    border: isSelected ? '2px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    opacity: isSelected ? 1 : 0.5,
+                                    transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+                                    transition: 'all 0.2s ease-in-out',
+                                    cursor: 'pointer',
+                                    flexShrink: 0
+                                }}
                             >
                                 <img
-                                    src={img.file_url || img.url || img}
+                                    src={thumbSrc}
                                     alt={`Thumbnail ${idx + 1}`}
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                             </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>,
         document.body
     );
