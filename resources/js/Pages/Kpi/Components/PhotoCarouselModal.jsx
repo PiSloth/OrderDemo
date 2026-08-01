@@ -5,6 +5,9 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
     const containerRef = useRef(null);
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef({ x: 0, y: 0 });
 
     const safeIndex = (isOpen && images && images.length > 0 && selectedIndex !== null && selectedIndex !== undefined)
         ? Math.max(0, Math.min(selectedIndex, images.length - 1))
@@ -18,16 +21,78 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
         ? (currentImage.remark || currentImage.remarks || currentImage.description || null)
         : null;
 
-    // Reset zoom and rotation when image changes
+    // Reset zoom, rotation, and drag position when image changes
     useEffect(() => {
         setScale(1);
         setRotation(0);
+        setPosition({ x: 0, y: 0 });
+        setIsDragging(false);
     }, [safeIndex]);
 
     const handleZoomIn = (e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 4)); };
-    const handleZoomOut = (e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.25)); };
+    const handleZoomOut = (e) => {
+        e.stopPropagation();
+        setScale(s => {
+            const nextScale = Math.max(s - 0.25, 0.25);
+            if (nextScale <= 1) setPosition({ x: 0, y: 0 });
+            return nextScale;
+        });
+    };
     const handleRotateLeft = (e) => { e.stopPropagation(); setRotation(r => r - 90); };
     const handleRotateRight = (e) => { e.stopPropagation(); setRotation(r => r + 90); };
+
+    // Drag / Pan Handlers
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+        dragStartRef.current = {
+            x: e.clientX - position.x,
+            y: e.clientY - position.y
+        };
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setPosition({
+            x: e.clientX - dragStartRef.current.x,
+            y: e.clientY - dragStartRef.current.y
+        });
+    };
+
+    const handleMouseUp = (e) => {
+        if (isDragging) {
+            e.stopPropagation();
+            setIsDragging(false);
+        }
+    };
+
+    const handleTouchStart = (e) => {
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            setIsDragging(true);
+            dragStartRef.current = {
+                x: touch.clientX - position.x,
+                y: touch.clientY - position.y
+            };
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        if (isDragging && e.touches.length === 1) {
+            const touch = e.touches[0];
+            setPosition({
+                x: touch.clientX - dragStartRef.current.x,
+                y: touch.clientY - dragStartRef.current.y
+            });
+        }
+    };
+
+    const handleTouchEnd = () => {
+        setIsDragging(false);
+    };
 
     // Auto-focus the container div on open so keyboard events are captured reliably
     useEffect(() => {
@@ -90,24 +155,6 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
             window.removeEventListener('keydown', handleWindowKeyDown, true);
         };
     }, [isOpen, safeIndex, images.length, onClose, onSelectIndex]);
-
-    const handlePrev = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const newIndex = safeIndex === 0 ? images.length - 1 : safeIndex - 1;
-        onSelectIndex(newIndex);
-        // Re-focus container after button click
-        if (containerRef.current) containerRef.current.focus();
-    };
-
-    const handleNext = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const newIndex = safeIndex === images.length - 1 ? 0 : safeIndex + 1;
-        onSelectIndex(newIndex);
-        // Re-focus container after button click
-        if (containerRef.current) containerRef.current.focus();
-    };
 
     if (!isOpen || !images || images.length === 0 || selectedIndex === null || selectedIndex === undefined) {
         return null;
@@ -339,50 +386,31 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                     zIndex: 1000001
                 }}
             >
-                {/* Previous Button */}
-                {images.length > 1 && (
-                    <button
-                        type="button"
-                        onClick={handlePrev}
-                        tabIndex={-1}
-                        style={{
-                            position: 'absolute',
-                            left: '21rem',
-                            zIndex: 1000003,
-                            padding: '1rem',
-                            borderRadius: '9999px',
-                            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                            backdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            color: '#ffffff',
-                            cursor: 'pointer',
-                            pointerEvents: 'auto',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
-                        }}
-                        title="Previous image (←)"
-                    >
-                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                )}
-
                 {/* The Image */}
                 {imageSrc ? (
                     <img
                         src={imageSrc}
                         alt={photoLabel || `Evidence ${safeIndex + 1}`}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
                         style={{
-                            maxWidth: 'calc(100vw - 26rem)',
+                            maxWidth: 'calc(100vw - 22rem)',
                             maxHeight: 'calc(100vh - 10rem)',
                             width: 'auto',
                             height: 'auto',
                             objectFit: 'contain',
                             borderRadius: '0.75rem',
                             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-                            transform: `scale(${scale}) rotate(${rotation}deg)`,
-                            transition: 'transform 0.2s ease-out',
-                            pointerEvents: 'auto'
+                            transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`,
+                            transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                            cursor: isDragging ? 'grabbing' : 'grab',
+                            pointerEvents: 'auto',
+                            userSelect: 'none'
                         }}
                         draggable={false}
                         onClick={(e) => e.stopPropagation()}
@@ -391,34 +419,6 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                     <div style={{ color: '#ffffff', fontSize: '1rem', opacity: 0.6 }}>
                         No Image Available
                     </div>
-                )}
-
-                {/* Next Button */}
-                {images.length > 1 && (
-                    <button
-                        type="button"
-                        onClick={handleNext}
-                        tabIndex={-1}
-                        style={{
-                            position: 'absolute',
-                            right: '6rem',
-                            zIndex: 1000003,
-                            padding: '1rem',
-                            borderRadius: '9999px',
-                            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                            backdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            color: '#ffffff',
-                            cursor: 'pointer',
-                            pointerEvents: 'auto',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
-                        }}
-                        title="Next image (→)"
-                    >
-                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
                 )}
             </div>
 
