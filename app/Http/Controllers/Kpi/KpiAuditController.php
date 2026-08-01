@@ -651,6 +651,10 @@ class KpiAuditController extends Controller
                     'id' => $img->id,
                     'image_path' => $img->image_path,
                     'file_url' => asset('storage/' . $img->image_path),
+                    'url' => asset('storage/' . $img->image_path),
+                    'title' => $img->title,
+                    'label' => $img->title,
+                    'remark' => $img->remark,
                 ])->all() : [],
                 'approval_steps' => $latest->approvalSteps ? $latest->approvalSteps->map(fn ($step) => [
                     'id' => $step->id,

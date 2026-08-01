@@ -130,13 +130,15 @@ export default function AuditDetailModal({
 
     // Body scroll lock
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && selectedMarker) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = '';
         }
-        return () => { document.body.style.overflow = ''; };
-    }, [isOpen]);
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen, selectedMarker]);
 
     // Keyboard: Escape closes, arrows navigate
     useEffect(() => {
@@ -145,7 +147,6 @@ export default function AuditDetailModal({
             if (selectedPhotoIndex !== null) return; // let carousel handle keys
             if (e.key === 'Escape') {
                 e.preventDefault();
-                document.body.style.overflow = '';
                 onClose();
             }
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -199,7 +200,7 @@ export default function AuditDetailModal({
             <div
                 style={{ position: 'fixed', inset: 0, zIndex: 9100, backgroundColor: 'rgba(2,6,23,0.65)' }}
                 className={`overflow-y-auto flex items-start justify-center py-6 px-4 backdrop-blur-sm ${selectedPhotoIndex !== null ? 'hidden' : ''}`}
-                onClick={() => { document.body.style.overflow = ''; onClose(); }}
+                onClick={onClose}
             >
                 <div
                     style={{ position: 'relative', zIndex: 9101 }}
@@ -300,7 +301,7 @@ export default function AuditDetailModal({
                             )}
 
                             <button
-                                onClick={() => { document.body.style.overflow = ''; onClose(); }}
+                                onClick={onClose}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700 transition cursor-pointer"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

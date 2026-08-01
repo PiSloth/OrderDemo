@@ -26,7 +26,7 @@ export default function Audit({
     const [selectedMonth, setSelectedMonth] = useState(month || new Date().toISOString().slice(0, 7));
     const [selectedUserId, setSelectedUserId] = useState(selectedUser?.id || '');
     const [taskSearch, setTaskSearch] = useState('');
-    const [selectedMarkerIndex, setSelectedMarkerIndex] = useState(null);
+    const [selectedInstanceId, setSelectedInstanceId] = useState(null);
     const [markerTypeFilter, setMarkerTypeFilter] = useState(null); // scoped type for navigation
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
@@ -86,28 +86,52 @@ export default function Audit({
         return allMarkersFlat.filter((m) => m.type === markerTypeFilter);
     }, [allMarkersFlat, markerTypeFilter]);
 
+    // Find active marker by selectedInstanceId (resilient across data reloads)
+    const selectedMarker = useMemo(() => {
+        if (!selectedInstanceId) return null;
+        return allMarkersFlat.find((m) => m.instance?.id === selectedInstanceId) || null;
+    }, [allMarkersFlat, selectedInstanceId]);
+
+    // Track active marker's index within current scoped filter list
+    const currentIndex = useMemo(() => {
+        if (!selectedMarker) return null;
+        const idx = scopedMarkers.findIndex((m) => m.instance?.id === selectedMarker.instance?.id);
+        return idx >= 0 ? idx : 0;
+    }, [scopedMarkers, selectedMarker]);
+
     const handleOpenMarker = (marker) => {
         if (!marker || !marker.instance) return;
-        // Auto-scope to the clicked marker's type
         setMarkerTypeFilter(marker.type);
-        const scoped = allMarkersFlat.filter((m) => m.type === marker.type);
-        const idx = scoped.findIndex((m) => m.instance?.id === marker.instance?.id);
-        setSelectedMarkerIndex(idx >= 0 ? idx : 0);
+        setSelectedInstanceId(marker.instance.id);
         setIsModalOpen(true);
     };
 
     const handleNavigate = (direction) => {
-        setSelectedMarkerIndex((prev) => {
-            if (prev === null) return 0;
-            const next = prev + direction;
-            if (next < 0 || next >= scopedMarkers.length) return prev;
-            return next;
-        });
+        if (currentIndex === null || !scopedMarkers.length) return;
+        const next = currentIndex + direction;
+        if (next >= 0 && next < scopedMarkers.length) {
+            const nextMarker = scopedMarkers[next];
+            if (nextMarker && nextMarker.instance) {
+                setSelectedInstanceId(nextMarker.instance.id);
+            }
+        }
     };
 
     const handleTypeFilterChange = (type) => {
         setMarkerTypeFilter(type);
-        setSelectedMarkerIndex(0);
+        const scoped = type ? allMarkersFlat.filter((m) => m.type === type) : allMarkersFlat;
+        if (scoped.length > 0) {
+            setSelectedInstanceId(scoped[0].instance?.id || null);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedInstanceId(null);
+        setMarkerTypeFilter(null);
+        if (typeof document !== 'undefined') {
+            document.body.style.overflow = '';
+        }
     };
 
     return (
@@ -416,10 +440,10 @@ export default function Audit({
 
                 {/* Audit Inspection Modal */}
                 <AuditDetailModal
-                    isOpen={isModalOpen}
-                    onClose={() => { setIsModalOpen(false); setSelectedMarkerIndex(null); setMarkerTypeFilter(null); }}
-                    selectedMarker={selectedMarkerIndex !== null ? scopedMarkers[selectedMarkerIndex] : null}
-                    currentIndex={selectedMarkerIndex}
+                    isOpen={isModalOpen && selectedMarker !== null}
+                    onClose={handleCloseModal}
+                    selectedMarker={selectedMarker}
+                    currentIndex={currentIndex}
                     totalCount={scopedMarkers.length}
                     onNavigate={handleNavigate}
                     markerTypeFilter={markerTypeFilter}

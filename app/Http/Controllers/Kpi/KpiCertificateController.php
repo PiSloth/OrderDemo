@@ -147,7 +147,10 @@ class KpiCertificateController extends Controller
             'images' => $submission->images ? $submission->images->map(fn ($img) => [
                 'id' => $img->id,
                 'url' => asset('storage/' . ltrim((string) $img->image_path, '/')),
+                'file_url' => asset('storage/' . ltrim((string) $img->image_path, '/')),
                 'title' => $img->title ?? 'Evidence image',
+                'label' => $img->title,
+                'remark' => $img->remark,
             ])->values()->all() : [],
             'approval_steps' => $submission->approvalSteps ? $submission->approvalSteps->sortBy('step_order')->map(fn ($step) => [
                 'id' => $step->id,

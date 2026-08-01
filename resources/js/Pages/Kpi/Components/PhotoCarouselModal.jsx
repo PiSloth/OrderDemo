@@ -9,6 +9,12 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
         : 0;
 
     const currentImage = (isOpen && images && images.length > 0) ? (images[safeIndex] || images[0]) : null;
+    const photoLabel = (typeof currentImage === 'object' && currentImage !== null)
+        ? (currentImage.title || currentImage.label || null)
+        : null;
+    const photoRemark = (typeof currentImage === 'object' && currentImage !== null)
+        ? (currentImage.remark || currentImage.remarks || currentImage.description || null)
+        : null;
 
     // Auto-focus the container div on open so keyboard events are captured reliably
     useEffect(() => {
@@ -107,12 +113,17 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
             <div style={{ position: 'relative', zIndex: 1000000 }} className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
                 {/* Header Bar */}
                 <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 select-none">
-                    <div className="flex items-center gap-3">
-                        <span className="px-3.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <span className="px-3.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold shrink-0">
                             Photo {safeIndex + 1} of {images.length}
                         </span>
-                        <span className="text-xs text-slate-400 font-medium hidden sm:inline">
-                            Use ← → arrow keys to navigate carousel
+                        {photoLabel && (
+                            <span className="text-sm font-semibold text-white truncate max-w-sm sm:max-w-md">
+                                {photoLabel}
+                            </span>
+                        )}
+                        <span className="text-xs text-slate-400 font-medium hidden md:inline shrink-0">
+                            Use ← → arrow keys to navigate
                         </span>
                     </div>
 
@@ -120,7 +131,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                         type="button"
                         onClick={onClose}
                         tabIndex={-1}
-                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition focus:outline-none cursor-pointer"
+                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition focus:outline-none cursor-pointer shrink-0"
                         title="Close photo preview (Esc)"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +141,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                 </div>
 
                 {/* Main Image Stage */}
-                <div className="relative flex-1 bg-black/70 flex items-center justify-center p-4 min-h-[350px] sm:min-h-[480px]">
+                <div className="relative flex-1 bg-black/70 flex flex-col items-center justify-center p-4 min-h-[350px] sm:min-h-[480px]">
                     {/* Previous Button */}
                     {images.length > 1 && (
                         <button
@@ -149,10 +160,33 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                     {/* Main Image */}
                     <img
                         src={currentImage?.file_url || currentImage?.url || currentImage}
-                        alt={`Evidence ${safeIndex + 1}`}
-                        className="max-w-full max-h-[60vh] sm:max-h-[68vh] object-contain rounded-xl shadow-2xl transition-all duration-300 select-none"
+                        alt={photoLabel || `Evidence ${safeIndex + 1}`}
+                        className="max-w-full max-h-[55vh] sm:max-h-[62vh] object-contain rounded-xl shadow-2xl transition-all duration-300 select-none"
                         draggable={false}
                     />
+
+                    {/* Photo Label & Remark Caption Bar */}
+                    {(photoLabel || photoRemark) && (
+                        <div className="mt-3 w-full max-w-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800/90 rounded-2xl px-4 py-3 text-center shadow-2xl space-y-1 z-20">
+                            {photoLabel && (
+                                <div className="flex items-center justify-center gap-2">
+                                    <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold tracking-wide">
+                                        {photoLabel}
+                                    </span>
+                                </div>
+                            )}
+                            {photoRemark && (
+                                <div className="flex items-start justify-center gap-2 text-xs text-slate-200">
+                                    <svg className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                    </svg>
+                                    <p className="leading-relaxed italic max-w-xl text-center">
+                                        "{photoRemark}"
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Next Button */}
                     {images.length > 1 && (
