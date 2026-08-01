@@ -221,11 +221,11 @@ class KpiGroupController extends Controller
             'templateGuideline' => ['nullable', 'string'],
             'templateFrequency' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
             'templateMonthlyRequiredCount' => ['required', 'integer', 'min:1', 'max:31'],
-            'templateCutoffTime' => ['nullable', 'date_format:H:i'],
+            'templateCutoffTime' => ['nullable', 'string'],
             'templateRequiresImages' => ['boolean'],
             'templateRequiresTable' => ['boolean'],
             'templateMinImages' => ['required', 'integer', 'min:0', 'max:20'],
-            'templateMaxImages' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'templateMaxImages' => ['nullable'],
             'templateImageRemarkRequired' => ['boolean'],
             'templateIsActive' => ['boolean'],
             'templateRuleType' => ['required', Rule::in([
@@ -264,13 +264,13 @@ class KpiGroupController extends Controller
 
         if ($ruleType === KpiTaskRule::TYPE_FAIL_COUNT && ($maxFail === null || $maxFail === '')) {
             throw ValidationException::withMessages([
-                'groupMaxFailCount' => 'Maximum fail count is required for the fail count rule.',
+                'templateMaxFailCount' => 'Maximum fail count is required for the fail count rule.',
             ]);
         }
 
         if ($ruleType === KpiTaskRule::TYPE_SPEND_COST_LTE && ($maxCost === null || $maxCost === '')) {
             throw ValidationException::withMessages([
-                'groupMaxCostAmount' => 'Maximum cost amount is required for the spend cost rule.',
+                'templateMaxCostAmount' => 'Maximum cost amount is required for the spend cost rule.',
             ]);
         }
 
@@ -281,7 +281,7 @@ class KpiGroupController extends Controller
             'guideline' => !empty($validated['templateGuideline']) ? $validated['templateGuideline'] : null,
             'frequency' => $validated['templateFrequency'],
             'monthly_required_count' => (int) $validated['templateMonthlyRequiredCount'],
-            'cutoff_time' => $validated['templateCutoffTime'] ?? null,
+            'cutoff_time' => !empty($validated['templateCutoffTime']) ? $validated['templateCutoffTime'] : null,
             'requires_images' => (bool) ($validated['templateRequiresImages'] ?? false),
             'requires_table' => (bool) ($validated['templateRequiresTable'] ?? false),
             'min_images' => $minImg,

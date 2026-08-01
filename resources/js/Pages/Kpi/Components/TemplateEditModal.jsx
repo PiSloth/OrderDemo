@@ -53,11 +53,11 @@ export default function TemplateEditModal({
                 templateTargetPercentage: template.rule?.target_percentage !== null && template.rule?.target_percentage !== undefined ? String(template.rule.target_percentage) : '80',
                 templateMaxFailCount: template.rule?.max_fail_count !== null && template.rule?.max_fail_count !== undefined ? String(template.rule.max_fail_count) : '0',
                 templateMaxCostAmount: template.rule?.max_cost_amount !== null && template.rule?.max_cost_amount !== undefined ? String(template.rule.max_cost_amount) : '0',
-                inactivateForMonth: false,
+                inactivateForMonth: Boolean(assignment?.ends_on && selectedMonth && new Date(assignment.ends_on) < new Date(selectedMonth + '-01')),
             });
             setErrors({});
         }
-    }, [template, isOpen]);
+    }, [template, assignment, selectedMonth, isOpen]);
 
     if (!isOpen || !template) return null;
 
@@ -141,6 +141,14 @@ export default function TemplateEditModal({
 
                 {/* Form Body */}
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Error Banner */}
+                    {Object.keys(errors).length > 0 && (
+                        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-600 dark:text-rose-400 text-xs font-semibold space-y-1">
+                            {Object.values(errors).map((err, i) => (
+                                <p key={i}>• {err}</p>
+                            ))}
+                        </div>
+                    )}
                     {/* General Information */}
                     <div className="space-y-4">
                         <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">General Information</h4>
