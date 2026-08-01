@@ -22,15 +22,18 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
         if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             onClose();
         } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             const prevIndex = safeIndex === 0 ? images.length - 1 : safeIndex - 1;
             onSelectIndex(prevIndex);
         } else if (e.key === 'ArrowRight' || e.key === 'Right') {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             const nextIndex = safeIndex === images.length - 1 ? 0 : safeIndex + 1;
             onSelectIndex(nextIndex);
         }
@@ -44,13 +47,17 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
             if (e.key === 'ArrowLeft' || e.key === 'Left') {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 onSelectIndex(safeIndex === 0 ? images.length - 1 : safeIndex - 1);
             } else if (e.key === 'ArrowRight' || e.key === 'Right') {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 onSelectIndex(safeIndex === images.length - 1 ? 0 : safeIndex + 1);
             } else if (e.key === 'Escape') {
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
                 onClose();
             }
         };

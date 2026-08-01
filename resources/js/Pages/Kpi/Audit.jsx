@@ -59,7 +59,12 @@ export default function Audit({
         rows.forEach((row) => {
             row.cells.forEach((cell) => {
                 (cell.markers || []).forEach((m) => {
-                    if (m && m.instance) list.push(m);
+                    if (m && m.instance) {
+                        list.push({
+                            ...m,
+                            template: m.instance.template || row.assignment?.template,
+                        });
+                    }
                 });
             });
         });

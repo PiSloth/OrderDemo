@@ -617,6 +617,7 @@ class KpiAuditController extends Controller
     protected function serializeInstance(KpiTaskInstance $instance): array
     {
         $latest = $instance->latestSubmission;
+        $template = $instance->template;
 
         return [
             'id' => $instance->id,
@@ -626,6 +627,17 @@ class KpiAuditController extends Controller
             'due_at' => $instance->due_at?->toIso8601String(),
             'submitted_at' => $instance->submitted_at?->toIso8601String(),
             'finalized_at' => $instance->finalized_at?->toIso8601String(),
+            'template' => $template ? [
+                'id' => $template->id,
+                'title' => $template->title,
+                'description' => $template->description,
+                'guideline' => $template->guideline,
+                'frequency' => $template->frequency,
+                'group' => $template->group ? [
+                    'id' => $template->group->id,
+                    'name' => $template->group->name,
+                ] : null,
+            ] : null,
             'latest_submission' => $latest ? [
                 'id' => $latest->id,
                 'status' => $latest->status,
