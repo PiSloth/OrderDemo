@@ -189,6 +189,22 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
         };
     }, [isOpen, safeIndex, images.length, onClose, onSelectIndex]);
 
+    // Prevent browser default pinch-zoom on the document level while modal is open
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const preventPageTouchZoom = (e) => {
+            if (e.touches && e.touches.length > 1) {
+                if (e.cancelable) e.preventDefault();
+            }
+        };
+
+        document.addEventListener('touchmove', preventPageTouchZoom, { passive: false });
+        return () => {
+            document.removeEventListener('touchmove', preventPageTouchZoom);
+        };
+    }, [isOpen]);
+
     if (!isOpen || !images || images.length === 0 || selectedIndex === null || selectedIndex === undefined) {
         return null;
     }
@@ -215,7 +231,8 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                touchAction: 'none'
             }}
         >
             {/* Backdrop click listener */}
@@ -417,7 +434,8 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: '2rem',
-                    zIndex: 1000001
+                    zIndex: 1000001,
+                    touchAction: 'none'
                 }}
             >
                 {/* The Image */}
@@ -445,7 +463,8 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                             transition: isDragging ? 'none' : 'transform 0.2s ease-out',
                             cursor: isDragging ? 'grabbing' : 'grab',
                             pointerEvents: 'auto',
-                            userSelect: 'none'
+                            userSelect: 'none',
+                            touchAction: 'none'
                         }}
                         draggable={false}
                         onClick={(e) => e.stopPropagation()}

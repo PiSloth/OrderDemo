@@ -5,6 +5,7 @@ import AuditDetailModal from './Components/AuditDetailModal';
 import SearchableUserSelect from './Components/SearchableUserSelect';
 import ExclusionRequestModal from './Components/ExclusionRequestModal';
 import InboxModal from './Components/InboxModal';
+import TemplateEditModal from './Components/TemplateEditModal';
 
 export default function Audit({
     month,
@@ -15,6 +16,7 @@ export default function Audit({
     groupSummaries = [],
     groupCards = { passed: 0, failed: 0, not_set: 0 },
     isSuperAdmin = false,
+    canManageTemplates = false,
     canApproveExclusions = false,
     canManageHolidays = false,
     canApproveTasks = false,
@@ -22,6 +24,7 @@ export default function Audit({
     taskAssignments = [],
     pendingExclusions = [],
     pendingExclusionsCount = 0,
+    kpiGroups = [],
 }) {
     const [selectedMonth, setSelectedMonth] = useState(month || new Date().toISOString().slice(0, 7));
     const [selectedUserId, setSelectedUserId] = useState(selectedUser?.id || '');
@@ -31,6 +34,11 @@ export default function Audit({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
+
+    // Template Edit Modal states
+    const [editingTemplate, setEditingTemplate] = useState(null);
+    const [editingAssignment, setEditingAssignment] = useState(null);
+    const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
     const handleFilterChange = (newMonth, newUserId) => {
         const m = newMonth !== undefined ? newMonth : selectedMonth;
@@ -417,9 +425,26 @@ export default function Audit({
                                     filteredRows.map((row, rIdx) => (
                                         <tr key={row.assignment.id || rIdx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                                             {/* Task Name Column */}
-                                            <td className="p-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 font-medium">
-                                                <div className="truncate max-w-[230px] text-slate-800 dark:text-slate-200" title={row.assignment.template?.title}>
-                                                    {row.assignment.template?.title || 'Untitled Task'}
+                                            <td
+                                                onClick={() => {
+                                                    if (canManageTemplates && row.assignment?.template) {
+                                                        setEditingTemplate(row.assignment.template);
+                                                        setEditingAssignment(row.assignment);
+                                                        setIsTemplateModalOpen(true);
+                                                    }
+                                                }}
+                                                className={`p-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 font-medium ${
+                                                    canManageTemplates ? 'cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition' : ''
+                                                }`}
+                                                title={canManageTemplates ? "Click to edit template / inactive for month" : row.assignment.template?.title}
+                                            >
+                                                <div className="truncate max-w-[230px] text-slate-800 dark:text-slate-200 font-semibold flex items-center justify-between group">
+                                                    <span>{row.assignment.template?.title || 'Untitled Task'}</span>
+                                                    {canManageTemplates && (
+                                                        <svg className="w-3.5 h-3.5 text-indigo-500 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                    )}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
                                                     <span className="capitalize">{row.assignment.template?.frequency}</span>
@@ -591,6 +616,20 @@ export default function Audit({
                     isOpen={inboxOpen}
                     onClose={() => setInboxOpen(false)}
                     pendingExclusions={pendingExclusions}
+                />
+
+                {/* Template Edit Modal */}
+                <TemplateEditModal
+                    isOpen={isTemplateModalOpen}
+                    template={editingTemplate}
+                    assignment={editingAssignment}
+                    kpiGroups={kpiGroups}
+                    selectedMonth={selectedMonth}
+                    onClose={() => {
+                        setIsTemplateModalOpen(false);
+                        setEditingTemplate(null);
+                        setEditingAssignment(null);
+                    }}
                 />
             </div>
         </KpiLayout>

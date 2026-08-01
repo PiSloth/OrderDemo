@@ -121,8 +121,25 @@ class KpiAuditController extends Controller
                     'ends_on' => $assignment->ends_on?->toDateString(),
                     'template' => $assignment->template ? [
                         'id' => $assignment->template->id,
+                        'kpi_group_id' => $assignment->template->kpi_group_id,
                         'title' => $assignment->template->title,
+                        'description' => $assignment->template->description,
+                        'guideline' => $assignment->template->guideline,
                         'frequency' => $assignment->template->frequency,
+                        'monthly_required_count' => (int) $assignment->template->monthly_required_count,
+                        'cutoff_time' => $assignment->template->cutoff_time,
+                        'requires_images' => (bool) $assignment->template->requires_images,
+                        'requires_table' => (bool) $assignment->template->requires_table,
+                        'min_images' => (int) $assignment->template->min_images,
+                        'max_images' => $assignment->template->max_images,
+                        'image_remark_required' => (bool) $assignment->template->image_remark_required,
+                        'is_active' => (bool) $assignment->template->is_active,
+                        'rule' => $assignment->template->rule ? [
+                            'rule_type' => $assignment->template->rule->rule_type,
+                            'target_percentage' => $assignment->template->rule->target_percentage,
+                            'max_fail_count' => $assignment->template->rule->max_fail_count,
+                            'max_cost_amount' => $assignment->template->rule->max_cost_amount,
+                        ] : null,
                         'group' => $assignment->template->group ? [
                             'id' => $assignment->template->group->id,
                             'name' => $assignment->template->group->name,
@@ -197,6 +214,7 @@ class KpiAuditController extends Controller
             'groupSummaries' => $groupSummaries->values()->all(),
             'groupCards' => $groupCards,
             'isSuperAdmin' => Gate::allows('isSuperAdmin'),
+            'canManageTemplates' => Gate::allows('kpiManageTemplates') || Gate::allows('isSuperAdmin'),
             'canApproveExclusions' => Gate::allows('kpiApproveExclusions'),
             'canManageHolidays' => Gate::allows('kpiManageHolidays'),
             'canApproveTasks' => Gate::allows('kpiApproveTasks'),
@@ -204,6 +222,7 @@ class KpiAuditController extends Controller
             'taskAssignments' => $taskAssignmentsForRequest->values(),
             'pendingExclusions' => $pendingExclusions->values(),
             'pendingExclusionsCount' => $pendingExclusions->count(),
+            'kpiGroups' => \App\Models\Kpi\KpiGroup::orderBy('name')->get(['id', 'name', 'code']),
         ]);
     }
 

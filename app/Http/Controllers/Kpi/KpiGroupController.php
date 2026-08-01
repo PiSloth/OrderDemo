@@ -120,6 +120,19 @@ class KpiGroupController extends Controller
 
         try {
             $templateService->updateTemplate($template, $validated);
+
+            if ($request->filled('taskAssignmentId')) {
+                $assignment = \App\Models\Kpi\KpiTaskAssignment::find($request->input('taskAssignmentId'));
+                if ($assignment) {
+                    if ($request->boolean('inactivateForMonth') && $request->filled('inactivateMonth')) {
+                        // Set assignment ends_on to end of previous month
+                        $monthStart = \Carbon\Carbon::parse($request->input('inactivateMonth') . '-01');
+                        $assignment->update([
+                            'ends_on' => $monthStart->subDay()->toDateString(),
+                        ]);
+                    }
+                }
+            }
         } catch (ValidationException $e) {
             return redirect()->back()->withErrors($e->errors());
         }
