@@ -42,13 +42,13 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
     const handleRotateLeft = (e) => { if (e) e.stopPropagation(); setRotation(r => r - 90); };
     const handleRotateRight = (e) => { if (e) e.stopPropagation(); setRotation(r => r + 90); };
 
-    // Mouse Wheel / Trackpad 2-finger zoom
+    // Mouse Wheel / Trackpad 2-finger zoom (reduced sensitivity step)
     const handleWheel = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const delta = e.deltaY < 0 ? 0.2 : -0.2;
+        const step = e.deltaY < 0 ? 0.08 : -0.08;
         setScale(s => {
-            const nextScale = Math.min(Math.max(s + delta, 0.25), 5);
+            const nextScale = Math.min(Math.max(s + step, 0.25), 5);
             if (nextScale <= 1) setPosition({ x: 0, y: 0 });
             return nextScale;
         });
@@ -113,8 +113,10 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
-            const factor = dist / pinchStartRef.current.dist;
-            const nextScale = Math.min(Math.max(pinchStartRef.current.scale * factor, 0.25), 5);
+            const rawRatio = dist / pinchStartRef.current.dist;
+            // Dampen touch pinch sensitivity (35% speed factor)
+            const dampedFactor = 1 + (rawRatio - 1) * 0.35;
+            const nextScale = Math.min(Math.max(pinchStartRef.current.scale * dampedFactor, 0.25), 5);
             setScale(nextScale);
             if (nextScale <= 1) setPosition({ x: 0, y: 0 });
         }
