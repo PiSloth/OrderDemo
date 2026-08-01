@@ -145,6 +145,30 @@ export default function Audit({
         return idx >= 0 ? idx : 0;
     }, [scopedMarkers, selectedMarker]);
 
+    // Automatically advance to the next task when an approved/rejected task leaves the current filter list
+    useEffect(() => {
+        if (!isModalOpen || !selectedInstanceId) return;
+
+        const isInScoped = scopedMarkers.some((m) => m.instance?.id === selectedInstanceId);
+
+        if (!isInScoped && markerTypeFilter) {
+            if (scopedMarkers.length > 0) {
+                const targetIdx = Math.min(currentIndex ?? 0, scopedMarkers.length - 1);
+                const nextMarker = scopedMarkers[targetIdx >= 0 ? targetIdx : 0];
+                if (nextMarker && nextMarker.instance) {
+                    setSelectedInstanceId(nextMarker.instance.id);
+                }
+            } else {
+                setIsModalOpen(false);
+                setSelectedInstanceId(null);
+                setMarkerTypeFilter(null);
+                if (typeof document !== 'undefined') {
+                    document.body.style.overflow = '';
+                }
+            }
+        }
+    }, [scopedMarkers, isModalOpen, selectedInstanceId, markerTypeFilter, currentIndex]);
+
     const handleOpenMarker = (marker) => {
         if (!marker || !marker.instance) return;
         setMarkerTypeFilter(marker.type);

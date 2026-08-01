@@ -103,26 +103,25 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
             ref={containerRef}
             tabIndex={0}
             onKeyDown={handleContainerKeyDown}
-            style={{ position: 'fixed', inset: 0, zIndex: 999999, backgroundColor: 'rgba(2,6,23,0.95)', outline: 'none' }}
-            className="backdrop-blur-lg flex items-center justify-center p-4 sm:p-6"
+            className="fixed inset-0 z-[999999] bg-slate-950/75 dark:bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 outline-none"
         >
             {/* Backdrop click listener */}
-            <div style={{ position: 'fixed', inset: 0 }} onClick={onClose}></div>
+            <div className="fixed inset-0" onClick={onClose}></div>
 
             {/* Photo Modal Card Container */}
-            <div style={{ position: 'relative', zIndex: 1000000 }} className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="relative z-[1000000] w-full max-w-5xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
                 {/* Header Bar */}
-                <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 select-none">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/90 select-none">
                     <div className="flex items-center gap-3 min-w-0">
-                        <span className="px-3.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold shrink-0">
+                        <span className="px-3.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold shrink-0">
                             Photo {safeIndex + 1} of {images.length}
                         </span>
                         {photoLabel && (
-                            <span className="text-sm font-semibold text-white truncate max-w-sm sm:max-w-md">
+                            <span className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-sm sm:max-w-md">
                                 {photoLabel}
                             </span>
                         )}
-                        <span className="text-xs text-slate-400 font-medium hidden md:inline shrink-0">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden md:inline shrink-0">
                             Use ← → arrow keys to navigate
                         </span>
                     </div>
@@ -131,7 +130,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                         type="button"
                         onClick={onClose}
                         tabIndex={-1}
-                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition focus:outline-none cursor-pointer shrink-0"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition focus:outline-none cursor-pointer shrink-0"
                         title="Close photo preview (Esc)"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,14 +140,14 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                 </div>
 
                 {/* Main Image Stage */}
-                <div className="relative flex-1 bg-black/70 flex flex-col items-center justify-center p-4 min-h-[350px] sm:min-h-[480px]">
+                <div className="relative flex-1 bg-slate-950 flex flex-col items-center justify-center p-4 min-h-[350px] sm:min-h-[480px]">
                     {/* Previous Button */}
                     {images.length > 1 && (
                         <button
                             type="button"
                             onClick={handlePrev}
                             tabIndex={-1}
-                            className="absolute left-4 z-20 p-3.5 rounded-full bg-slate-900/90 hover:bg-indigo-600 text-white border border-slate-700 shadow-xl transition duration-200 focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
+                            className="absolute left-4 z-20 p-3.5 rounded-full bg-white/90 dark:bg-slate-900/90 hover:bg-indigo-600 dark:hover:bg-indigo-600 text-slate-800 dark:text-white hover:text-white border border-slate-200 dark:border-slate-700 shadow-xl transition duration-200 focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
                             title="Previous image (←)"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,20 +166,20 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
 
                     {/* Photo Label & Remark Caption Bar */}
                     {(photoLabel || photoRemark) && (
-                        <div className="mt-3 w-full max-w-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800/90 rounded-2xl px-4 py-3 text-center shadow-2xl space-y-1 z-20">
+                        <div className="mt-3 w-full max-w-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800/90 rounded-2xl px-4 py-3 text-center shadow-2xl space-y-1.5 z-20">
                             {photoLabel && (
                                 <div className="flex items-center justify-center gap-2">
-                                    <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold tracking-wide">
+                                    <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold tracking-wide">
                                         {photoLabel}
                                     </span>
                                 </div>
                             )}
                             {photoRemark && (
-                                <div className="flex items-start justify-center gap-2 text-xs text-slate-200">
-                                    <svg className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="flex items-start justify-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+                                    <svg className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                     </svg>
-                                    <p className="leading-relaxed italic max-w-xl text-center">
+                                    <p className="leading-relaxed italic max-w-xl text-center font-medium">
                                         "{photoRemark}"
                                     </p>
                                 </div>
@@ -194,7 +193,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                             type="button"
                             onClick={handleNext}
                             tabIndex={-1}
-                            className="absolute right-4 z-20 p-3.5 rounded-full bg-slate-900/90 hover:bg-indigo-600 text-white border border-slate-700 shadow-xl transition duration-200 focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
+                            className="absolute right-4 z-20 p-3.5 rounded-full bg-white/90 dark:bg-slate-900/90 hover:bg-indigo-600 dark:hover:bg-indigo-600 text-slate-800 dark:text-white hover:text-white border border-slate-200 dark:border-slate-700 shadow-xl transition duration-200 focus:outline-none cursor-pointer hover:scale-110 active:scale-95"
                             title="Next image (→)"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,7 +205,7 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
 
                 {/* Thumbnail Carousel Footer Bar */}
                 {images.length > 1 && (
-                    <div className="p-3 bg-slate-950 border-t border-slate-800/80 flex items-center justify-center gap-2 overflow-x-auto no-scrollbar">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-center gap-2 overflow-x-auto no-scrollbar">
                         {images.map((img, idx) => (
                             <button
                                 key={img.id || idx}
@@ -219,8 +218,8 @@ export default function PhotoCarouselModal({ isOpen, images = [], selectedIndex 
                                 }}
                                 className={`relative w-14 h-10 rounded-lg overflow-hidden border-2 transition shrink-0 cursor-pointer ${
                                     idx === safeIndex
-                                        ? 'border-indigo-500 scale-105 shadow-md ring-2 ring-indigo-500/40'
-                                        : 'border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-600'
+                                        ? 'border-indigo-600 dark:border-indigo-500 scale-105 shadow-md ring-2 ring-indigo-500/40'
+                                        : 'border-slate-300 dark:border-slate-800 opacity-60 hover:opacity-100 hover:border-slate-400 dark:hover:border-slate-600'
                                 }`}
                             >
                                 <img
