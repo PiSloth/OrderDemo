@@ -18,6 +18,7 @@ use App\Http\Controllers\Operation\IT\IssueMessageController;
 use App\Http\Controllers\Operation\IT\IssueStatusController;
 use App\Http\Controllers\Kpi\ImportExportController as KpiImportExportController;
 use App\Http\Controllers\Kpi\KpiGroupController;
+use App\Http\Controllers\Todo\TodoListController;
 use App\Livewire\BranchReport\Dashboard as BranchReportDashboard;
 use App\Livewire\BranchReport\SaleAndRepurchase;
 use App\Livewire\CommentHistory;
@@ -178,9 +179,30 @@ Route::middleware(['auth'])->prefix('performance')->group(function () {
 
 
 Route::middleware(['auth'])->prefix('todo')->group(function () {
-    Route::get('/dashboard', App\Livewire\Todo\Dashboard::class)->name('todo.dashboard');
-    Route::get('/config', TodoConfig::class)->name('todo_config');
-    Route::get('/list', App\Livewire\Todo\TodoList::class)->name('todo_list');
+    Route::get('/', [TodoListController::class, 'index'])->name('todo.index');
+    Route::get('/list', [TodoListController::class, 'index'])->name('todo_list');
+    Route::get('/dashboard', [TodoListController::class, 'dashboard'])->name('todo.dashboard');
+    Route::post('/tasks', [TodoListController::class, 'store'])->name('todo.tasks.store');
+    Route::patch('/tasks/{id}/close', [TodoListController::class, 'closeTask'])->name('todo.tasks.close');
+    Route::delete('/tasks/{id}', [TodoListController::class, 'archiveTask'])->name('todo.tasks.archive');
+    Route::patch('/tasks/{id}/restore', [TodoListController::class, 'restoreTask'])->name('todo.tasks.restore');
+    Route::post('/tasks/{id}/comments', [TodoListController::class, 'storeComment'])->name('todo.tasks.comments');
+    
+    // Inertia React Config & Category CRUD Routes
+    Route::get('/config', [\App\Http\Controllers\Todo\TodoConfigController::class, 'index'])->name('todo_config');
+    Route::post('/config/categories', [\App\Http\Controllers\Todo\TodoConfigController::class, 'storeCategory'])->name('todo.config.categories.store');
+    Route::patch('/config/categories/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'updateCategory'])->name('todo.config.categories.update');
+    Route::delete('/config/categories/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'destroyCategory'])->name('todo.config.categories.destroy');
+    Route::post('/config/due-times', [\App\Http\Controllers\Todo\TodoConfigController::class, 'storeDueTime'])->name('todo.config.duetimes.store');
+    Route::patch('/config/due-times/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'updateDueTime'])->name('todo.config.duetimes.update');
+    Route::delete('/config/due-times/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'destroyDueTime'])->name('todo.config.duetimes.destroy');
+    Route::post('/config/statuses', [\App\Http\Controllers\Todo\TodoConfigController::class, 'storeStatus'])->name('todo.config.statuses.store');
+    Route::patch('/config/statuses/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'updateStatus'])->name('todo.config.statuses.update');
+    Route::delete('/config/statuses/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'destroyStatus'])->name('todo.config.statuses.destroy');
+    Route::post('/config/priorities', [\App\Http\Controllers\Todo\TodoConfigController::class, 'storePriority'])->name('todo.config.priorities.store');
+    Route::patch('/config/priorities/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'updatePriority'])->name('todo.config.priorities.update');
+    Route::delete('/config/priorities/{id}', [\App\Http\Controllers\Todo\TodoConfigController::class, 'destroyPriority'])->name('todo.config.priorities.destroy');
+
     Route::get('/comments/{taskId}', TaskComments::class)->name('task_comments');
     Route::get('/notifications', App\Livewire\Todo\Notifications::class)->name('notifications');
 });

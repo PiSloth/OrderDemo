@@ -52,4 +52,9 @@ class KpiTaskInstance extends Model
     {
         return $this->hasOne(KpiTaskSubmission::class, 'task_instance_id')->latestOfMany('submitted_at');
     }
+
+    public function todoList(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\TodoList::class, 'todo_list_id');
+    }
 }

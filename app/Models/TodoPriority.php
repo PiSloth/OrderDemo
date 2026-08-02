@@ -9,5 +9,5 @@ class TodoPriority extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['level', 'rank'];
+    protected $fillable = ['level', 'rank', 'color_code'];
 }

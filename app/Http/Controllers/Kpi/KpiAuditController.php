@@ -432,6 +432,7 @@ class KpiAuditController extends Controller
             $finalStatus = $submission->is_late ? 'failed_late' : 'passed';
             $submission->update(['status' => 'approved', 'first_approved_at' => $submission->first_approved_at ?: $now, 'final_approved_at' => $now, 'rejection_reason' => null]);
             $submission->instance->update(['status' => $finalStatus, 'final_outcome' => $finalStatus, 'finalized_at' => $now, 'failure_reason' => $submission->is_late ? 'Approved after cutoff time.' : null]);
+            \App\Models\TodoList::syncKpiApproval($submission->instance);
         });
 
         return redirect()->back()->with('message', 'Submission approved.');

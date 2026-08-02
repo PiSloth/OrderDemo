@@ -330,6 +330,8 @@ class Approvals extends Component
                 'finalized_at' => $now,
                 'failure_reason' => $finalReason,
             ]);
+
+            \App\Models\TodoList::syncKpiApproval($submission->instance);
         });
 
         $approved = $decision === 'approved';
