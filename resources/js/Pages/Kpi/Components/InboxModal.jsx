@@ -2,6 +2,26 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { router } from '@inertiajs/react';
 
+// Format date into requested format: e.g. "SUN 2 July 26"
+const formatDateCustom = (dateStr) => {
+    if (!dateStr) return '-';
+    const parts = String(dateStr).split('T')[0].split('-');
+    if (parts.length !== 3) return dateStr;
+
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+
+    const d = new Date(year, month, day);
+    if (isNaN(d.getTime())) return dateStr;
+
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(); // "SUN"
+    const monthName = d.toLocaleDateString('en-US', { month: 'long' }); // "July"
+    const yearShort = String(year).slice(-2); // "26"
+
+    return `${dayName} ${day} ${monthName} ${yearShort}`;
+};
+
 export default function InboxModal({
     isOpen,
     onClose,
@@ -32,9 +52,27 @@ export default function InboxModal({
         }
     }, [isOpen]);
 
+    const resolveUrl = (name, id = null) => {
+        if (typeof window !== 'undefined' && typeof window.route === 'function') {
+            try {
+                return id ? window.route(name, id) : window.route(name);
+            } catch (e) {
+                // fallback if route not found in Ziggy
+            }
+        }
+        if (name === 'kpi.audit.holiday.destroy') return `/kpi/audit/holiday/${id}`;
+        if (name === 'kpi.audit.exclusion-request.destroy') return `/kpi/audit/exclusion-request/${id}`;
+        if (name === 'kpi.audit.exclusion-request.approve') return `/kpi/audit/exclusion-request/${id}/approve`;
+        if (name === 'kpi.audit.exclusion-request.reject') return `/kpi/audit/exclusion-request/${id}/reject`;
+        return '/kpi/audit';
+    };
+
     const handleAction = (id, action) => {
         setProcessing(id);
-        router.post(`/kpi/audit/exclusion-request/${id}/${action}`, {
+        const routeName = action === 'approve' ? 'kpi.audit.exclusion-request.approve' : 'kpi.audit.exclusion-request.reject';
+        const url = resolveUrl(routeName, id);
+
+        router.post(url, {
             reviewer_remark: remarks[id] || '',
         }, {
             preserveScroll: true,
@@ -48,14 +86,18 @@ export default function InboxModal({
 
     const handleDeleteApproved = (item) => {
         const itemTypeName = item.item_type === 'holiday' ? 'holiday' : 'exclusion request';
-        if (!confirm(`Are you sure you want to delete approved ${itemTypeName} for ${item.user_name} on ${item.requested_date}?`)) {
+        const formattedDate = formatDateCustom(item.requested_date);
+
+        if (!confirm(`Are you sure you want to delete approved ${itemTypeName} for ${item.user_name} on ${formattedDate}?`)) {
             return;
         }
         setProcessing(`del-${item.item_type}-${item.id}`);
 
-        const url = item.item_type === 'holiday'
-            ? `/kpi/audit/holiday/${item.id}`
-            : `/kpi/audit/exclusion-request/${item.id}`;
+        const routeName = item.item_type === 'holiday'
+            ? 'kpi.audit.holiday.destroy'
+            : 'kpi.audit.exclusion-request.destroy';
+
+        const url = resolveUrl(routeName, item.id);
 
         router.delete(url, {
             preserveScroll: true,
@@ -84,9 +126,10 @@ export default function InboxModal({
                 const name = (item.user_name || '').toLowerCase();
                 const dept = (item.user_dept || '').toLowerCase();
                 const date = (item.requested_date || '').toLowerCase();
+                const formattedDate = formatDateCustom(item.requested_date).toLowerCase();
                 const task = (item.task_title || '').toLowerCase();
                 const reason = (item.reason || '').toLowerCase();
-                return name.includes(term) || dept.includes(term) || date.includes(term) || task.includes(term) || reason.includes(term);
+                return name.includes(term) || dept.includes(term) || date.includes(term) || formattedDate.includes(term) || task.includes(term) || reason.includes(term);
             });
         }
 
@@ -219,6 +262,7 @@ export default function InboxModal({
                             {displayedItems.map((item) => {
                                 const isDeleting = processing === `del-${item.item_type}-${item.id}`;
                                 const isActioning = processing === item.id;
+                                const formattedDate = formatDateCustom(item.requested_date);
 
                                 return (
                                     <div
@@ -261,7 +305,7 @@ export default function InboxModal({
 
                                             {/* Details */}
                                             <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                                <p><span className="font-bold text-slate-500">Date:</span> <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">{item.requested_date}</span></p>
+                                                <p><span className="font-bold text-slate-500">Date:</span> <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">{formattedDate}</span></p>
                                                 {item.task_title && <p><span className="font-bold text-slate-500">Title/Task:</span> {item.task_title}</p>}
                                                 <p><span className="font-bold text-slate-500">Reason:</span> {item.reason}</p>
                                                 {item.reviewer_remark && <p><span className="font-bold text-slate-500">Approver Remark:</span> {item.reviewer_remark}</p>}

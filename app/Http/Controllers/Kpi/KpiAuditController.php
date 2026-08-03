@@ -304,9 +304,15 @@ class KpiAuditController extends Controller
 
     public function destroyExclusionRequest(int $id): RedirectResponse
     {
-        Gate::authorize('kpiApproveExclusions');
+        if (!Gate::allows('kpiApproveExclusions') && !Gate::allows('kpiManageHolidays') && !Gate::allows('isSuperAdmin')) {
+            abort(403);
+        }
 
-        $exclusionRequest = KpiExclusionRequest::findOrFail($id);
+        $exclusionRequest = KpiExclusionRequest::find($id);
+        if (!$exclusionRequest) {
+            return redirect()->back()->with('message', 'Exclusion request already removed or not found.');
+        }
+
         $exclusionRequest->delete();
 
         return redirect()->back()->with('success', 'Exclusion request deleted.');
@@ -314,9 +320,15 @@ class KpiAuditController extends Controller
 
     public function destroyHoliday(int $id): RedirectResponse
     {
-        Gate::authorize('kpiManageHolidays');
+        if (!Gate::allows('kpiManageHolidays') && !Gate::allows('kpiApproveExclusions') && !Gate::allows('isSuperAdmin')) {
+            abort(403);
+        }
 
-        $holiday = KpiHoliday::findOrFail($id);
+        $holiday = KpiHoliday::find($id);
+        if (!$holiday) {
+            return redirect()->back()->with('message', 'Holiday already removed or not found.');
+        }
+
         $holiday->delete();
 
         return redirect()->back()->with('success', 'Holiday deleted.');
