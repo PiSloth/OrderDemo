@@ -36,6 +36,8 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'role' => $request->user()->role,
+                    'is_super_user' => method_exists($request->user(), 'isSuperUser') ? $request->user()->isSuperUser() : ($request->user()->role === 'admin'),
                 ] : null,
                 'can' => [
                     'kpiManageTemplates' => $request->user() ? $request->user()->can('kpiManageTemplates') : false,

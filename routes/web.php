@@ -188,6 +188,7 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::patch('/tasks/{id}/restore', [TodoListController::class, 'restoreTask'])->name('todo.tasks.restore');
     Route::post('/tasks/{id}/comments', [TodoListController::class, 'storeComment'])->name('todo.tasks.comments');
     Route::post('/comments/{commentId}/respond', [TodoListController::class, 'respondActionStep'])->name('todo.comments.respond');
+    Route::delete('/comments/{commentId}', [TodoListController::class, 'destroyComment'])->name('todo.comments.destroy');
     
     // Inertia React Config & Category CRUD Routes
     Route::get('/config', [\App\Http\Controllers\Todo\TodoConfigController::class, 'index'])->name('todo_config');

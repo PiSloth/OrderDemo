@@ -134,6 +134,11 @@ class TaskComment extends Model
             return false;
         }
 
+        // Super User / Admin can accept or reject any action step request
+        if (method_exists($user, 'isSuperUser') && $user->isSuperUser()) {
+            return true;
+        }
+
         $task = $this->todoList;
         if (!$task) {
             return false;

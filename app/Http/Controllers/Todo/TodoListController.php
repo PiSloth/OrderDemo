@@ -578,6 +578,19 @@ class TodoListController extends Controller
         return redirect()->back();
     }
 
+    public function destroyComment($commentId)
+    {
+        $comment = TaskComment::findOrFail($commentId);
+        $user = Auth::user();
+
+        if ($user && ($user->isSuperUser() || $user->id === $comment->user_id)) {
+            $comment->delete();
+            return redirect()->back()->with('message', 'Comment deleted successfully.');
+        }
+
+        return redirect()->back()->with('error', 'You do not have permission to delete this comment.');
+    }
+
     protected function createNotificationsForComment(TaskComment $comment, TodoList $task): void
     {
         $currentUserId = Auth::id();

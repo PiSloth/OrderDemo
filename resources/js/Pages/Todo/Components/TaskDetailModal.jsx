@@ -230,6 +230,17 @@ export default function TaskDetailModal({
         });
     };
 
+    const isSuperUser = currentUser?.is_super_user || currentUser?.role === 'admin' || currentUser?.role === 'super_user';
+
+    // Delete comment action
+    const handleDeleteComment = (commentId) => {
+        if (window.confirm('Are you sure you want to delete this comment?')) {
+            router.delete(`/todo/comments/${commentId}`, {
+                preserveScroll: true,
+            });
+        }
+    };
+
     // Respond to Action Step (Accept / Reject)
     const handleRespondActionStep = (commentId, action) => {
         router.post(`/todo/comments/${commentId}/respond`, { action }, {
@@ -421,9 +432,21 @@ export default function TaskDetailModal({
                                                         </span>
                                                     )}
                                                 </div>
-                                                <span className="text-[11px] text-slate-400 font-normal">
-                                                    {c.created_at ? new Date(c.created_at).toLocaleString() : ''}
-                                                </span>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-[11px] text-slate-400 font-normal">
+                                                        {c.created_at ? new Date(c.created_at).toLocaleString() : ''}
+                                                    </span>
+                                                    {(isSuperUser || (currentUser && currentUser.id === c.user_id)) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteComment(c.id)}
+                                                            className="text-[11px] font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400"
+                                                            title="Delete comment"
+                                                        >
+                                                            🗑️ Delete
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{c.comment}</p>
@@ -438,6 +461,11 @@ export default function TaskDetailModal({
                                                         {isPending && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 font-extrabold">⏳ Pending Response</span>}
                                                         {isAccepted && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 font-extrabold">✅ Accepted</span>}
                                                         {isRejected && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-rose-800 font-extrabold">❌ Rejected</span>}
+                                                        {isSuperUser && isPending && (
+                                                            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-extrabold">
+                                                                👑 Super User Override Available
+                                                            </span>
+                                                        )}
                                                     </div>
 
                                                     {/* Accept / Reject / Counter-Offer Actions for Pending Requests */}

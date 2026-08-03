@@ -240,4 +240,10 @@ class User extends Authenticatable
     {
         return $this->role === 'admin';
     }
+
+    public function isSuperUser(): bool
+    {
+        $role = strtolower($this->role ?? '');
+        return $this->isAdmin() || str_contains($role, 'super') || str_contains($role, 'admin');
+    }
 }
