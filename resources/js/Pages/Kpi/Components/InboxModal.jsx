@@ -36,13 +36,13 @@ export default function InboxModal({ isOpen, onClose, pendingExclusions = [] }) 
 
     return createPortal(
         <div
-            style={{ position: 'fixed', inset: 0, zIndex: 9000, backgroundColor: 'rgba(2,6,23,0.6)' }}
-            className="flex items-center justify-center p-4 backdrop-blur-sm"
+            style={{ position: 'fixed', inset: 0, zIndex: 9000, backgroundColor: 'rgba(2,6,23,0.6)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto no-scrollbar"
             onClick={onClose}
         >
             <div
-                style={{ position: 'relative', zIndex: 9001 }}
-                className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85vh] overflow-hidden"
+                style={{ position: 'relative', zIndex: 9001, scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden my-auto no-scrollbar"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -64,7 +64,10 @@ export default function InboxModal({ isOpen, onClose, pendingExclusions = [] }) 
                 </div>
 
                 {/* Body */}
-                <div className="overflow-y-auto flex-1 p-4 space-y-3">
+                <div
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    className="overflow-y-auto flex-1 p-4 space-y-3 no-scrollbar"
+                >
                     {pendingExclusions.length === 0 ? (
                         <div className="py-12 text-center">
                             <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">

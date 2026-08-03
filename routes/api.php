@@ -43,3 +43,30 @@ Route::middleware('auth:sanctum')->prefix('issues')->group(function () {
     Route::patch('/{issue}/assignment', [IssueAssignmentController::class, 'update']);
     Route::post('/{issue}/messages', [IssueMessageController::class, 'store']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Mobile Submitter App API Routes (v1)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('v1/mobile')->group(function () {
+    // Public Auth
+    Route::post('/login', [\App\Http\Controllers\Api\Mobile\MobileAuthController::class, 'login']);
+
+    // Authenticated Mobile Submitter Routes
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/user', [\App\Http\Controllers\Api\Mobile\MobileAuthController::class, 'profile']);
+        Route::post('/auth/logout', [\App\Http\Controllers\Api\Mobile\MobileAuthController::class, 'logout']);
+
+        // Submitter Task Management
+        Route::get('/tasks', [\App\Http\Controllers\Api\Mobile\MobileTaskController::class, 'index']);
+        Route::get('/tasks/{id}', [\App\Http\Controllers\Api\Mobile\MobileTaskController::class, 'show']);
+        Route::post('/tasks/{id}/submit', [\App\Http\Controllers\Api\Mobile\MobileTaskController::class, 'submit']);
+
+        // In-App Notifications
+        Route::get('/notifications', [\App\Http\Controllers\Api\Mobile\MobileNotificationController::class, 'index']);
+        Route::patch('/notifications/{id}/read', [\App\Http\Controllers\Api\Mobile\MobileNotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [\App\Http\Controllers\Api\Mobile\MobileNotificationController::class, 'markAllAsRead']);
+    });
+});
+

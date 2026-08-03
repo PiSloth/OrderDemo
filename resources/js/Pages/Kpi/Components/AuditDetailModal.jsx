@@ -198,13 +198,13 @@ export default function AuditDetailModal({
         <>
             {/* Main Inspection Modal */}
             <div
-                style={{ position: 'fixed', inset: 0, zIndex: 9100, backgroundColor: 'rgba(2,6,23,0.65)' }}
-                className={`overflow-y-auto flex items-start justify-center py-6 px-4 backdrop-blur-sm ${selectedPhotoIndex !== null ? 'hidden' : ''}`}
+                style={{ position: 'fixed', inset: 0, zIndex: 9100, backgroundColor: 'rgba(2,6,23,0.65)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                className={`overflow-y-auto no-scrollbar flex items-start justify-center py-6 px-4 backdrop-blur-sm ${selectedPhotoIndex !== null ? 'hidden' : ''}`}
                 onClick={onClose}
             >
                 <div
-                    style={{ position: 'relative', zIndex: 9101 }}
-                    className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col my-auto"
+                    style={{ position: 'relative', zIndex: 9101, scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col my-auto no-scrollbar"
                     onClick={(e) => e.stopPropagation()}
                 >
 

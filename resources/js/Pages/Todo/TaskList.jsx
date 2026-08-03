@@ -28,6 +28,14 @@ export default function TaskList({
     const [isFormCollapsed, setIsFormCollapsed] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+    // Auto open Create Task modal if URL contains ?createTask=1
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('createTask') === '1' || params.get('openModal') === '1') {
+            setIsCreateModalOpen(true);
+        }
+    }, []);
+
     // Filters state
     const [filterBranchId, setFilterBranchId] = useState(filters.filterBranchId || '');
     const [filterDepartmentId, setFilterDepartmentId] = useState(filters.filterDepartmentId || '');

@@ -31,6 +31,7 @@
         "apexcharts": "^3.44.0",
         "flatpickr": "^4.6.13",
         "quill": "^2.0.3",
-        "quill-better-table": "^1.2.10"
+        "quill-better-table": "^1.2.10",
+        "react-hot-toast": "^2.6.0"
     }
 }

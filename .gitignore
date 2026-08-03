@@ -1,5 +1,5 @@
 /.phpunit.cache
-/node_modules
+node_modules/
 # /public/build
 /public/hot
 /public/storage
@@ -17,4 +17,17 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
-# /resources/views/welcome.blade.php
+
+# Mobile App (Expo & React Native)
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
+mobile/dist/
+mobile/web-build/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/*.log
+

@@ -117,6 +117,18 @@
                 </a>
             </li>
 
+            <!-- Hot Button: Quick Create Task -->
+            <li class="my-2.5 px-0.5">
+                <button type="button"
+                    onclick="if (window.location.pathname.startsWith('/todo')) { window.dispatchEvent(new CustomEvent('open-create-todo-modal')); } else { window.location.href = '/todo/list?createTask=1'; }"
+                    class="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-700 py-2.5 px-3 text-xs font-black text-white shadow-lg shadow-indigo-500/30 transition-all hover:scale-[1.02] hover:brightness-110 active:scale-95">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>+ Create Todo Task</span>
+                </button>
+            </li>
+
             <!-- Performance Group -->
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'performance' ? '' : 'performance'"
@@ -347,6 +359,16 @@
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
                             <span class="ml-3">Task List</span>
                         </a>
+                    </li>
+
+                    <!-- Quick Create Task Item -->
+                    <li class="pt-1">
+                        <button type="button"
+                            onclick="if (window.location.pathname.startsWith('/todo')) { window.dispatchEvent(new CustomEvent('open-create-todo-modal')); } else { window.location.href = '/todo/list?createTask=1'; }"
+                            class="w-full flex items-center p-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 rounded-xl transition">
+                            <x-icon name="plus-circle" class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            <span class="ml-3 font-extrabold">+ Create Task</span>
+                        </button>
                     </li>
                 </ul>
             </li>

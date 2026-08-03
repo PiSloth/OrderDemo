@@ -1,6 +1,256 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import TodoLayout from '../../Layouts/TodoLayout';
+
+function SearchableSelect({
+    options = [],
+    value,
+    onChange,
+    placeholder = 'Select option...',
+    searchPlaceholder = 'Search...',
+    labelFormatter = (opt) => opt.label || opt.name || opt.title,
+    valueKey = 'id',
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef(null);
+
+    const selectedOption = useMemo(() => {
+        return options.find(o => String(o[valueKey]) === String(value));
+    }, [options, value, valueKey]);
+
+    const filteredOptions = useMemo(() => {
+        if (!search) return options;
+        const query = search.toLowerCase();
+        return options.filter(o => {
+            const labelText = labelFormatter(o);
+            return labelText.toLowerCase().includes(query);
+        });
+    }, [options, search, labelFormatter]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div ref={containerRef} className="relative w-full">
+            {/* Trigger Button */}
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between rounded-2xl border border-indigo-300 bg-white px-4 py-2.5 text-xs text-slate-800 shadow-sm dark:border-indigo-800 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 text-left transition"
+            >
+                <span className={selectedOption ? 'font-semibold text-slate-900 dark:text-white truncate' : 'text-slate-400 truncate'}>
+                    {selectedOption ? labelFormatter(selectedOption) : placeholder}
+                </span>
+                <span className="ml-2 text-slate-400 text-[10px]">▼</span>
+            </button>
+
+            {/* Dropdown Menu with Integrated Search Input */}
+            {isOpen && (
+                <div className="absolute z-50 mt-1.5 w-full rounded-2xl border border-indigo-200 bg-white p-2 shadow-xl dark:border-indigo-800 dark:bg-slate-800 space-y-2 max-h-60 flex flex-col">
+                    {/* Search Input embedded inside dropdown */}
+                    <div className="relative px-1 pt-1">
+                        <input
+                            type="text"
+                            autoFocus
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder={searchPlaceholder}
+                            className="w-full rounded-xl border border-indigo-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-indigo-700 dark:bg-slate-900 dark:text-white"
+                        />
+                    </div>
+
+                    {/* Filtered Options List */}
+                    <div className="overflow-y-auto max-h-40 space-y-0.5 pr-1">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onChange('');
+                                setIsOpen(false);
+                                setSearch('');
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/60 ${!value ? 'bg-indigo-100/60 dark:bg-indigo-900/60 font-bold text-indigo-700 dark:text-indigo-300' : 'text-slate-500'}`}
+                        >
+                            -- Clear Selection --
+                        </button>
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((opt) => {
+                                const isSelected = String(opt[valueKey]) === String(value);
+                                return (
+                                    <button
+                                        key={opt[valueKey]}
+                                        type="button"
+                                        onClick={() => {
+                                            onChange(String(opt[valueKey]));
+                                            setIsOpen(false);
+                                            setSearch('');
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors ${
+                                            isSelected
+                                                ? 'bg-indigo-600 text-white font-bold'
+                                                : 'text-slate-700 dark:text-slate-200'
+                                        }`}
+                                    >
+                                        {labelFormatter(opt)}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="p-3 text-center text-xs text-slate-400 italic">
+                                No matching options found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function SearchableMultiSelect({
+    options = [],
+    values = [],
+    onChange,
+    placeholder = 'Select employees...',
+    searchPlaceholder = 'Search...',
+    labelFormatter = (opt) => opt.label || opt.name || opt.title,
+    valueKey = 'id',
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef(null);
+
+    const selectedOptions = useMemo(() => {
+        const strValues = (values || []).map(v => String(v));
+        return options.filter(o => strValues.includes(String(o[valueKey])));
+    }, [options, values, valueKey]);
+
+    const filteredOptions = useMemo(() => {
+        if (!search) return options;
+        const query = search.toLowerCase();
+        return options.filter(o => {
+            const labelText = labelFormatter(o);
+            return labelText.toLowerCase().includes(query);
+        });
+    }, [options, search, labelFormatter]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleOption = (optId) => {
+        const strId = String(optId);
+        const currentStrValues = (values || []).map(v => String(v));
+        let newValues;
+        if (currentStrValues.includes(strId)) {
+            newValues = currentStrValues.filter(v => v !== strId);
+        } else {
+            newValues = [...currentStrValues, strId];
+        }
+        onChange(newValues);
+    };
+
+    return (
+        <div ref={containerRef} className="relative w-full">
+            <div
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between min-h-[42px] rounded-2xl border border-indigo-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-sm dark:border-indigo-800 dark:bg-slate-800 dark:text-white cursor-pointer"
+            >
+                <div className="flex flex-wrap gap-1.5 items-center max-w-[90%]">
+                    {selectedOptions.length > 0 ? (
+                        selectedOptions.map(opt => (
+                            <span
+                                key={opt[valueKey]}
+                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2 py-0.5 text-[11px] font-extrabold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200"
+                            >
+                                👤 {opt.name || opt.label}
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleOption(opt[valueKey]);
+                                    }}
+                                    className="hover:text-rose-600 ml-0.5 font-bold"
+                                >
+                                    ✕
+                                </button>
+                            </span>
+                        ))
+                    ) : (
+                        <span className="text-slate-400">{placeholder}</span>
+                    )}
+                </div>
+                <span className="ml-2 text-slate-400 text-[10px]">▼</span>
+            </div>
+
+            {isOpen && (
+                <div className="absolute z-50 mt-1.5 w-full rounded-2xl border border-indigo-200 bg-white p-2 shadow-xl dark:border-indigo-800 dark:bg-slate-800 space-y-2 max-h-64 flex flex-col">
+                    <div className="relative px-1 pt-1 flex items-center justify-between gap-2">
+                        <input
+                            type="text"
+                            autoFocus
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder={searchPlaceholder}
+                            className="w-full rounded-xl border border-indigo-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-indigo-700 dark:bg-slate-900 dark:text-white"
+                        />
+                        {selectedOptions.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => onChange([])}
+                                className="text-[11px] text-rose-500 hover:underline font-bold whitespace-nowrap px-1"
+                            >
+                                Clear All
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="overflow-y-auto max-h-44 space-y-0.5 pr-1">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((opt) => {
+                                const isChecked = (values || []).map(v => String(v)).includes(String(opt[valueKey]));
+                                return (
+                                    <label
+                                        key={opt[valueKey]}
+                                        className={`flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors ${
+                                            isChecked ? 'bg-indigo-50/80 font-bold text-indigo-900 dark:bg-indigo-900/50 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-200'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={() => toggleOption(opt[valueKey])}
+                                            className="h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span className="truncate">{labelFormatter(opt)}</span>
+                                    </label>
+                                );
+                            })
+                        ) : (
+                            <div className="p-3 text-center text-xs text-slate-400 italic">
+                                No matching employees found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function Config({
     categories = [],
@@ -12,6 +262,7 @@ export default function Config({
     dueTimes = [],
     kpiGroups = [],
     kpiTemplates = [],
+    users = [],
 }) {
     const { flash = {} } = usePage().props;
 
@@ -50,6 +301,8 @@ export default function Config({
         generate_kpi_instance: false,
         kpi_group_id: '',
         kpi_task_template_id: '',
+        kpi_assigned_user_id: '',
+        kpi_assigned_user_ids: [],
     });
 
     // Status Modal state
@@ -161,6 +414,8 @@ export default function Config({
                 generate_kpi_instance: Boolean(dueTime.generate_kpi_instance),
                 kpi_group_id: dueTime.kpi_group_id ? String(dueTime.kpi_group_id) : '',
                 kpi_task_template_id: dueTime.kpi_task_template_id ? String(dueTime.kpi_task_template_id) : '',
+                kpi_assigned_user_id: dueTime.kpi_assigned_user_id ? String(dueTime.kpi_assigned_user_id) : '',
+                kpi_assigned_user_ids: Array.isArray(dueTime.kpi_assigned_user_ids) ? dueTime.kpi_assigned_user_ids.map(String) : (dueTime.kpi_assigned_user_id ? [String(dueTime.kpi_assigned_user_id)] : []),
             });
         } else {
             setEditingDueTime(null);
@@ -177,6 +432,16 @@ export default function Config({
 
     const handleDueTimeSubmit = (e) => {
         e.preventDefault();
+        if (dueTimeFormData.generate_kpi_instance) {
+            if (!dueTimeFormData.kpi_group_id) {
+                toast.error('Target KPI Group is required when Auto-Generate KPI Instance is enabled.');
+                return;
+            }
+            if (!dueTimeFormData.kpi_task_template_id) {
+                toast.error('Evidence Template is required when Auto-Generate KPI Instance is enabled.');
+                return;
+            }
+        }
         if (editingDueTime) {
             patchDueTime(`/todo/config/due-times/${editingDueTime.id}`, {
                 preserveScroll: true,
@@ -640,9 +905,24 @@ export default function Config({
                                                 </td>
                                                 <td className="px-5 py-4">
                                                     {dt.generate_kpi_instance ? (
-                                                        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                                                            ⚡ Auto KPI ({dt.kpi_group?.name || dt.kpi_group_id ? `Group #${dt.kpi_group_id}` : 'Enabled'})
-                                                        </span>
+                                                        <div className="space-y-1">
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                                                ⚡ Auto KPI ({dt.kpi_group?.name || dt.kpi_group_id ? `Group #${dt.kpi_group_id}` : 'Enabled'})
+                                                            </span>
+                                                            {dt.kpi_assigned_user_ids && dt.kpi_assigned_user_ids.length > 0 ? (
+                                                                <span className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                                                                    👥 Target: {dt.kpi_assigned_user_ids.length} Designated Employees
+                                                                </span>
+                                                            ) : dt.kpi_assigned_user ? (
+                                                                <span className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                                                                    👤 Target: {dt.kpi_assigned_user.name}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="block text-[10px] text-slate-400 italic">
+                                                                    (Task Assignee)
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     ) : (
                                                         <span className="text-slate-400 text-xs font-medium">Standard Task</span>
                                                     )}
@@ -943,7 +1223,7 @@ export default function Config({
                 {/* DUE TIME CREATE / EDIT MODAL */}
                 {isDueTimeModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                        <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-6">
+                        <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-6 max-h-[90vh] overflow-y-auto">
                             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                                     {editingDueTime ? 'Edit Job Title / Due Time' : 'Add Job Title / Due Time'}
@@ -1052,51 +1332,49 @@ export default function Config({
                                                 <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200 mb-1.5">
                                                     Target KPI Group *
                                                 </label>
-                                                <input
-                                                    type="text"
-                                                    value={kpiGroupFilter}
-                                                    onChange={(e) => setKpiGroupFilter(e.target.value)}
-                                                    placeholder="Search KPI group name..."
-                                                    className="w-full mb-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-1.5 text-xs text-slate-800 dark:border-indigo-800 dark:bg-slate-800 dark:text-white"
-                                                />
-                                                <select
+                                                <SearchableSelect
+                                                    options={kpiGroups}
                                                     value={dueTimeFormData.kpi_group_id}
-                                                    onChange={(e) => setDueTimeFormData('kpi_group_id', e.target.value)}
-                                                    className="w-full rounded-2xl border border-indigo-300 bg-white px-4 py-2.5 text-xs text-slate-800 shadow-sm dark:border-indigo-800 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                                                    required={dueTimeFormData.generate_kpi_instance}
-                                                >
-                                                    <option value="">Select Target KPI Group</option>
-                                                    {kpiGroups
-                                                        .filter(g => !kpiGroupFilter || g.name.toLowerCase().includes(kpiGroupFilter.toLowerCase()) || (g.code && g.code.toLowerCase().includes(kpiGroupFilter.toLowerCase())))
-                                                        .map((g) => (
-                                                            <option key={g.id} value={g.id}>
-                                                                🎯 {g.name} ({g.code || `ID #${g.id}`})
-                                                            </option>
-                                                        ))}
-                                                </select>
+                                                    onChange={(val) => setDueTimeFormData('kpi_group_id', val)}
+                                                    placeholder="-- Select Target KPI Group --"
+                                                    searchPlaceholder="🔍 Type to search KPI group..."
+                                                    labelFormatter={(g) => `🎯 ${g.name} ${g.code ? `(${g.code})` : ''}`}
+                                                />
                                             </div>
 
                                             {/* KPI Template Select */}
                                             <div>
                                                 <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200 mb-1.5">
-                                                    Evidence Template (Optional)
+                                                    Evidence Template *
                                                 </label>
-                                                <select
+                                                <SearchableSelect
+                                                    options={kpiTemplates.filter(t => !dueTimeFormData.kpi_group_id || String(t.kpi_group_id) === String(dueTimeFormData.kpi_group_id))}
                                                     value={dueTimeFormData.kpi_task_template_id}
-                                                    onChange={(e) => setDueTimeFormData('kpi_task_template_id', e.target.value)}
-                                                    className="w-full rounded-2xl border border-indigo-300 bg-white px-4 py-2.5 text-xs text-slate-800 shadow-sm dark:border-indigo-800 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                                                >
-                                                    <option value="">-- Default On-Demand Template --</option>
-                                                    {kpiTemplates
-                                                        .filter(t => !dueTimeFormData.kpi_group_id || String(t.kpi_group_id) === String(dueTimeFormData.kpi_group_id))
-                                                        .map((t) => (
-                                                            <option key={t.id} value={t.id}>
-                                                                📋 {t.title} ({t.requires_images ? 'Requires Images' : 'Standard Rules'})
-                                                            </option>
-                                                        ))}
-                                                </select>
+                                                    onChange={(val) => setDueTimeFormData('kpi_task_template_id', val)}
+                                                    placeholder="-- Default On-Demand Template --"
+                                                    searchPlaceholder="🔍 Type to search evidence template..."
+                                                    labelFormatter={(t) => `📋 ${t.title} (${t.requires_images ? 'Requires Images' : 'Standard Rules'})`}
+                                                />
                                                 <p className="mt-1 text-[10px] text-slate-400">
                                                     Defines evidence submission requirements and passing rules for the KPI instance.
+                                                </p>
+                                            </div>
+
+                                            {/* Designated Target KPI Employees (Multi-Select) */}
+                                            <div>
+                                                <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200 mb-1.5">
+                                                    Target KPI Employees (Multi-Select Pre-assignment)
+                                                </label>
+                                                <SearchableMultiSelect
+                                                    options={users}
+                                                    values={dueTimeFormData.kpi_assigned_user_ids}
+                                                    onChange={(newValues) => setDueTimeFormData('kpi_assigned_user_ids', newValues)}
+                                                    placeholder="-- Fallback to Task Assignee Employee --"
+                                                    searchPlaceholder="🔍 Search employee name or department..."
+                                                    labelFormatter={(u) => `👤 ${u.name} ${u.department ? `(${u.department.name})` : ''}`}
+                                                />
+                                                <p className="mt-1 text-[10px] text-slate-400">
+                                                    Select multiple employees who will automatically receive on-demand KPI instances when this task is created.
                                                 </p>
                                             </div>
                                         </div>

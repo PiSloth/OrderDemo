@@ -12,7 +12,9 @@ use App\Models\TodoCategory;
 use App\Models\TodoDueTime;
 use App\Models\TodoPriority;
 use App\Models\TodoStatus;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,10 +28,11 @@ class TodoConfigController extends Controller
         $statuses = TodoStatus::orderBy('status')->get();
         $locations = Location::orderBy('name')->get();
         $branches = Branch::orderBy('name')->get();
-        $dueTimes = TodoDueTime::with(['category', 'priority', 'kpiGroup', 'kpiTemplate'])->get();
+        $dueTimes = TodoDueTime::with(['category', 'priority', 'kpiGroup', 'kpiTemplate', 'kpiAssignedUser'])->get();
         
         $kpiGroups = KpiGroup::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']);
         $kpiTemplates = KpiTaskTemplate::where('is_active', true)->orderBy('title')->get(['id', 'title', 'kpi_group_id', 'frequency', 'requires_images']);
+        $users = User::with('department')->orderBy('name')->get(['id', 'name', 'department_id']);
 
         return Inertia::render('Todo/Config', [
             'categories' => $categories,
@@ -41,6 +44,7 @@ class TodoConfigController extends Controller
             'dueTimes' => $dueTimes,
             'kpiGroups' => $kpiGroups,
             'kpiTemplates' => $kpiTemplates,
+            'users' => $users,
         ]);
     }
 
@@ -90,8 +94,19 @@ class TodoConfigController extends Controller
             'duration' => ['required', 'integer', 'min:1'],
             'description' => ['nullable', 'string', 'max:1000'],
             'generate_kpi_instance' => ['nullable', 'boolean'],
-            'kpi_group_id' => ['nullable', 'exists:kpi_groups,id'],
-            'kpi_task_template_id' => ['nullable', 'exists:kpi_task_templates,id'],
+            'kpi_group_id' => [
+                Rule::requiredIf(fn () => (bool) $request->input('generate_kpi_instance')),
+                'nullable',
+                'exists:kpi_groups,id',
+            ],
+            'kpi_task_template_id' => [
+                Rule::requiredIf(fn () => (bool) $request->input('generate_kpi_instance')),
+                'nullable',
+                'exists:kpi_task_templates,id',
+            ],
+            'kpi_assigned_user_id' => ['nullable', 'exists:users,id'],
+            'kpi_assigned_user_ids' => ['nullable', 'array'],
+            'kpi_assigned_user_ids.*' => ['exists:users,id'],
         ]);
 
         $validated['generate_kpi_instance'] = (bool) ($validated['generate_kpi_instance'] ?? false);
@@ -111,8 +126,19 @@ class TodoConfigController extends Controller
             'duration' => ['required', 'integer', 'min:1'],
             'description' => ['nullable', 'string', 'max:1000'],
             'generate_kpi_instance' => ['nullable', 'boolean'],
-            'kpi_group_id' => ['nullable', 'exists:kpi_groups,id'],
-            'kpi_task_template_id' => ['nullable', 'exists:kpi_task_templates,id'],
+            'kpi_group_id' => [
+                Rule::requiredIf(fn () => (bool) $request->input('generate_kpi_instance')),
+                'nullable',
+                'exists:kpi_groups,id',
+            ],
+            'kpi_task_template_id' => [
+                Rule::requiredIf(fn () => (bool) $request->input('generate_kpi_instance')),
+                'nullable',
+                'exists:kpi_task_templates,id',
+            ],
+            'kpi_assigned_user_id' => ['nullable', 'exists:users,id'],
+            'kpi_assigned_user_ids' => ['nullable', 'array'],
+            'kpi_assigned_user_ids.*' => ['exists:users,id'],
         ]);
 
         $validated['generate_kpi_instance'] = (bool) ($validated['generate_kpi_instance'] ?? false);

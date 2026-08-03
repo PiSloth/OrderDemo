@@ -60,6 +60,7 @@ class TodoListController extends Controller
                 'id' => $dueTime->id,
                 'name' => ($dueTime->category ? $dueTime->category->name : 'N/A') . ' (' . ($dueTime->priority ? $dueTime->priority->level : 'N/A') . ') - ' . $dueTime->duration . ' Hours',
                 'duration' => $dueTime->duration,
+                'department_id' => $dueTime->category?->department_id,
             ];
         });
 
@@ -297,6 +298,7 @@ class TodoListController extends Controller
             'id' => $dt->id,
             'name' => ($dt->category->name ?? 'N/A') . ' - ' . ($dt->priority->level ?? 'N/A') . ' (' . $dt->duration . 'h)',
             'duration' => $dt->duration,
+            'department_id' => $dt->category?->department_id,
         ])->values()->all();
 
         return Inertia::render('Todo/TaskList', [
@@ -364,23 +366,41 @@ class TodoListController extends Controller
 
         // Generate On-Demand KPI Instance if configured on the due time
         $dueTime = TodoDueTime::find($task->todo_due_time_id);
-        if ($dueTime && $dueTime->generate_kpi_instance && $dueTime->kpi_group_id && $task->assigned_user_id) {
+        if ($dueTime && $dueTime->generate_kpi_instance && $dueTime->kpi_group_id) {
+            $targetUserIds = [];
+            if (!empty($dueTime->kpi_assigned_user_ids) && is_array($dueTime->kpi_assigned_user_ids)) {
+                $targetUserIds = array_filter(array_map('intval', $dueTime->kpi_assigned_user_ids));
+            } elseif ($dueTime->kpi_assigned_user_id) {
+                $targetUserIds = [(int) $dueTime->kpi_assigned_user_id];
+            } elseif ($task->assigned_user_id) {
+                $targetUserIds = [(int) $task->assigned_user_id];
+            }
+
+            $firstInstanceId = null;
             $dueDateObj = $task->due_date ? Carbon::parse($task->due_date) : now()->addHours($dueTime->duration ?? 24);
 
-            $kpiInstance = \App\Models\Kpi\KpiTaskInstance::create([
-                'task_template_id' => $dueTime->kpi_task_template_id,
-                'kpi_group_id' => $dueTime->kpi_group_id,
-                'user_id' => $task->assigned_user_id, // Assigned Employee
-                'task_date' => $dueDateObj->toDateString(),
-                'due_at' => $dueDateObj,
-                'status' => 'pending',
-                'is_on_time' => true,
-                'todo_list_id' => $task->id,
-            ]);
+            foreach (array_unique($targetUserIds) as $targetUserId) {
+                $kpiInstance = \App\Models\Kpi\KpiTaskInstance::create([
+                    'task_template_id' => $dueTime->kpi_task_template_id,
+                    'kpi_group_id' => $dueTime->kpi_group_id,
+                    'user_id' => $targetUserId,
+                    'task_date' => $dueDateObj->toDateString(),
+                    'due_at' => $dueDateObj,
+                    'status' => 'pending',
+                    'is_on_time' => true,
+                    'todo_list_id' => $task->id,
+                ]);
 
-            $task->update([
-                'kpi_task_instance_id' => $kpiInstance->id,
-            ]);
+                if (!$firstInstanceId) {
+                    $firstInstanceId = $kpiInstance->id;
+                }
+            }
+
+            if ($firstInstanceId) {
+                $task->update([
+                    'kpi_task_instance_id' => $firstInstanceId,
+                ]);
+            }
         }
 
         if ($request->wantsJson()) {

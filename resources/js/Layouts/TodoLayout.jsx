@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function TodoLayout({ children, title }) {
     const { auth = {}, flash = {} } = usePage().props;
     const currentUrl = usePage().url || window.location.pathname;
     const user = auth?.user;
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    // Auto trigger react-hot-toast on Inertia flash messages
+    useEffect(() => {
+        if (flash?.message) {
+            toast.success(flash.message, { id: 'flash-success' });
+        }
+        if (flash?.error) {
+            toast.error(flash.error, { id: 'flash-error' });
+        }
+    }, [flash]);
 
     const isCurrentUrl = (href) => {
         if (href === '/todo' || href === '/todo/list') {
@@ -39,6 +50,7 @@ export default function TodoLayout({ children, title }) {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased">
+            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
             {/* Top Navigation Bar with Glassmorphism */}
             <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/85 transition-all">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -10,7 +10,7 @@
     "file": "assets/bootstrap-b8615e59.js"
   },
   "resources/css/app.css": {
-    "file": "assets/app-396f60f8.css",
+    "file": "assets/app-6bc1ffde.css",
     "src": "resources/js/app.css"
   },
   "resources/js/app.css": {
@@ -31,12 +31,12 @@
   },
   "resources/js/app.jsx": {
     "css": [
-      "assets/app-396f60f8.css"
+      "assets/app-6bc1ffde.css"
     ],
     "dynamicImports": [
       "_apexcharts.common-e36eb5b9.js"
     ],
-    "file": "assets/app-25126f13.js",
+    "file": "assets/app-2d066fd4.js",
     "imports": [
       "_bootstrap-b8615e59.js"
     ],

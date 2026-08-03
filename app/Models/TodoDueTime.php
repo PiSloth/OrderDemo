@@ -19,10 +19,13 @@ class TodoDueTime extends Model
         'generate_kpi_instance',
         'kpi_group_id',
         'kpi_task_template_id',
+        'kpi_assigned_user_id',
+        'kpi_assigned_user_ids',
     ];
 
     protected $casts = [
         'generate_kpi_instance' => 'boolean',
+        'kpi_assigned_user_ids' => 'array',
     ];
 
     public function category()
@@ -43,5 +46,10 @@ class TodoDueTime extends Model
     public function kpiTemplate()
     {
         return $this->belongsTo(KpiTaskTemplate::class, 'kpi_task_template_id');
+    }
+
+    public function kpiAssignedUser()
+    {
+        return $this->belongsTo(User::class, 'kpi_assigned_user_id');
     }
 }
