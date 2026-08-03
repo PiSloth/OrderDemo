@@ -118,6 +118,17 @@ export default function TaskDetailModal({
         );
     }, [task.comments]);
 
+    // Connected KPI Task Instances
+    const connectedKpiInstances = useMemo(() => {
+        if (task.kpi_task_instances && task.kpi_task_instances.length > 0) {
+            return task.kpi_task_instances;
+        }
+        if (task.kpi_task_instance) {
+            return [task.kpi_task_instance];
+        }
+        return [];
+    }, [task]);
+
     // Helper status styling
     const getStatusBadge = (statusObj) => {
         const name = statusObj?.status || 'Open';
@@ -331,6 +342,11 @@ export default function TaskDetailModal({
                                     </span>
                                     Live Sync Active
                                 </span>
+                                {connectedKpiInstances.length > 0 && (
+                                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+                                        🏆 {connectedKpiInstances.length} KPI Instance(s)
+                                    </span>
+                                )}
                             </div>
                             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                                 {task.task}
@@ -438,6 +454,71 @@ export default function TaskDetailModal({
                             </div>
                         </div>
                     </div>
+
+                    {/* Connected KPI Task Instances Card Section */}
+                    {connectedKpiInstances.length > 0 && (
+                        <div className="rounded-3xl border border-amber-200 bg-amber-50/50 p-6 dark:border-amber-900/40 dark:bg-amber-950/20 space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                                    <span>🏆 Connected KPI Task Instances ({connectedKpiInstances.length})</span>
+                                </h4>
+                                <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
+                                    Auto-synchronized with KPI Instance Cutoff & Approvals
+                                </span>
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
+                                {connectedKpiInstances.map((instance) => {
+                                    const instUser = instance.user;
+                                    const instStatus = (instance.status || 'pending').toLowerCase();
+                                    let statusBg = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300';
+                                    if (instStatus.includes('approved') || instStatus.includes('completed')) {
+                                        statusBg = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300';
+                                    } else if (instStatus.includes('reject')) {
+                                        statusBg = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300';
+                                    } else if (instStatus.includes('submit')) {
+                                        statusBg = 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300';
+                                    }
+
+                                    return (
+                                        <div
+                                            key={instance.id}
+                                            className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 space-y-2 shadow-sm"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-2">
+                                                    <span>👤 {instUser?.name || `User #${instance.user_id}`}</span>
+                                                    {instUser?.department?.name && (
+                                                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                                            {instUser.department.name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${statusBg}`}>
+                                                    {instance.status || 'Pending'}
+                                                </span>
+                                            </div>
+
+                                            <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                                                {instance.group && (
+                                                    <p>📁 Group: <span className="font-semibold text-slate-800 dark:text-slate-200">{instance.group.name}</span></p>
+                                                )}
+                                                {instance.template && (
+                                                    <p>📋 Template: <span className="font-semibold text-slate-800 dark:text-slate-200">{instance.template.title}</span></p>
+                                                )}
+                                                <p className="flex items-center gap-3 pt-1">
+                                                    <span>⏰ Cutoff: <strong className="text-slate-800 dark:text-slate-200">{instance.due_at ? new Date(instance.due_at).toLocaleString() : (instance.task_date || 'N/A')}</strong></span>
+                                                    <span className={`font-extrabold ${instance.is_on_time !== false ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                        {instance.is_on_time !== false ? '✅ On-Time' : '⚠️ Late / Overdue'}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Task Comments & Action Steps Log */}
                     <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">

@@ -71,6 +71,11 @@ class TodoList extends Model
         return $this->belongsTo(KpiTaskInstance::class, 'kpi_task_instance_id');
     }
 
+    public function kpiTaskInstances()
+    {
+        return $this->hasMany(KpiTaskInstance::class, 'todo_list_id');
+    }
+
     public function comments()
     {
         return $this->hasMany(TaskComment::class)->orderBy('created_at');

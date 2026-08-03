@@ -25,15 +25,30 @@ class TodoListController extends Controller
     {
         $user = Auth::user();
 
+        $withRelations = [
+            'assignedUser.department',
+            'createdByUser.department',
+            'requestedByBranch',
+            'status',
+            'dueTime.category',
+            'dueTime.priority',
+            'comments.user',
+            'closedByUser.department',
+            'kpiTaskInstance.user',
+            'kpiTaskInstances.user.department',
+            'kpiTaskInstances.template',
+            'kpiTaskInstances.group',
+        ];
+
         // Active tasks
-        $todoLists = TodoList::with(['assignedUser.department', 'requestedByBranch', 'status', 'dueTime.category', 'dueTime.priority', 'comments.user', 'closedByUser.department'])
+        $todoLists = TodoList::with($withRelations)
             ->whereNull('deleted_at')
             ->orderBy('created_at', 'desc')
             ->get();
 
         // Archived tasks
         $archivedTasks = TodoList::onlyTrashed()
-            ->with(['assignedUser.department', 'requestedByBranch', 'status', 'dueTime.category', 'dueTime.priority', 'comments.user', 'closedByUser.department'])
+            ->with($withRelations)
             ->orderBy('deleted_at', 'desc')
             ->get();
 
@@ -153,11 +168,15 @@ class TodoListController extends Controller
                 'dueTime.category',
                 'dueTime.priority',
                 'status',
-                'assignedUser',
-                'createdByUser',
+                'assignedUser.department',
+                'createdByUser.department',
                 'department',
                 'requestedByBranch',
                 'comments.user',
+                'kpiTaskInstance.user',
+                'kpiTaskInstances.user.department',
+                'kpiTaskInstances.template',
+                'kpiTaskInstances.group',
             ]);
 
         if ($filterBranchId) {
@@ -420,15 +439,27 @@ class TodoListController extends Controller
             }
         }
 
+        $createdInstances = \App\Models\Kpi\KpiTaskInstance::with('user')->where('todo_list_id', $task->id)->get();
+        $createdCount = $createdInstances->count();
+
+        if ($createdCount > 0) {
+            $userNames = $createdInstances->map(fn($i) => $i->user?->name ?? "User #{$i->user_id}")->join(', ');
+            $flashMsg = "Todo Task created successfully with {$createdCount} connected KPI Task Instance(s) for {$userNames}.";
+        } elseif (isset($dueTime) && $dueTime && $dueTime->generate_kpi_instance) {
+            $flashMsg = "Todo Task created. KPI Instance generation skipped (user on holiday or missing KPI settings).";
+        } else {
+            $flashMsg = "Todo Task created successfully.";
+        }
+
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Todo Task Created Successfully' . ($task->kpi_task_instance_id ? ' (Linked to KPI Instance)' : ''),
-                'task' => $task->load(['dueTime.category', 'status', 'assignedUser', 'kpiTaskInstance']),
+                'message' => $flashMsg,
+                'task' => $task->load(['dueTime.category', 'status', 'assignedUser', 'kpiTaskInstance', 'kpiTaskInstances.user']),
             ]);
         }
 
-        return redirect()->back()->with('message', 'Todo Task Created Successfully' . ($task->kpi_task_instance_id ? ' (Linked to KPI Instance)' : ''));
+        return redirect()->back()->with('message', $flashMsg);
     }
 
     public function closeTask($id)
