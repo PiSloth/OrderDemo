@@ -57,12 +57,6 @@ class KpiTaskTemplateService
         $templateModel = $template instanceof KpiTaskTemplate ? $template : KpiTaskTemplate::findOrFail($template);
         $templateModel->load('rule');
 
-        if ($this->isRuleOrGroupChanging($templateModel, $data) && $this->hasPreviousMonthInstances($templateModel)) {
-            throw ValidationException::withMessages([
-                'templateRuleType' => 'Cannot modify task group or performance rule thresholds because task evaluation records exist from previous months.',
-            ]);
-        }
-
         return DB::transaction(function () use ($templateModel, $data) {
             $slug = $this->makeUniqueSlug($data['title'], $templateModel->id);
 
@@ -187,6 +181,12 @@ class KpiTaskTemplateService
      */
     protected function syncPendingCurrentMonthInstances(KpiTaskTemplate $template, array $data): void
     {
+        if (!empty($data['kpi_group_id'])) {
+            KpiTaskInstance::query()
+                ->where('task_template_id', $template->id)
+                ->update(['kpi_group_id' => (int) $data['kpi_group_id']]);
+        }
+
         if (empty($data['cutoff_time'])) {
             return;
         }

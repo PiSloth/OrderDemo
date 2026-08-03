@@ -61,12 +61,6 @@ class KpiGroupService
     {
         $groupModel = $group instanceof KpiGroup ? $group : $this->findGroup($group);
 
-        if ($this->isRuleConfigurationChanging($groupModel, $data) && $this->hasPreviousMonthInstances($groupModel)) {
-            throw ValidationException::withMessages([
-                'groupRuleType' => 'Cannot modify rule type, percentage, or target thresholds because task records exist from previous months.',
-            ]);
-        }
-
         $groupModel->update($data);
 
         return $groupModel;
