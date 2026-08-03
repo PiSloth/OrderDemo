@@ -91,12 +91,22 @@ class KpiAuditController extends Controller
                 'latestSubmission.submittedBy',
                 'latestSubmission.approvalSteps.approver',
                 'template.group',
+                'group',
             ])
             ->where('user_id', $selectedUserId)
             ->whereDate('period_start', '<=', $monthEnd->toDateString())
             ->whereDate('period_end', '>=', $monthStart->toDateString())
             ->get()
             ->groupBy('task_assignment_id');
+
+        $assignments = $assignments
+            ->sortBy(function (KpiTaskAssignment $assignment) use ($instances) {
+                $assignmentInstances = $instances->get($assignment->id, collect());
+                $instanceGroup = $assignmentInstances->first(fn ($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
+                $groupName = (string) optional($instanceGroup ?? $assignment->template?->group)->name;
+                return sprintf('%s|%s', $groupName, (string) optional($assignment->template)->title);
+            })
+            ->values();
 
         $holidayMap = $availability->holidayMapForUser($selectedUserId, $monthStart, $monthEnd);
         $exclusionMaps = $availability->exclusionMapsForUser($selectedUserId, $monthStart, $monthEnd);
@@ -105,6 +115,9 @@ class KpiAuditController extends Controller
 
         $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $daysCarbon, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator, $monthlySuccessService): array {
             $assignmentInstances = $instances->get($assignment->id, collect());
+            $instanceGroup = $assignmentInstances->first(fn ($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
+            $effectiveGroup = $instanceGroup ?? $assignment->template?->group;
+
             $cells = $daysCarbon->map(fn (Carbon $day) => $this->buildCell($assignment, $assignmentInstances, $day, $holidayMap, $exclusionMaps));
             $summary = $this->buildSummary($assignment, $assignmentInstances, $cells, $evaluationEnd, $monthlySuccessService);
             $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, [
@@ -121,7 +134,7 @@ class KpiAuditController extends Controller
                     'ends_on' => $assignment->ends_on?->toDateString(),
                     'template' => $assignment->template ? [
                         'id' => $assignment->template->id,
-                        'kpi_group_id' => $assignment->template->kpi_group_id,
+                        'kpi_group_id' => $effectiveGroup?->id ?? $assignment->template->kpi_group_id,
                         'title' => $assignment->template->title,
                         'description' => $assignment->template->description,
                         'guideline' => $assignment->template->guideline,
@@ -140,9 +153,9 @@ class KpiAuditController extends Controller
                             'max_fail_count' => $assignment->template->rule->max_fail_count,
                             'max_cost_amount' => $assignment->template->rule->max_cost_amount,
                         ] : null,
-                        'group' => $assignment->template->group ? [
-                            'id' => $assignment->template->group->id,
-                            'name' => $assignment->template->group->name,
+                        'group' => $effectiveGroup ? [
+                            'id' => $effectiveGroup->id,
+                            'name' => $effectiveGroup->name,
                         ] : null,
                     ] : null,
                 ],
@@ -195,6 +208,7 @@ class KpiAuditController extends Controller
                 ->get()
                 ->map(fn ($r) => [
                     'id' => $r->id,
+                    'user_id' => $r->user_id,
                     'user_name' => $r->user?->name ?? '-',
                     'user_dept' => $r->user?->department?->name ?? '-',
                     'request_type' => $r->request_type,
@@ -202,6 +216,66 @@ class KpiAuditController extends Controller
                     'task_title' => $r->assignment?->template?->title,
                     'reason' => $r->reason,
                     'created_at' => $r->created_at?->toDateString(),
+                ])
+            : collect();
+
+        // Approved exclusion requests (for Inbox Modal management)
+        $approvedExclusionsQuery = KpiExclusionRequest::query()
+            ->with(['user.department', 'assignment.template.group'])
+            ->where('status', 'approved');
+
+        if (Gate::allows('kpiViewCompanyLeaderboard') || Gate::allows('kpiManageTemplates')) {
+            // all
+        } elseif ($selectedUser && $selectedUser->department_id) {
+            $deptId = Auth::user()?->department_id;
+            $approvedExclusionsQuery->whereHas('user', fn (Builder $q) => $q->where('department_id', $deptId));
+        }
+
+        $approvedExclusions = (Gate::allows('kpiApproveExclusions') || Gate::allows('kpiManageHolidays'))
+            ? $approvedExclusionsQuery
+                ->orderByDesc('requested_date')
+                ->get()
+                ->map(fn ($r) => [
+                    'id' => $r->id,
+                    'user_id' => $r->user_id,
+                    'user_name' => $r->user?->name ?? '-',
+                    'user_dept' => $r->user?->department?->name ?? '-',
+                    'request_type' => $r->request_type,
+                    'requested_date' => $r->requested_date?->toDateString(),
+                    'task_title' => $r->assignment?->template?->title,
+                    'reason' => $r->reason,
+                    'reviewer_remark' => $r->reviewer_remark,
+                    'status' => 'approved',
+                    'item_type' => 'exclusion',
+                ])
+            : collect();
+
+        // Approved Holidays (for Inbox Modal management)
+        $approvedHolidaysQuery = KpiHoliday::query()
+            ->with(['user.department']);
+
+        if (Gate::allows('kpiViewCompanyLeaderboard') || Gate::allows('kpiManageTemplates')) {
+            // all
+        } elseif ($selectedUser && $selectedUser->department_id) {
+            $deptId = Auth::user()?->department_id;
+            $approvedHolidaysQuery->whereHas('user', fn (Builder $q) => $q->where('department_id', $deptId));
+        }
+
+        $approvedHolidays = (Gate::allows('kpiApproveExclusions') || Gate::allows('kpiManageHolidays'))
+            ? $approvedHolidaysQuery
+                ->orderByDesc('holiday_date')
+                ->get()
+                ->map(fn ($h) => [
+                    'id' => $h->id,
+                    'user_id' => $h->user_id,
+                    'user_name' => $h->user?->name ?? 'All Employees / System',
+                    'user_dept' => $h->user?->department?->name ?? 'Company-wide',
+                    'request_type' => 'holiday',
+                    'requested_date' => $h->holiday_date?->toDateString(),
+                    'task_title' => $h->name,
+                    'reason' => $h->remark ?? $h->name,
+                    'status' => 'approved',
+                    'item_type' => 'holiday',
                 ])
             : collect();
 
@@ -222,8 +296,30 @@ class KpiAuditController extends Controller
             'taskAssignments' => $taskAssignmentsForRequest->values(),
             'pendingExclusions' => $pendingExclusions->values(),
             'pendingExclusionsCount' => $pendingExclusions->count(),
+            'approvedExclusions' => $approvedExclusions->values(),
+            'approvedHolidays' => $approvedHolidays->values(),
             'kpiGroups' => \App\Models\Kpi\KpiGroup::orderBy('name')->get(['id', 'name', 'code']),
         ]);
+    }
+
+    public function destroyExclusionRequest(int $id): RedirectResponse
+    {
+        Gate::authorize('kpiApproveExclusions');
+
+        $exclusionRequest = KpiExclusionRequest::findOrFail($id);
+        $exclusionRequest->delete();
+
+        return redirect()->back()->with('success', 'Exclusion request deleted.');
+    }
+
+    public function destroyHoliday(int $id): RedirectResponse
+    {
+        Gate::authorize('kpiManageHolidays');
+
+        $holiday = KpiHoliday::findOrFail($id);
+        $holiday->delete();
+
+        return redirect()->back()->with('success', 'Holiday deleted.');
     }
 
     public function storeExclusionRequest(Request $request): RedirectResponse

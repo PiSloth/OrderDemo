@@ -23,6 +23,8 @@ export default function Audit({
     authUserId = null,
     taskAssignments = [],
     pendingExclusions = [],
+    approvedExclusions = [],
+    approvedHolidays = [],
     pendingExclusionsCount = 0,
     kpiGroups = [],
 }) {
@@ -616,6 +618,9 @@ export default function Audit({
                     isOpen={inboxOpen}
                     onClose={() => setInboxOpen(false)}
                     pendingExclusions={pendingExclusions}
+                    approvedExclusions={approvedExclusions}
+                    approvedHolidays={approvedHolidays}
+                    users={users}
                 />
 
                 {/* Template Edit Modal */}

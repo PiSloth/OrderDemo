@@ -28,6 +28,7 @@ export default function TemplateEditModal({
         templateMaxFailCount: '0',
         templateMaxCostAmount: '0',
         inactivateForMonth: false,
+        applyGroupScope: 'all', // 'all' | 'month_only'
     });
 
     const [errors, setErrors] = useState({});
@@ -54,6 +55,7 @@ export default function TemplateEditModal({
                 templateMaxFailCount: template.rule?.max_fail_count !== null && template.rule?.max_fail_count !== undefined ? String(template.rule.max_fail_count) : '0',
                 templateMaxCostAmount: template.rule?.max_cost_amount !== null && template.rule?.max_cost_amount !== undefined ? String(template.rule.max_cost_amount) : '0',
                 inactivateForMonth: Boolean(assignment?.ends_on && selectedMonth && new Date(assignment.ends_on) < new Date(selectedMonth + '-01')),
+                applyGroupScope: 'all',
             });
             setErrors({});
         }
@@ -89,6 +91,8 @@ export default function TemplateEditModal({
             taskAssignmentId: assignment?.id || null,
             inactivateForMonth: formData.inactivateForMonth,
             inactivateMonth: selectedMonth || null,
+            applyGroupScope: formData.applyGroupScope,
+            targetMonth: selectedMonth || null,
         };
 
         router.put(`/kpi/templates/${template.id}`, payload, {
@@ -169,6 +173,46 @@ export default function TemplateEditModal({
                                     ))}
                                 </select>
                                 {errors.templateGroupId && <p className="text-xs text-rose-500 mt-1">{errors.templateGroupId}</p>}
+
+                                {selectedMonth && (
+                                    <div className="mt-2.5 space-y-1.5 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-2.5 dark:border-indigo-950 dark:bg-indigo-950/30">
+                                        <span className="block text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                                            KPI Group Change Scope
+                                        </span>
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                                <input
+                                                    type="radio"
+                                                    name="applyGroupScope"
+                                                    value="all"
+                                                    checked={formData.applyGroupScope === 'all'}
+                                                    onChange={() => setFormData({ ...formData, applyGroupScope: 'all' })}
+                                                    className="w-3.5 h-3.5 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                All Months (Global)
+                                            </label>
+
+                                            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                                <input
+                                                    type="radio"
+                                                    name="applyGroupScope"
+                                                    value="month_only"
+                                                    checked={formData.applyGroupScope === 'month_only'}
+                                                    onChange={() => setFormData({ ...formData, applyGroupScope: 'month_only' })}
+                                                    className="w-3.5 h-3.5 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                <span>
+                                                    Only <strong className="text-indigo-600 dark:text-indigo-400">{formattedMonthName}</strong>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                                            {formData.applyGroupScope === 'month_only'
+                                                ? `KPI group will change for ${formattedMonthName} only.`
+                                                : 'KPI group will update globally for all months.'}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             <div>

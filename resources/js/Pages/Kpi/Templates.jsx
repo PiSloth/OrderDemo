@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, usePage, router } from '@inertiajs/react';
 import KpiLayout from '../../Layouts/KpiLayout';
 import GroupModal from './Components/GroupModal';
@@ -16,6 +16,16 @@ export default function Templates({ groups, allGroups = [], departments = [], te
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState(null);
     const [employeeFilter, setEmployeeFilter] = useState(filters.templateEmployeeFilter || '');
+    const [templateSearchTerm, setTemplateSearchTerm] = useState('');
+
+    // Pagination per page 6
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 6;
+
+    // Reset pagination when search or employee filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [templateSearchTerm, employeeFilter]);
 
     const resolveUrl = (name, id = null) => {
         if (typeof window !== 'undefined' && typeof window.route === 'function') {
@@ -62,6 +72,30 @@ export default function Templates({ groups, allGroups = [], departments = [], te
             { preserveState: true, preserveScroll: true, replace: true }
         );
     };
+
+    // Real-time search filter for group name and template name/title
+    const filteredTemplates = useMemo(() => {
+        let list = templates;
+
+        if (templateSearchTerm.trim()) {
+            const term = templateSearchTerm.toLowerCase();
+            list = list.filter((tpl) => {
+                const title = (tpl.title || '').toLowerCase();
+                const groupName = (tpl.group?.name || '').toLowerCase();
+                const desc = (tpl.description || '').toLowerCase();
+                return title.includes(term) || groupName.includes(term) || desc.includes(term);
+            });
+        }
+
+        return list;
+    }, [templates, templateSearchTerm]);
+
+    // Pagination calculations
+    const totalPages = Math.max(1, Math.ceil(filteredTemplates.length / PAGE_SIZE));
+    const paginatedTemplates = useMemo(() => {
+        const start = (currentPage - 1) * PAGE_SIZE;
+        return filteredTemplates.slice(start, start + PAGE_SIZE);
+    }, [filteredTemplates, currentPage]);
 
     return (
         <KpiLayout>
@@ -163,24 +197,49 @@ export default function Templates({ groups, allGroups = [], departments = [], te
 
                     {activeTab === 'templates' && (
                         <div className="space-y-4">
-                            <div className="flex flex-col gap-3 sm:max-w-xs">
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                    Assigned User Filter
-                                </label>
-                                <select
-                                    value={employeeFilter}
-                                    onChange={handleFilterChange}
-                                    className="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                                >
-                                    <option value="">All Assigned Users</option>
-                                    {templateEmployees.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {emp.name}
-                                        </option>
-                                    ))}
-                                </select>
+                            {/* Search & Filter Controls */}
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                {/* Real-time Search by Group Name or Template Name */}
+                                <div className="relative w-full sm:w-80">
+                                    <input
+                                        type="text"
+                                        value={templateSearchTerm}
+                                        onChange={(e) => setTemplateSearchTerm(e.target.value)}
+                                        placeholder="🔍 Search template title or group..."
+                                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 pl-9 text-xs text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                    />
+                                    <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    {templateSearchTerm && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTemplateSearchTerm('')}
+                                            className="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Assigned User Filter */}
+                                <div className="w-full sm:w-64">
+                                    <select
+                                        value={employeeFilter}
+                                        onChange={handleFilterChange}
+                                        className="w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                    >
+                                        <option value="">All Assigned Users</option>
+                                        {templateEmployees.map((emp) => (
+                                            <option key={emp.id} value={emp.id}>
+                                                {emp.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
+                            {/* Templates Table */}
                             <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -195,8 +254,8 @@ export default function Templates({ groups, allGroups = [], departments = [], te
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-200 bg-white text-sm dark:divide-slate-800 dark:bg-slate-900">
-                                            {templates.length > 0 ? (
-                                                templates.map((tpl) => (
+                                            {paginatedTemplates.length > 0 ? (
+                                                paginatedTemplates.map((tpl) => (
                                                     <tr key={tpl.id} className="align-top">
                                                         <td className="px-4 py-4">
                                                             <div className="font-semibold text-slate-900 dark:text-slate-100">
@@ -219,18 +278,27 @@ export default function Templates({ groups, allGroups = [], departments = [], te
                                                             )}
                                                         </td>
                                                         <td className="px-4 py-4 capitalize text-slate-600 dark:text-slate-300">
-                                                            {tpl.frequency}
+                                                            {tpl.frequency === 'on_demand' ? (
+                                                                <span className="inline-flex items-center rounded-lg bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                                                    ⚡ On-Demand
+                                                                </span>
+                                                            ) : (
+                                                                tpl.frequency
+                                                            )}
                                                         </td>
                                                         <td className="px-4 py-4">
-                                                            <span
-                                                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenEditTemplate(tpl)}
+                                                                title="Click to edit status"
+                                                                className={`rounded-full px-2.5 py-1 text-xs font-bold transition shadow-sm border ${
                                                                     tpl.is_active
-                                                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                                                                        : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                                                                        : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
                                                                 }`}
                                                             >
-                                                                {tpl.is_active ? 'Active' : 'Inactive'}
-                                                            </span>
+                                                                {tpl.is_active ? '● Active' : '○ Inactive'}
+                                                            </button>
                                                         </td>
                                                         {canManage && (
                                                             <td className="px-4 py-4">
@@ -260,13 +328,61 @@ export default function Templates({ groups, allGroups = [], departments = [], te
                                                         colSpan={canManage ? 6 : 5}
                                                         className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
                                                     >
-                                                        No task templates found.
+                                                        No task templates found matching search.
                                                     </td>
                                                 </tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {/* Pagination Footer (6 items per page) */}
+                                {filteredTemplates.length > 0 && (
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
+                                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                                            Showing <span className="font-semibold text-slate-800 dark:text-white">{Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredTemplates.length)}</span> to{' '}
+                                            <span className="font-semibold text-slate-800 dark:text-white">{Math.min(currentPage * PAGE_SIZE, filteredTemplates.length)}</span> of{' '}
+                                            <span className="font-semibold text-slate-800 dark:text-white">{filteredTemplates.length}</span> templates
+                                        </div>
+
+                                        {totalPages > 1 && (
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    disabled={currentPage === 1}
+                                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                                    className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition"
+                                                >
+                                                    ← Prev
+                                                </button>
+
+                                                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pNum) => (
+                                                    <button
+                                                        key={pNum}
+                                                        type="button"
+                                                        onClick={() => setCurrentPage(pNum)}
+                                                        className={`min-w-[32px] h-8 rounded-lg text-xs font-bold transition ${
+                                                            currentPage === pNum
+                                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                                : 'text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800'
+                                                        }`}
+                                                    >
+                                                        {pNum}
+                                                    </button>
+                                                ))}
+
+                                                <button
+                                                    type="button"
+                                                    disabled={currentPage === totalPages}
+                                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                                    className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition"
+                                                >
+                                                    Next →
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

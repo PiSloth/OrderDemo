@@ -119,7 +119,36 @@ class KpiGroupController extends Controller
         $validated = $this->validateTemplatePayload($request);
 
         try {
-            $templateService->updateTemplate($template, $validated);
+            $applyGroupScope = $request->input('applyGroupScope', 'all');
+            $targetMonth = $request->input('targetMonth');
+
+            if ($applyGroupScope === 'month_only' && !empty($targetMonth)) {
+                // Keep the global template's kpi_group_id unchanged
+                $validatedForGlobal = $validated;
+                $validatedForGlobal['templateGroupId'] = (string) $template->kpi_group_id;
+
+                $templateService->updateTemplate($template, $validatedForGlobal);
+
+                // Update task instances for this template for the target month only
+                $newGroupId = (int) $validated['templateGroupId'];
+                $monthStart = \Carbon\Carbon::parse($targetMonth . '-01');
+                $monthEnd = $monthStart->copy()->endOfMonth();
+
+                \App\Models\Kpi\KpiTaskInstance::query()
+                    ->where('task_template_id', $template->id)
+                    ->whereDate('period_start', '<=', $monthEnd->toDateString())
+                    ->whereDate('period_end', '>=', $monthStart->toDateString())
+                    ->update(['kpi_group_id' => $newGroupId]);
+            } else {
+                // Update template globally
+                $templateService->updateTemplate($template, $validated);
+
+                // Sync all task instances for this template
+                $newGroupId = (int) $validated['templateGroupId'];
+                \App\Models\Kpi\KpiTaskInstance::query()
+                    ->where('task_template_id', $template->id)
+                    ->update(['kpi_group_id' => $newGroupId]);
+            }
 
             if ($request->filled('taskAssignmentId')) {
                 $assignment = \App\Models\Kpi\KpiTaskAssignment::find($request->input('taskAssignmentId'));

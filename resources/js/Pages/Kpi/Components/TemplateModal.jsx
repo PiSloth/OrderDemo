@@ -129,6 +129,32 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
                 </div>
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                    {/* Active Status Toggle Button */}
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/40 flex items-center justify-between">
+                        <div>
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                                Template Status
+                            </h4>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                {data.templateIsActive
+                                    ? 'Template is currently ACTIVE across the system.'
+                                    : 'Template is INACTIVE (disabled).'}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setData('templateIsActive', !data.templateIsActive)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border shadow-sm ${
+                                data.templateIsActive
+                                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
+                            }`}
+                        >
+                            <span>{data.templateIsActive ? '✓ Active' : '✕ Inactive'}</span>
+                            <span className="text-[10px] opacity-80 underline">(Click to Toggle)</span>
+                        </button>
+                    </div>
+
                     <div className="grid gap-4 md:grid-cols-2">
                         <div>
                             <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
