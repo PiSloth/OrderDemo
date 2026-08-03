@@ -224,6 +224,75 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
                         ></textarea>
                     </div>
 
+                    {/* Evidence & Submission Requirements */}
+                    <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-4">
+                        <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                            Evidence Requirements
+                        </h4>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={data.templateRequiresImages}
+                                    onChange={(e) => setData('templateRequiresImages', e.target.checked)}
+                                    className="h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                />
+                                Requires Images
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={data.templateImageRemarkRequired}
+                                    onChange={(e) => setData('templateImageRemarkRequired', e.target.checked)}
+                                    className="h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                />
+                                Image Remark Required
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={data.templateRequiresTable}
+                                    onChange={(e) => setData('templateRequiresTable', e.target.checked)}
+                                    className="h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                />
+                                Requires Table / Form
+                            </label>
+                        </div>
+
+                        {data.templateRequiresImages && (
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                        Min Images
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={data.templateMinImages}
+                                        onChange={(e) => setData('templateMinImages', parseInt(e.target.value) || 0)}
+                                        className="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                        Max Images
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={data.templateMaxImages}
+                                        onChange={(e) => setData('templateMaxImages', e.target.value)}
+                                        className="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                        placeholder="No limit"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="grid gap-4 md:grid-cols-2">
                         <div>
                             <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Rule Type</label>
