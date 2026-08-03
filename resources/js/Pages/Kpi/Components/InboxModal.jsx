@@ -93,13 +93,11 @@ export default function InboxModal({
         }
         setProcessing(`del-${item.item_type}-${item.id}`);
 
-        const routeName = item.item_type === 'holiday'
-            ? 'kpi.audit.holiday.destroy'
-            : 'kpi.audit.exclusion-request.destroy';
+        const url = item.item_type === 'holiday'
+            ? `/kpi/audit/holiday/${item.id}/delete`
+            : `/kpi/audit/exclusion-request/${item.id}/delete`;
 
-        const url = resolveUrl(routeName, item.id);
-
-        router.delete(url, {
+        router.post(url, {}, {
             preserveScroll: true,
             onSuccess: () => setProcessing(null),
             onError: () => setProcessing(null),
