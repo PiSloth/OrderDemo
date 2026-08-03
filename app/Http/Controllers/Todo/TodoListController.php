@@ -497,6 +497,20 @@ class TodoListController extends Controller
         $actionStatus = $commentType === 'action_step' ? 'pending' : null;
         $actionData = $request->input('action_data');
 
+        // Prevent creating another pending request of the same type
+        if ($commentType === 'action_step' && isset($actionData['type'])) {
+            $pendingSameType = TaskComment::where('todo_list_id', $task->id)
+                ->where('comment_type', 'action_step')
+                ->where('action_status', 'pending')
+                ->where('action_data->type', $actionData['type'])
+                ->exists();
+
+            if ($pendingSameType) {
+                $readableType = str_replace('_', ' ', $actionData['type']);
+                return redirect()->back()->with('error', "A {$readableType} request is already pending for this task. Please wait for it to be resolved before submitting another.");
+            }
+        }
+
         $comment = TaskComment::create([
             'todo_list_id' => $task->id,
             'user_id' => Auth::id(),

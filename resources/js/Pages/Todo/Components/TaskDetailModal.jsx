@@ -34,18 +34,34 @@ export default function TaskDetailModal({
     const [proposedDate, setProposedDate] = useState('');
     const [negotiationReason, setNegotiationReason] = useState('');
 
-    // Escape Key Listener
+    // Confirmation Modal for Deletion
+    const [commentToDelete, setCommentToDelete] = useState(null);
+
+    // Escape Key Listener (closes active sub-modal first, or main modal if no sub-modal is open)
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
-                onClose();
+
+                if (commentToDelete) {
+                    setCommentToDelete(null);
+                } else if (showCustomDateModal) {
+                    setShowCustomDateModal(false);
+                } else if (showStatusModal) {
+                    setShowStatusModal(false);
+                } else if (showResolverModal) {
+                    setShowResolverModal(false);
+                } else if (showNegotiationModal) {
+                    setShowNegotiationModal(false);
+                } else {
+                    onClose();
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown, true);
         return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [onClose]);
+    }, [commentToDelete, showCustomDateModal, showStatusModal, showResolverModal, showNegotiationModal, onClose]);
 
     // Timeline calculations
     const timelineMetrics = useMemo(() => {
@@ -82,6 +98,25 @@ export default function TaskDetailModal({
             progressColor,
         };
     }, [task]);
+
+    // Check pending action step requests by type
+    const hasPendingDueDateRequest = useMemo(() => {
+        return (task.comments || []).some(
+            (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'due_date_change'
+        );
+    }, [task.comments]);
+
+    const hasPendingStatusRequest = useMemo(() => {
+        return (task.comments || []).some(
+            (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'status_change'
+        );
+    }, [task.comments]);
+
+    const hasPendingResolverRequest = useMemo(() => {
+        return (task.comments || []).some(
+            (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'resolver_change'
+        );
+    }, [task.comments]);
 
     // Helper status styling
     const getStatusBadge = (statusObj) => {
@@ -232,13 +267,17 @@ export default function TaskDetailModal({
 
     const isSuperUser = currentUser?.is_super_user || currentUser?.role === 'admin' || currentUser?.role === 'super_user';
 
-    // Delete comment action
+    // Delete comment action trigger
     const handleDeleteComment = (commentId) => {
-        if (window.confirm('Are you sure you want to delete this comment?')) {
-            router.delete(`/todo/comments/${commentId}`, {
-                preserveScroll: true,
-            });
-        }
+        setCommentToDelete(commentId);
+    };
+
+    const confirmDeleteComment = () => {
+        if (!commentToDelete) return;
+        router.post(`/todo/comments/${commentToDelete}/delete`, {}, {
+            preserveScroll: true,
+            onSuccess: () => setCommentToDelete(null),
+        });
     };
 
     // Respond to Action Step (Accept / Reject)
@@ -535,40 +574,66 @@ export default function TaskDetailModal({
                                     <button
                                         type="button"
                                         onClick={handleRequest24hExtension}
-                                        className="rounded-xl bg-amber-500/15 border border-amber-300/80 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/25"
-                                        title="Request a 24-hour extension on task due date"
+                                        disabled={hasPendingDueDateRequest}
+                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                            hasPendingDueDateRequest
+                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                : 'bg-amber-500/15 border-amber-300/80 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25'
+                                        }`}
+                                        title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request a 24-hour extension on task due date"}
                                     >
-                                        ⚡ Request 24h Extension
+                                        ⚡ Request 24h Extension {hasPendingDueDateRequest && '(Pending)'}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            if (hasPendingDueDateRequest) return;
                                             setCustomDueDate(task.due_date ? task.due_date.slice(0, 16) : '');
                                             setShowCustomDateModal(true);
                                         }}
-                                        className="rounded-xl bg-blue-500/15 border border-blue-300/80 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-500/25"
+                                        disabled={hasPendingDueDateRequest}
+                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                            hasPendingDueDateRequest
+                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                : 'bg-blue-500/15 border-blue-300/80 text-blue-700 dark:text-blue-300 hover:bg-blue-500/25'
+                                        }`}
+                                        title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request custom due date"}
                                     >
-                                        📅 Custom Due Date
+                                        📅 Custom Due Date {hasPendingDueDateRequest && '(Pending)'}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            if (hasPendingStatusRequest) return;
                                             setRequestedStatusId(task.todo_status_id || '');
                                             setShowStatusModal(true);
                                         }}
-                                        className="rounded-xl bg-emerald-500/15 border border-emerald-300/80 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25"
+                                        disabled={hasPendingStatusRequest}
+                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                            hasPendingStatusRequest
+                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                : 'bg-emerald-500/15 border-emerald-300/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25'
+                                        }`}
+                                        title={hasPendingStatusRequest ? "A status change request is already pending for this task" : "Request status change"}
                                     >
-                                        🔄 Request Status Change
+                                        🔄 Request Status Change {hasPendingStatusRequest && '(Pending)'}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            if (hasPendingResolverRequest) return;
                                             setRequestedResolverId(task.assigned_user_id || '');
                                             setShowResolverModal(true);
                                         }}
-                                        className="rounded-xl bg-violet-500/15 border border-violet-300/80 px-3 py-1.5 text-xs font-bold text-violet-700 dark:text-violet-300 hover:bg-violet-500/25"
+                                        disabled={hasPendingResolverRequest}
+                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                            hasPendingResolverRequest
+                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                : 'bg-violet-500/15 border-violet-300/80 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25'
+                                        }`}
+                                        title={hasPendingResolverRequest ? "A resolver change request is already pending for this task" : "Request resolver change"}
                                     >
-                                        👤 Request Resolver
+                                        👤 Request Resolver {hasPendingResolverRequest && '(Pending)'}
                                     </button>
                                 </div>
                             </div>
@@ -659,8 +724,19 @@ export default function TaskDetailModal({
 
             {/* Custom Due Date Modal */}
             {showCustomDateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            e.stopPropagation();
+                            setShowCustomDateModal(false);
+                        }
+                    }}
+                >
+                    <div
+                        className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <h3 className="text-base font-extrabold text-slate-900 dark:text-white">📅 Request Custom Due Date</h3>
                         <form onSubmit={handleCustomDueDateSubmit} className="space-y-4">
                             <div>
@@ -705,8 +781,19 @@ export default function TaskDetailModal({
 
             {/* Status Change Request Modal */}
             {showStatusModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            e.stopPropagation();
+                            setShowStatusModal(false);
+                        }
+                    }}
+                >
+                    <div
+                        className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <h3 className="text-base font-extrabold text-slate-900 dark:text-white">🔄 Request Status Change</h3>
                         <form onSubmit={handleStatusRequestSubmit} className="space-y-4">
                             <div>
@@ -755,8 +842,19 @@ export default function TaskDetailModal({
 
             {/* Resolver Change Request Modal */}
             {showResolverModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            e.stopPropagation();
+                            setShowResolverModal(false);
+                        }
+                    }}
+                >
+                    <div
+                        className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <h3 className="text-base font-extrabold text-slate-900 dark:text-white">👤 Request Resolver Change</h3>
                         <form onSubmit={handleResolverRequestSubmit} className="space-y-4">
                             <div>
@@ -805,8 +903,19 @@ export default function TaskDetailModal({
 
             {/* Negotiation Counter-Offer Modal */}
             {showNegotiationModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            e.stopPropagation();
+                            setShowNegotiationModal(false);
+                        }
+                    }}
+                >
+                    <div
+                        className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <h3 className="text-base font-extrabold text-slate-900 dark:text-white">💬 Propose Counter-Offer Date</h3>
                         <form onSubmit={handleCounterOfferSubmit} className="space-y-4">
                             <div>
@@ -845,6 +954,55 @@ export default function TaskDetailModal({
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* React Confirmation Alert Modal for Comment Deletion */}
+            {commentToDelete && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            e.stopPropagation();
+                            setCommentToDelete(null);
+                        }
+                    }}
+                >
+                    <div
+                        className="w-full max-w-md rounded-3xl bg-white p-6 dark:bg-slate-900 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-950 text-xl font-bold">
+                                🗑️
+                            </span>
+                            <div>
+                                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Delete Comment Confirmation</h3>
+                                <p className="text-xs text-slate-500">This action cannot be undone.</p>
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-slate-700 dark:text-slate-300">
+                            Are you sure you want to permanently delete this comment/request log entry?
+                        </p>
+
+                        <div className="flex justify-end gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setCommentToDelete(null)}
+                                className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                            >
+                                No, Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeleteComment}
+                                className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-700"
+                            >
+                                Yes, Delete Comment
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
