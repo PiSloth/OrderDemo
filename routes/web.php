@@ -187,9 +187,9 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::delete('/tasks/{id}', [TodoListController::class, 'archiveTask'])->name('todo.tasks.archive');
     Route::patch('/tasks/{id}/restore', [TodoListController::class, 'restoreTask'])->name('todo.tasks.restore');
     Route::post('/tasks/{id}/comments', [TodoListController::class, 'storeComment'])->name('todo.tasks.comments');
-    Route::post('/comments/{commentId}/respond', [TodoListController::class, 'respondActionStep'])->name('todo.comments.respond');
-    Route::post('/comments/{commentId}/delete', [TodoListController::class, 'destroyComment'])->name('todo.comments.delete_post');
-    Route::delete('/comments/{commentId}', [TodoListController::class, 'destroyComment'])->name('todo.comments.destroy');
+    Route::post('/task-comments/{commentId}/respond', [TodoListController::class, 'respondActionStep'])->name('todo.comments.respond');
+    Route::post('/task-comments/{commentId}/delete', [TodoListController::class, 'destroyComment'])->name('todo.comments.delete_post');
+    Route::delete('/task-comments/{commentId}', [TodoListController::class, 'destroyComment'])->name('todo.comments.destroy');
     
     // Inertia React Config & Category CRUD Routes
     Route::get('/config', [\App\Http\Controllers\Todo\TodoConfigController::class, 'index'])->name('todo_config');

@@ -274,7 +274,7 @@ export default function TaskDetailModal({
 
     const confirmDeleteComment = () => {
         if (!commentToDelete) return;
-        router.post(`/todo/comments/${commentToDelete}/delete`, {}, {
+        router.post(`/todo/task-comments/${commentToDelete}/delete`, {}, {
             preserveScroll: true,
             onSuccess: () => setCommentToDelete(null),
         });
@@ -282,7 +282,7 @@ export default function TaskDetailModal({
 
     // Respond to Action Step (Accept / Reject)
     const handleRespondActionStep = (commentId, action) => {
-        router.post(`/todo/comments/${commentId}/respond`, { action }, {
+        router.post(`/todo/task-comments/${commentId}/respond`, { action }, {
             preserveScroll: true,
         });
     };
@@ -292,7 +292,7 @@ export default function TaskDetailModal({
         e.preventDefault();
         if (!negotiationCommentId || !proposedDate) return;
 
-        router.post(`/todo/comments/${negotiationCommentId}/respond`, {
+        router.post(`/todo/task-comments/${negotiationCommentId}/respond`, {
             action: 'counter_offer',
             proposed_date: proposedDate,
             reason: negotiationReason,
