@@ -534,12 +534,21 @@ class TodoListController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $comment = TaskComment::findOrFail($commentId);
-        $task = TodoList::findOrFail($comment->todo_list_id);
+        $comment = TaskComment::find($commentId);
+        if (!$comment) {
+            return redirect(url()->previous(route('todo.dashboard')))->with('error', 'Action step comment not found.');
+        }
+
+        $task = TodoList::find($comment->todo_list_id);
+        if (!$task) {
+            return redirect(url()->previous(route('todo.dashboard')))->with('error', 'Associated task not found.');
+        }
+
         $action = $request->input('action');
+        $fallback = url()->previous(route('todo.dashboard'));
 
         if (!$comment->isActionStep() || !$comment->isPendingAction()) {
-            return redirect()->back()->with('error', 'This action step is no longer pending.');
+            return redirect($fallback)->with('error', 'This action step is no longer pending.');
         }
 
         if ($action === 'accept') {
@@ -564,10 +573,10 @@ class TodoListController extends Controller
                 }
             }
 
-            return redirect()->back()->with('message', 'Action step request accepted successfully.');
+            return redirect($fallback)->with('message', 'Action step request accepted successfully.');
         } elseif ($action === 'reject') {
             $comment->update(['action_status' => 'rejected']);
-            return redirect()->back()->with('message', 'Action step request rejected.');
+            return redirect($fallback)->with('message', 'Action step request rejected.');
         } elseif ($action === 'counter_offer') {
             $proposedDate = $request->input('proposed_date');
             $reason = $request->input('reason');
@@ -586,17 +595,19 @@ class TodoListController extends Controller
                 'action_data' => $actionData,
             ]);
 
-            return redirect()->back()->with('message', 'Counter-offer proposed successfully.');
+            return redirect($fallback)->with('message', 'Counter-offer proposed successfully.');
         }
 
-        return redirect()->back();
+        return redirect($fallback);
     }
 
     public function destroyComment($commentId)
     {
+        $fallback = url()->previous(route('todo.dashboard'));
+
         $comment = TaskComment::find($commentId);
         if (!$comment) {
-            return redirect()->back()->with('message', 'Comment deleted or not found.');
+            return redirect($fallback)->with('message', 'Comment deleted or not found.');
         }
 
         $user = Auth::user();
@@ -605,10 +616,10 @@ class TodoListController extends Controller
             // Clean up any child replies first
             TaskComment::where('parent_id', $comment->id)->delete();
             $comment->delete();
-            return redirect()->back()->with('message', 'Comment deleted successfully.');
+            return redirect($fallback)->with('message', 'Comment deleted successfully.');
         }
 
-        return redirect()->back()->with('error', 'You do not have permission to delete this comment.');
+        return redirect($fallback)->with('error', 'You do not have permission to delete this comment.');
     }
 
     protected function createNotificationsForComment(TaskComment $comment, TodoList $task): void
