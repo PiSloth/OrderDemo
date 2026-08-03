@@ -21,7 +21,8 @@ export default function TaskList({
     userDepartmentId = null,
     filters = {},
 }) {
-    const { flash = {} } = usePage().props;
+    const { flash = {}, auth = {} } = usePage().props;
+    const user = auth?.user;
 
     // View state
     const [viewMode, setViewMode] = useState(filters.viewMode || 'calendar'); // 'calendar' or 'list'
