@@ -285,6 +285,13 @@ export default function TaskDetailModal({
                                 <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadge(task.status)}`}>
                                     {task.status?.status || 'Open'}
                                 </span>
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    </span>
+                                    Live Sync Active
+                                </span>
                             </div>
                             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                                 {task.task}

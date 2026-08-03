@@ -40,6 +40,31 @@ export default function Dashboard({
         return () => window.removeEventListener('keydown', handleKeyDown, true);
     }, [selectedTaskDetail]);
 
+    // Sync open detail modal with fresh props data
+    useEffect(() => {
+        const allTasks = [...todoLists, ...archivedTasks];
+
+        if (selectedTaskDetail) {
+            const fresh = allTasks.find((t) => t.id === selectedTaskDetail.id);
+            if (fresh) {
+                setSelectedTaskDetail(fresh);
+            }
+        }
+    }, [todoLists, archivedTasks]);
+
+    // Realtime background sync interval for live updates across dashboard and detail view
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.reload({
+                only: ['todoLists', 'archivedTasks'],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }, 4000);
+
+        return () => clearInterval(interval);
+    }, []);
+
     // KPI Metrics calculation
     const totalTasks = todoLists.length;
 

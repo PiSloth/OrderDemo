@@ -116,6 +116,19 @@ export default function TaskList({
         }
     }, [todoLists, archivedTasks]);
 
+    // Realtime background sync interval for live updates across calendar, list, and detail view
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.reload({
+                only: ['todoLists', 'archivedTasks'],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }, 4000);
+
+        return () => clearInterval(interval);
+    }, []);
+
     // Helper: Refresh page query with current filter state
     const applyFilters = (overrides = {}) => {
         const query = {
