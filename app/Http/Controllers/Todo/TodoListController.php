@@ -15,6 +15,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -364,130 +365,152 @@ class TodoListController extends Controller
             'due_date' => ['nullable', 'date'],
         ]);
 
-        $dueTimeId = $validated['selectedDueTimeId'] ?? $validated['todo_due_time_id'] ?? null;
-        $branchId = $validated['requestedByBranchId'] ?? $validated['requested_by_branch_id'] ?? Auth::user()?->branch_id;
-        $assignedUserId = $validated['assignedUserId'] ?? $validated['assigned_user_id'] ?? null;
-        $dueDate = $validated['dueDate'] ?? $validated['due_date'] ?? null;
+        return DB::transaction(function () use ($validated, $request, $taskService) {
+            $dueTimeId = $validated['selectedDueTimeId'] ?? $validated['todo_due_time_id'] ?? null;
+            $branchId = $validated['requestedByBranchId'] ?? $validated['requested_by_branch_id'] ?? Auth::user()?->branch_id;
+            $assignedUserId = $validated['assignedUserId'] ?? $validated['assigned_user_id'] ?? null;
+            $dueDate = $validated['dueDate'] ?? $validated['due_date'] ?? null;
 
-        if (!$dueTimeId) {
-            $defaultDueTime = TodoDueTime::first();
-            $dueTimeId = $defaultDueTime?->id;
-        }
+            // Prevent rapid duplicate task submission within 5 seconds
+            $duplicateCheck = TodoList::where('created_by_user_id', Auth::id())
+                ->where('task', $validated['task'])
+                ->where('created_at', '>=', now()->subSeconds(5))
+                ->first();
 
-        if (!$branchId) {
-            $defaultBranch = Branch::first();
-            $branchId = $defaultBranch?->id;
-        }
-
-        $task = $taskService->createTask([
-            'selected_due_time_id' => $dueTimeId,
-            'task' => $validated['task'],
-            'assigned_user_id' => $assignedUserId,
-            'requested_by_branch_id' => $branchId,
-            'due_date' => $dueDate,
-        ]);
-
-        // Generate On-Demand KPI Instance if configured on the due time
-        $dueTime = TodoDueTime::find($task->todo_due_time_id);
-        if ($dueTime && $dueTime->generate_kpi_instance && $dueTime->kpi_group_id) {
-            $targetUserIds = [];
-            if (!empty($dueTime->kpi_assigned_user_ids) && is_array($dueTime->kpi_assigned_user_ids)) {
-                $targetUserIds = array_filter(array_map('intval', $dueTime->kpi_assigned_user_ids));
-            } elseif ($dueTime->kpi_assigned_user_id) {
-                $targetUserIds = [(int) $dueTime->kpi_assigned_user_id];
-            } elseif ($task->assigned_user_id) {
-                $targetUserIds = [(int) $task->assigned_user_id];
+            if ($duplicateCheck) {
+                if ($request->wantsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Task already created recently.',
+                        'task' => $duplicateCheck->load(['dueTime.category', 'status', 'assignedUser', 'kpiTaskInstance', 'kpiTaskInstances.user']),
+                    ]);
+                }
+                return redirect()->back()->with('message', 'Task already created recently.');
             }
 
-            $uniqueTargetUserIds = array_unique($targetUserIds);
+            if (!$dueTimeId) {
+                $defaultDueTime = TodoDueTime::first();
+                $dueTimeId = $defaultDueTime?->id;
+            }
 
-            // Re-calculate / adjust due date considering target users' holidays
-            $dueDateObj = $task->due_date
-                ? Carbon::parse($task->due_date)
-                : WorkingHoursHelper::calculateDueDate($dueTime->duration ?? 24, null, $uniqueTargetUserIds);
+            if (!$branchId) {
+                $defaultBranch = Branch::first();
+                $branchId = $defaultBranch?->id;
+            }
 
-            $firstInstanceId = null;
+            $task = $taskService->createTask([
+                'selected_due_time_id' => $dueTimeId,
+                'task' => $validated['task'],
+                'assigned_user_id' => $assignedUserId,
+                'requested_by_branch_id' => $branchId,
+                'due_date' => $dueDate,
+            ]);
 
-            foreach ($uniqueTargetUserIds as $targetUserId) {
-                // If a responsible person has a holiday (active holiday or pending/approved request), skip creating instance for him
-                if (WorkingHoursHelper::isUserOnHoliday((int) $targetUserId, $dueDateObj)) {
-                    Log::info("Skipping KPI Instance creation for user {$targetUserId} on date {$dueDateObj->toDateString()} due to holiday/request.");
-                    continue;
+            // Generate On-Demand KPI Instance if configured on the due time
+            $dueTime = TodoDueTime::find($task->todo_due_time_id);
+            if ($dueTime && $dueTime->generate_kpi_instance && $dueTime->kpi_group_id) {
+                $targetUserIds = [];
+                if (!empty($dueTime->kpi_assigned_user_ids) && is_array($dueTime->kpi_assigned_user_ids)) {
+                    $targetUserIds = array_filter(array_map('intval', $dueTime->kpi_assigned_user_ids));
+                } elseif ($dueTime->kpi_assigned_user_id) {
+                    $targetUserIds = [(int) $dueTime->kpi_assigned_user_id];
+                } elseif ($task->assigned_user_id) {
+                    $targetUserIds = [(int) $task->assigned_user_id];
                 }
 
-                // Create or find task assignment for this user & template to ensure task_assignment_id is linked with approver
-                $approverUserId = $dueTime->kpi_approver_user_id ?: $task->created_by_user_id;
+                $uniqueTargetUserIds = array_unique($targetUserIds);
 
-                $assignment = null;
-                if ($dueTime->kpi_task_template_id) {
-                    $assignment = \App\Models\Kpi\KpiTaskAssignment::firstOrCreate(
-                        [
-                            'task_template_id' => $dueTime->kpi_task_template_id,
-                            'user_id' => $targetUserId,
-                        ],
-                        [
-                            'first_approver_user_id' => $approverUserId,
-                            'final_approver_user_id' => $approverUserId,
-                            'assignment_source' => 'todo_on_demand',
-                            'is_active' => true,
-                        ]
-                    );
+                // Re-calculate / adjust due date considering target users' holidays
+                $dueDateObj = $task->due_date
+                    ? Carbon::parse($task->due_date)
+                    : WorkingHoursHelper::calculateDueDate($dueTime->duration ?? 24, null, $uniqueTargetUserIds);
 
-                    // Update approver if specified on due time and different
-                    if ($dueTime->kpi_approver_user_id && ($assignment->first_approver_user_id !== $dueTime->kpi_approver_user_id || $assignment->final_approver_user_id !== $dueTime->kpi_approver_user_id)) {
-                        $assignment->update([
-                            'first_approver_user_id' => $dueTime->kpi_approver_user_id,
-                            'final_approver_user_id' => $dueTime->kpi_approver_user_id,
-                        ]);
+                $firstInstanceId = null;
+
+                foreach ($uniqueTargetUserIds as $targetUserId) {
+                    // If a responsible person has a holiday (active holiday or pending/approved request), skip creating instance for him
+                    if (WorkingHoursHelper::isUserOnHoliday((int) $targetUserId, $dueDateObj)) {
+                        Log::info("Skipping KPI Instance creation for user {$targetUserId} on date {$dueDateObj->toDateString()} due to holiday/request.");
+                        continue;
+                    }
+
+                    // Create or find task assignment for this user & template to ensure task_assignment_id is linked with approver
+                    $approverUserId = $dueTime->kpi_approver_user_id ?: $task->created_by_user_id;
+
+                    $assignment = null;
+                    if ($dueTime->kpi_task_template_id) {
+                        $assignment = \App\Models\Kpi\KpiTaskAssignment::firstOrCreate(
+                            [
+                                'task_template_id' => $dueTime->kpi_task_template_id,
+                                'user_id' => $targetUserId,
+                            ],
+                            [
+                                'first_approver_user_id' => $approverUserId,
+                                'final_approver_user_id' => $approverUserId,
+                                'assignment_source' => 'todo_on_demand',
+                                'is_active' => true,
+                            ]
+                        );
+
+                        // Update approver if specified on due time and different
+                        if ($dueTime->kpi_approver_user_id && ($assignment->first_approver_user_id !== $dueTime->kpi_approver_user_id || $assignment->final_approver_user_id !== $dueTime->kpi_approver_user_id)) {
+                            $assignment->update([
+                                'first_approver_user_id' => $dueTime->kpi_approver_user_id,
+                                'final_approver_user_id' => $dueTime->kpi_approver_user_id,
+                            ]);
+                        }
+                    }
+
+                    $kpiInstance = \App\Models\Kpi\KpiTaskInstance::create([
+                        'task_assignment_id' => $assignment?->id,
+                        'task_template_id' => $dueTime->kpi_task_template_id,
+                        'kpi_group_id' => $dueTime->kpi_group_id,
+                        'user_id' => $targetUserId,
+                        'task_date' => $dueDateObj->toDateString(),
+                        'due_at' => $dueDateObj,
+                        'status' => 'pending',
+                        'is_on_time' => true,
+                        'period_type' => 'todo_on_demand',
+                        'period_start' => $dueDateObj->toDateString(),
+                        'period_end' => $dueDateObj,
+                        'todo_list_id' => $task->id,
+                    ]);
+
+                    if (!$firstInstanceId) {
+                        $firstInstanceId = $kpiInstance->id;
                     }
                 }
 
-                $kpiInstance = \App\Models\Kpi\KpiTaskInstance::create([
-                    'task_assignment_id' => $assignment?->id,
-                    'task_template_id' => $dueTime->kpi_task_template_id,
-                    'kpi_group_id' => $dueTime->kpi_group_id,
-                    'user_id' => $targetUserId,
-                    'task_date' => $dueDateObj->toDateString(),
-                    'due_at' => $dueDateObj,
-                    'status' => 'pending',
-                    'is_on_time' => true,
-                    'todo_list_id' => $task->id,
-                ]);
-
-                if (!$firstInstanceId) {
-                    $firstInstanceId = $kpiInstance->id;
+                if ($firstInstanceId) {
+                    $task->update([
+                        'kpi_task_instance_id' => $firstInstanceId,
+                        'due_date' => $dueDateObj->format('Y-m-d H:i:s'),
+                    ]);
                 }
             }
 
-            if ($firstInstanceId) {
-                $task->update([
-                    'kpi_task_instance_id' => $firstInstanceId,
-                    'due_date' => $dueDateObj->format('Y-m-d H:i:s'),
+            $createdInstances = \App\Models\Kpi\KpiTaskInstance::with('user')->where('todo_list_id', $task->id)->get();
+            $createdCount = $createdInstances->count();
+
+            if ($createdCount > 0) {
+                $userNames = $createdInstances->map(fn($i) => $i->user?->name ?? "User #{$i->user_id}")->join(', ');
+                $flashMsg = "Todo Task created successfully with {$createdCount} connected KPI Task Instance(s) for {$userNames}.";
+            } elseif (isset($dueTime) && $dueTime && $dueTime->generate_kpi_instance) {
+                $flashMsg = "Todo Task created. KPI Instance generation skipped (user on holiday or missing KPI settings).";
+            } else {
+                $flashMsg = "Todo Task created successfully.";
+            }
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $flashMsg,
+                    'task' => $task->load(['dueTime.category', 'status', 'assignedUser', 'kpiTaskInstance', 'kpiTaskInstances.user']),
                 ]);
             }
-        }
 
-        $createdInstances = \App\Models\Kpi\KpiTaskInstance::with('user')->where('todo_list_id', $task->id)->get();
-        $createdCount = $createdInstances->count();
-
-        if ($createdCount > 0) {
-            $userNames = $createdInstances->map(fn($i) => $i->user?->name ?? "User #{$i->user_id}")->join(', ');
-            $flashMsg = "Todo Task created successfully with {$createdCount} connected KPI Task Instance(s) for {$userNames}.";
-        } elseif (isset($dueTime) && $dueTime && $dueTime->generate_kpi_instance) {
-            $flashMsg = "Todo Task created. KPI Instance generation skipped (user on holiday or missing KPI settings).";
-        } else {
-            $flashMsg = "Todo Task created successfully.";
-        }
-
-        if ($request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => $flashMsg,
-                'task' => $task->load(['dueTime.category', 'status', 'assignedUser', 'kpiTaskInstance', 'kpiTaskInstances.user']),
-            ]);
-        }
-
-        return redirect()->back()->with('message', $flashMsg);
+            return redirect()->back()->with('message', $flashMsg);
+        });
     }
 
     public function closeTask($id)

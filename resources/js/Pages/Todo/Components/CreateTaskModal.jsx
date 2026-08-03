@@ -271,6 +271,7 @@ export default function CreateTaskModal({
     // Submit task
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (taskProcessing) return;
         postTask('/todo/tasks', {
             preserveScroll: true,
             onSuccess: () => {
