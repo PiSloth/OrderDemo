@@ -224,6 +224,7 @@ export default function TemplateEditModal({
                                     <option value="daily">Daily</option>
                                     <option value="weekly">Weekly</option>
                                     <option value="monthly">Monthly</option>
+                                    <option value="on_demand">On-Demand (Todo Task Auto-Trigger Only)</option>
                                 </select>
                             </div>
 

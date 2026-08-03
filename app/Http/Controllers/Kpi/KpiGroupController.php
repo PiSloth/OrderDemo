@@ -219,7 +219,7 @@ class KpiGroupController extends Controller
             'templateTitle' => ['required', 'string', 'max:255'],
             'templateDescription' => ['nullable', 'string'],
             'templateGuideline' => ['nullable', 'string'],
-            'templateFrequency' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
+            'templateFrequency' => ['required', Rule::in(['daily', 'weekly', 'monthly', 'on_demand'])],
             'templateMonthlyRequiredCount' => ['required', 'integer', 'min:1', 'max:31'],
             'templateCutoffTime' => ['nullable', 'string'],
             'templateRequiresImages' => ['boolean'],
