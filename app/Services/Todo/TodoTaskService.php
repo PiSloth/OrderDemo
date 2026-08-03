@@ -2,6 +2,7 @@
 
 namespace App\Services\Todo;
 
+use App\Helpers\WorkingHoursHelper;
 use App\Models\TodoList;
 use App\Models\TodoDueTime;
 use App\Models\TodoStatus;
@@ -31,8 +32,8 @@ class TodoTaskService
 
         if (!$dueDate && $dueTimeId) {
             $dueTime = TodoDueTime::find($dueTimeId);
-            if ($dueTime) {
-                $dueDate = now()->addHours($dueTime->duration)->format('Y-m-d H:i:s');
+            if ($dueTime && $dueTime->duration) {
+                $dueDate = WorkingHoursHelper::calculateDueDate($dueTime->duration)->format('Y-m-d H:i:s');
             }
         }
 

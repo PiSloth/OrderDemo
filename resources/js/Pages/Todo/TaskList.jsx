@@ -11,6 +11,7 @@ export default function TaskList({
     statuses = [],
     branches = [],
     departments = [],
+    categories = [],
     itAdminDepartments = [],
     users = [],
     calendarTasks = {},
@@ -1309,6 +1310,7 @@ export default function TaskList({
                     dueTimes={dueTimes}
                     branches={branches}
                     departments={departments}
+                    categories={categories}
                     itAdminDepartments={itAdminDepartments}
                     users={users}
                     userBranchId={userBranchId}

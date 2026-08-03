@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\TaskComment;
+use App\Models\TodoCategory;
 use App\Models\TodoDueTime;
 use App\Models\TodoList;
 use App\Models\TodoStatus;
@@ -97,6 +98,7 @@ class TodoListController extends Controller
             'statuses' => $statuses,
             'branches' => $branches,
             'departments' => $departments,
+            'categories' => TodoCategory::orderBy('name')->get(),
             'itAdminDepartments' => $itAdminDepartments,
             'users' => $users,
             'userBranchId' => $user->branch_id ?? null,
@@ -309,6 +311,7 @@ class TodoListController extends Controller
             'statuses' => $statuses,
             'branches' => $branches,
             'departments' => $departments,
+            'categories' => TodoCategory::orderBy('name')->get(),
             'itAdminDepartments' => $itAdminDepartments,
             'users' => $users,
             'calendarTasks' => $calendarTasks,

@@ -11,6 +11,7 @@ export default function Dashboard({
     statuses = [],
     branches = [],
     departments = [],
+    categories = [],
     itAdminDepartments = [],
     users = [],
     userBranchId = null,
@@ -527,6 +528,7 @@ export default function Dashboard({
                     formattedDueTimes={formattedDueTimes}
                     branches={branches}
                     departments={departments}
+                    categories={categories}
                     itAdminDepartments={itAdminDepartments}
                     users={users}
                     userBranchId={userBranchId}
