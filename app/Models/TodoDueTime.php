@@ -21,6 +21,7 @@ class TodoDueTime extends Model
         'kpi_task_template_id',
         'kpi_assigned_user_id',
         'kpi_assigned_user_ids',
+        'kpi_approver_user_id',
     ];
 
     protected $casts = [
@@ -51,5 +52,10 @@ class TodoDueTime extends Model
     public function kpiAssignedUser()
     {
         return $this->belongsTo(User::class, 'kpi_assigned_user_id');
+    }
+
+    public function kpiApproverUser()
+    {
+        return $this->belongsTo(User::class, 'kpi_approver_user_id');
     }
 }

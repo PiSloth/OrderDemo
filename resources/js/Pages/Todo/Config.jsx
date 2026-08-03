@@ -303,6 +303,7 @@ export default function Config({
         kpi_task_template_id: '',
         kpi_assigned_user_id: '',
         kpi_assigned_user_ids: [],
+        kpi_approver_user_id: '',
     });
 
     // Status Modal state
@@ -416,6 +417,7 @@ export default function Config({
                 kpi_task_template_id: dueTime.kpi_task_template_id ? String(dueTime.kpi_task_template_id) : '',
                 kpi_assigned_user_id: dueTime.kpi_assigned_user_id ? String(dueTime.kpi_assigned_user_id) : '',
                 kpi_assigned_user_ids: Array.isArray(dueTime.kpi_assigned_user_ids) ? dueTime.kpi_assigned_user_ids.map(String) : (dueTime.kpi_assigned_user_id ? [String(dueTime.kpi_assigned_user_id)] : []),
+                kpi_approver_user_id: dueTime.kpi_approver_user_id ? String(dueTime.kpi_approver_user_id) : '',
             });
         } else {
             setEditingDueTime(null);
@@ -1375,6 +1377,24 @@ export default function Config({
                                                 />
                                                 <p className="mt-1 text-[10px] text-slate-400">
                                                     Select multiple employees who will automatically receive on-demand KPI instances when this task is created.
+                                                </p>
+                                            </div>
+
+                                            {/* Designated KPI Approval Person */}
+                                            <div>
+                                                <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200 mb-1.5">
+                                                    Approval Person (KPI Task Approver)
+                                                </label>
+                                                <SearchableSelect
+                                                    options={users}
+                                                    value={dueTimeFormData.kpi_approver_user_id}
+                                                    onChange={(val) => setDueTimeFormData('kpi_approver_user_id', val)}
+                                                    placeholder="-- Default to Task Creator / Requester --"
+                                                    searchPlaceholder="🔍 Search approver employee name or department..."
+                                                    labelFormatter={(u) => `👑 ${u.name} ${u.department ? `(${u.department.name})` : ''}`}
+                                                />
+                                                <p className="mt-1 text-[10px] text-slate-400">
+                                                    Designated approval person set on the KPI Task Assignment before instance creation.
                                                 </p>
                                             </div>
                                         </div>

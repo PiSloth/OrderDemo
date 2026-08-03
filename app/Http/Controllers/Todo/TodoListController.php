@@ -415,7 +415,35 @@ class TodoListController extends Controller
                     continue;
                 }
 
+                // Create or find task assignment for this user & template to ensure task_assignment_id is linked with approver
+                $approverUserId = $dueTime->kpi_approver_user_id ?: $task->created_by_user_id;
+
+                $assignment = null;
+                if ($dueTime->kpi_task_template_id) {
+                    $assignment = \App\Models\Kpi\KpiTaskAssignment::firstOrCreate(
+                        [
+                            'task_template_id' => $dueTime->kpi_task_template_id,
+                            'user_id' => $targetUserId,
+                        ],
+                        [
+                            'first_approver_user_id' => $approverUserId,
+                            'final_approver_user_id' => $approverUserId,
+                            'assignment_source' => 'todo_on_demand',
+                            'is_active' => true,
+                        ]
+                    );
+
+                    // Update approver if specified on due time and different
+                    if ($dueTime->kpi_approver_user_id && ($assignment->first_approver_user_id !== $dueTime->kpi_approver_user_id || $assignment->final_approver_user_id !== $dueTime->kpi_approver_user_id)) {
+                        $assignment->update([
+                            'first_approver_user_id' => $dueTime->kpi_approver_user_id,
+                            'final_approver_user_id' => $dueTime->kpi_approver_user_id,
+                        ]);
+                    }
+                }
+
                 $kpiInstance = \App\Models\Kpi\KpiTaskInstance::create([
+                    'task_assignment_id' => $assignment?->id,
                     'task_template_id' => $dueTime->kpi_task_template_id,
                     'kpi_group_id' => $dueTime->kpi_group_id,
                     'user_id' => $targetUserId,
