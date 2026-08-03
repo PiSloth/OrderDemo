@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import TodoLayout from '../../Layouts/TodoLayout';
 import CreateTaskModal from './Components/CreateTaskModal';
+import TaskDetailModal from './Components/TaskDetailModal';
 
 export default function TaskList({
     todoLists = [],
@@ -981,200 +982,14 @@ export default function TaskList({
                 )}
 
                 {/* FULL-SCREEN TASK DETAIL VIEW MODAL */}
-                {selectedTaskDetail && (
-                    <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 overflow-y-auto p-4 sm:p-6 lg:p-10 transition-all">
-                        <div className="mx-auto w-full max-w-6xl space-y-6 flex-1 flex flex-col justify-between">
-                            <div className="space-y-6">
-                                {/* Modal Header Bar */}
-                                <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-5">
-                                    <div className="space-y-2">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <span className="rounded-lg bg-indigo-100 px-3 py-1 text-xs font-mono font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                                                #TASK-{selectedTaskDetail.id}
-                                            </span>
-                                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                                {selectedTaskDetail.due_time?.category?.name || 'Task Category'}
-                                            </span>
-                                            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadge(selectedTaskDetail.status)}`}>
-                                                {selectedTaskDetail.status?.status || 'Open'}
-                                            </span>
-                                        </div>
-                                        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                                            {selectedTaskDetail.task}
-                                        </h1>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedTaskDetail(null)}
-                                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                                        title="Press ESC to exit"
-                                    >
-                                        <kbd className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-mono dark:bg-slate-700">ESC</kbd> Exit Fullscreen
-                                    </button>
-                                </div>
-
-                                {/* Task Metadata Cards */}
-                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    {/* Priority & Job Title */}
-                                    <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-800/40">
-                                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Priority & Job Title</p>
-                                        <p className="mt-2 text-base font-bold text-slate-900 dark:text-white">
-                                            {selectedTaskDetail.due_time?.priority?.level || 'Normal Priority'}
-                                        </p>
-                                        <p className="text-xs text-slate-500 mt-1">Duration: {selectedTaskDetail.due_time?.duration || '-'} hours</p>
-                                    </div>
-
-                                    {/* Request By Branch & Dept */}
-                                    <div className="rounded-3xl border border-blue-200 bg-blue-50/50 p-5 dark:border-blue-900/40 dark:bg-blue-950/20">
-                                        <p className="text-xs font-bold uppercase tracking-wider text-blue-800 dark:text-blue-300">Request By (Branch)</p>
-                                        <p className="mt-2 text-base font-bold text-slate-900 dark:text-white">
-                                            {selectedTaskDetail.requested_by_branch?.name || 'No Branch'}
-                                        </p>
-                                        <p className="text-xs text-slate-500 mt-1">Department: {selectedTaskDetail.department?.name || '-'}</p>
-                                    </div>
-
-                                    {/* Assignee User */}
-                                    <div className="rounded-3xl border border-emerald-200 bg-emerald-50/50 p-5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">Assigned To (တာဝန်ခံ)</p>
-                                        <p className="mt-2 text-base font-bold text-slate-900 dark:text-white">
-                                            {selectedTaskDetail.assigned_user?.name || 'Unassigned'}
-                                        </p>
-                                        <p className="text-xs text-slate-500 mt-1">{selectedTaskDetail.assigned_user?.email || '-'}</p>
-                                    </div>
-                                </div>
-
-                                {/* Detailed Info Grid */}
-                                <div className="rounded-3xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-800/30 space-y-4">
-                                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Task Timeline & Ownership</h4>
-                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm text-slate-700 dark:text-slate-300">
-                                        <div>
-                                            <span className="text-slate-400 block text-xs">Created By:</span>
-                                            <span className="font-semibold text-slate-900 dark:text-white">
-                                                {selectedTaskDetail.created_by_user?.name || 'System'} ({selectedTaskDetail.created_by_user?.email || '-'})
-                                            </span>
-                                        </div>
-
-                                        <div>
-                                            <span className="text-slate-400 block text-xs">Created Date & Time:</span>
-                                            <span className="font-semibold text-slate-900 dark:text-white">
-                                                {selectedTaskDetail.created_at ? new Date(selectedTaskDetail.created_at).toLocaleString() : '-'}
-                                            </span>
-                                        </div>
-
-                                        <div>
-                                            <span className="text-slate-400 block text-xs">Cutoff Due Date:</span>
-                                            <span className={`font-bold ${isOverdue(selectedTaskDetail.due_date) && !selectedTaskDetail.status?.status?.toLowerCase().includes('complete') ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                                                {selectedTaskDetail.due_date ? selectedTaskDetail.due_date.replace('T', ' ') : 'N/A'}
-                                                {isOverdue(selectedTaskDetail.due_date) && !selectedTaskDetail.status?.status?.toLowerCase().includes('complete') && ' (OVERDUE)'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Task Comments Section Inside Fullscreen View */}
-                                <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                                    <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                                        Discussion & Comments ({selectedTaskDetail.comments ? selectedTaskDetail.comments.length : 0})
-                                    </h4>
-
-                                    <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-                                        {(selectedTaskDetail.comments && selectedTaskDetail.comments.length > 0) ? (
-                                            selectedTaskDetail.comments.map((c) => (
-                                                <div key={c.id} className="rounded-2xl bg-slate-50 p-4 text-xs dark:bg-slate-800/60 space-y-1">
-                                                    <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200">
-                                                        <span>{c.user?.name || 'User'}</span>
-                                                        <span className="text-[11px] text-slate-400 font-normal">{c.created_at ? new Date(c.created_at).toLocaleString() : ''}</span>
-                                                    </div>
-                                                    <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{c.comment}</p>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-xs text-slate-400 italic py-4">No comments recorded yet. Type below and press Enter to start discussion.</p>
-                                        )}
-                                    </div>
-
-                                    {/* Add comment input box */}
-                                    <div className="space-y-2">
-                                        <textarea
-                                            value={commentText}
-                                            onChange={(e) => setCommentText(e.target.value)}
-                                            onKeyDown={(e) => handleCommentKeyDown(e, selectedTaskDetail.id, commentText)}
-                                            placeholder="Write a comment... (Press Enter to post, Shift+Enter for new line)"
-                                            rows="2"
-                                            className="w-full rounded-2xl border border-slate-300 bg-white p-3 text-xs text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                                        />
-                                        <div className="flex items-center justify-between text-xs text-slate-400">
-                                            <span>Press <kbd className="rounded bg-slate-200 px-1 py-0.5 text-[10px] font-mono dark:bg-slate-700">Enter</kbd> to post comment</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAddComment(selectedTaskDetail.id, commentText)}
-                                                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700"
-                                            >
-                                                Post Comment
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Modal Footer Controls */}
-                            <div className="flex flex-wrap items-center justify-between gap-4 pt-6 border-t border-slate-200 dark:border-slate-800">
-                                <button
-                                    type="button"
-                                    onClick={() => handleCopyLink(selectedTaskDetail.id)}
-                                    className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-semibold"
-                                >
-                                    {copiedTaskId === selectedTaskDetail.id ? 'Copied Share Link!' : '🔗 Copy Task Share Link'}
-                                </button>
-
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedTaskDetail(null)}
-                                        className="rounded-xl border border-slate-300 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                                    >
-                                        Close (ESC)
-                                    </button>
-                                    {!selectedTaskDetail.deleted_at ? (
-                                        <>
-                                            {selectedTaskDetail.kpi_task_instance_id ? (
-                                                <span className="rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
-                                                    🔒 Managed by KPI Approval
-                                                </span>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleCloseTask(selectedTaskDetail.id)}
-                                                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
-                                                >
-                                                    Mark Completed / Close
-                                                </button>
-                                            )}
-                                            {selectedTaskDetail.todo_status_id && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleArchiveTask(selectedTaskDetail.id)}
-                                                    className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
-                                                >
-                                                    Archive
-                                                </button>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRestoreTask(selectedTaskDetail.id)}
-                                            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700"
-                                        >
-                                            Restore Task
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <TaskDetailModal
+                    task={selectedTaskDetail}
+                    isOpen={!!selectedTaskDetail}
+                    onClose={() => setSelectedTaskDetail(null)}
+                    users={users}
+                    statuses={statuses}
+                    currentUser={user}
+                />
 
                 {/* DAY DETAIL MODAL */}
                 {dayModalData && (

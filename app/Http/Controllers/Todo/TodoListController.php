@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Todo;
 
+use App\Helpers\WorkingHoursHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Department;
@@ -379,10 +380,22 @@ class TodoListController extends Controller
                 $targetUserIds = [(int) $task->assigned_user_id];
             }
 
-            $firstInstanceId = null;
-            $dueDateObj = $task->due_date ? Carbon::parse($task->due_date) : now()->addHours($dueTime->duration ?? 24);
+            $uniqueTargetUserIds = array_unique($targetUserIds);
 
-            foreach (array_unique($targetUserIds) as $targetUserId) {
+            // Re-calculate / adjust due date considering target users' holidays
+            $dueDateObj = $task->due_date
+                ? Carbon::parse($task->due_date)
+                : WorkingHoursHelper::calculateDueDate($dueTime->duration ?? 24, null, $uniqueTargetUserIds);
+
+            $firstInstanceId = null;
+
+            foreach ($uniqueTargetUserIds as $targetUserId) {
+                // If a responsible person has a holiday (active holiday or pending/approved request), skip creating instance for him
+                if (WorkingHoursHelper::isUserOnHoliday((int) $targetUserId, $dueDateObj)) {
+                    Log::info("Skipping KPI Instance creation for user {$targetUserId} on date {$dueDateObj->toDateString()} due to holiday/request.");
+                    continue;
+                }
+
                 $kpiInstance = \App\Models\Kpi\KpiTaskInstance::create([
                     'task_template_id' => $dueTime->kpi_task_template_id,
                     'kpi_group_id' => $dueTime->kpi_group_id,
@@ -402,6 +415,7 @@ class TodoListController extends Controller
             if ($firstInstanceId) {
                 $task->update([
                     'kpi_task_instance_id' => $firstInstanceId,
+                    'due_date' => $dueDateObj->format('Y-m-d H:i:s'),
                 ]);
             }
         }
@@ -472,21 +486,96 @@ class TodoListController extends Controller
         $request->validate([
             'comment' => ['required', 'string', 'max:2000'],
             'parent_id' => ['nullable', 'exists:task_comments,id'],
+            'comment_type' => ['nullable', 'string'],
+            'action_status' => ['nullable', 'string'],
+            'action_data' => ['nullable', 'array'],
         ]);
 
         $task = TodoList::withTrashed()->findOrFail($id);
+
+        $commentType = $request->input('comment_type', 'normal');
+        $actionStatus = $commentType === 'action_step' ? 'pending' : null;
+        $actionData = $request->input('action_data');
 
         $comment = TaskComment::create([
             'todo_list_id' => $task->id,
             'user_id' => Auth::id(),
             'comment' => $request->input('comment'),
-            'comment_type' => 'normal',
+            'comment_type' => $commentType,
+            'action_status' => $actionStatus,
+            'action_data' => $actionData,
             'parent_id' => $request->input('parent_id') ?: null,
         ]);
 
         $this->createNotificationsForComment($comment, $task);
 
         return redirect()->back()->with('message', 'Comment added successfully');
+    }
+
+    public function respondActionStep(Request $request, $commentId)
+    {
+        $request->validate([
+            'action' => ['required', 'string', 'in:accept,reject,counter_offer'],
+            'proposed_date' => ['nullable', 'date'],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $comment = TaskComment::findOrFail($commentId);
+        $task = TodoList::findOrFail($comment->todo_list_id);
+        $action = $request->input('action');
+
+        if (!$comment->isActionStep() || !$comment->isPendingAction()) {
+            return redirect()->back()->with('error', 'This action step is no longer pending.');
+        }
+
+        if ($action === 'accept') {
+            $comment->update(['action_status' => 'accepted']);
+
+            if (isset($comment->action_data['type'])) {
+                $type = $comment->action_data['type'];
+                if ($type === 'due_date_change' && !empty($comment->action_data['new_due_date'])) {
+                    $task->update(['due_date' => $comment->action_data['new_due_date']]);
+                } elseif ($type === 'status_change' && !empty($comment->action_data['new_status_id'])) {
+                    $task->update(['todo_status_id' => $comment->action_data['new_status_id']]);
+                } elseif ($type === 'resolver_change' && !empty($comment->action_data['new_assigned_user_id'])) {
+                    $task->update(['assigned_user_id' => $comment->action_data['new_assigned_user_id']]);
+                }
+            }
+
+            // If action request was created after due date -> mark failed if overdue
+            if ($comment->created_at > $task->due_date) {
+                $failedStatus = TodoStatus::where('status', 'Failed')->first();
+                if ($failedStatus) {
+                    $task->update(['todo_status_id' => $failedStatus->id]);
+                }
+            }
+
+            return redirect()->back()->with('message', 'Action step request accepted successfully.');
+        } elseif ($action === 'reject') {
+            $comment->update(['action_status' => 'rejected']);
+            return redirect()->back()->with('message', 'Action step request rejected.');
+        } elseif ($action === 'counter_offer') {
+            $proposedDate = $request->input('proposed_date');
+            $reason = $request->input('reason');
+
+            $actionData = $comment->action_data ?? [];
+            $actionData['negotiation_status'] = 'negotiating';
+            $actionData['proposed_dates'][] = [
+                'date' => $proposedDate,
+                'reason' => $reason,
+                'proposed_by' => Auth::id(),
+                'at' => now()->toDateTimeString(),
+            ];
+            $actionData['new_due_date'] = $proposedDate;
+
+            $comment->update([
+                'action_data' => $actionData,
+            ]);
+
+            return redirect()->back()->with('message', 'Counter-offer proposed successfully.');
+        }
+
+        return redirect()->back();
     }
 
     protected function createNotificationsForComment(TaskComment $comment, TodoList $task): void

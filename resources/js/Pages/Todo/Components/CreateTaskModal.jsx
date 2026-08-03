@@ -26,8 +26,8 @@ export default function CreateTaskModal({
         dueDate: '',
     });
 
-    // Departments list: prioritize IT & Admin departments if available
-    const departmentOptions = itAdminDepartments && itAdminDepartments.length > 0 ? itAdminDepartments : departments;
+    // Departments list: show all departments so users can create tasks for their own or other departments
+    const departmentOptions = departments && departments.length > 0 ? departments : itAdminDepartments;
 
     const selectedDeptObj = departments.find((d) => String(d.id) === String(selectedDepartmentId)) ||
         departmentOptions.find((d) => String(d.id) === String(selectedDepartmentId));
@@ -191,30 +191,45 @@ export default function CreateTaskModal({
         if (propOnClose) propOnClose();
     };
 
-    // Helper to calculate working hours (09:00 AM to 17:00 PM, Monday - Friday)
+    // Helper to calculate working hours (Monday: 09:45 AM - 17:00 PM, Tue-Fri: 09:00 AM - 17:00 PM)
     const calculateWorkingHoursDueDate = (durationHours, startDate = new Date()) => {
         let current = new Date(startDate.getTime());
         let remainingMinutes = Math.max(0, Math.round(durationHours * 60));
 
-        const WORK_START_HOUR = 9;  // 09:00 AM
-        const WORK_END_HOUR = 17;   // 17:00 PM
+        const WORK_END_HOUR = 17; // 17:00 PM
 
         const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
+        const isMonday = (date) => date.getDay() === 1;
+
+        const getWorkStart = (date) => ({
+            hour: 9,
+            minute: isMonday(date) ? 45 : 0,
+        });
+
+        const setWorkStart = (date) => {
+            const start = getWorkStart(date);
+            date.setHours(start.hour, start.minute, 0, 0);
+        };
 
         const moveToNextWorkingDayStart = (date) => {
             date.setDate(date.getDate() + 1);
-            date.setHours(WORK_START_HOUR, 0, 0, 0);
             while (isWeekend(date)) {
                 date.setDate(date.getDate() + 1);
             }
+            setWorkStart(date);
         };
 
         if (isWeekend(current)) {
             moveToNextWorkingDayStart(current);
         } else {
-            if (current.getHours() < WORK_START_HOUR) {
-                current.setHours(WORK_START_HOUR, 0, 0, 0);
-            } else if (current.getHours() >= WORK_END_HOUR) {
+            const start = getWorkStart(current);
+            const startTotalMinutes = start.hour * 60 + start.minute;
+            const currentTotalMinutes = current.getHours() * 60 + current.getMinutes();
+            const endTotalMinutes = WORK_END_HOUR * 60;
+
+            if (currentTotalMinutes < startTotalMinutes) {
+                setWorkStart(current);
+            } else if (currentTotalMinutes >= endTotalMinutes) {
                 moveToNextWorkingDayStart(current);
             }
         }
@@ -565,7 +580,7 @@ export default function CreateTaskModal({
                                 <span>⏱️</span>
                                 <span className="font-semibold">Calculated Cutoff Due Date</span>
                                 <span className="text-[10px] font-medium text-indigo-500 dark:text-indigo-400 bg-indigo-100/80 dark:bg-indigo-900/60 px-1.5 py-0.5 rounded">
-                                    09:00 - 17:00 Working Hours
+                                    Mon: 09:45-17:00, Tue-Fri: 09:00-17:00 Working Hours
                                 </span>
                             </div>
                             <span className="font-mono font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">

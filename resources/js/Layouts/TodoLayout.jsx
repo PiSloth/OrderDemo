@@ -26,6 +26,7 @@ export default function TodoLayout({ children, title }) {
     };
 
     const navItems = [
+        { label: 'Home', href: '/sale-dashboard', icon: '🏠', isExternal: true },
         { label: 'Task List', href: '/todo/list', icon: '📋' },
         { label: 'Dashboard', href: '/todo/dashboard', icon: '📊' },
         { label: 'Configuration', href: '/todo/config', icon: '⚙️' },
@@ -57,10 +58,11 @@ export default function TodoLayout({ children, title }) {
                     <div className="flex h-16 items-center justify-between">
                         {/* Left Side: Brand Logo & Desktop Nav Links */}
                         <div className="flex items-center gap-6 sm:gap-8 lg:gap-12">
-                            {/* Brand Header */}
-                            <Link
-                                href="/dashboard"
+                            {/* Brand Header: Reloads page and goes to Sale Performance Dashboard */}
+                            <a
+                                href="/sale-dashboard"
                                 className="group flex items-center gap-3 transition shrink-0"
+                                title="Go to Sale Performance Dashboard"
                             >
                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-600 font-extrabold text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
                                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -74,12 +76,25 @@ export default function TodoLayout({ children, title }) {
                                     </div>
                                     <span className="block text-[10px] font-semibold text-slate-400 dark:text-slate-500 -mt-0.5">Task Management System</span>
                                 </div>
-                            </Link>
+                            </a>
 
-                            {/* Desktop Nav Items (Clean text with bottom indicator bar for active link) */}
+                            {/* Desktop Nav Items */}
                             <div className="hidden sm:flex sm:items-center sm:gap-6 lg:gap-8 h-16">
                                 {navItems.map((item, idx) => {
-                                    const active = isCurrentUrl(item.href);
+                                    const active = !item.isExternal && isCurrentUrl(item.href);
+                                    if (item.isExternal) {
+                                        return (
+                                            <a
+                                                key={idx}
+                                                href={item.href}
+                                                className="flex items-center gap-2 h-full text-xs font-bold transition-all border-b-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border-transparent font-medium"
+                                                title="Reload page & go to Sale Performance Dashboard"
+                                            >
+                                                <span className="text-sm">{item.icon}</span>
+                                                <span>{item.label}</span>
+                                            </a>
+                                        );
+                                    }
                                     return (
                                         <Link
                                             key={idx}
@@ -177,7 +192,20 @@ export default function TodoLayout({ children, title }) {
                         {/* Mobile Nav Links */}
                         <div className="space-y-1 pt-1">
                             {navItems.map((item, idx) => {
-                                const active = isCurrentUrl(item.href);
+                                const active = !item.isExternal && isCurrentUrl(item.href);
+                                if (item.isExternal) {
+                                    return (
+                                        <a
+                                            key={idx}
+                                            href={item.href}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                        >
+                                            <span className="text-base">{item.icon}</span>
+                                            <span>{item.label}</span>
+                                        </a>
+                                    );
+                                }
                                 return (
                                     <Link
                                         key={idx}

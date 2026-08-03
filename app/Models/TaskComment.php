@@ -139,58 +139,50 @@ class TaskComment extends Model
             return false;
         }
 
-        $requester = $this->user;
-
-        // Task assignee or creator can respond to initial requests (if not the requester)
-        $canApprove = $task->assigned_user_id === $userId || $task->created_by_user_id === $userId;
-
-        // If assignee and creator are the same person (solo task), allow self-management
-        if ($task->assigned_user_id === $task->created_by_user_id && $task->assigned_user_id === $userId) {
-            $canApprove = true;
+        // The user who created the action step request cannot approve their own request (unless negotiating counter-offer)
+        if (!$this->isInNegotiation() && $this->user_id === $userId) {
+            return false;
         }
 
         if ($this->isDueDateChangeRequest() || $this->isStatusChangeRequest()) {
-            // For due date and status changes, users from the task creator's department can approve
-            if ($task->createdByUser && $task->createdByUser->department_id) {
-                if ($user->department_id !== $task->createdByUser->department_id) {
-                    return false;
+            // Task creator / requester can approve
+            if ($task->created_by_user_id === $userId) {
+                return true;
+            }
+
+            // Users in the task creator / requester's department can approve
+            if ($task->createdByUser && $task->createdByUser->department_id && $user->department_id === $task->createdByUser->department_id) {
+                return true;
+            }
+
+            // Users in requested_by_department can approve
+            if ($task->requested_by_department_id && $user->department_id === $task->requested_by_department_id) {
+                return true;
+            }
+
+            // If assignee is negotiating a counter-offer, allow creator or creator department to respond
+            if ($this->isInNegotiation()) {
+                $lastNegotiatorId = $this->getNegotiatorUserId();
+                if ($lastNegotiatorId && $lastNegotiatorId !== $userId) {
+                    return true;
                 }
-
-                $canApprove = true;
             }
 
-            if (!$this->isInNegotiation() && $this->user_id === $userId) {
-                return false;
-            }
-
-            if ($this->isStatusChangeRequest() && $this->user_id === $userId) {
-                return false;
-            }
+            return false;
         }
 
         if ($this->isResolverChangeRequest()) {
             $targetUserId = $this->action_data['new_assigned_user_id'] ?? null;
             if ($targetUserId) {
                 $targetUser = User::find($targetUserId);
-                if ($targetUser && $targetUser->department_id) {
-                    if ($user->department_id !== $targetUser->department_id) {
-                        return false;
-                    }
-
-                    $canApprove = true;
+                if ($targetUser && $targetUser->department_id && $user->department_id === $targetUser->department_id) {
+                    return true;
                 }
             }
+            return $task->created_by_user_id === $userId;
         }
 
-        if ($this->isInNegotiation()) {
-            // In negotiation, users with approval rights can always respond
-            // Original requester can respond if they're not the last proposer
-            $lastProposer = $this->getNegotiatorUserId();
-            return $canApprove || ($lastProposer !== $userId && $this->user_id === $userId);
-        }
-
-        // Task assignee or creator can respond to initial requests (if not the requester)
-        return $canApprove;
+        return false;
     }
 
     public function addNegotiationProposal(int $userId, string $proposedDate, string $reason = null): void

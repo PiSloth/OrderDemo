@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import TodoLayout from '../../Layouts/TodoLayout';
 import CreateTaskModal from './Components/CreateTaskModal';
+import TaskDetailModal from './Components/TaskDetailModal';
 
 export default function Dashboard({
     todoLists = [],
@@ -96,7 +97,29 @@ export default function Dashboard({
         }));
     }, [todoLists]);
 
-    // Complete Task Action
+    // Helper status styling
+    const getStatusBadge = (status) => {
+        const name = status?.status || 'Open';
+        const lower = name.toLowerCase();
+
+        if (lower.includes('success') || lower.includes('complete') || lower.includes('done')) {
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300';
+        }
+        if (lower.includes('fail') || lower.includes('reject')) {
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300';
+        }
+        if (lower.includes('process') || lower.includes('progress')) {
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border-blue-300';
+        }
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300';
+    };
+
+    const isOverdue = (dueDateStr) => {
+        if (!dueDateStr) return false;
+        return new Date(dueDateStr) < new Date();
+    };
+
+    // Actions
     const handleCloseTask = (taskId) => {
         router.patch(`/todo/tasks/${taskId}/close`, {}, {
             preserveScroll: true,
@@ -106,6 +129,35 @@ export default function Dashboard({
                 }
             },
         });
+    };
+
+    const handleArchiveTask = (taskId) => {
+        router.delete(`/todo/tasks/${taskId}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (selectedTaskDetail && selectedTaskDetail.id === taskId) {
+                    setSelectedTaskDetail(null);
+                }
+            },
+        });
+    };
+
+    const handleRestoreTask = (taskId) => {
+        router.post(`/todo/tasks/${taskId}/restore`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (selectedTaskDetail && selectedTaskDetail.id === taskId) {
+                    setSelectedTaskDetail(null);
+                }
+            },
+        });
+    };
+
+    const handleCopyLink = (taskId) => {
+        const shareUrl = `${window.location.origin}/todo/list?task_id=${taskId}`;
+        navigator.clipboard.writeText(shareUrl);
+        setCopiedTaskId(taskId);
+        setTimeout(() => setCopiedTaskId(null), 3000);
     };
 
     // Post Comment Action
@@ -297,17 +349,17 @@ export default function Dashboard({
                 </div>
 
                 {/* Department Top Performers Leaderboard */}
-                <div className="rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl space-y-6">
-                    <div className="flex items-center justify-between border-b border-indigo-800/80 pb-4">
+                <div className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 via-white to-slate-50 dark:border-indigo-900/60 dark:from-indigo-950/80 dark:via-indigo-900/40 dark:to-slate-900 p-6 sm:p-8 shadow-xl dark:shadow-indigo-950/30 space-y-6 transition-all">
+                    <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-800/60 pb-4">
                         <div>
-                            <span className="inline-flex items-center rounded-full bg-indigo-500/20 px-3 py-0.5 text-[10px] font-extrabold text-indigo-300 uppercase tracking-wider mb-1">
+                            <span className="inline-flex items-center rounded-full bg-indigo-100/80 dark:bg-indigo-900/60 px-3 py-0.5 text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1">
                                 Department Top Performers
                             </span>
-                            <h2 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+                            <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                                 🏆 Top Task Completers & Performers
                             </h2>
                         </div>
-                        <span className="text-xs text-indigo-300 font-semibold">Ranked by Closed Tasks</span>
+                        <span className="text-xs text-slate-500 dark:text-indigo-300 font-semibold">Ranked by Closed Tasks</span>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -315,25 +367,25 @@ export default function Dashboard({
                             topPerformers.slice(0, 4).map((performer, index) => (
                                 <div
                                     key={performer.id}
-                                    className="relative flex flex-col justify-between rounded-2xl border border-indigo-700/60 bg-indigo-900/40 p-5 backdrop-blur-md"
+                                    className="relative flex flex-col justify-between rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm hover:shadow-md dark:border-indigo-800/50 dark:bg-slate-900/80 backdrop-blur-md transition-all"
                                 >
                                     <div className="absolute -top-3 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 to-amber-500 text-xs font-black text-slate-950 shadow-md">
                                         #{index + 1}
                                     </div>
-                                    <div className="space-y-1">
-                                        <h3 className="text-sm font-extrabold text-white truncate">{performer.name}</h3>
-                                        <span className="inline-block rounded-md bg-indigo-500/30 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
+                                    <div className="space-y-1.5">
+                                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">{performer.name}</h3>
+                                        <span className="inline-block rounded-lg bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
                                             🏢 {performer.department}
                                         </span>
                                     </div>
-                                    <div className="mt-4 pt-3 border-t border-indigo-800/60 flex items-center justify-between">
-                                        <span className="text-[11px] text-indigo-300 font-medium">Tasks Closed</span>
-                                        <span className="text-xl font-black text-amber-400">{performer.completed_count}</span>
+                                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                        <span className="text-[11px] text-slate-500 dark:text-indigo-300 font-medium">Tasks Closed</span>
+                                        <span className="text-xl font-black text-amber-500 dark:text-amber-400">{performer.completed_count}</span>
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-xs text-indigo-300 italic col-span-full">No completed task performance records yet.</p>
+                            <p className="text-xs text-slate-500 dark:text-indigo-300 italic col-span-full">No completed task performance records yet.</p>
                         )}
                     </div>
                 </div>
@@ -422,104 +474,15 @@ export default function Dashboard({
                     </div>
                 </div>
 
-                {/* TASK DETAIL MODAL */}
-                {selectedTaskDetail && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-                        <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-6 my-auto">
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                                <div>
-                                    <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                                        Task Detail View
-                                    </span>
-                                    <h2 className="text-xl font-extrabold text-slate-900 dark:text-white sm:text-2xl mt-1">
-                                        {selectedTaskDetail.task}
-                                    </h2>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedTaskDetail(null)}
-                                    className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    title="Press ESC to exit"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-3 text-xs bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl">
-                                <div>
-                                    <span className="text-slate-400 block font-semibold">Assignee Employee:</span>
-                                    <span className="font-extrabold text-slate-800 dark:text-slate-200">👤 {selectedTaskDetail.assigned_user?.name || 'Unassigned'}</span>
-                                </div>
-                                <div>
-                                    <span className="text-slate-400 block font-semibold">Department:</span>
-                                    <span className="font-extrabold text-indigo-600 dark:text-indigo-400">🏢 {selectedTaskDetail.assigned_user?.department?.name || 'N/A'}</span>
-                                </div>
-                                <div>
-                                    <span className="text-slate-400 block font-semibold">Due Cutoff Date:</span>
-                                    <span className="font-extrabold text-slate-800 dark:text-slate-200">{selectedTaskDetail.due_date ? selectedTaskDetail.due_date.replace('T', ' ') : '-'}</span>
-                                </div>
-                            </div>
-
-                            {/* Task Comments Feed */}
-                            <div className="space-y-3 pt-2">
-                                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Task Comments</h3>
-                                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                                    {selectedTaskDetail.comments && selectedTaskDetail.comments.length > 0 ? (
-                                        selectedTaskDetail.comments.map((cm) => (
-                                            <div key={cm.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/40">
-                                                <div className="flex items-center justify-between text-[11px] mb-1">
-                                                    <span className="font-bold text-slate-800 dark:text-slate-200">{cm.user?.name || 'User'}</span>
-                                                    <span className="text-slate-400">{new Date(cm.created_at).toLocaleString()}</span>
-                                                </div>
-                                                <p className="text-xs text-slate-700 dark:text-slate-300">{cm.comment}</p>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-xs text-slate-400 italic">No comments posted yet.</p>
-                                    )}
-                                </div>
-
-                                {/* Post Comment Box */}
-                                <form onSubmit={handlePostComment} className="flex items-center gap-2 pt-2">
-                                    <input
-                                        type="text"
-                                        value={commentInput}
-                                        onChange={(e) => setCommentInput(e.target.value)}
-                                        onKeyDown={handleCommentKeyDown}
-                                        placeholder="Write a comment (Press Enter to post)..."
-                                        className="flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700"
-                                    >
-                                        Post
-                                    </button>
-                                </form>
-                            </div>
-
-                            <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
-                                <span className="text-xs text-slate-400">Press <kbd className="rounded bg-slate-200 px-1 py-0.5 text-[10px] font-mono dark:bg-slate-700">ESC</kbd> to exit modal</span>
-                                <div className="flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedTaskDetail(null)}
-                                        className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
-                                    >
-                                        Close
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleCloseTask(selectedTaskDetail.id)}
-                                        className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
-                                    >
-                                        Complete Task
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                {/* FULL-SCREEN TASK DETAIL VIEW MODAL */}
+                <TaskDetailModal
+                    task={selectedTaskDetail}
+                    isOpen={!!selectedTaskDetail}
+                    onClose={() => setSelectedTaskDetail(null)}
+                    users={users}
+                    statuses={statuses}
+                    currentUser={user}
+                />
 
                 {/* GLOBAL CREATE TASK REQUEST MODAL */}
                 <CreateTaskModal
