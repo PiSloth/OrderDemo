@@ -276,7 +276,7 @@ export default function TaskDetailModal({
         if (!commentToDelete) return;
         router.post(`/todo/task-comments/${commentToDelete}/delete`, {}, {
             preserveScroll: true,
-            onSuccess: () => setCommentToDelete(null),
+            onFinish: () => setCommentToDelete(null),
         });
     };
 

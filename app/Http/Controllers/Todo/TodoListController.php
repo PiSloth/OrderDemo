@@ -594,10 +594,16 @@ class TodoListController extends Controller
 
     public function destroyComment($commentId)
     {
-        $comment = TaskComment::findOrFail($commentId);
+        $comment = TaskComment::find($commentId);
+        if (!$comment) {
+            return redirect()->back()->with('message', 'Comment deleted or not found.');
+        }
+
         $user = Auth::user();
 
         if ($user && ($user->isSuperUser() || $user->id === $comment->user_id)) {
+            // Clean up any child replies first
+            TaskComment::where('parent_id', $comment->id)->delete();
             $comment->delete();
             return redirect()->back()->with('message', 'Comment deleted successfully.');
         }
