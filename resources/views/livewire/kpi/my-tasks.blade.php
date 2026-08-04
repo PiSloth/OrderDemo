@@ -139,8 +139,7 @@
                             });
                             this.previews = [];
                         },
-                    }"
-                        x-on:livewire-upload-start="uploading = true; uploadErrorMessage = ''"
+                    }" x-on:livewire-upload-start="uploading = true; uploadErrorMessage = ''"
                         x-on:livewire-upload-finish="uploading = false; progress = 0"
                         x-on:livewire-upload-error="
                             uploading = false;
@@ -161,11 +160,9 @@
                         x-on:livewire-upload-progress="progress = $event.detail.progress"
                         class="mt-2 rounded-3xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
                         <input id="kpi-camera-photo" type="file" wire:model="cameraPhoto" accept="image/*"
-                            x-on:change="addFiles($event.target.files)"
-                            capture="environment" class="hidden">
+                            x-on:change="addFiles($event.target.files)" capture="environment" class="hidden">
                         <input id="kpi-gallery-photos" type="file" wire:model="galleryPhotos" accept="image/*"
-                            x-on:change="addFiles($event.target.files)"
-                            multiple class="hidden">
+                            x-on:change="addFiles($event.target.files)" multiple class="hidden">
 
                         <div class="flex flex-wrap items-center gap-3">
                             <label for="kpi-camera-photo"
@@ -225,7 +222,8 @@
                                 @foreach ($submissionPhotos as $index => $photo)
                                     <article x-data="{ imageLoaded: false }"
                                         class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-                                        <div class="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                        <div
+                                            class="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                                             <div x-cloak x-show="!imageLoaded"
                                                 class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4">
                                                 <p
@@ -240,8 +238,7 @@
                                                 </div>
                                             </div>
 
-                                            <img x-ref="previewImage"
-                                                x-init="$nextTick(() => { if ($refs.previewImage?.complete) imageLoaded = true; })"
+                                            <img x-ref="previewImage" x-init="$nextTick(() => { if ($refs.previewImage?.complete) imageLoaded = true; })"
                                                 x-on:load="imageLoaded = true" x-show="imageLoaded"
                                                 x-transition.opacity :src="previews[{{ $index }}]?.url || ''"
                                                 alt="Submission preview {{ $index + 1 }}"
@@ -362,6 +359,166 @@
             </form>
         </section>
     @endif
+
+    <!-- ON-DEMAND TASK INSTANCES (DUE TODAY & UPCOMING) -->
+    <section class="space-y-0">
+        <div class="grid gap-6 lg:grid-cols-2">
+
+            <!-- GROUP 1: DUE DATE TODAY (RED COVER DIV) -->
+            <div class="rounded-2xl border-2 border-red-400/40 overflow-hidden shadow-sm dark:border-red-900/50">
+                <!-- RED COVER HEADER -->
+                <div class="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-4 text-white flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xl">🚨</span>
+                        <div>
+                            <h4 class="text-sm font-extrabold uppercase tracking-wider">On-Demand – Due Today</h4>
+                            <p class="text-xs text-red-100">{{ now()->format('l, M j, Y') }}</p>
+                        </div>
+                    </div>
+                    <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
+                        {{ $onDemandTasksToday->count() }} task(s)
+                    </span>
+                </div>
+
+                <div class="p-4 space-y-3 bg-red-50/30 dark:bg-red-950/10">
+                    @forelse ($onDemandTasksToday as $task)
+                        <article class="rounded-xl border border-red-200 bg-white p-4 shadow-sm dark:border-red-900/40 dark:bg-slate-800">
+                            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div class="space-y-1.5">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <p class="font-semibold text-slate-900 dark:text-slate-100">
+                                            {{ $task->template?->title }}
+                                        </p>
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                            {{ $task->template?->group?->name ?? 'No KPI Group' }}
+                                        </span>
+                                        <span class="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 uppercase tracking-wider dark:bg-rose-950 dark:text-rose-300">
+                                            TODAY
+                                        </span>
+                                        @if ($selectedTaskInstance?->id === $task->id)
+                                            <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
+                                                Selected
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="grid gap-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
+                                        <p>Cutoff: {{ $task->due_at ? $task->due_at->format('H:i') : 'No cutoff' }}</p>
+                                        <p>Status: {{ str_replace('_', ' ', $task->status) }}</p>
+                                        <p>Submissions: {{ $task->submissions_count }}</p>
+                                        <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}</p>
+                                    </div>
+
+                                    @if ($task->submissions->isNotEmpty() && $task->status === 'rejected')
+                                        <div class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                                            Last rejection: {{ $task->submissions->first()?->rejection_reason ?: 'No reason provided.' }}
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="flex w-full flex-col gap-2 lg:w-44">
+                                    @if ($this->canDirectSubmitNoEvidence($task))
+                                        <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">
+                                            Submit (No Evidence)
+                                        </button>
+                                    @elseif ($this->canSubmit($task))
+                                        <button type="button" wire:click="openSubmission({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-800">
+                                            {{ $selectedTaskInstance?->id === $task->id ? 'Editing Submission' : 'Submit Task' }}
+                                        </button>
+                                    @else
+                                        <div class="rounded-xl bg-slate-100 px-4 py-2.5 text-center text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                            {{ str_replace('_', ' ', $task->status) }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </article>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-red-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-red-900/40 dark:bg-slate-800/40 dark:text-slate-400">
+                            No on-demand task instances due today.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- GROUP 2: UPCOMING ON-DEMAND (BLUE COVER DIV) -->
+            <div class="rounded-2xl border border-sky-200 overflow-hidden shadow-sm dark:border-sky-900/40">
+                <!-- BLUE COVER HEADER -->
+                <div class="bg-gradient-to-r from-sky-600 to-blue-700 p-4 text-white flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xl">📅</span>
+                        <div>
+                            <h4 class="text-sm font-extrabold uppercase tracking-wider">On-Demand – Upcoming</h4>
+                            <p class="text-xs text-sky-100">Scheduled for future dates</p>
+                        </div>
+                    </div>
+                    <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
+                        {{ $onDemandTasksUpcoming->count() }} task(s)
+                    </span>
+                </div>
+
+                <div class="p-4 space-y-3 bg-sky-50/30 dark:bg-sky-950/10">
+                    @forelse ($onDemandTasksUpcoming as $task)
+                        <article class="rounded-xl border border-sky-100 bg-white p-4 shadow-sm dark:border-sky-900/40 dark:bg-slate-800">
+                            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div class="space-y-1.5">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <p class="font-semibold text-slate-900 dark:text-slate-100">
+                                            {{ $task->template?->title }}
+                                        </p>
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                            {{ $task->template?->group?->name ?? 'No KPI Group' }}
+                                        </span>
+                                        @if ($selectedTaskInstance?->id === $task->id)
+                                            <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
+                                                Selected
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="grid gap-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
+                                        <p>Due: {{ $task->due_at ? $task->due_at->format('Y-m-d H:i') : 'N/A' }}</p>
+                                        <p>Status: {{ str_replace('_', ' ', $task->status) }}</p>
+                                        <p>Submissions: {{ $task->submissions_count }}</p>
+                                        <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}</p>
+                                    </div>
+
+                                    @if ($task->submissions->isNotEmpty() && $task->status === 'rejected')
+                                        <div class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                                            Last rejection: {{ $task->submissions->first()?->rejection_reason ?: 'No reason provided.' }}
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="flex w-full flex-col gap-2 lg:w-44">
+                                    @if ($this->canDirectSubmitNoEvidence($task))
+                                        <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">
+                                            Submit (No Evidence)
+                                        </button>
+                                    @elseif ($this->canSubmit($task))
+                                        <button type="button" wire:click="openSubmission({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800">
+                                            {{ $selectedTaskInstance?->id === $task->id ? 'Editing Submission' : 'Submit Task' }}
+                                        </button>
+                                    @else
+                                        <div class="rounded-xl bg-slate-100 px-4 py-2.5 text-center text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                            {{ str_replace('_', ' ', $task->status) }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </article>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-sky-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-sky-900/40 dark:bg-slate-800/40 dark:text-slate-400">
+                            No upcoming on-demand task instances.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+        </div>
+    </section>
 
     <section class="space-y-4">
         <div class="flex items-center justify-between">
@@ -598,7 +755,8 @@
                                             Resubmit No Evidence
                                         </button>
                                     @elseif ($this->canSuperAdminResubmitWithEvidence($task))
-                                        <button type="button" wire:click="openResubmitSubmission({{ $task->id }})"
+                                        <button type="button"
+                                            wire:click="openResubmitSubmission({{ $task->id }})"
                                             class="inline-flex items-center justify-center rounded-2xl bg-rose-700 px-4 py-2 text-xs font-medium text-white transition hover:bg-rose-800">
                                             Open Resubmit Form
                                         </button>
@@ -622,141 +780,6 @@
         </section>
     @endif
 
-    <!-- ON-DEMAND TASK GROUPS SECTION (DUE TODAY & UPCOMING) -->
-    <section class="rounded-3xl border border-rose-200 bg-white p-6 shadow-sm dark:border-rose-900/50 dark:bg-slate-900">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-5 dark:border-slate-800">
-            <div>
-                <div class="flex items-center gap-2">
-                    <span class="relative flex h-3 w-3">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
-                    </span>
-                    <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">On-Demand Task Groups</h3>
-                </div>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    Submit on-demand task groups and review today vs upcoming schedules.
-                </p>
-            </div>
 
-            <!-- Submit On-Demand Task Group Form -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <select wire:model.defer="selectedOnDemandGroupId"
-                        class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-                    <option value="">Select On-Demand Group to Submit</option>
-                    @foreach ($availableOnDemandGroups as $odGroup)
-                        <option value="{{ $odGroup->id }}">{{ $odGroup->name }}</option>
-                    @endforeach
-                </select>
-                <button type="button" wire:click="submitOnDemandGroup"
-                        class="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 active:scale-95">
-                    🚀 Submit Group
-                </button>
-            </div>
-        </div>
-
-        @error('selectedOnDemandGroupId')
-            <p class="mt-3 text-sm text-rose-600">{{ $message }}</p>
-        @enderror
-
-        <div class="mt-6 grid gap-6 lg:grid-cols-2">
-
-            <!-- GROUP 1: DUE DATE TODAY (RED COVER DIV) -->
-            <div class="rounded-2xl border-2 border-red-400/40 bg-red-50/20 overflow-hidden shadow-sm dark:border-red-900/50 dark:bg-red-950/10">
-                <!-- RED COVER DIV FOR TODAY -->
-                <div class="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-4 text-white shadow-md flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <span class="text-xl">🚨</span>
-                        <div>
-                            <h4 class="text-sm font-extrabold uppercase tracking-wider text-white">Due Date Today</h4>
-                            <p class="text-xs text-red-100">{{ now()->format('l, M j, Y') }}</p>
-                        </div>
-                    </div>
-                    <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white uppercase tracking-widest backdrop-blur-sm">
-                        {{ $onDemandGroupsToday->count() }} run(s)
-                    </span>
-                </div>
-
-                <div class="p-4 space-y-3">
-                    @forelse ($onDemandGroupsToday as $run)
-                        <div class="rounded-xl border border-red-200 bg-white p-4 shadow-sm dark:border-red-900/40 dark:bg-slate-800">
-                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <h5 class="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                                            {{ $run->group?->name ?? 'On-Demand Group' }}
-                                        </h5>
-                                        <span class="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 uppercase tracking-wider dark:bg-rose-950 dark:text-rose-300">
-                                            TODAY
-                                        </span>
-                                    </div>
-                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        Template: {{ $run->group?->template?->title ?? '-' }}
-                                    </p>
-                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        Members: {{ $run->members->count() }} |
-                                        Status: <span class="font-semibold text-rose-600 dark:text-rose-400">{{ strtoupper(str_replace('_', ' ', $run->status)) }}</span>
-                                    </p>
-                                </div>
-                                <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300 self-start">
-                                    Due Today
-                                </span>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="rounded-xl border border-dashed border-red-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-red-900/40 dark:bg-slate-800/40 dark:text-slate-400">
-                            No on-demand task groups for today.<br>
-                            <span class="text-slate-400">Select a group above and click Submit Group.</span>
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-
-            <!-- GROUP 2: UPCOMING ON-DEMAND GROUP (BLUE COVER DIV) -->
-            <div class="rounded-2xl border border-sky-200 bg-sky-50/20 overflow-hidden shadow-sm dark:border-sky-900/40 dark:bg-sky-950/10">
-                <!-- BLUE COVER DIV FOR UPCOMING -->
-                <div class="bg-gradient-to-r from-sky-600 to-blue-700 p-4 text-white shadow-md flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <span class="text-xl">📅</span>
-                        <div>
-                            <h4 class="text-sm font-extrabold uppercase tracking-wider text-white">Upcoming On-Demand</h4>
-                            <p class="text-xs text-sky-100">Scheduled for upcoming dates</p>
-                        </div>
-                    </div>
-                    <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white uppercase tracking-widest backdrop-blur-sm">
-                        {{ $onDemandGroupsUpcoming->count() }} run(s)
-                    </span>
-                </div>
-
-                <div class="p-4 space-y-3">
-                    @forelse ($onDemandGroupsUpcoming as $run)
-                        <div class="rounded-xl border border-sky-100 bg-white p-4 shadow-sm dark:border-sky-900/40 dark:bg-slate-800">
-                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                    <h5 class="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                                        {{ $run->group?->name ?? 'Upcoming Group' }}
-                                    </h5>
-                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        Template: {{ $run->group?->template?->title ?? '-' }}
-                                    </p>
-                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        Run Date: <span class="font-medium text-sky-700 dark:text-sky-300">{{ $run->run_date?->format('M j, Y') ?? $run->run_date }}</span>
-                                        | Status: {{ strtoupper(str_replace('_', ' ', $run->status)) }}
-                                    </p>
-                                </div>
-                                <span class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-300 self-start">
-                                    Upcoming
-                                </span>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="rounded-xl border border-dashed border-sky-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-sky-900/40 dark:bg-slate-800/40 dark:text-slate-400">
-                            No upcoming on-demand task groups.
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-
-        </div>
-    </section>
 
 </div>

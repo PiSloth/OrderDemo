@@ -2,9 +2,6 @@
 
 namespace App\Livewire\Kpi;
 
-use App\Models\Kpi\KpiDependencyGroup;
-use App\Models\Kpi\KpiDependencyGroupRun;
-use App\Models\Kpi\KpiDependencyGroupRunMember;
 use App\Models\Kpi\KpiTaskInstance;
 use App\Models\Kpi\KpiTaskSubmission;
 use App\Models\User;
@@ -47,11 +44,9 @@ class MyTasks extends Component
     public bool $isResubmissionMode = false;
     public array $employeeOptions = [];
 
-    // On-Demand Task Groups
-    public $onDemandGroupsToday;
-    public $onDemandGroupsUpcoming;
-    public $availableOnDemandGroups;
-    public string $selectedOnDemandGroupId = '';
+    // On-Demand Task Instances
+    public $onDemandTasksToday;
+    public $onDemandTasksUpcoming;
 
     public function mount(KpiTaskInstanceGenerator $generator): void
     {
@@ -81,9 +76,8 @@ class MyTasks extends Component
         $this->weeklyTasks = collect();
         $this->monthlyTasks = collect();
         $this->overdueTasks = collect();
-        $this->onDemandGroupsToday = collect();
-        $this->onDemandGroupsUpcoming = collect();
-        $this->availableOnDemandGroups = collect();
+        $this->onDemandTasksToday = collect();
+        $this->onDemandTasksUpcoming = collect();
         $this->selectedMonth = now()->format('Y-m');
 
         $this->loadTasks();
@@ -155,6 +149,12 @@ class MyTasks extends Component
                             ->where('period_type', 'monthly')
                             ->whereDate('period_start', $monthStart->toDateString())
                             ->whereDate('period_end', $monthEnd->toDateString());
+                    })
+                    ->orWhere(function ($on_demand) use ($monthStart, $monthEnd) {
+                        $on_demand
+                            ->where('period_type', 'on_demand')
+                            ->whereDate('period_start', $monthStart->toDateString())
+                            ->whereDate('period_end', $monthEnd->toDateString());
                     });
             })
             ->orderBy('due_at')
@@ -211,80 +211,21 @@ class MyTasks extends Component
             }
         }
 
-        // Load On-Demand Task Groups
         $todayStr = now()->toDateString();
 
-        $this->availableOnDemandGroups = KpiDependencyGroup::query()
-            ->with(['template', 'members.user'])
-            ->where('is_active', true)
-            ->where('frequency', 'on_demand')
-            ->orderBy('name')
-            ->get();
-
-        $allOnDemandRuns = KpiDependencyGroupRun::query()
-            ->with(['group.template', 'members.user', 'submission.images', 'approvalSteps.approver'])
-            ->whereHas('group', fn($q) => $q->where('frequency', 'on_demand'))
-            ->orderByDesc('run_date')
-            ->get();
-
-        $this->onDemandGroupsToday = $allOnDemandRuns
-            ->filter(fn($run) => ($run->run_date?->toDateString() ?? $run->run_date) === $todayStr)
+        $this->onDemandTasksToday = $instances
+            ->filter(fn(KpiTaskInstance $instance) =>
+                $instance->period_type === 'on_demand' &&
+                ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) === $todayStr
+            )
             ->values();
 
-        $this->onDemandGroupsUpcoming = $allOnDemandRuns
-            ->filter(fn($run) => $run->run_date && ($run->run_date?->toDateString() ?? $run->run_date) > $todayStr)
+        $this->onDemandTasksUpcoming = $instances
+            ->filter(fn(KpiTaskInstance $instance) =>
+                $instance->period_type === 'on_demand' &&
+                ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) > $todayStr
+            )
             ->values();
-    }
-
-    public function submitOnDemandGroup(): void
-    {
-        if (!$this->selectedOnDemandGroupId) {
-            throw ValidationException::withMessages([
-                'selectedOnDemandGroupId' => 'Please select an On-Demand Task Group.',
-            ]);
-        }
-
-        $group = KpiDependencyGroup::query()
-            ->with(['members' => fn($query) => $query->where('is_active', true)])
-            ->findOrFail((int) $this->selectedOnDemandGroupId);
-
-        $runDate = now()->toDateString();
-
-        $run = KpiDependencyGroupRun::query()->firstOrCreate(
-            [
-                'dependency_group_id' => $group->id,
-                'period_type'         => 'on_demand',
-                'run_date'            => $runDate,
-            ],
-            [
-                'period_start'             => $runDate,
-                'period_end'               => $runDate,
-                'status'                   => 'pending_submission',
-                'initiated_by_user_id'     => Auth::id(),
-                'required_member_count'    => $group->members->where('is_required', true)->count(),
-                'confirmed_member_count'   => 0,
-            ]
-        );
-
-        foreach ($group->members as $member) {
-            KpiDependencyGroupRunMember::query()->firstOrCreate(
-                [
-                    'dependency_group_run_id' => $run->id,
-                    'task_assignment_id'      => $member->task_assignment_id,
-                    'user_id'                 => $member->user_id,
-                ],
-                [
-                    'member_status' => 'pending',
-                    'role_type'     => $member->user_id === Auth::id() ? 'uploader' : 'associate',
-                    'is_required'   => (bool) $member->is_required,
-                ]
-            );
-        }
-
-        $this->selectedOnDemandGroupId = '';
-        $this->loadTasks();
-
-        session()->flash('message', "On-Demand Task Group '{$group->name}' initiated for today.");
     }
 
     public function openSubmission(int $taskInstanceId): void
