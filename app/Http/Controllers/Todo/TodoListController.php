@@ -471,7 +471,7 @@ class TodoListController extends Controller
                         'status' => 'pending',
                         'is_on_time' => true,
                         'period_type' => 'todo_on_demand',
-                        'period_start' => $dueDateObj->toDateString(),
+                        'period_start' => \Carbon\Carbon::now(),
                         'period_end' => $dueDateObj,
                         'todo_list_id' => $task->id,
                     ]);

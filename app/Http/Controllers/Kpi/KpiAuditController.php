@@ -728,7 +728,7 @@ class KpiAuditController extends Controller
             'waiting_first_approval', 'waiting_final_approval' => [
                 'type' => 'pending',
                 'label' => 'Pending Approval',
-                'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                'classes' => 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
                 'instance' => $this->serializeInstance($instance),
             ],
             'rejected' => [
@@ -740,7 +740,7 @@ class KpiAuditController extends Controller
             'pending' => [
                 'type' => 'pending',
                 'label' => 'Pending',
-                'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                'classes' => 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
                 'instance' => $this->serializeInstance($instance),
             ],
             default => null,
