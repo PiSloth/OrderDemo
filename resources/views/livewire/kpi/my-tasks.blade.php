@@ -61,6 +61,8 @@
     </section>
 
     @if ($selectedTaskInstance)
+        <x-modal wire:model="showSubmissionModal">
+            <x-card title="Task Submission">
         <section class="rounded-3xl border border-sky-200 bg-white p-5 shadow-sm dark:border-sky-900 dark:bg-slate-900">
             @if (!$this->canModifyViewedTasks())
                 <div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
@@ -358,8 +360,11 @@
                 </div>
             </form>
         </section>
-    @endif
 
+
+            </x-card>
+        </x-modal>
+    @endif
     <!-- ON-DEMAND TASK INSTANCES (TODO, DUE TODAY & UPCOMING) -->
     <section class="space-y-0">
         <div class="mb-4 flex items-center justify-between">
@@ -825,6 +830,11 @@
 
 
 </div>
+
+
+
+
+
 
 
 
