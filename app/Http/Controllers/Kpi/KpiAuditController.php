@@ -705,6 +705,7 @@ class KpiAuditController extends Controller
             'failed_missed' => $anchorDate,
             'waiting_first_approval', 'waiting_final_approval' => $latestSubmissionDate,
             'rejected' => $latestSubmissionDate ?? $anchorDate,
+            'pending' => $anchorDate,
             default => null,
         };
 
@@ -728,7 +729,7 @@ class KpiAuditController extends Controller
             'waiting_first_approval', 'waiting_final_approval' => [
                 'type' => 'pending',
                 'label' => 'Pending Approval',
-                'classes' => 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+                'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
                 'instance' => $this->serializeInstance($instance),
             ],
             'rejected' => [
@@ -738,8 +739,8 @@ class KpiAuditController extends Controller
                 'instance' => $this->serializeInstance($instance),
             ],
             'pending' => [
-                'type' => 'pending',
-                'label' => 'Pending',
+                'type' => 'upcoming',
+                'label' => 'Upcoming',
                 'classes' => 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
                 'instance' => $this->serializeInstance($instance),
             ],
