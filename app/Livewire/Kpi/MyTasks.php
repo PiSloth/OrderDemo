@@ -987,4 +987,3 @@ class MyTasks extends Component
         return (int) Auth::id();
     }
 }
-

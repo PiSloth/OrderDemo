@@ -117,14 +117,7 @@ class Audit extends Component
                 'failure_reason' => $reason,
             ];
 
-            if ($taskInstance->todo_list_id !== null) {
-                KpiTaskInstance::query()
-                    ->where('todo_list_id', $taskInstance->todo_list_id)
-                    ->lockForUpdate()
-                    ->update($updateData);
-            } else {
-                $taskInstance->update($updateData);
-            }
+            KpiTaskInstance::syncStatusForTodoList($taskInstance, $updateData);
         });
 
         if ($submission) {

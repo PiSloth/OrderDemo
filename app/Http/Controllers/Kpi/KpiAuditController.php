@@ -487,7 +487,7 @@ class KpiAuditController extends Controller
             $status = $validated['status'];
             $reason = trim((string) $validated['failure_reason']);
 
-            $taskInstance->update([
+            KpiTaskInstance::syncStatusForTodoList($taskInstance, [
                 'status' => $status,
                 'final_outcome' => in_array($status, ['passed', 'failed_late', 'failed_missed', 'excluded'], true) ? $status : null,
                 'finalized_at' => in_array($status, ['passed', 'failed_late', 'failed_missed', 'excluded'], true) ? $now : null,
@@ -539,7 +539,12 @@ class KpiAuditController extends Controller
 
             $finalStatus = $submission->is_late ? 'failed_late' : 'passed';
             $submission->update(['status' => 'approved', 'first_approved_at' => $submission->first_approved_at ?: $now, 'final_approved_at' => $now, 'rejection_reason' => null]);
-            $submission->instance->update(['status' => $finalStatus, 'final_outcome' => $finalStatus, 'finalized_at' => $now, 'failure_reason' => $submission->is_late ? 'Approved after cutoff time.' : null]);
+            KpiTaskInstance::syncStatusForTodoList($submission->instance, [
+                'status' => $finalStatus,
+                'final_outcome' => $finalStatus,
+                'finalized_at' => $now,
+                'failure_reason' => $submission->is_late ? 'Approved after cutoff time.' : null,
+            ]);
             \App\Models\TodoList::syncKpiApproval($submission->instance);
         });
 

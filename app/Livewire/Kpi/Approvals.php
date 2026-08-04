@@ -3,6 +3,7 @@
 namespace App\Livewire\Kpi;
 
 use App\Models\Kpi\KpiTaskApprovalStep;
+use App\Models\Kpi\KpiTaskInstance;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
@@ -297,7 +298,7 @@ class Approvals extends Component
                 'rejection_reason' => null,
             ]);
 
-            $submission->instance->update([
+            KpiTaskInstance::syncStatusForTodoList($submission->instance, [
                 'status' => $finalStatus,
                 'final_outcome' => $finalStatus,
                 'finalized_at' => $now,

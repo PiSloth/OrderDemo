@@ -23,6 +23,20 @@ class KpiTaskInstance extends Model
         'required_image_count' => 'integer',
     ];
 
+    public static function syncStatusForTodoList(self $instance, array $attributes): void
+    {
+        if ($instance->todo_list_id === null) {
+            $instance->update($attributes);
+
+            return;
+        }
+
+        self::query()
+            ->where('todo_list_id', $instance->todo_list_id)
+            ->lockForUpdate()
+            ->update($attributes);
+    }
+
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(KpiTaskAssignment::class, 'task_assignment_id');
