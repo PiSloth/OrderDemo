@@ -32,7 +32,7 @@
             </div>
             
             <!-- Filters -->
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 md:w-auto">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 md:w-auto">
                 <!-- Employee Filter (No search) -->
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Employee</label>
@@ -106,6 +106,18 @@
                     <x-select placeholder="Search template" wire:model.live="filterTemplateId"
                         :options="$filterTemplates" option-label="title" option-value="id" />
                 </div>
+
+                <!-- Frequency Filter -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Frequency</label>
+                    <x-native-select wire:model.live="filterFrequency" class="mt-1">
+                        <option value="all">All Frequencies</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="on_demand">On-Demand</option>
+                    </x-native-select>
+                </div>
             </div>
         </div>
 
@@ -121,7 +133,22 @@
                     <div x-show="steps.length > 0 && steps[carouselIndex]" class="space-y-6">
                         
                         <!-- Card Content Wrapper -->
-                        <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+                        <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/40 relative overflow-hidden">
+                            <!-- RED COVER DIV FOR TODAY'S ON-DEMAND TASK -->
+                            <template x-if="steps[carouselIndex]?.is_today_on_demand || (steps[carouselIndex]?.submission?.instance?.template?.frequency === 'on_demand' && new Date(steps[carouselIndex]?.submission?.submitted_at || steps[carouselIndex]?.created_at).toDateString() === new Date().toDateString())">
+                                <div class="-mx-5 -mt-5 mb-5 rounded-t-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-4 text-white shadow-lg border-b-2 border-red-800 flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-xl font-black shadow-inner">🚨</span>
+                                        <div>
+                                            <h4 class="text-base font-bold uppercase tracking-wider text-white">Today's On-Demand Task</h4>
+                                            <p class="text-xs text-red-100 font-medium">On-Demand task group submission required / submitted today</p>
+                                        </div>
+                                    </div>
+                                    <span class="rounded-full bg-white/25 px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-white backdrop-blur-md shadow-sm">
+                                        DUE TODAY
+                                    </span>
+                                </div>
+                            </template>
                             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div class="space-y-2">
                                     <div class="flex flex-wrap items-center gap-2">
@@ -277,6 +304,125 @@
                 <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Adjust employee, month, or template filters above.</p>
             </div>
         @endif
+    </section>
+
+    <!-- ON-DEMAND TASK GROUPS SECTION (DUE TODAY & UPCOMING) -->
+    <section class="rounded-3xl border border-rose-200 bg-white p-6 shadow-sm dark:border-rose-900/50 dark:bg-slate-900">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-5 dark:border-slate-800">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex h-3 w-3 rounded-full bg-rose-500 animate-ping"></span>
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">On-Demand Task Groups</h3>
+                </div>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Submit on-demand task groups and review today vs upcoming schedules.</p>
+            </div>
+
+            <!-- Submit On-Demand Task Group Form -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <select wire:model.defer="selectedOnDemandGroupId"
+                        class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                    <option value="">Select On-Demand Group to Submit</option>
+                    @foreach ($availableOnDemandGroups as $group)
+                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                    @endforeach
+                </select>
+                <button type="button" wire:click="submitOnDemandGroup"
+                        class="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700">
+                    Submit Group
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6 grid gap-6 lg:grid-cols-2">
+            <!-- GROUP 1: DUE DATE TODAY (WITH RED COVER DIV) -->
+            <div class="rounded-2xl border-2 border-red-500/40 bg-red-50/20 overflow-hidden shadow-sm dark:border-red-900/50 dark:bg-red-950/10">
+                <!-- RED COVER DIV FOR TODAY -->
+                <div class="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-4 text-white shadow-md flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-lg">🚨</span>
+                        <div>
+                            <h4 class="text-sm font-extrabold uppercase tracking-wider text-white">Due Date Today</h4>
+                            <p class="text-xs text-red-100">On-Demand task groups due / submitted for today ({{ now()->format('M j, Y') }})</p>
+                        </div>
+                    </div>
+                    <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white uppercase tracking-widest backdrop-blur-sm">
+                        {{ $onDemandGroupsToday->count() }} item(s)
+                    </span>
+                </div>
+
+                <div class="p-4 space-y-3">
+                    @forelse ($onDemandGroupsToday as $run)
+                        <div class="rounded-xl border border-red-200 bg-white p-4 shadow-sm dark:border-red-900/40 dark:bg-slate-800">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h5 class="font-bold text-slate-900 dark:text-slate-100 text-sm">{{ $run->group?->name ?? 'On-Demand Group' }}</h5>
+                                        <span class="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+                                            TODAY
+                                        </span>
+                                    </div>
+                                    <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                                        Template: {{ $run->group?->template?->title ?? '-' }}
+                                    </p>
+                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        Members: {{ $run->members->count() }} | Status: <span class="font-semibold text-rose-600 dark:text-rose-400">{{ strtoupper($run->status) }}</span>
+                                    </p>
+                                </div>
+                                <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+                                    Due Today
+                                </span>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-red-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-red-900/40 dark:bg-slate-800/40 dark:text-slate-400">
+                            No on-demand task groups due today. Select a group above to submit for today.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- GROUP 2: UPCOMING ON-DEMAND GROUP -->
+            <div class="rounded-2xl border border-sky-200 bg-sky-50/20 overflow-hidden shadow-sm dark:border-sky-900/40 dark:bg-sky-950/10">
+                <!-- BLUE/SKY COVER DIV FOR UPCOMING -->
+                <div class="bg-gradient-to-r from-sky-600 to-blue-700 p-4 text-white shadow-md flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-lg">📅</span>
+                        <div>
+                            <h4 class="text-sm font-extrabold uppercase tracking-wider text-white">Upcoming On-Demand Group</h4>
+                            <p class="text-xs text-sky-100">On-Demand task groups scheduled for upcoming dates</p>
+                        </div>
+                    </div>
+                    <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white uppercase tracking-widest backdrop-blur-sm">
+                        {{ $onDemandGroupsUpcoming->count() }} item(s)
+                    </span>
+                </div>
+
+                <div class="p-4 space-y-3">
+                    @forelse ($onDemandGroupsUpcoming as $run)
+                        <div class="rounded-xl border border-sky-100 bg-white p-4 shadow-sm dark:border-sky-900/40 dark:bg-slate-800">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h5 class="font-bold text-slate-900 dark:text-slate-100 text-sm">{{ $run->group?->name ?? 'Upcoming Group' }}</h5>
+                                    <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                                        Template: {{ $run->group?->template?->title ?? '-' }}
+                                    </p>
+                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        Run Date: {{ $run->run_date?->format('M j, Y') ?? $run->run_date }} | Status: {{ strtoupper($run->status) }}
+                                    </p>
+                                </div>
+                                <span class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                                    Upcoming
+                                </span>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-sky-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-sky-900/40 dark:bg-slate-800/40 dark:text-slate-400">
+                            No upcoming on-demand task groups.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
     </section>
 
     @if ($selectedStep)
