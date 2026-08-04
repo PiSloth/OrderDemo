@@ -202,7 +202,8 @@
                                     class="text-xs font-semibold uppercase tracking-[0.15em] text-sky-700 dark:text-sky-300">
                                     Uploading Photos
                                 </p>
-                                <p class="text-xs font-semibold text-sky-700 dark:text-sky-300" x-text="`${progress}%`">
+                                <p class="text-xs font-semibold text-sky-700 dark:text-sky-300"
+                                    x-text="`${progress}%`">
                                 </p>
                             </div>
                             <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-sky-100 dark:bg-sky-900/40">
@@ -368,13 +369,15 @@
     <section class="space-y-0">
         <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">On-Demand Tasks</h3>
-            <span class="text-sm text-slate-500 dark:text-slate-400">Todo, today, and upcoming groups shown before daily tasks</span>
+            <span class="text-sm text-slate-500 dark:text-slate-400">Todo, today, and upcoming groups shown before
+                daily tasks</span>
         </div>
 
         <div class="space-y-6">
             <!-- GROUP 0: TODO ON-DEMAND (AMBER COVER DIV) -->
             <div class="overflow-hidden rounded-2xl border-2 border-amber-300/40 shadow-sm dark:border-amber-900/50">
-                <div class="flex items-center justify-between bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-4 text-white">
+                <div
+                    class="flex items-center justify-between bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-4 text-white">
                     <div class="flex items-center gap-2.5">
                         <span class="text-xl">?</span>
                         <div>
@@ -382,32 +385,40 @@
                             <p class="text-xs text-amber-100">Over cutoff and still waiting on submission</p>
                         </div>
                     </div>
-                    <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
+                    <span
+                        class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
                         {{ $onDemandTasksTodo->count() }} task(s)
                     </span>
                 </div>
 
                 <div class="space-y-3 bg-amber-50/30 p-4 dark:bg-amber-950/10">
                     @forelse ($onDemandTasksTodo as $task)
-                        <article class="rounded-xl border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-900/40 dark:bg-slate-800">
+                        <article
+                            class="rounded-xl border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-900/40 dark:bg-slate-800">
                             <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                 <div class="space-y-1.5">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <p class="font-semibold text-slate-900 dark:text-slate-100">{{ $task->template?->title }}</p>
-                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                        <p class="font-semibold text-slate-900 dark:text-slate-100">
+                                            {{ $task->template?->title }}</p>
+                                        <span
+                                            class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                                             {{ $task->template?->group?->name ?? 'No KPI Group' }}
                                         </span>
-                                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                        <span
+                                            class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                                             Instance #{{ $task->id }}
                                         </span>
-                                        <span class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+                                        <span
+                                            class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700 dark:bg-orange-950 dark:text-orange-300">
                                             {{ str_replace('_', ' ', $task->period_type) }}
                                         </span>
-                                        <span class="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                        <span
+                                            class="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                                             Late TODO
                                         </span>
                                         @if ($selectedTaskInstance?->id === $task->id)
-                                            <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
+                                            <span
+                                                class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
                                                 Selected
                                             </span>
                                         @endif
@@ -422,15 +433,18 @@
 
                                 <div class="flex w-full flex-col gap-2 lg:w-44">
                                     @if ($this->canDirectSubmitNoEvidence($task))
-                                        <button type="button" wire:click="submitNoEvidence({{ $task->id }})" class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
+                                        <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
                                     @else
-                                        <button type="button" wire:click="openSubmission({{ $task->id }})" class="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-800">Submit</button>
+                                        <button type="button" wire:click="openSubmission({{ $task->id }})"
+                                            class="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-800">Submit</button>
                                     @endif
                                 </div>
                             </div>
                         </article>
                     @empty
-                        <div class="rounded-xl border border-dashed border-amber-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-amber-900/40 dark:bg-slate-800/40 dark:text-slate-400">
+                        <div
+                            class="rounded-xl border border-dashed border-amber-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-amber-900/40 dark:bg-slate-800/40 dark:text-slate-400">
                             No late on-demand task instances.
                         </div>
                     @endforelse
@@ -440,7 +454,8 @@
             <div class="grid gap-6 lg:grid-cols-2">
                 <!-- GROUP 1: DUE DATE TODAY (RED COVER DIV) -->
                 <div class="overflow-hidden rounded-2xl border-2 border-red-400/40 shadow-sm dark:border-red-900/50">
-                    <div class="flex items-center justify-between bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-4 text-white">
+                    <div
+                        class="flex items-center justify-between bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-4 text-white">
                         <div class="flex items-center gap-2.5">
                             <span class="text-xl">??</span>
                             <div>
@@ -448,55 +463,69 @@
                                 <p class="text-xs text-red-100">{{ now()->format('l, M j, Y') }}</p>
                             </div>
                         </div>
-                        <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
+                        <span
+                            class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
                             {{ $onDemandTasksToday->count() }} task(s)
                         </span>
                     </div>
 
                     <div class="space-y-3 bg-red-50/30 p-4 dark:bg-red-950/10">
                         @forelse ($onDemandTasksToday as $task)
-                            <article class="rounded-xl border border-red-200 bg-white p-4 shadow-sm dark:border-red-900/40 dark:bg-slate-800">
+                            <article
+                                class="rounded-xl border border-red-200 bg-white p-4 shadow-sm dark:border-red-900/40 dark:bg-slate-800">
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div class="space-y-1.5">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <p class="font-semibold text-slate-900 dark:text-slate-100">{{ $task->template?->title }}</p>
-                                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                            <p class="font-semibold text-slate-900 dark:text-slate-100">
+                                                {{ $task->template?->title }}</p>
+                                            <span
+                                                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                                                 {{ $task->template?->group?->name ?? 'No KPI Group' }}
                                             </span>
-                                            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                                            <span
+                                                class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-rose-700 dark:bg-rose-950 dark:text-rose-300">
                                                 Instance #{{ $task->id }}
                                             </span>
-                                            <span class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 dark:bg-red-950 dark:text-red-300">
+                                            <span
+                                                class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-red-700 dark:bg-red-950 dark:text-red-300">
                                                 {{ str_replace('_', ' ', $task->period_type) }}
                                             </span>
-                                            <span class="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                                            <span
+                                                class="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:bg-rose-950 dark:text-rose-300">
                                                 TODAY
                                             </span>
                                             @if ($selectedTaskInstance?->id === $task->id)
-                                                <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
+                                                <span
+                                                    class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
                                                     Selected
                                                 </span>
                                             @endif
                                         </div>
-                                        <div class="grid gap-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
-                                            <p>Cutoff: {{ $task->due_at ? $task->due_at->format('H:i') : 'No cutoff' }}</p>
+                                        <div
+                                            class="grid gap-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
+                                            <p>Cutoff: {{ $task->due_at ? $task->due_at->format('H:i') : 'No cutoff' }}
+                                            </p>
                                             <p>Status: {{ str_replace('_', ' ', $task->status) }}</p>
                                             <p>Submissions: {{ $task->submissions_count }}</p>
-                                            <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}</p>
+                                            <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}
+                                            </p>
                                         </div>
                                     </div>
 
                                     <div class="flex w-full flex-col gap-2 lg:w-44">
                                         @if ($this->canDirectSubmitNoEvidence($task))
-                                            <button type="button" wire:click="submitNoEvidence({{ $task->id }})" class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
+                                            <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
+                                                class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
                                         @else
-                                            <button type="button" wire:click="openSubmission({{ $task->id }})" class="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-800">Submit</button>
+                                            <button type="button" wire:click="openSubmission({{ $task->id }})"
+                                                class="inline-flex items-center justify-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-800">Submit</button>
                                         @endif
                                     </div>
                                 </div>
                             </article>
                         @empty
-                            <div class="rounded-xl border border-dashed border-red-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-red-900/40 dark:bg-slate-800/40 dark:text-slate-400">
+                            <div
+                                class="rounded-xl border border-dashed border-red-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-red-900/40 dark:bg-slate-800/40 dark:text-slate-400">
                                 No on-demand task instances due today.
                             </div>
                         @endforelse
@@ -505,7 +534,8 @@
 
                 <!-- GROUP 2: UPCOMING ON-DEMAND (BLUE COVER DIV) -->
                 <div class="overflow-hidden rounded-2xl border border-sky-200 shadow-sm dark:border-sky-900/40">
-                    <div class="flex items-center justify-between bg-gradient-to-r from-sky-600 to-blue-700 p-4 text-white">
+                    <div
+                        class="flex items-center justify-between bg-gradient-to-r from-sky-600 to-blue-700 p-4 text-white">
                         <div class="flex items-center gap-2.5">
                             <span class="text-xl">??</span>
                             <div>
@@ -513,52 +543,65 @@
                                 <p class="text-xs text-sky-100">Scheduled for future dates</p>
                             </div>
                         </div>
-                        <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
+                        <span
+                            class="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
                             {{ $onDemandTasksUpcoming->count() }} task(s)
                         </span>
                     </div>
 
                     <div class="space-y-3 bg-sky-50/30 p-4 dark:bg-sky-950/10">
                         @forelse ($onDemandTasksUpcoming as $task)
-                            <article class="rounded-xl border border-sky-100 bg-white p-4 shadow-sm dark:border-sky-900/40 dark:bg-slate-800">
+                            <article
+                                class="rounded-xl border border-sky-100 bg-white p-4 shadow-sm dark:border-sky-900/40 dark:bg-slate-800">
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div class="space-y-1.5">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <p class="font-semibold text-slate-900 dark:text-slate-100">{{ $task->template?->title }}</p>
-                                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                            <p class="font-semibold text-slate-900 dark:text-slate-100">
+                                                {{ $task->template?->title }}</p>
+                                            <span
+                                                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                                                 {{ $task->template?->group?->name ?? 'No KPI Group' }}
                                             </span>
-                                            <span class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                                            <span
+                                                class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                                                 Instance #{{ $task->id }}
                                             </span>
-                                            <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                                            <span
+                                                class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                                                 {{ str_replace('_', ' ', $task->period_type) }}
                                             </span>
                                             @if ($selectedTaskInstance?->id === $task->id)
-                                                <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
+                                                <span
+                                                    class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700">
                                                     Selected
                                                 </span>
                                             @endif
                                         </div>
-                                        <div class="grid gap-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
-                                            <p>Due: {{ $task->due_at ? $task->due_at->format('Y-m-d H:i') : 'N/A' }}</p>
+                                        <div
+                                            class="grid gap-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
+                                            <p>Due: {{ $task->due_at ? $task->due_at->format('Y-m-d H:i') : 'N/A' }}
+                                            </p>
                                             <p>Status: {{ str_replace('_', ' ', $task->status) }}</p>
                                             <p>Submissions: {{ $task->submissions_count }}</p>
-                                            <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}</p>
+                                            <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}
+                                            </p>
                                         </div>
                                     </div>
 
                                     <div class="flex w-full flex-col gap-2 lg:w-44">
                                         @if ($this->canDirectSubmitNoEvidence($task))
-                                            <button type="button" wire:click="submitNoEvidence({{ $task->id }})" class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
+                                            <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
+                                                class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
                                         @else
-                                            <button type="button" wire:click="openSubmission({{ $task->id }})" class="inline-flex items-center justify-center rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800">Submit</button>
+                                            <button type="button" wire:click="openSubmission({{ $task->id }})"
+                                                class="inline-flex items-center justify-center rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800">Submit</button>
                                         @endif
                                     </div>
                                 </div>
                             </article>
                         @empty
-                            <div class="rounded-xl border border-dashed border-sky-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-sky-900/40 dark:bg-slate-800/40 dark:text-slate-400">
+                            <div
+                                class="rounded-xl border border-dashed border-sky-200 bg-white/60 p-6 text-center text-xs text-slate-500 dark:border-sky-900/40 dark:bg-slate-800/40 dark:text-slate-400">
                                 No upcoming on-demand task instances.
                             </div>
                         @endforelse
@@ -566,7 +609,8 @@
                 </div>
             </div>
         </div>
-    </section>    <section class="space-y-4">
+    </section>
+    <section class="space-y-4">
         <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Daily Tasks</h3>
             <span class="text-sm text-slate-500 dark:text-slate-400">Mobile-first daily list</span>
@@ -829,13 +873,3 @@
 
 
 </div>
-
-
-
-
-
-
-
-
-
-

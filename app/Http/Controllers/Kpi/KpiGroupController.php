@@ -125,12 +125,12 @@ class KpiGroupController extends Controller
             if ($applyGroupScope === 'month_only' && !empty($targetMonth)) {
                 // Keep the global template's kpi_group_id unchanged
                 $validatedForGlobal = $validated;
-                $validatedForGlobal['templateGroupId'] = (string) $template->kpi_group_id;
+                $validatedForGlobal['kpi_group_id'] = (int) $template->kpi_group_id;
 
                 $templateService->updateTemplate($template, $validatedForGlobal);
 
                 // Update task instances for this template for the target month only
-                $newGroupId = (int) $validated['templateGroupId'];
+                $newGroupId = (int) $validated['kpi_group_id'];
                 $monthStart = \Carbon\Carbon::parse($targetMonth . '-01');
                 $monthEnd = $monthStart->copy()->endOfMonth();
 
@@ -144,7 +144,7 @@ class KpiGroupController extends Controller
                 $templateService->updateTemplate($template, $validated);
 
                 // Sync all task instances for this template
-                $newGroupId = (int) $validated['templateGroupId'];
+                $newGroupId = (int) $validated['kpi_group_id'];
                 \App\Models\Kpi\KpiTaskInstance::query()
                     ->where('task_template_id', $template->id)
                     ->update(['kpi_group_id' => $newGroupId]);
