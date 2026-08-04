@@ -155,8 +155,12 @@ class MyTasks extends Component
                     ->orWhere(function ($on_demand) use ($monthStart, $monthEnd) {
                         $on_demand
                             ->where('period_type', 'on_demand')
-                            ->whereDate('period_start', $monthStart->toDateString())
-                            ->whereDate('period_end', $monthEnd->toDateString());
+                            ->where(function ($onDemandDate) use ($monthStart, $monthEnd) {
+                                $onDemandDate
+                                    ->whereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                                    ->orWhereBetween('period_start', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                                    ->orWhereBetween('period_end', [$monthStart->toDateString(), $monthEnd->toDateString()]);
+                            });
                     });
             })
             ->orderBy('due_at')
@@ -982,3 +986,4 @@ class MyTasks extends Component
         return (int) Auth::id();
     }
 }
+
