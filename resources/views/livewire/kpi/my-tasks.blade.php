@@ -82,7 +82,12 @@
                             {{ $selectedTaskInstance->template?->group?->name ?? 'No KPI Group' }}
                         </span>
                     </div>
-                    <p class="text-sm text-slate-600 dark:text-slate-300">
+                    @if ($selectedTaskInstance->todoList?->task)
+                        <p class="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            User request for: {{ $selectedTaskInstance->todoList->task }}
+                        </p>
+                    @endif
+                    <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
                         {{ $selectedTaskInstance->template?->description ?: 'No description' }}</p>
                     <div class="grid gap-2 text-sm text-slate-500 dark:text-slate-400 md:grid-cols-2">
                         <p>Cutoff:

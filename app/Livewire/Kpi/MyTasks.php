@@ -537,6 +537,7 @@ class MyTasks extends Component
                 'assignment.firstApprover',
                 'assignment.finalApprover',
                 'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
+                'todoList',
             ])
             ->where('id', $this->selectedTaskInstanceId)
             ->where('user_id', $this->targetUserId())
