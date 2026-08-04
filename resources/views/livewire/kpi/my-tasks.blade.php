@@ -1,4 +1,4 @@
-<div class="space-y-6">
+ï»¿<div class="space-y-6">
     @if (session()->has('message'))
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             {{ session('message') }}
@@ -440,7 +440,7 @@
                         <div class="flex items-center gap-2.5">
                             <span class="text-xl">??</span>
                             <div>
-                                <h4 class="text-sm font-extrabold uppercase tracking-wider">On-Demand – Due Today</h4>
+                                <h4 class="text-sm font-extrabold uppercase tracking-wider">On-Demand â€“ Due Today</h4>
                                 <p class="text-xs text-red-100">{{ now()->format('l, M j, Y') }}</p>
                             </div>
                         </div>
@@ -505,7 +505,7 @@
                         <div class="flex items-center gap-2.5">
                             <span class="text-xl">??</span>
                             <div>
-                                <h4 class="text-sm font-extrabold uppercase tracking-wider">On-Demand – Upcoming</h4>
+                                <h4 class="text-sm font-extrabold uppercase tracking-wider">On-Demand â€“ Upcoming</h4>
                                 <p class="text-xs text-sky-100">Scheduled for future dates</p>
                             </div>
                         </div>
@@ -825,6 +825,8 @@
 
 
 </div>
+
+
 
 
 
