@@ -47,6 +47,7 @@ class MyTasks extends Component
     // On-Demand Task Instances
     public $onDemandTasksToday;
     public $onDemandTasksUpcoming;
+    public $onDemandTasksTodo;
 
     public function mount(KpiTaskInstanceGenerator $generator): void
     {
@@ -76,6 +77,7 @@ class MyTasks extends Component
         $this->weeklyTasks = collect();
         $this->monthlyTasks = collect();
         $this->overdueTasks = collect();
+        $this->onDemandTasksTodo = collect();
         $this->onDemandTasksToday = collect();
         $this->onDemandTasksUpcoming = collect();
         $this->selectedMonth = now()->format('Y-m');
@@ -217,27 +219,30 @@ class MyTasks extends Component
         $todayStr = now()->toDateString();
 
         $this->onDemandTasksTodo = $instances
-            ->filter(fn(KpiTaskInstance $instance) =>
+            ->filter(
+                fn(KpiTaskInstance $instance) =>
                 $instance->period_type === 'on_demand' &&
-                $instance->due_at &&
-                Carbon::parse($instance->due_at)->lt(now()) &&
-                !Str::startsWith((string) $instance->status, 'waiting_')
+                    $instance->due_at &&
+                    Carbon::parse($instance->due_at)->lt(now()) &&
+                    !Str::startsWith((string) $instance->status, 'waiting_')
             )
             ->values();
 
         $this->onDemandTasksToday = $instances
-            ->filter(fn(KpiTaskInstance $instance) =>
+            ->filter(
+                fn(KpiTaskInstance $instance) =>
                 $instance->period_type === 'on_demand' &&
-                !$instance->due_at &&
-                ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) === $todayStr
+                    !$instance->due_at &&
+                    ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) === $todayStr
             )
             ->values();
 
         $this->onDemandTasksUpcoming = $instances
-            ->filter(fn(KpiTaskInstance $instance) =>
+            ->filter(
+                fn(KpiTaskInstance $instance) =>
                 $instance->period_type === 'on_demand' &&
-                !$instance->due_at &&
-                ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) > $todayStr
+                    !$instance->due_at &&
+                    ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) > $todayStr
             )
             ->values();
     }
@@ -969,8 +974,3 @@ class MyTasks extends Component
         return (int) Auth::id();
     }
 }
-
-
-
-
-
