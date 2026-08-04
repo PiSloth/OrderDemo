@@ -774,6 +774,8 @@ class MyTasks extends Component
                     'is_on_time' => $instance->due_at ? $submittedAt->lte($instance->due_at) : true,
                     'failure_reason' => null,
                 ]);
+
+                $this->createLinkedUserSubmissions($instance, $submission);
             });
         } catch (\Throwable $exception) {
             foreach ($storedPaths as $path) {
@@ -851,6 +853,8 @@ class MyTasks extends Component
                 'is_on_time' => $instance->due_at ? $submittedAt->lte($instance->due_at) : true,
                 'failure_reason' => null,
             ]);
+
+            $this->createLinkedUserSubmissions($instance, $submission);
         });
 
         $this->cancelSubmission();
@@ -864,6 +868,71 @@ class MyTasks extends Component
     protected function isOverdue(KpiTaskInstance $instance): bool
     {
         return $instance->due_at ? Carbon::parse($instance->due_at)->lt(now()) : false;
+    }
+
+    protected function createLinkedUserSubmissions(KpiTaskInstance $mainInstance, KpiTaskSubmission $mainSubmission): void
+    {
+        if ($mainInstance->todo_list_id === null) {
+            return;
+        }
+
+        $mainSubmission->loadMissing('images');
+
+        KpiTaskInstance::query()
+            ->where('todo_list_id', $mainInstance->todo_list_id)
+            ->whereKeyNot($mainInstance->id)
+            ->with('assignment')
+            ->lockForUpdate()
+            ->get()
+            ->each(function (KpiTaskInstance $linkedInstance) use ($mainSubmission): void {
+                if ($this->isFinalized($linkedInstance) || !in_array($linkedInstance->status, ['pending', 'rejected'], true)) {
+                    return;
+                }
+
+                $submittedAt = $mainSubmission->submitted_at;
+                $sequence = (int) $linkedInstance->submissions()->max('sequence') + 1;
+                $linkedSubmission = KpiTaskSubmission::create([
+                    'task_instance_id' => $linkedInstance->id,
+                    'submitted_by_user_id' => $mainSubmission->submitted_by_user_id,
+                    'submitted_at' => $submittedAt,
+                    'is_late' => $linkedInstance->due_at ? $submittedAt->gt($linkedInstance->due_at) : false,
+                    'sequence' => $sequence,
+                    'status' => 'submitted',
+                    'employee_remark' => $mainSubmission->employee_remark,
+                ]);
+
+                foreach ($mainSubmission->images as $image) {
+                    $linkedSubmission->images()->create([
+                        'image_path' => $image->image_path,
+                        'title' => $image->title,
+                        'remark' => $image->remark,
+                        'sort_order' => $image->sort_order,
+                    ]);
+                }
+
+                $linkedSubmission->approvalSteps()->create([
+                    'step_order' => 1,
+                    'approver_user_id' => $linkedInstance->assignment?->first_approver_user_id,
+                    'role_label' => 'First Approver',
+                    'status' => 'pending',
+                ]);
+
+                if ($linkedInstance->assignment?->final_approver_user_id) {
+                    $linkedSubmission->approvalSteps()->create([
+                        'step_order' => 2,
+                        'approver_user_id' => $linkedInstance->assignment->final_approver_user_id,
+                        'role_label' => 'Final Approver',
+                        'status' => 'pending',
+                    ]);
+                }
+
+                $linkedInstance->update([
+                    'submitted_at' => $submittedAt,
+                    'status' => 'waiting_first_approval',
+                    'is_on_time' => $linkedInstance->due_at ? $submittedAt->lte($linkedInstance->due_at) : true,
+                    'failure_reason' => null,
+                ]);
+            });
     }
 
     protected function submissionWindowClosed(KpiTaskInstance $instance): bool
