@@ -37,18 +37,11 @@ class Approvals extends Component
     public array $filterMonths = [];
     public array $filterTemplates = [];
 
-    public $onDemandGroupsToday;
-    public $onDemandGroupsUpcoming;
-    public $availableOnDemandGroups;
-    public string $selectedOnDemandGroupId = '';
 
     public function mount(): void
     {
         $this->pendingSteps = collect();
         $this->recentSteps = collect();
-        $this->onDemandGroupsToday = collect();
-        $this->onDemandGroupsUpcoming = collect();
-        $this->availableOnDemandGroups = collect();
         $this->loadQueue();
     }
 
@@ -91,24 +84,6 @@ class Approvals extends Component
         $this->pendingSteps = $pendingSteps;
         $this->recentSteps = $recentSteps;
 
-        // Load On-Demand Task Groups / Templates
-        $this->availableOnDemandGroups = \App\Models\Kpi\KpiDependencyGroup::query()
-            ->with(['template', 'members.user'])
-            ->where('is_active', true)
-            ->where('frequency', 'on_demand')
-            ->orderBy('name')
-            ->get();
-
-        // Load On-Demand Runs
-        $allOnDemandRuns = \App\Models\Kpi\KpiDependencyGroupRun::query()
-            ->with(['group.template', 'members.user', 'submission.images', 'approvalSteps.approver'])
-            ->whereHas('group', fn($q) => $q->where('frequency', 'on_demand'))
-            ->orderByDesc('run_date')
-            ->get();
-
-        $this->onDemandGroupsToday = $allOnDemandRuns->filter(fn($run) => $run->run_date?->toDateString() === $todayStr || $run->run_date === $todayStr)->values();
-        $this->onDemandGroupsUpcoming = $allOnDemandRuns->filter(fn($run) => $run->run_date && ($run->run_date?->toDateString() > $todayStr || $run->run_date > $todayStr))->values();
-
         $this->filterEmployees = $pendingSteps->map(function ($step) {
             $user = $step->submission?->instance?->user;
             return $user ? ['id' => $user->id, 'name' => $user->name] : null;
@@ -135,7 +110,7 @@ class Approvals extends Component
             ],
             [
                 'label' => 'Today On-Demand',
-                'value' => $pendingSteps->filter(fn($s) => $s->is_today_on_demand)->count() + $this->onDemandGroupsToday->count(),
+                'value' => $pendingSteps->filter(fn($s) => $s->is_today_on_demand)->count(),
             ],
             [
                 'label' => 'Total Pending',
@@ -149,57 +124,6 @@ class Approvals extends Component
         ) {
             $this->cancelDecision();
         }
-    }
-
-    public function submitOnDemandGroup(): void
-    {
-        if (!$this->selectedOnDemandGroupId) {
-            throw ValidationException::withMessages([
-                'selectedOnDemandGroupId' => 'Please select an On-Demand Task Group.',
-            ]);
-        }
-
-        $group = \App\Models\Kpi\KpiDependencyGroup::query()
-            ->with(['members' => fn($query) => $query->where('is_active', true)])
-            ->findOrFail((int) $this->selectedOnDemandGroupId);
-
-        $runDate = now()->toDateString();
-
-        $run = \App\Models\Kpi\KpiDependencyGroupRun::query()->firstOrCreate(
-            [
-                'dependency_group_id' => $group->id,
-                'period_type' => 'on_demand',
-                'run_date' => $runDate,
-            ],
-            [
-                'period_start' => $runDate,
-                'period_end' => $runDate,
-                'status' => 'pending_submission',
-                'initiated_by_user_id' => Auth::id(),
-                'required_member_count' => $group->members->where('is_required', true)->count(),
-                'confirmed_member_count' => 0,
-            ]
-        );
-
-        foreach ($group->members as $member) {
-            \App\Models\Kpi\KpiDependencyGroupRunMember::query()->firstOrCreate(
-                [
-                    'dependency_group_run_id' => $run->id,
-                    'task_assignment_id' => $member->task_assignment_id,
-                    'user_id' => $member->user_id,
-                ],
-                [
-                    'member_status' => 'pending',
-                    'role_type' => $member->user_id === Auth::id() ? 'uploader' : 'associate',
-                    'is_required' => (bool) $member->is_required,
-                ]
-            );
-        }
-
-        $this->selectedOnDemandGroupId = '';
-        $this->loadQueue();
-
-        session()->flash('message', "On-Demand Task Group '{$group->name}' initiated & submitted for today.");
     }
 
     public function getFilteredStepsProperty()
