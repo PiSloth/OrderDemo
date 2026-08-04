@@ -176,7 +176,10 @@ class MyTasks extends Component
             ->values();
 
         $this->overdueTasks = $instances
-            ->filter(fn(KpiTaskInstance $instance) => $isOpen($instance) && $instance->due_at && Carbon::parse($instance->due_at)->lt(now()))
+            ->filter(fn(KpiTaskInstance $instance) => $isOpen($instance)
+                && $instance->due_at
+                && Carbon::parse($instance->due_at)->lt(now())
+                && !Str::startsWith((string) $instance->status, "waiting_"))
             ->values();
 
         $this->summaryCards = [
@@ -213,9 +216,19 @@ class MyTasks extends Component
 
         $todayStr = now()->toDateString();
 
+        $this->onDemandTasksTodo = $instances
+            ->filter(fn(KpiTaskInstance $instance) =>
+                $instance->period_type === 'on_demand' &&
+                $instance->due_at &&
+                Carbon::parse($instance->due_at)->lt(now()) &&
+                !Str::startsWith((string) $instance->status, 'waiting_')
+            )
+            ->values();
+
         $this->onDemandTasksToday = $instances
             ->filter(fn(KpiTaskInstance $instance) =>
                 $instance->period_type === 'on_demand' &&
+                !$instance->due_at &&
                 ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) === $todayStr
             )
             ->values();
@@ -223,6 +236,7 @@ class MyTasks extends Component
         $this->onDemandTasksUpcoming = $instances
             ->filter(fn(KpiTaskInstance $instance) =>
                 $instance->period_type === 'on_demand' &&
+                !$instance->due_at &&
                 ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) > $todayStr
             )
             ->values();
@@ -955,3 +969,5 @@ class MyTasks extends Component
         return (int) Auth::id();
     }
 }
+
+
