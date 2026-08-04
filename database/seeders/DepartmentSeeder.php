@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Department;
+use App\Models\Location;
 use Illuminate\Database\Seeder;
 
 class DepartmentSeeder extends Seeder
@@ -22,6 +23,9 @@ class DepartmentSeeder extends Seeder
             'Customer Service',
             'Management',
         ];
+
+
+        Location::create(['name' => 'Head Office']);
 
         // Get the first location as default
         $defaultLocationId = \App\Models\Location::first()->id ?? 1;

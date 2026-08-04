@@ -27,6 +27,8 @@ class MyTasks extends Component
     public $weeklyTasks;
     public $monthlyTasks;
     public $overdueTasks;
+    public $activeTasks;
+    public $modalTitle;
 
     public array $summaryCards = [];
     public ?int $selectedTaskInstanceId = null;
@@ -83,6 +85,29 @@ class MyTasks extends Component
         $this->selectedMonth = now()->format('Y-m');
 
         $this->loadTasks();
+    }
+
+    public function selectedTask($task)
+    {
+        if ($task == "todayTasks") {
+            $this->activeTasks = $this->todayTasks;
+            $this->modalTitle = 'Today\'s Tasks';
+        } elseif ($task == "weeklyTasks") {
+            $this->activeTasks = $this->weeklyTasks;
+            $this->modalTitle = 'Weekly Tasks';
+        } elseif ($task == "monthlyTasks") {
+            $this->activeTasks = $this->monthlyTasks;
+            $this->modalTitle = 'Monthly Tasks';
+        } elseif ($task == "onDemandTasksToday") {
+            $this->activeTasks = $this->onDemandTasksToday;
+            $this->modalTitle = 'On-Demand Tasks Today';
+        } elseif ($task == "onDemandTasksUpcoming") {
+            $this->activeTasks = $this->onDemandTasksUpcoming;
+            $this->modalTitle = 'On-Demand Tasks Upcoming';
+        } elseif ($task == "onDemandTasksTodo") {
+            $this->activeTasks = $this->onDemandTasksTodo;
+            $this->modalTitle = 'On-Demand Tasks Todo';
+        }
     }
 
     public function updatedSelectedUserId($value): void
@@ -192,24 +217,39 @@ class MyTasks extends Component
             [
                 'label' => 'Today Tasks',
                 'value' => $this->todayTasks->count(),
-                'modalTarget' => 'dailyTaskModal',
+                'target' => 'todayTasks',
             ],
             [
-                'label' => 'Open Weekly',
+                'label' => 'Weekly',
                 'value' => $this->weeklyTasks->count(),
-                'modalTarget' => 'weeklyTaskModal',
+                'target' => 'weeklyTasks',
             ],
             [
-                'label' => 'Open Monthly',
+                'label' => 'Monthly',
                 'value' => $this->monthlyTasks->count(),
-                'modalTarget' => 'monthlyTaskModal',
+                'target' => 'monthlyTasks',
             ],
             [
-                'label' => 'Overdue',
-                'value' => $this->overdueTasks->count(),
-                'modalTarget' => '',
-
+                'label' => 'Argent Today',
+                'value' => $this->onDemandTasksToday->count(),
+                'target' => 'onDemandTasksToday',
             ],
+            [
+                'label' => 'Upcoming',
+                'value' => $this->onDemandTasksUpcoming->count(),
+                'target' => 'onDemandTasksUpcoming',
+            ],
+            [
+                'label' => 'To-Do',
+                'value' => $this->onDemandTasksTodo->count(),
+                'target' => 'onDemandTasksTodo',
+            ],
+            // [
+            //     'label' => 'Overdue',
+            //     'value' => $this->overdueTasks->count(),
+            //     'modalTarget' => '',
+
+            // ],
         ];
 
         if ($this->selectedTaskInstanceId) {

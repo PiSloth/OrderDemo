@@ -5,13 +5,8 @@
         </div>
     @endif
 
-    <section class="rounded-3xl bg-slate-900 px-6 py-7 text-white">
+    <section class="rounded-3xl bg-black px-6 py-7 text-white">
         <p class="text-sm uppercase tracking-[0.25em] text-slate-300">My Tasks</p>
-        <h2 class="mt-2 text-3xl font-semibold">Submit daily KPI tasks from your phone.</h2>
-        <p class="mt-3 max-w-3xl text-sm text-slate-200">
-            Use your camera or local gallery, add the required photo titles and remarks, then send the task into
-            approval.
-        </p>
         <div class="mt-5 max-w-xs">
             <label for="selected-kpi-month"
                 class="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-300">
@@ -47,19 +42,39 @@
         @endif
     </section>
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {{-- @dd($summaryCards) --}}
+    {{-- top summary list --}}
+    <div class="grid gap-2 sm:grid-cols-4 xl:grid-cols-4">
         @foreach ($summaryCards as $card)
-            <article @click="$openModal('{{ $card['modalTarget'] }}')"
-                style="cursor: {{ $card['modalTarget'] ? 'pointer' : 'default' }}"
-                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <p class="text-sm text-slate-500 dark:text-slate-400">{{ $card['label'] }}</p>
-                <p class="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">{{ $card['value'] }}</p>
-                <span>{{ $card['modalTarget'] }}</span>
-            </article>
-        @endforeach
-    </section>
+            @if ($card['value'] > 0)
+                <article @click="$openModal('taskModal')" wire:click.prevent="selectedTask('{{ $card['target'] }}')"
+                    wire:click.prevent="selectedTask('{{ $card['target'] }}')"
+                    style="cursor: {{ $card['target'] ? 'pointer' : 'default' }}"
+                    class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-md shadow-slate-100 transition-all hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+                    <!-- Left: Icon & Label -->
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 001-2h2a2 2 0 001 2m-6 9l2 2 4-4" />
+                            </svg>
+                        </div>
+                        <span
+                            class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $card['label'] }}</span>
+                    </div>
 
+                    <!-- Right: Count Badge -->
+                    <span
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-sm font-bold text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                        {{ $card['value'] }}
+                    </span>
+                </article>
+            @endif
+        @endforeach
+    </div>
+
+    {{-- When have selected task instance --}}
     @if ($selectedTaskInstance)
         <section class="rounded-3xl border border-sky-200 bg-white p-5 shadow-sm dark:border-sky-900 dark:bg-slate-900">
             @if (!$this->canModifyViewedTasks())
@@ -365,6 +380,7 @@
             </form>
         </section>
     @endif
+
     <!-- ON-DEMAND TASK INSTANCES (TODO, DUE TODAY & UPCOMING) -->
     <section class="space-y-0">
         <div class="mb-4 flex items-center justify-between">
@@ -433,7 +449,8 @@
 
                                 <div class="flex w-full flex-col gap-2 lg:w-44">
                                     @if ($task->status === 'passed')
-                                        <span class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                        <span
+                                            class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
                                     @elseif ($this->canDirectSubmitNoEvidence($task))
                                         <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                             class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
@@ -516,7 +533,8 @@
 
                                     <div class="flex w-full flex-col gap-2 lg:w-44">
                                         @if ($task->status === 'passed')
-                                            <span class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                            <span
+                                                class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
                                         @elseif ($this->canDirectSubmitNoEvidence($task))
                                             <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
@@ -594,7 +612,8 @@
 
                                     <div class="flex w-full flex-col gap-2 lg:w-44">
                                         @if ($task->status === 'passed')
-                                            <span class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                            <span
+                                                class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
                                         @elseif ($this->canDirectSubmitNoEvidence($task))
                                             <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
@@ -622,6 +641,9 @@
             <span class="text-sm text-slate-500 dark:text-slate-400">Mobile-first daily list</span>
         </div>
 
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-2">
         <x-modal wire:model="dailyTaskModal">
             <x-card title="Daily Task">
                 <div>
@@ -726,9 +748,7 @@
             </x-slot> --}}
             </x-card>
         </x-modal>
-    </section>
 
-    <section class="grid gap-6 lg:grid-cols-2">
         <x-modal wire:model="weeklyTaskModal">
             <x-card title="Weekly Task">
                 <div>
@@ -773,7 +793,6 @@
             </x-slot> --}}
             </x-card>
         </x-modal>
-
 
         <x-modal wire:model="monthlyTaskModal">
             <x-card title="Monthly Task">
@@ -823,6 +842,131 @@
             </x-card>
         </x-modal>
     </section>
+
+    <x-modal wire:model="taskModal">
+        <x-card :title="$modalTitle">
+            <div class="space-y-4">
+                @if (!$activeTasks)
+                    <div
+                        class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                        No active task instances for selected month.
+                    </div>
+                @else
+                    @forelse ($activeTasks as $task)
+                        <article
+                            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+
+                                <!-- Left Details Column -->
+                                <div class="space-y-2">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <p class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                                            {{ $task->template?->title }}
+                                            @if ($task->period_index > 1)
+                                                <span class="text-sm text-slate-500">(Slot
+                                                    {{ $task->period_index }})</span>
+                                            @endif
+                                        </p>
+
+                                        @if ($task->template?->group?->name)
+                                            <span
+                                                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                {{ $task->template->group->name }}
+                                            </span>
+                                        @endif
+
+                                        @if ($selectedTaskInstance?->id === $task->id)
+                                            <span
+                                                class="rounded-full bg-sky-100 px-2 py-0.5 text-xs uppercase tracking-[0.15em] text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                                                Selected
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    @if ($task->template?->description)
+                                        <p class="text-sm text-slate-600 dark:text-slate-300">
+                                            {{ $task->template->description }}
+                                        </p>
+                                    @endif
+
+                                    <div class="grid gap-2 text-sm text-slate-500 dark:text-slate-400 md:grid-cols-2">
+                                        <p>Due/Cutoff:
+                                            {{ $task->due_at ? $task->due_at->format('Y-m-d H:i') : 'N/A' }}
+                                        </p>
+                                        <p>Status: <span
+                                                class="capitalize">{{ str_replace('_', ' ', $task->status) }}</span>
+                                        </p>
+                                        <p>Submissions: {{ $task->submissions_count ?? 0 }}</p>
+                                        <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}</p>
+                                    </div>
+
+                                    <!-- Context Messages & Warnings -->
+                                    @if ($task->submissions->isNotEmpty() && $task->status === 'rejected')
+                                        <div
+                                            class="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+                                            Last rejection:
+                                            {{ $task->submissions->first()?->rejection_reason ?: 'No reason provided.' }}
+                                        </div>
+                                    @endif
+
+                                    @if ($task->template?->requires_table)
+                                        <div
+                                            class="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                                            This task needs custom table evidence. Table submission is not built yet.
+                                        </div>
+                                    @elseif (!$task->template?->requires_images)
+                                        <div
+                                            class="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300">
+                                            No evidence is required. You can submit directly.
+                                        </div>
+                                    @endif
+
+                                    @if (
+                                        !$this->canSubmit($task) &&
+                                            !$this->isFinalized($task) &&
+                                            !$task->template?->requires_table &&
+                                            $task->template?->requires_images)
+                                        <div
+                                            class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                            Submission window ends at {{ $this->submissionWindowLabel($task) }}.
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <!-- Right Actions Column -->
+                                <div class="flex w-full flex-col gap-3 lg:w-56">
+                                    @if ($this->canDirectSubmitNoEvidence($task))
+                                        <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
+                                            x-on:click="close"
+                                            class="inline-flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800">
+                                            Submit (No Evidence)
+                                        </button>
+                                    @elseif ($this->canSubmit($task))
+                                        <button type="button" wire:click="openSubmission({{ $task->id }})"
+                                            x-on:click="close"
+                                            class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200">
+                                            {{ $selectedTaskInstance?->id === $task->id ? 'Editing Submission' : 'Submit Task' }}
+                                        </button>
+                                    @else
+                                        <div
+                                            class="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300 capitalize">
+                                            {{ str_replace('_', ' ', $task->status) }}
+                                        </div>
+                                    @endif
+                                </div>
+
+                            </div>
+                        </article>
+                    @empty
+                        <div
+                            class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                            No open {{ 0 }} tasks available.
+                        </div>
+                    @endforelse
+                @endif
+            </div>
+        </x-card>
+    </x-modal>
 
     @if ($overdueTasks->isNotEmpty())
         <section class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
