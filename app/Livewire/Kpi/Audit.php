@@ -110,13 +110,21 @@ class Audit extends Component
             $now = now();
             $status = $validated['auditInstanceStatus'];
             $reason = trim((string) $validated['auditInstanceReason']);
-
-            $taskInstance->update([
+            $updateData = [
                 'status' => $status,
                 'final_outcome' => in_array($status, ['passed', 'failed_late', 'failed_missed', 'excluded'], true) ? $status : null,
                 'finalized_at' => in_array($status, ['passed', 'failed_late', 'failed_missed', 'excluded'], true) ? $now : null,
                 'failure_reason' => $reason,
-            ]);
+            ];
+
+            if ($taskInstance->todo_list_id !== null) {
+                KpiTaskInstance::query()
+                    ->where('todo_list_id', $taskInstance->todo_list_id)
+                    ->lockForUpdate()
+                    ->update($updateData);
+            } else {
+                $taskInstance->update($updateData);
+            }
         });
 
         if ($submission) {
