@@ -394,7 +394,7 @@
                 <div class="space-y-3 bg-amber-50/30 p-4 dark:bg-amber-950/10">
                     @forelse ($onDemandTasksTodo as $task)
                         <article
-                            class="rounded-xl border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-900/40 dark:bg-slate-800">
+                            class="rounded-xl border {{ $task->status === 'passed' ? 'border-emerald-200 dark:border-emerald-900/40' : 'border-amber-200 dark:border-amber-900/40' }} bg-white p-4 shadow-sm dark:bg-slate-800">
                             <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                 <div class="space-y-1.5">
                                     <div class="flex flex-wrap items-center gap-2">
@@ -432,7 +432,9 @@
                                 </div>
 
                                 <div class="flex w-full flex-col gap-2 lg:w-44">
-                                    @if ($this->canDirectSubmitNoEvidence($task))
+                                    @if ($task->status === 'passed')
+                                        <span class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                    @elseif ($this->canDirectSubmitNoEvidence($task))
                                         <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                             class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
                                     @else
@@ -472,7 +474,7 @@
                     <div class="space-y-3 bg-red-50/30 p-4 dark:bg-red-950/10">
                         @forelse ($onDemandTasksToday as $task)
                             <article
-                                class="rounded-xl border border-red-200 bg-white p-4 shadow-sm dark:border-red-900/40 dark:bg-slate-800">
+                                class="rounded-xl border {{ $task->status === 'passed' ? 'border-emerald-200 dark:border-emerald-900/40' : 'border-red-200 dark:border-red-900/40' }} bg-white p-4 shadow-sm dark:bg-slate-800">
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div class="space-y-1.5">
                                         <div class="flex flex-wrap items-center gap-2">
@@ -513,7 +515,9 @@
                                     </div>
 
                                     <div class="flex w-full flex-col gap-2 lg:w-44">
-                                        @if ($this->canDirectSubmitNoEvidence($task))
+                                        @if ($task->status === 'passed')
+                                            <span class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                        @elseif ($this->canDirectSubmitNoEvidence($task))
                                             <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
                                         @else
@@ -552,7 +556,7 @@
                     <div class="space-y-3 bg-sky-50/30 p-4 dark:bg-sky-950/10">
                         @forelse ($onDemandTasksUpcoming as $task)
                             <article
-                                class="rounded-xl border border-sky-100 bg-white p-4 shadow-sm dark:border-sky-900/40 dark:bg-slate-800">
+                                class="rounded-xl border {{ $task->status === 'passed' ? 'border-emerald-200 dark:border-emerald-900/40' : 'border-sky-100 dark:border-sky-900/40' }} bg-white p-4 shadow-sm dark:bg-slate-800">
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div class="space-y-1.5">
                                         <div class="flex flex-wrap items-center gap-2">
@@ -589,7 +593,9 @@
                                     </div>
 
                                     <div class="flex w-full flex-col gap-2 lg:w-44">
-                                        @if ($this->canDirectSubmitNoEvidence($task))
+                                        @if ($task->status === 'passed')
+                                            <span class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                        @elseif ($this->canDirectSubmitNoEvidence($task))
                                             <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
                                         @else

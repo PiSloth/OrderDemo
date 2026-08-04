@@ -268,7 +268,7 @@ class MyTasks extends Component
         }
 
         $instance = $this->findOwnedInstance($taskInstanceId);
-        $this->ensureSubmissionAllowed($instance);
+        $this->ensureSubmissionAllowedWithMode($instance, $this->isOnDemandInstance($instance));
 
         $this->selectedTaskInstanceId = $instance->id;
         $this->cameraPhoto = null;
@@ -632,8 +632,14 @@ class MyTasks extends Component
 
         $instance = $this->findOwnedInstance($instance->id);
 
+        $allowClosedWindow = $allowClosedWindow || $this->isOnDemandInstance($instance);
+
         if ($allowClosedWindow) {
-            $this->ensureOverdueResubmissionAllowed($instance);
+            if ($this->isOnDemandInstance($instance) && !$this->isSuperAdmin) {
+                $this->ensureSubmissionAllowedWithMode($instance, true);
+            } else {
+                $this->ensureOverdueResubmissionAllowed($instance);
+            }
         } else {
             $this->ensureSubmissionAllowed($instance);
         }
@@ -797,8 +803,14 @@ class MyTasks extends Component
     {
         $instance = $this->findOwnedInstance($taskInstanceId);
 
+        $allowClosedWindow = $allowClosedWindow || $this->isOnDemandInstance($instance);
+
         if ($allowClosedWindow) {
-            $this->ensureOverdueResubmissionAllowed($instance);
+            if ($this->isOnDemandInstance($instance) && !$this->isSuperAdmin) {
+                $this->ensureSubmissionAllowedWithMode($instance, true);
+            } else {
+                $this->ensureOverdueResubmissionAllowed($instance);
+            }
         } else {
             $this->ensureSubmissionAllowed($instance);
         }
@@ -868,6 +880,11 @@ class MyTasks extends Component
     protected function isOverdue(KpiTaskInstance $instance): bool
     {
         return $instance->due_at ? Carbon::parse($instance->due_at)->lt(now()) : false;
+    }
+
+    protected function isOnDemandInstance(KpiTaskInstance $instance): bool
+    {
+        return in_array($instance->period_type, ['on_demand', 'todo_on_demand'], true);
     }
 
     protected function createLinkedUserSubmissions(KpiTaskInstance $mainInstance, KpiTaskSubmission $mainSubmission): void
