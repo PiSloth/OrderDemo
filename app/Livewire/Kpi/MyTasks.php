@@ -42,6 +42,7 @@ class MyTasks extends Component
     public ?int $selectedUserId = null;
     public bool $isSuperAdmin = false;
     public bool $isResubmissionMode = false;
+    public bool $showSubmissionModal = false;
     public array $employeeOptions = [];
 
     // On-Demand Task Instances
@@ -280,6 +281,7 @@ class MyTasks extends Component
         $this->submissionPhotoRemarks = [];
         $this->submissionEmployeeRemark = '';
         $this->isResubmissionMode = false;
+        $this->showSubmissionModal = true;
         $this->resetErrorBag();
     }
 
@@ -304,6 +306,7 @@ class MyTasks extends Component
         $this->submissionPhotoRemarks = [];
         $this->submissionEmployeeRemark = '';
         $this->isResubmissionMode = true;
+        $this->showSubmissionModal = true;
         $this->resetErrorBag();
     }
 
@@ -319,6 +322,7 @@ class MyTasks extends Component
         $this->submissionPhotoRemarks = [];
         $this->submissionEmployeeRemark = '';
         $this->isResubmissionMode = false;
+        $this->showSubmissionModal = false;
         $this->resetErrorBag();
     }
 
