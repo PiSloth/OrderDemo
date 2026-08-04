@@ -216,7 +216,9 @@ class MyTasks extends Component
             }
         }
 
-        $todayStr = now()->toDateString();
+        $todayStart = now()->copy()->startOfDay();
+        $todayEnd = now()->copy()->endOfDay();
+        $todayStr = $todayStart->toDateString();
 
         $this->onDemandTasksTodo = $instances
             ->filter(
@@ -232,8 +234,11 @@ class MyTasks extends Component
             ->filter(
                 fn(KpiTaskInstance $instance) =>
                 $instance->period_type === 'on_demand' &&
-                    !$instance->due_at &&
-                    ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) === $todayStr
+                    !Str::startsWith((string) $instance->status, 'waiting_') &&
+                    (
+                        ($instance->due_at && Carbon::parse($instance->due_at)->betweenIncluded($todayStart, $todayEnd)) ||
+                        (!$instance->due_at && ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) === $todayStr)
+                    )
             )
             ->values();
 
@@ -241,8 +246,11 @@ class MyTasks extends Component
             ->filter(
                 fn(KpiTaskInstance $instance) =>
                 $instance->period_type === 'on_demand' &&
-                    !$instance->due_at &&
-                    ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) > $todayStr
+                    !Str::startsWith((string) $instance->status, 'waiting_') &&
+                    (
+                        ($instance->due_at && Carbon::parse($instance->due_at)->gt($todayEnd)) ||
+                        (!$instance->due_at && ($instance->task_date?->toDateString() ?? $instance->period_start?->toDateString()) > $todayStr)
+                    )
             )
             ->values();
     }
