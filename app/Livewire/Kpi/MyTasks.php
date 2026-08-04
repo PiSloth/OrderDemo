@@ -154,7 +154,7 @@ class MyTasks extends Component
                     })
                     ->orWhere(function ($on_demand) use ($monthStart, $monthEnd) {
                         $on_demand
-                            ->where('period_type', 'on_demand')
+                            ->whereIn('period_type', ['on_demand', 'todo_on_demand'])
                             ->where(function ($onDemandDate) use ($monthStart, $monthEnd) {
                                 $onDemandDate
                                     ->whereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
@@ -227,7 +227,7 @@ class MyTasks extends Component
         $this->onDemandTasksTodo = $instances
             ->filter(
                 fn(KpiTaskInstance $instance) =>
-                $instance->period_type === 'on_demand' &&
+                in_array($instance->period_type, ['on_demand', 'todo_on_demand'], true) &&
                     $instance->due_at &&
                     Carbon::parse($instance->due_at)->lt(now()) &&
                     !Str::startsWith((string) $instance->status, 'waiting_')
@@ -237,7 +237,7 @@ class MyTasks extends Component
         $this->onDemandTasksToday = $instances
             ->filter(
                 fn(KpiTaskInstance $instance) =>
-                $instance->period_type === 'on_demand' &&
+                in_array($instance->period_type, ['on_demand', 'todo_on_demand'], true) &&
                     !Str::startsWith((string) $instance->status, 'waiting_') &&
                     (
                         ($instance->due_at && Carbon::parse($instance->due_at)->betweenIncluded($todayStart, $todayEnd)) ||
@@ -249,7 +249,7 @@ class MyTasks extends Component
         $this->onDemandTasksUpcoming = $instances
             ->filter(
                 fn(KpiTaskInstance $instance) =>
-                $instance->period_type === 'on_demand' &&
+                in_array($instance->period_type, ['on_demand', 'todo_on_demand'], true) &&
                     !Str::startsWith((string) $instance->status, 'waiting_') &&
                     (
                         ($instance->due_at && Carbon::parse($instance->due_at)->gt($todayEnd)) ||
@@ -986,4 +986,3 @@ class MyTasks extends Component
         return (int) Auth::id();
     }
 }
-
