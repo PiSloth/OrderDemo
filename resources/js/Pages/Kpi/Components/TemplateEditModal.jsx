@@ -28,6 +28,7 @@ export default function TemplateEditModal({
         templateMaxFailCount: '0',
         templateMaxCostAmount: '0',
         inactivateForMonth: false,
+        deactivateAssignment: false,
         applyGroupScope: 'all', // 'all' | 'month_only'
     });
 
@@ -55,6 +56,7 @@ export default function TemplateEditModal({
                 templateMaxFailCount: template.rule?.max_fail_count !== null && template.rule?.max_fail_count !== undefined ? String(template.rule.max_fail_count) : '0',
                 templateMaxCostAmount: template.rule?.max_cost_amount !== null && template.rule?.max_cost_amount !== undefined ? String(template.rule.max_cost_amount) : '0',
                 inactivateForMonth: Boolean(assignment?.ends_on && selectedMonth && new Date(assignment.ends_on) < new Date(selectedMonth + '-01')),
+                deactivateAssignment: false,
                 applyGroupScope: 'all',
             });
             setErrors({});
@@ -89,6 +91,7 @@ export default function TemplateEditModal({
             templateMaxFailCount: formData.templateMaxFailCount,
             templateMaxCostAmount: formData.templateMaxCostAmount,
             taskAssignmentId: assignment?.id || null,
+            deactivateAssignment: formData.deactivateAssignment,
             inactivateForMonth: formData.inactivateForMonth,
             inactivateMonth: selectedMonth || null,
             applyGroupScope: formData.applyGroupScope,
@@ -441,6 +444,23 @@ export default function TemplateEditModal({
                                     className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                                 />
                             </label>
+
+                            {assignment && (
+                                <div className="border-t border-slate-200 dark:border-slate-700/60 pt-3">
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.deactivateAssignment}
+                                            onChange={(e) => setFormData({ ...formData, deactivateAssignment: e.target.checked })}
+                                            className="w-4 h-4 text-rose-600 rounded focus:ring-rose-500"
+                                        />
+                                        Deactivate this template assignment for the selected employee only
+                                    </label>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                                        This will unassign the selected employee from the template without deactivating the template globally.
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="border-t border-slate-200 dark:border-slate-700/60 pt-3">
                                 <label className="flex items-center justify-between cursor-pointer">

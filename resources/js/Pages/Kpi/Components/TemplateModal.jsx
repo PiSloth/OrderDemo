@@ -20,6 +20,8 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
         templateTargetPercentage: '',
         templateMaxFailCount: '',
         templateMaxCostAmount: '',
+        taskAssignmentId: '',
+        deactivateAssignment: false,
     });
 
     useEffect(() => {
@@ -52,6 +54,8 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
                     templateTargetPercentage: editingTemplate.rule?.target_percentage !== null ? String(editingTemplate.rule.target_percentage) : '',
                     templateMaxFailCount: editingTemplate.rule?.max_fail_count !== null ? String(editingTemplate.rule.max_fail_count) : '',
                     templateMaxCostAmount: editingTemplate.rule?.max_cost_amount !== null ? String(editingTemplate.rule.max_cost_amount) : '',
+                    taskAssignmentId: '',
+                    deactivateAssignment: false,
                 });
             } else {
                 reset();
@@ -130,29 +134,77 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                     {/* Active Status Toggle Button */}
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/40 flex items-center justify-between">
-                        <div>
-                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                                Template Status
-                            </h4>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                {data.templateIsActive
-                                    ? 'Template is currently ACTIVE across the system.'
-                                    : 'Template is INACTIVE (disabled).'}
-                            </p>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/40 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                                    Template Status
+                                </h4>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    {data.templateIsActive
+                                        ? 'Template is currently ACTIVE across the system.'
+                                        : 'Template is INACTIVE (disabled).'}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setData('templateIsActive', !data.templateIsActive)}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border shadow-sm ${
+                                    data.templateIsActive
+                                        ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                                        : 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
+                                }`}
+                            >
+                                <span>{data.templateIsActive ? '✓ Active' : '✕ Inactive'}</span>
+                                <span className="text-[10px] opacity-80 underline">(Click to Toggle)</span>
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setData('templateIsActive', !data.templateIsActive)}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border shadow-sm ${
-                                data.templateIsActive
-                                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                                    : 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
-                            }`}
-                        >
-                            <span>{data.templateIsActive ? '✓ Active' : '✕ Inactive'}</span>
-                            <span className="text-[10px] opacity-80 underline">(Click to Toggle)</span>
-                        </button>
+
+                        {editingTemplate?.task_assignments?.length > 0 ? (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/80">
+                                <div className="text-xs font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-200 mb-3">
+                                    Deactivate for specific employee
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                            Assigned employee
+                                        </label>
+                                        <select
+                                            value={data.taskAssignmentId}
+                                            onChange={(e) => setData('taskAssignmentId', e.target.value)}
+                                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                        >
+                                            <option value="">Select an assigned employee</option>
+                                            {editingTemplate.task_assignments.map((assignment) => (
+                                                <option key={assignment.id} value={assignment.id}>
+                                                    {assignment.user?.name || 'Unknown user'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.deactivateAssignment}
+                                            onChange={(e) => setData('deactivateAssignment', e.target.checked)}
+                                            disabled={!data.taskAssignmentId}
+                                            className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 dark:border-slate-600"
+                                        />
+                                        Deactivate this template assignment for the selected employee
+                                    </label>
+
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        This will unassign the selected employee from the task template without deactivating the template globally.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
+                                No active template assignments are available to unassign.
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">

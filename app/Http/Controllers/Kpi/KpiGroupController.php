@@ -153,7 +153,9 @@ class KpiGroupController extends Controller
             if ($request->filled('taskAssignmentId')) {
                 $assignment = \App\Models\Kpi\KpiTaskAssignment::find($request->input('taskAssignmentId'));
                 if ($assignment) {
-                    if ($request->boolean('inactivateForMonth') && $request->filled('inactivateMonth')) {
+                    if ($request->boolean('deactivateAssignment')) {
+                        $assignment->update(['is_active' => false]);
+                    } elseif ($request->boolean('inactivateForMonth') && $request->filled('inactivateMonth')) {
                         // Set assignment ends_on to end of previous month
                         $monthStart = \Carbon\Carbon::parse($request->input('inactivateMonth') . '-01');
                         $assignment->update([
