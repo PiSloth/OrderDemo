@@ -58,9 +58,8 @@ function EvidenceImage({ src, alt, onClick }) {
                 decoding="async"
                 onLoad={handleLoad}
                 onError={handleError}
-                className={`w-full h-full object-cover group-hover:scale-105 transition duration-200 ${
-                    status === 'loaded' ? 'opacity-100' : 'opacity-0'
-                }`}
+                className={`w-full h-full object-cover group-hover:scale-105 transition duration-200 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'
+                    }`}
             />
 
             {/* Hover overlay */}
@@ -99,12 +98,13 @@ export default function AuditDetailModal({
     const latestSubmission = instance.latest_submission || null;
     const images = latestSubmission?.images || [];
     const approvalSteps = latestSubmission?.approval_steps || [];
+    const todoTaskText = instance.todo_list?.task || null;
 
     // Find the pending step this user needs to act on
     const myPendingStep = canApproveTasks
         ? approvalSteps.find(
-              (s) => s.status === 'pending' && String(s.approver_user_id) === String(authUserId)
-          )
+            (s) => s.status === 'pending' && String(s.approver_user_id) === String(authUserId)
+        )
         : null;
 
     const isWaitingApproval = ['waiting_first_approval', 'waiting_final_approval'].includes(instance.status);
@@ -211,17 +211,17 @@ export default function AuditDetailModal({
                     {/* ── Status type filter pills ── */}
                     {Object.keys(markerTypeCounts).length > 0 && (() => {
                         const typeMeta = {
-                            pending:  { label: 'Needs Approval', color: 'amber',   icon: '•' },
-                            approved: { label: 'Approved',       color: 'emerald',  icon: '✓' },
-                            failed:   { label: 'Failed',         color: 'rose',     icon: '✕' },
-                            rejected: { label: 'Rejected',       color: 'orange',   icon: '!' },
-                            overdue:  { label: 'Overdue',        color: 'rose',     icon: '⚠' },
+                            pending: { label: 'Needs Approval', color: 'amber', icon: '•' },
+                            approved: { label: 'Approved', color: 'emerald', icon: '✓' },
+                            failed: { label: 'Failed', color: 'rose', icon: '✕' },
+                            rejected: { label: 'Rejected', color: 'orange', icon: '!' },
+                            overdue: { label: 'Overdue', color: 'rose', icon: '⚠' },
                         };
                         const colorMap = {
-                            amber:   { active: 'bg-amber-500 text-white border-amber-500',   inactive: 'border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30' },
+                            amber: { active: 'bg-amber-500 text-white border-amber-500', inactive: 'border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30' },
                             emerald: { active: 'bg-emerald-500 text-white border-emerald-500', inactive: 'border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' },
-                            rose:    { active: 'bg-rose-500 text-white border-rose-500',     inactive: 'border-rose-200 dark:border-rose-700 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30' },
-                            orange:  { active: 'bg-orange-500 text-white border-orange-500', inactive: 'border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30' },
+                            rose: { active: 'bg-rose-500 text-white border-rose-500', inactive: 'border-rose-200 dark:border-rose-700 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30' },
+                            orange: { active: 'bg-orange-500 text-white border-orange-500', inactive: 'border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30' },
                         };
                         return (
                             <div className="px-5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 flex-wrap flex-shrink-0">
@@ -265,6 +265,11 @@ export default function AuditDetailModal({
                                     </span>
                                 )}
                                 <span>ID #{instance.id} • Date: {instance.task_date || 'N/A'}</span>
+                                {todoTaskText && (
+                                    <span className="text-[11px] text-slate-500 dark:text-slate-400 break-words">
+                                        Todo task: <span className="font-semibold text-slate-700 dark:text-slate-200">{todoTaskText}</span>
+                                    </span>
+                                )}
                             </p>
                         </div>
 
@@ -477,12 +482,11 @@ export default function AuditDetailModal({
                                                                 {isMyPending && <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-bold">(You)</span>}
                                                             </span>
                                                         </div>
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                                                            step.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                                                            step.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
-                                                            step.status === 'cancelled' ? 'bg-slate-200 text-slate-500' :
-                                                            'bg-amber-100 text-amber-700'
-                                                        }`}>
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${step.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                                                                step.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
+                                                                    step.status === 'cancelled' ? 'bg-slate-200 text-slate-500' :
+                                                                        'bg-amber-100 text-amber-700'
+                                                            }`}>
                                                             {step.status}
                                                         </span>
                                                     </div>

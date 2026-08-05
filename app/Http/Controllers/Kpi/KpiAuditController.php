@@ -40,7 +40,7 @@ class KpiAuditController extends Controller
         $evaluationEnd = $this->evaluationEnd($monthStart, $monthEnd);
 
         $accessibleUsers = $this->accessibleUsersQuery()->orderBy('name')->get(['id', 'name', 'email', 'department_id']);
-        
+
         $selectedUserId = (int) $request->query('userId', Auth::id());
         if ($accessibleUsers->isNotEmpty() && !$accessibleUsers->contains('id', $selectedUserId)) {
             $selectedUserId = $accessibleUsers->first()->id;
@@ -62,13 +62,13 @@ class KpiAuditController extends Controller
         }
 
         $days = collect(range(1, $monthEnd->day))
-            ->map(fn (int $day) => $monthStart->copy()->day($day)->format('Y-m-d'));
+            ->map(fn(int $day) => $monthStart->copy()->day($day)->format('Y-m-d'));
 
         $assignments = KpiTaskAssignment::query()
             ->with(['template.group.department'])
             ->where('user_id', $selectedUserId)
             ->where('is_active', true)
-            ->whereHas('template', fn (Builder $query) => $query->where('is_active', true))
+            ->whereHas('template', fn(Builder $query) => $query->where('is_active', true))
             ->where(function (Builder $query) use ($monthEnd): void {
                 $query->whereNull('starts_on')
                     ->orWhereDate('starts_on', '<=', $monthEnd->toDateString());
@@ -78,7 +78,7 @@ class KpiAuditController extends Controller
                     ->orWhereDate('ends_on', '>=', $monthStart->toDateString());
             })
             ->get()
-            ->sortBy(fn (KpiTaskAssignment $assignment) => sprintf(
+            ->sortBy(fn(KpiTaskAssignment $assignment) => sprintf(
                 '%s|%s',
                 (string) optional($assignment->template?->group)->name,
                 (string) optional($assignment->template)->title
@@ -92,6 +92,7 @@ class KpiAuditController extends Controller
                 'latestSubmission.approvalSteps.approver',
                 'template.group',
                 'group',
+                'todoList',
             ])
             ->where('user_id', $selectedUserId)
             ->whereDate('period_start', '<=', $monthEnd->toDateString())
@@ -102,7 +103,7 @@ class KpiAuditController extends Controller
         $assignments = $assignments
             ->sortBy(function (KpiTaskAssignment $assignment) use ($instances) {
                 $assignmentInstances = $instances->get($assignment->id, collect());
-                $instanceGroup = $assignmentInstances->first(fn ($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
+                $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
                 $groupName = (string) optional($instanceGroup ?? $assignment->template?->group)->name;
                 return sprintf('%s|%s', $groupName, (string) optional($assignment->template)->title);
             })
@@ -111,14 +112,14 @@ class KpiAuditController extends Controller
         $holidayMap = $availability->holidayMapForUser($selectedUserId, $monthStart, $monthEnd);
         $exclusionMaps = $availability->exclusionMapsForUser($selectedUserId, $monthStart, $monthEnd);
 
-        $daysCarbon = collect(range(1, $monthEnd->day))->map(fn (int $day) => $monthStart->copy()->day($day));
+        $daysCarbon = collect(range(1, $monthEnd->day))->map(fn(int $day) => $monthStart->copy()->day($day));
 
         $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $daysCarbon, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator, $monthlySuccessService): array {
             $assignmentInstances = $instances->get($assignment->id, collect());
-            $instanceGroup = $assignmentInstances->first(fn ($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
+            $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
             $effectiveGroup = $instanceGroup ?? $assignment->template?->group;
 
-            $cells = $daysCarbon->map(fn (Carbon $day) => $this->buildCell($assignment, $assignmentInstances, $day, $holidayMap, $exclusionMaps));
+            $cells = $daysCarbon->map(fn(Carbon $day) => $this->buildCell($assignment, $assignmentInstances, $day, $holidayMap, $exclusionMaps));
             $summary = $this->buildSummary($assignment, $assignmentInstances, $cells, $evaluationEnd, $monthlySuccessService);
             $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, [
                 'pass_rate' => (float) ($summary['percentage'] ?? 0),
@@ -177,11 +178,11 @@ class KpiAuditController extends Controller
             ->with(['template.group'])
             ->where('user_id', $selectedUserId)
             ->where('is_active', true)
-            ->whereHas('template', fn (Builder $q) => $q->whereIn('frequency', ['daily', 'weekly']))
-            ->where(fn (Builder $q) => $q->whereNull('starts_on')->orWhereDate('starts_on', '<=', $monthEnd->toDateString()))
-            ->where(fn (Builder $q) => $q->whereNull('ends_on')->orWhereDate('ends_on', '>=', $monthStart->toDateString()))
+            ->whereHas('template', fn(Builder $q) => $q->whereIn('frequency', ['daily', 'weekly']))
+            ->where(fn(Builder $q) => $q->whereNull('starts_on')->orWhereDate('starts_on', '<=', $monthEnd->toDateString()))
+            ->where(fn(Builder $q) => $q->whereNull('ends_on')->orWhereDate('ends_on', '>=', $monthStart->toDateString()))
             ->get()
-            ->map(fn ($a) => [
+            ->map(fn($a) => [
                 'id' => $a->id,
                 'title' => $a->template?->title ?? '-',
                 'group' => $a->template?->group?->name,
@@ -197,26 +198,26 @@ class KpiAuditController extends Controller
             // all pending
         } elseif ($selectedUser && $selectedUser->department_id) {
             $deptId = Auth::user()?->department_id;
-            $pendingExclusionsQuery->whereHas('user', fn (Builder $q) => $q->where('department_id', $deptId));
+            $pendingExclusionsQuery->whereHas('user', fn(Builder $q) => $q->where('department_id', $deptId));
         } else {
             $pendingExclusionsQuery->whereRaw('1 = 0');
         }
 
         $pendingExclusions = Gate::allows('kpiApproveExclusions')
             ? $pendingExclusionsQuery
-                ->orderBy('requested_date')
-                ->get()
-                ->map(fn ($r) => [
-                    'id' => $r->id,
-                    'user_id' => $r->user_id,
-                    'user_name' => $r->user?->name ?? '-',
-                    'user_dept' => $r->user?->department?->name ?? '-',
-                    'request_type' => $r->request_type,
-                    'requested_date' => $r->requested_date?->toDateString(),
-                    'task_title' => $r->assignment?->template?->title,
-                    'reason' => $r->reason,
-                    'created_at' => $r->created_at?->toDateString(),
-                ])
+            ->orderBy('requested_date')
+            ->get()
+            ->map(fn($r) => [
+                'id' => $r->id,
+                'user_id' => $r->user_id,
+                'user_name' => $r->user?->name ?? '-',
+                'user_dept' => $r->user?->department?->name ?? '-',
+                'request_type' => $r->request_type,
+                'requested_date' => $r->requested_date?->toDateString(),
+                'task_title' => $r->assignment?->template?->title,
+                'reason' => $r->reason,
+                'created_at' => $r->created_at?->toDateString(),
+            ])
             : collect();
 
         // Approved exclusion requests (for Inbox Modal management)
@@ -228,26 +229,26 @@ class KpiAuditController extends Controller
             // all
         } elseif ($selectedUser && $selectedUser->department_id) {
             $deptId = Auth::user()?->department_id;
-            $approvedExclusionsQuery->whereHas('user', fn (Builder $q) => $q->where('department_id', $deptId));
+            $approvedExclusionsQuery->whereHas('user', fn(Builder $q) => $q->where('department_id', $deptId));
         }
 
         $approvedExclusions = (Gate::allows('kpiApproveExclusions') || Gate::allows('kpiManageHolidays'))
             ? $approvedExclusionsQuery
-                ->orderByDesc('requested_date')
-                ->get()
-                ->map(fn ($r) => [
-                    'id' => $r->id,
-                    'user_id' => $r->user_id,
-                    'user_name' => $r->user?->name ?? '-',
-                    'user_dept' => $r->user?->department?->name ?? '-',
-                    'request_type' => $r->request_type,
-                    'requested_date' => $r->requested_date?->toDateString(),
-                    'task_title' => $r->assignment?->template?->title,
-                    'reason' => $r->reason,
-                    'reviewer_remark' => $r->reviewer_remark,
-                    'status' => 'approved',
-                    'item_type' => 'exclusion',
-                ])
+            ->orderByDesc('requested_date')
+            ->get()
+            ->map(fn($r) => [
+                'id' => $r->id,
+                'user_id' => $r->user_id,
+                'user_name' => $r->user?->name ?? '-',
+                'user_dept' => $r->user?->department?->name ?? '-',
+                'request_type' => $r->request_type,
+                'requested_date' => $r->requested_date?->toDateString(),
+                'task_title' => $r->assignment?->template?->title,
+                'reason' => $r->reason,
+                'reviewer_remark' => $r->reviewer_remark,
+                'status' => 'approved',
+                'item_type' => 'exclusion',
+            ])
             : collect();
 
         // Approved Holidays (for Inbox Modal management)
@@ -258,25 +259,25 @@ class KpiAuditController extends Controller
             // all
         } elseif ($selectedUser && $selectedUser->department_id) {
             $deptId = Auth::user()?->department_id;
-            $approvedHolidaysQuery->whereHas('user', fn (Builder $q) => $q->where('department_id', $deptId));
+            $approvedHolidaysQuery->whereHas('user', fn(Builder $q) => $q->where('department_id', $deptId));
         }
 
         $approvedHolidays = (Gate::allows('kpiApproveExclusions') || Gate::allows('kpiManageHolidays'))
             ? $approvedHolidaysQuery
-                ->orderByDesc('holiday_date')
-                ->get()
-                ->map(fn ($h) => [
-                    'id' => $h->id,
-                    'user_id' => $h->user_id,
-                    'user_name' => $h->user?->name ?? 'All Employees / System',
-                    'user_dept' => $h->user?->department?->name ?? 'Company-wide',
-                    'request_type' => 'holiday',
-                    'requested_date' => $h->holiday_date?->toDateString(),
-                    'task_title' => $h->name,
-                    'reason' => $h->remark ?? $h->name,
-                    'status' => 'approved',
-                    'item_type' => 'holiday',
-                ])
+            ->orderByDesc('holiday_date')
+            ->get()
+            ->map(fn($h) => [
+                'id' => $h->id,
+                'user_id' => $h->user_id,
+                'user_name' => $h->user?->name ?? 'All Employees / System',
+                'user_dept' => $h->user?->department?->name ?? 'Company-wide',
+                'request_type' => 'holiday',
+                'requested_date' => $h->holiday_date?->toDateString(),
+                'task_title' => $h->name,
+                'reason' => $h->remark ?? $h->name,
+                'status' => 'approved',
+                'item_type' => 'holiday',
+            ])
             : collect();
 
         return Inertia::render('Kpi/Audit', [
@@ -380,10 +381,10 @@ class KpiAuditController extends Controller
             ->where('request_type', $validated['request_type'])
             ->when(
                 $validated['request_type'] === 'task' && $assignmentFrequency === 'weekly',
-                fn (Builder $q) => $q->whereBetween('requested_date', [$weekStart->toDateString(), $weekEnd->toDateString()]),
-                fn (Builder $q) => $q->whereDate('requested_date', $validated['requested_date'])
+                fn(Builder $q) => $q->whereBetween('requested_date', [$weekStart->toDateString(), $weekEnd->toDateString()]),
+                fn(Builder $q) => $q->whereDate('requested_date', $validated['requested_date'])
             )
-            ->when($assignmentId, fn (Builder $q) => $q->where('task_assignment_id', $assignmentId), fn (Builder $q) => $q->whereNull('task_assignment_id'))
+            ->when($assignmentId, fn(Builder $q) => $q->where('task_assignment_id', $assignmentId), fn(Builder $q) => $q->whereNull('task_assignment_id'))
             ->whereIn('status', ['pending', 'approved'])
             ->exists();
 
@@ -518,7 +519,7 @@ class KpiAuditController extends Controller
             // Ensure prior steps approved
             $blockedByPrior = $allSteps
                 ->where('step_order', '<', $step->step_order ?? $step->step)
-                ->contains(fn ($s) => $s->status !== 'approved');
+                ->contains(fn($s) => $s->status !== 'approved');
 
             if ($blockedByPrior) {
                 throw ValidationException::withMessages(['step' => 'A previous approval step is still pending.']);
@@ -528,7 +529,7 @@ class KpiAuditController extends Controller
             $step->update(['status' => 'approved', 'acted_at' => $now, 'remark' => $remark ?: null]);
 
             $nextPending = $allSteps->first(
-                fn ($s) => ($s->step_order ?? $s->step) > ($step->step_order ?? $step->step) && $s->status === 'pending'
+                fn($s) => ($s->step_order ?? $s->step) > ($step->step_order ?? $step->step) && $s->status === 'pending'
             );
 
             if ($nextPending) {
@@ -649,7 +650,7 @@ class KpiAuditController extends Controller
         $taskRequest = $exclusionMaps['task'][$assignment->id][$dateKey] ?? null;
 
         $markers = $instances
-            ->map(fn (KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))
+            ->map(fn(KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))
             ->filter()
             ->values();
 
@@ -781,7 +782,7 @@ class KpiAuditController extends Controller
                     'id' => $latest->submittedBy->id,
                     'name' => $latest->submittedBy->name,
                 ] : null,
-                'images' => $latest->images ? $latest->images->map(fn ($img) => [
+                'images' => $latest->images ? $latest->images->map(fn($img) => [
                     'id' => $img->id,
                     'image_path' => $img->image_path,
                     'file_url' => asset('storage/' . $img->image_path),
@@ -790,7 +791,7 @@ class KpiAuditController extends Controller
                     'label' => $img->title,
                     'remark' => $img->remark,
                 ])->all() : [],
-                'approval_steps' => $latest->approvalSteps ? $latest->approvalSteps->map(fn ($step) => [
+                'approval_steps' => $latest->approvalSteps ? $latest->approvalSteps->map(fn($step) => [
                     'id' => $step->id,
                     'step' => $step->step,
                     'step_order' => $step->step_order ?? $step->step,
@@ -802,6 +803,11 @@ class KpiAuditController extends Controller
                         'name' => $step->approver->name,
                     ] : null,
                 ])->all() : [],
+            ] : null,
+            'todo_list_id' => $instance->todo_list_id,
+            'todo_list' => $instance->todoList ? [
+                'id' => $instance->todoList->id,
+                'task' => $instance->todoList->task,
             ] : null,
         ];
     }
@@ -911,14 +917,14 @@ class KpiAuditController extends Controller
     protected function buildGroupSummaries(Collection $rows, KpiRuleEvaluationService $ruleEvaluator): Collection
     {
         return $rows
-            ->groupBy(fn (array $row) => (int) ($row['assignment']['template']['group']['id'] ?? 0))
+            ->groupBy(fn(array $row) => (int) ($row['assignment']['template']['group']['id'] ?? 0))
             ->map(function (Collection $groupRows): array {
                 $group = $groupRows->first()['assignment']['template']['group'] ?? null;
-                $passed = $groupRows->sum(fn (array $row) => (int) ($row['summary']['passed'] ?? 0));
-                $failed = $groupRows->sum(fn (array $row) => (int) ($row['summary']['failed'] ?? 0));
-                $pending = $groupRows->sum(fn (array $row) => (int) ($row['summary']['pending'] ?? 0));
-                $excluded = $groupRows->sum(fn (array $row) => (int) ($row['summary']['excluded'] ?? 0));
-                $mustDo = $groupRows->sum(fn (array $row) => (int) ($row['summary']['must_do'] ?? 0));
+                $passed = $groupRows->sum(fn(array $row) => (int) ($row['summary']['passed'] ?? 0));
+                $failed = $groupRows->sum(fn(array $row) => (int) ($row['summary']['failed'] ?? 0));
+                $pending = $groupRows->sum(fn(array $row) => (int) ($row['summary']['pending'] ?? 0));
+                $excluded = $groupRows->sum(fn(array $row) => (int) ($row['summary']['excluded'] ?? 0));
+                $mustDo = $groupRows->sum(fn(array $row) => (int) ($row['summary']['must_do'] ?? 0));
                 $templatePassCount = $groupRows->where('rule_evaluation.passes_rule', true)->count();
                 $templateTotalCount = $groupRows->count();
                 $allTemplatesPass = $templatePassCount === $templateTotalCount && $templateTotalCount > 0;
