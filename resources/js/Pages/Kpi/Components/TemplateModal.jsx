@@ -20,7 +20,7 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
         templateTargetPercentage: '',
         templateMaxFailCount: '',
         templateMaxCostAmount: '',
-        taskAssignmentId: '',
+        taskAssignmentIds: [],
         deactivateAssignment: false,
     });
 
@@ -54,7 +54,7 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
                     templateTargetPercentage: editingTemplate.rule?.target_percentage !== null ? String(editingTemplate.rule.target_percentage) : '',
                     templateMaxFailCount: editingTemplate.rule?.max_fail_count !== null ? String(editingTemplate.rule.max_fail_count) : '',
                     templateMaxCostAmount: editingTemplate.rule?.max_cost_amount !== null ? String(editingTemplate.rule.max_cost_amount) : '',
-                    taskAssignmentId: '',
+                    taskAssignmentIds: [],
                     deactivateAssignment: false,
                 });
             } else {
@@ -149,11 +149,10 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
                             <button
                                 type="button"
                                 onClick={() => setData('templateIsActive', !data.templateIsActive)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border shadow-sm ${
-                                    data.templateIsActive
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border shadow-sm ${data.templateIsActive
                                         ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
                                         : 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
-                                }`}
+                                    }`}
                             >
                                 <span>{data.templateIsActive ? '✓ Active' : '✕ Inactive'}</span>
                                 <span className="text-[10px] opacity-80 underline">(Click to Toggle)</span>
@@ -168,14 +167,15 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
                                 <div className="space-y-3">
                                     <div>
                                         <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                            Assigned employee
+                                            Assigned employees
                                         </label>
                                         <select
-                                            value={data.taskAssignmentId}
-                                            onChange={(e) => setData('taskAssignmentId', e.target.value)}
-                                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                            multiple
+                                            size={Math.min(editingTemplate.task_assignments.length, 6)}
+                                            value={data.taskAssignmentIds}
+                                            onChange={(e) => setData('taskAssignmentIds', Array.from(e.target.selectedOptions, (option) => option.value))}
+                                            className="h-auto min-h-[120px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                         >
-                                            <option value="">Select an assigned employee</option>
                                             {editingTemplate.task_assignments.map((assignment) => (
                                                 <option key={assignment.id} value={assignment.id}>
                                                     {assignment.user?.name || 'Unknown user'}
@@ -189,10 +189,10 @@ export default function TemplateModal({ isOpen, onClose, editingTemplate = null,
                                             type="checkbox"
                                             checked={data.deactivateAssignment}
                                             onChange={(e) => setData('deactivateAssignment', e.target.checked)}
-                                            disabled={!data.taskAssignmentId}
+                                            disabled={data.taskAssignmentIds.length === 0}
                                             className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 dark:border-slate-600"
                                         />
-                                        Deactivate this template assignment for the selected employee
+                                        Deactivate this template assignment for the selected employee(s)
                                     </label>
 
                                     <p className="text-[11px] text-slate-500 dark:text-slate-400">

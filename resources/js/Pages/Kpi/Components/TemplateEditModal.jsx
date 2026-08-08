@@ -159,7 +159,7 @@ export default function TemplateEditModal({
                     {/* General Information */}
                     <div className="space-y-4">
                         <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">General Information</h4>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -259,7 +259,7 @@ export default function TemplateEditModal({
                     {/* Frequency & Timing */}
                     <div className="space-y-4 border-t border-slate-200 dark:border-slate-800 pt-5">
                         <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Frequency & Timing</h4>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Frequency</label>
@@ -302,7 +302,7 @@ export default function TemplateEditModal({
                     {/* Evidence & Submission Requirements */}
                     <div className="space-y-4 border-t border-slate-200 dark:border-slate-800 pt-5">
                         <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Evidence Requirements</h4>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 <input
@@ -365,7 +365,7 @@ export default function TemplateEditModal({
                     {/* Performance Evaluation Rule */}
                     <div className="space-y-4 border-t border-slate-200 dark:border-slate-800 pt-5">
                         <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Performance Evaluation Rule</h4>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Rule Type</label>
@@ -430,7 +430,7 @@ export default function TemplateEditModal({
                     {/* Active Status & Month Specific Control */}
                     <div className="space-y-4 border-t border-slate-200 dark:border-slate-800 pt-5">
                         <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Active Status & Calendar Control</h4>
-                        
+
                         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-3">
                             <label className="flex items-center justify-between cursor-pointer">
                                 <div>

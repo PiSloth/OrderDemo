@@ -16,6 +16,12 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0F172A"
+      },
+      "package": "com.pisloth.orderdemosubmitterapp"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5b2fa777-abbd-4e3d-af8c-5708a6f5aac7"
       }
     }
   }

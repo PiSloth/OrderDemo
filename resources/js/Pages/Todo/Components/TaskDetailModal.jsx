@@ -69,31 +69,57 @@ export default function TaskDetailModal({
         const createdAt = task.created_at ? new Date(task.created_at) : now;
         const dueDate = task.due_date ? new Date(task.due_date) : now;
         const totalDurationHours = task.due_time?.duration || 0;
+        const isClosed = !!task.closed_at;
+        const closedAt = isClosed ? new Date(task.closed_at) : null;
 
         const totalScheduledMs = Math.max(1, dueDate.getTime() - createdAt.getTime());
-        const elapsedMs = Math.max(0, now.getTime() - createdAt.getTime());
+        const elapsedEnd = isClosed ? closedAt : now;
+        const elapsedMs = Math.max(0, elapsedEnd.getTime() - createdAt.getTime());
 
         const progressPercentage = Math.min(100, Math.max(0, (elapsedMs / totalScheduledMs) * 100));
 
-        const msRemaining = dueDate.getTime() - now.getTime();
-        const hoursRemaining = Math.round(msRemaining / (1000 * 60 * 60));
-        const isOverdue = msRemaining < 0;
+        let isOverdue = false;
+        let hoursRemaining = 0;
+        let hoursOverdue = 0;
+
+        if (isClosed) {
+            const msOverdue = closedAt.getTime() - dueDate.getTime();
+            isOverdue = msOverdue > 0;
+            if (isOverdue) {
+                hoursOverdue = Math.round(msOverdue / (1000 * 60 * 60));
+            }
+        } else {
+            const msRemaining = dueDate.getTime() - now.getTime();
+            isOverdue = msRemaining < 0;
+            if (isOverdue) {
+                hoursOverdue = Math.round(Math.abs(msRemaining) / (1000 * 60 * 60));
+            } else {
+                hoursRemaining = Math.round(msRemaining / (1000 * 60 * 60));
+            }
+        }
 
         let progressColor = 'bg-blue-500';
-        if (isOverdue) {
-            progressColor = 'bg-rose-500';
-        } else if (progressPercentage > 80) {
-            progressColor = 'bg-amber-500';
-        } else if (progressPercentage > 60) {
-            progressColor = 'bg-orange-500';
+        if (isClosed) {
+            progressColor = isOverdue ? 'bg-rose-500' : 'bg-emerald-500';
+        } else {
+            if (isOverdue) {
+                progressColor = 'bg-rose-500';
+            } else if (progressPercentage > 80) {
+                progressColor = 'bg-amber-500';
+            } else if (progressPercentage > 60) {
+                progressColor = 'bg-orange-500';
+            }
         }
 
         return {
             createdAt,
             dueDate,
+            closedAt,
+            isClosed,
             totalDurationHours,
             progressPercentage: Math.round(progressPercentage * 10) / 10,
             hoursRemaining,
+            hoursOverdue,
             isOverdue,
             progressColor,
         };
@@ -370,14 +396,26 @@ export default function TaskDetailModal({
                             <div className="flex items-center gap-2">
                                 <span className="text-slate-500">{timelineMetrics.totalDurationHours}h scheduled</span>
                                 <span className="text-slate-300">•</span>
-                                {timelineMetrics.isOverdue ? (
-                                    <span className="text-rose-600 dark:text-rose-400 font-extrabold">
-                                        🚨 {Math.abs(timelineMetrics.hoursRemaining)}h Overdue
-                                    </span>
+                                {timelineMetrics.isClosed ? (
+                                    timelineMetrics.isOverdue ? (
+                                        <span className="text-rose-600 dark:text-rose-400 font-extrabold">
+                                            🚨 Completed Overdue by {timelineMetrics.hoursOverdue}h
+                                        </span>
+                                    ) : (
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                                            ✅ Completed On-Time
+                                        </span>
+                                    )
                                 ) : (
-                                    <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                                        ⏳ {timelineMetrics.hoursRemaining}h Remaining
-                                    </span>
+                                    timelineMetrics.isOverdue ? (
+                                        <span className="text-rose-600 dark:text-rose-400 font-extrabold">
+                                            🚨 {timelineMetrics.hoursOverdue}h Overdue
+                                        </span>
+                                    ) : (
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                                            ⏳ {timelineMetrics.hoursRemaining}h Remaining
+                                        </span>
+                                    )
                                 )}
                             </div>
                         </div>
@@ -390,11 +428,18 @@ export default function TaskDetailModal({
                             />
                         </div>
 
-                        <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                            <span>Started: {timelineMetrics.createdAt.toLocaleString()}</span>
-                            <span className="font-extrabold text-slate-700 dark:text-slate-300">{timelineMetrics.progressPercentage}% Elapsed</span>
-                            <span>Due: {timelineMetrics.dueDate.toLocaleString()}</span>
-                        </div>
+                        {timelineMetrics.isClosed ? (
+                            <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                <span>Started: {timelineMetrics.createdAt.toLocaleString()}</span>
+                                <span>Success: {timelineMetrics.closedAt.toLocaleString()}</span>
+                            </div>
+                        ) : (
+                            <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                <span>Started: {timelineMetrics.createdAt.toLocaleString()}</span>
+                                <span className="font-extrabold text-slate-700 dark:text-slate-300">{timelineMetrics.progressPercentage}% Elapsed</span>
+                                <span>Due: {timelineMetrics.dueDate.toLocaleString()}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Task Metadata Cards */}

@@ -254,17 +254,15 @@ export default function CreateTaskModal({
 
     // Calculate due date based on selected due time duration (working hours)
     const handleDueTimeSelect = (dueTimeId) => {
-        setFormData('selectedDueTimeId', dueTimeId);
-
         const found = allNormalizedDueTimes.find((dt) => String(dt.id) === String(dueTimeId));
-        if (found && found.duration) {
-            const calculated = calculateWorkingHoursDueDate(found.duration);
+        if (found && found.duration !== null && found.duration !== undefined && found.duration !== '') {
+            const calculated = calculateWorkingHoursDueDate(Number(found.duration));
             const isoLocal = new Date(calculated.getTime() - calculated.getTimezoneOffset() * 60000)
                 .toISOString()
                 .slice(0, 16);
             setFormData((prev) => ({ ...prev, selectedDueTimeId: dueTimeId, dueDate: isoLocal }));
         } else {
-            setFormData((prev) => ({ ...prev, selectedDueTimeId: '', dueDate: '' }));
+            setFormData((prev) => ({ ...prev, selectedDueTimeId: dueTimeId, dueDate: '' }));
         }
     };
 

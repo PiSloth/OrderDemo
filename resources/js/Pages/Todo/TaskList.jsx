@@ -193,15 +193,16 @@ export default function TaskList({
     // Calculate due date based on selected due time
     const handleDueTimeChange = (e) => {
         const dueTimeId = e.target.value;
-        setFormData('selectedDueTimeId', dueTimeId);
 
         const found = dueTimes.find((dt) => String(dt.id) === String(dueTimeId));
-        if (found && found.duration) {
-            const calculated = new Date(Date.now() + found.duration * 60 * 60 * 1000);
+        if (found && found.duration !== null && found.duration !== undefined && found.duration !== '') {
+            const calculated = new Date(Date.now() + Number(found.duration) * 60 * 60 * 1000);
             const isoLocal = new Date(calculated.getTime() - calculated.getTimezoneOffset() * 60000)
                 .toISOString()
                 .slice(0, 16);
             setFormData((prev) => ({ ...prev, selectedDueTimeId: dueTimeId, dueDate: isoLocal }));
+        } else {
+            setFormData((prev) => ({ ...prev, selectedDueTimeId: dueTimeId, dueDate: '' }));
         }
     };
 
@@ -748,9 +749,27 @@ export default function TaskList({
                                                     className="w-full text-left rounded-xl bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:hover:bg-indigo-900/60 flex items-center justify-between transition"
                                                 >
                                                     <span className="truncate">{catGroup.name}</span>
-                                                    <span className="ml-1 rounded-full bg-indigo-200 px-1.5 text-[10px] font-extrabold text-indigo-900 dark:bg-indigo-800 dark:text-indigo-100">
-                                                        {catGroup.count}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        {(() => {
+                                                            const pendingCount = (catGroup.tasks || []).filter((t) => {
+                                                                const isClosed = !!t.closed_at;
+                                                                const statusName = (t.status?.status || '').toLowerCase();
+                                                                const isSuccess = statusName.includes('success') || statusName.includes('complete') || statusName.includes('done');
+                                                                const isFail = statusName.includes('fail') || statusName.includes('reject');
+                                                                return !isClosed && !isSuccess && !isFail;
+                                                            }).length;
+
+                                                            return pendingCount > 0 ? (
+                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-500/10 px-1 py-0.5 rounded" title={`${pendingCount} Pending`}>
+                                                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                                    {pendingCount}
+                                                                </span>
+                                                            ) : null;
+                                                        })()}
+                                                        <span className="rounded-full bg-indigo-200 px-1.5 text-[10px] font-extrabold text-indigo-900 dark:bg-indigo-800 dark:text-indigo-100">
+                                                            {catGroup.count}
+                                                        </span>
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>

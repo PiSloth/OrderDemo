@@ -26,7 +26,7 @@ export default function TodoLayout({ children, title }) {
     };
 
     const navItems = [
-        { label: 'Home', href: '/sale-dashboard', icon: '🏠', isExternal: true },
+        { label: 'Home', href: '/performance/sale-dashboard', icon: '🏠', isExternal: true },
         { label: 'Task List', href: '/todo/list', icon: '📋' },
         { label: 'Dashboard', href: '/todo/dashboard', icon: '📊' },
         { label: 'Configuration', href: '/todo/config', icon: '⚙️' },
@@ -60,7 +60,7 @@ export default function TodoLayout({ children, title }) {
                         <div className="flex items-center gap-6 sm:gap-8 lg:gap-12">
                             {/* Brand Header: Reloads page and goes to Sale Performance Dashboard */}
                             <a
-                                href="/sale-dashboard"
+                                href="/performance/sale-dashboard"
                                 className="group flex items-center gap-3 transition shrink-0"
                                 title="Go to Sale Performance Dashboard"
                             >
@@ -100,11 +100,10 @@ export default function TodoLayout({ children, title }) {
                                             key={idx}
                                             href={item.href}
                                             preserveScroll
-                                            className={`flex items-center gap-2 h-full text-xs font-bold transition-all border-b-2 ${
-                                                active
-                                                    ? 'text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400 font-extrabold'
-                                                    : 'text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border-transparent font-medium'
-                                            }`}
+                                            className={`flex items-center gap-2 h-full text-xs font-bold transition-all border-b-2 ${active
+                                                ? 'text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400 font-extrabold'
+                                                : 'text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border-transparent font-medium'
+                                                }`}
                                         >
                                             <span className="text-sm">{item.icon}</span>
                                             <span>{item.label}</span>
@@ -212,11 +211,10 @@ export default function TodoLayout({ children, title }) {
                                         href={item.href}
                                         preserveScroll
                                         onClick={() => setMobileMenuOpen(false)}
-                                        className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition ${
-                                            active
-                                                ? 'bg-indigo-600 text-white shadow-md'
-                                                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
-                                        }`}
+                                        className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition ${active
+                                            ? 'bg-indigo-600 text-white shadow-md'
+                                            : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
+                                            }`}
                                     >
                                         <span className="text-base">{item.icon}</span>
                                         <span>{item.label}</span>

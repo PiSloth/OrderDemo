@@ -12,6 +12,27 @@ class TodoList extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected static function booted()
+    {
+        static::updated(function ($todoList) {
+            if ($todoList->isDirty('due_date')) {
+                $newDueDate = $todoList->due_date;
+                if ($newDueDate) {
+                    \App\Models\Kpi\KpiTaskInstance::query()
+                        ->where('todo_list_id', $todoList->id)
+                        ->when($todoList->kpi_task_instance_id, function ($q) use ($todoList) {
+                            $q->orWhere('id', $todoList->kpi_task_instance_id);
+                        })
+                        ->update([
+                            'due_at' => $newDueDate,
+                            'period_end' => $newDueDate->toDateString(),
+                            'task_date' => $newDueDate->toDateString(),
+                        ]);
+                }
+            }
+        });
+    }
+
     protected $fillable = [
         'todo_due_time_id',
         'todo_status_id',

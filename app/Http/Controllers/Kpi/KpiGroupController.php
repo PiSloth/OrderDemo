@@ -150,13 +150,21 @@ class KpiGroupController extends Controller
                     ->update(['kpi_group_id' => $newGroupId]);
             }
 
+            $assignmentIds = $request->input('taskAssignmentIds', []);
             if ($request->filled('taskAssignmentId')) {
-                $assignment = \App\Models\Kpi\KpiTaskAssignment::find($request->input('taskAssignmentId'));
-                if ($assignment) {
+                $assignmentIds[] = $request->input('taskAssignmentId');
+            }
+            $assignmentIds = array_filter(array_unique($assignmentIds));
+
+            if (!empty($assignmentIds)) {
+                $assignments = \App\Models\Kpi\KpiTaskAssignment::query()
+                    ->whereIn('id', $assignmentIds)
+                    ->get();
+
+                foreach ($assignments as $assignment) {
                     if ($request->boolean('deactivateAssignment')) {
                         $assignment->update(['is_active' => false]);
                     } elseif ($request->boolean('inactivateForMonth') && $request->filled('inactivateMonth')) {
-                        // Set assignment ends_on to end of previous month
                         $monthStart = \Carbon\Carbon::parse($request->input('inactivateMonth') . '-01');
                         $assignment->update([
                             'ends_on' => $monthStart->subDay()->toDateString(),

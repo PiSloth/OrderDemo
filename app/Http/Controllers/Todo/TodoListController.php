@@ -461,6 +461,17 @@ class TodoListController extends Controller
                         }
                     }
 
+                    $periodStart = \Carbon\Carbon::now()->toDateString();
+                    $periodEnd = $dueDateObj->toDateString();
+
+                    $existingCount = \App\Models\Kpi\KpiTaskInstance::where('task_assignment_id', $assignment?->id)
+                        ->where('period_type', 'todo_on_demand')
+                        ->whereDate('period_start', $periodStart)
+                        ->whereDate('period_end', $periodEnd)
+                        ->count();
+
+                    $periodIndex = $existingCount + 1;
+
                     $kpiInstance = \App\Models\Kpi\KpiTaskInstance::create([
                         'task_assignment_id' => $assignment?->id,
                         'task_template_id' => $dueTime->kpi_task_template_id,
@@ -471,8 +482,9 @@ class TodoListController extends Controller
                         'status' => 'pending',
                         'is_on_time' => true,
                         'period_type' => 'todo_on_demand',
-                        'period_start' => \Carbon\Carbon::now(),
-                        'period_end' => $dueDateObj,
+                        'period_start' => $periodStart,
+                        'period_end' => $periodEnd,
+                        'period_index' => $periodIndex,
                         'todo_list_id' => $task->id,
                     ]);
 
