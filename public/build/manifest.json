@@ -1,13 +1,7 @@
 {
-  "_apexcharts.common-60e85d6a.js": {
-    "file": "assets/apexcharts.common-60e85d6a.js",
-    "imports": [
-      "_index-3646bc38.js"
-    ],
+  "_apexcharts.common-fe946039.js": {
+    "file": "assets/apexcharts.common-fe946039.js",
     "isDynamicEntry": true
-  },
-  "_index-3646bc38.js": {
-    "file": "assets/index-3646bc38.js"
   },
   "resources/css/app.css": {
     "file": "assets/app-acc14e46.css",
@@ -22,10 +16,9 @@
     "css": [
       "assets/app-d3ed812b.css"
     ],
-    "file": "assets/app-5e1ee2a1.js",
+    "file": "assets/app-3a2e326f.js",
     "imports": [
-      "_index-3646bc38.js",
-      "_apexcharts.common-60e85d6a.js"
+      "_apexcharts.common-fe946039.js"
     ],
     "isEntry": true,
     "src": "resources/js/app.js"
@@ -35,11 +28,11 @@
       "assets/app-d71a36ee.css"
     ],
     "dynamicImports": [
-      "_apexcharts.common-60e85d6a.js"
+      "_apexcharts.common-fe946039.js"
     ],
-    "file": "assets/app-830fac4a.js",
+    "file": "assets/app-fe4a7a4b.js",
     "imports": [
-      "_index-3646bc38.js"
+      "_apexcharts.common-fe946039.js"
     ],
     "isEntry": true,
     "src": "resources/js/app.jsx"

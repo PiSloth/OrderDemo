@@ -4,8 +4,11 @@ import AsideLayout from '../../Layouts/AsideLayout';
 import axios from 'axios';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
+import ApexCharts from 'apexcharts';
 
 export default function SaleKpi({ branches = [], departments = [], defaultFrom, defaultTo }) {
+    const capitalize = (str) => (!str ? '' : str.replace(/\b\w/g, (l) => l.toUpperCase()));
+
     const [startDate, setStartDate] = useState(defaultFrom);
     const [endDate, setEndDate] = useState(defaultTo);
     const [selectedBranches, setSelectedBranches] = useState([]);
@@ -53,7 +56,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
     // Fetch dashboard data
     const fetchDashboardData = () => {
         setLoading(true);
-        axios.get('/kpi/sale-kpi/data', {
+        axios.get('/sale-kpi/data', {
             params: {
                 start_date: startDate,
                 end_date: endDate,
@@ -101,9 +104,6 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
     useEffect(() => {
         if (!dashboardData || loading) return;
 
-        const ApexCharts = window.ApexCharts;
-        if (!ApexCharts) return;
-
         // 1. Gram Column Chart
         const gramData = dashboardData.gram_chart || [];
         const gramOptions = {
@@ -132,7 +132,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 { name: 'Target (g)', data: gramData.map(d => d.target) }
             ],
             xaxis: {
-                categories: gramData.map(d => d.branch_name),
+                categories: gramData.map(d => capitalize(d.branch_name)),
                 labels: { style: { colors: '#64748B' } }
             },
             yaxis: {
@@ -180,7 +180,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 { name: 'Target (pcs)', data: pcsData.map(d => d.target) }
             ],
             xaxis: {
-                categories: pcsData.map(d => d.branch_name),
+                categories: pcsData.map(d => capitalize(d.branch_name)),
                 labels: { style: { colors: '#64748B' } }
             },
             yaxis: {
@@ -205,9 +205,6 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
     // Render Line Chart
     useEffect(() => {
         if (!dashboardData || loading) return;
-
-        const ApexCharts = window.ApexCharts;
-        if (!ApexCharts) return;
 
         const lc = dashboardData.line_chart || {};
         const labels = lc.labels || [];
@@ -365,7 +362,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                         ? 'All Branches' 
                                         : branches
                                             .filter(b => selectedBranches.includes(b.id))
-                                            .map(b => b.name)
+                                            .map(b => capitalize(b.name))
                                             .join(', ')
                                     }
                                 </span>
@@ -394,7 +391,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                                     className="w-4 h-4 rounded border-slate-350 dark:border-slate-650 text-slate-900 focus:ring-slate-500 cursor-pointer"
                                                 />
                                                 <span className="text-xs text-slate-700 dark:text-slate-350 font-medium">
-                                                    {b.name}
+                                                    {capitalize(b.name)}
                                                 </span>
                                             </label>
                                         );
@@ -505,14 +502,19 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
  
                         <div ref={lineChartRef} />
                     </div>
-                )}                {/* Section 4: Rewards Metal Table */}
+                )}
+
+                {/* Section 4: Top Performer Table */}
                 {!loading && (
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
                         <div>
-                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Rewards Metal Table</h3>
-                            <p className="text-xs text-slate-500">Sorted automatically by selected KPI ratio column</p>
+                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                                <span>👑</span>
+                                <span>Top Performer</span>
+                            </h3>
+                            <p className="text-xs text-slate-500">Branch ranking based on selected KPI performance ratio</p>
                         </div>
- 
+
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
                                 <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs uppercase font-semibold">
@@ -548,29 +550,51 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                             </td>
                                         </tr>
                                     ) : (
-                                        sortedRewardsRows.map((row) => (
-                                            <tr key={row.branch_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                                                {dynamicCols.map((col) => {
-                                                    let val = row[col.key];
-                                                    const isHighlighted = col.key === selectedRewardsColumn;
-                                                    
-                                                    return (
-                                                        <td 
-                                                            key={col.key} 
-                                                            className={`px-6 py-4 ${
-                                                                col.key === 'branch_name' 
-                                                                    ? 'font-medium text-slate-900 dark:text-slate-200' 
-                                                                    : 'font-semibold'
-                                                            } ${
-                                                                isHighlighted ? 'bg-indigo-50/40 dark:bg-indigo-950/10 text-indigo-600 dark:text-indigo-400' : ''
-                                                            }`}
-                                                        >
-                                                            {col.key === 'branch_name' ? val : val}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))
+                                        sortedRewardsRows.map((row, index) => {
+                                            // Rank-based row styling
+                                            let rowBgClass = "hover:bg-slate-50/50 dark:hover:bg-slate-800/40";
+                                            if (index === 0) {
+                                                rowBgClass = "bg-amber-100/70 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-950 dark:text-amber-100 font-semibold";
+                                            } else if (index === 1) {
+                                                rowBgClass = "bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium";
+                                            } else if (index === 2) {
+                                                rowBgClass = "bg-amber-700/10 dark:bg-amber-900/25 hover:bg-amber-700/15 text-amber-900 dark:text-amber-200 font-medium";
+                                            }
+
+                                            return (
+                                                <tr key={row.branch_id} className={`transition-colors ${rowBgClass}`}>
+                                                    {dynamicCols.map((col) => {
+                                                        let val = row[col.key];
+                                                        const isHighlighted = col.key === selectedRewardsColumn;
+                                                        
+                                                        return (
+                                                            <td 
+                                                                key={col.key} 
+                                                                className={`px-6 py-4 ${
+                                                                    col.key === 'branch_name' 
+                                                                        ? 'font-bold text-slate-900 dark:text-slate-100' 
+                                                                        : 'font-semibold'
+                                                                } ${
+                                                    isHighlighted ? 'bg-amber-200/40 dark:bg-amber-900/30' : ''
+                                                                }`}
+                                                            >
+                                                                {col.key === 'branch_name' ? (
+                                                                    <div className="flex items-center gap-2.5">
+                                                                        {index === 0 && <span className="text-base" title="1st Place Crown">👑</span>}
+                                                                        {index === 1 && <span className="text-base" title="2nd Place Silver">🥈</span>}
+                                                                        {index === 2 && <span className="text-base" title="3rd Place Bronze">🥉</span>}
+                                                                        {index > 2 && <span className="text-xs font-bold text-slate-400 w-5 text-center">#{index + 1}</span>}
+                                                                        <span>{capitalize(val)}</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    val
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            );
+                                        })
                                     )}
                                 </tbody>
                             </table>

@@ -83,8 +83,8 @@ export default function CreatePromoteActionModal() {
         setLoadingSearch(true);
         searchTimeout.current = setTimeout(() => {
             const url = referenceType === 'todo_list_id' 
-                ? '/kpi/sale-kpi/search-todos' 
-                : '/kpi/sale-kpi/search-kpi-tasks';
+                ? '/sale-kpi/search-todos' 
+                : '/sale-kpi/search-kpi-tasks';
 
             axios.get(url, { params: { q: referenceSearch } })
                 .then((res) => {
@@ -109,7 +109,7 @@ export default function CreatePromoteActionModal() {
             ? { [referenceType]: referenceId } 
             : null;
 
-        axios.post('/kpi/sale-kpi/promote-actions', {
+        axios.post('/sale-kpi/promote-actions', {
             name,
             target_branch_id: targetBranchId || null,
             action_by: actionBy,

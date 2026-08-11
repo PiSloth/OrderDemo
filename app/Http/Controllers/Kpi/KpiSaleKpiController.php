@@ -25,7 +25,10 @@ class KpiSaleKpiController extends Controller
      */
     public function index(Request $request): Response
     {
-        $branches = Branch::orderBy('name')->get(['id', 'name']);
+        $branches = Branch::orderBy('name')->get(['id', 'name'])->map(function ($b) {
+            $b->name = ucwords(strtolower($b->name));
+            return $b;
+        });
         $departments = Department::orderBy('name')->get(['id', 'name']);
 
         // Determine default date range based on active promote actions
@@ -84,18 +87,26 @@ class KpiSaleKpiController extends Controller
         }
 
         // 2. Resolve branch filters
-        $branchIds = $request->input('branch_ids', []);
-        if (is_string($branchIds)) {
-            $branchIds = explode(',', $branchIds);
+        $branchIdsRaw = $request->input('branch_ids');
+        $branchIds = [];
+        if (!empty($branchIdsRaw)) {
+            if (is_string($branchIdsRaw)) {
+                $branchIds = array_filter(explode(',', $branchIdsRaw), fn($v) => strlen(trim($v)) > 0);
+            } else if (is_array($branchIdsRaw)) {
+                $branchIds = $branchIdsRaw;
+            }
+            $branchIds = array_values(array_filter(array_map('intval', $branchIds)));
         }
-        $branchIds = array_filter(array_map('intval', $branchIds));
 
         // Fetch selected or all branches
         $branchesQuery = Branch::query();
         if (!empty($branchIds)) {
             $branchesQuery->whereIn('id', $branchIds);
         }
-        $branches = $branchesQuery->orderBy('name')->get();
+        $branches = $branchesQuery->orderBy('name')->get()->map(function ($b) {
+            $b->name = ucwords(strtolower($b->name));
+            return $b;
+        });
 
         // 3. Fetch Daily Report Records & Targets in date range
         $records = DailyReportRecord::query()
