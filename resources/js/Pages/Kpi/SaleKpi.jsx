@@ -5,6 +5,32 @@ import axios from 'axios';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 import ApexCharts from 'apexcharts';
+import toast from 'react-hot-toast';
+
+// MUI Imports
+import {
+    Button,
+    ButtonGroup,
+    Menu,
+    MenuItem,
+    Box
+} from '@mui/material';
+
+import {
+    ContentCopy as ContentCopyIcon,
+    FileDownload as FileDownloadIcon,
+    KeyboardArrowDown as KeyboardArrowDownIcon,
+    Campaign as CampaignIcon,
+    EmojiEvents as EmojiEventsIcon,
+    MilitaryTech as MilitaryTechIcon,
+    WorkspacePremium as WorkspacePremiumIcon,
+    Refresh as RefreshIcon,
+    ArrowDropDown as ArrowDropDownIcon,
+    Add as AddIcon,
+    Close as CloseIcon,
+    Link as LinkIcon,
+    Check as CheckIcon
+} from '@mui/icons-material';
 
 export default function SaleKpi({ branches = [], departments = [], defaultFrom, defaultTo }) {
     const capitalize = (str) => (!str ? '' : str.replace(/\b\w/g, (l) => l.toUpperCase()));
@@ -49,6 +75,206 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
     const gramChartRef = useRef(null);
     const pcsChartRef = useRef(null);
     const lineChartRef = useRef(null);
+
+    // Chart Instance refs
+    const gramChartObjRef = useRef(null);
+    const pcsChartObjRef = useRef(null);
+    const lineChartObjRef = useRef(null);
+
+    // Helper to convert base64 dataURI to Blob cleanly without fetch issues
+    const dataURItoBlob = (dataURI) => {
+        try {
+            const byteString = atob(dataURI.split(',')[1]);
+            const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        } catch (e) {
+            console.error('Error converting dataURI to Blob:', e);
+            return null;
+        }
+    };
+
+    // Helper to copy chart image to clipboard
+    const copyChartToClipboard = (chartObj, title = 'Chart') => {
+        if (!chartObj || typeof chartObj.dataURI !== 'function') {
+            toast.error('Chart instance is not ready');
+            return;
+        }
+        chartObj.dataURI().then((result) => {
+            const uri = result?.imgURI || result;
+            if (!uri || typeof uri !== 'string') {
+                toast.error('Could not generate chart image');
+                return;
+            }
+            const blob = dataURItoBlob(uri);
+            if (!blob) {
+                toast.error('Failed to create image blob');
+                return;
+            }
+            if (navigator.clipboard && window.ClipboardItem) {
+                const item = new ClipboardItem({ 'image/png': blob });
+                navigator.clipboard.write([item]).then(() => {
+                    toast.success(`${title} image copied to clipboard!`);
+                }).catch(err => {
+                    console.error('Clipboard write error:', err);
+                    toast.error('Failed to copy image to clipboard');
+                });
+            } else {
+                toast.error('Clipboard API not supported in this browser');
+            }
+        }).catch(err => {
+            console.error('Copy chart image error:', err);
+            toast.error('Failed to copy chart image');
+        });
+    };
+
+    // Helper to download chart image
+    const downloadChartImage = (chartObj, filename = 'chart.png') => {
+        if (!chartObj || typeof chartObj.dataURI !== 'function') {
+            toast.error('Chart instance is not ready');
+            return;
+        }
+        chartObj.dataURI().then((result) => {
+            const uri = result?.imgURI || result;
+            if (!uri || typeof uri !== 'string') {
+                toast.error('Could not generate chart image');
+                return;
+            }
+            const blob = dataURItoBlob(uri);
+            if (!blob) {
+                toast.error('Failed to create image blob');
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            toast.success(`Downloaded ${filename}`);
+        }).catch(err => {
+            console.error('Download chart image error:', err);
+            toast.error('Failed to download chart image');
+        });
+    };
+
+    // MUI ButtonGroup Dropdown Export Menu Component for Charts with Stateful Feedback
+    const ChartExportMenu = ({ chartRef, filename, title }) => {
+        const [anchorEl, setAnchorEl] = useState(null);
+        const open = Boolean(anchorEl);
+        const [copied, setCopied] = useState(false);
+        const [downloaded, setDownloaded] = useState(false);
+
+        const handleClick = (event) => setAnchorEl(event.currentTarget);
+        const handleClose = () => setAnchorEl(null);
+
+        const handleCopy = () => {
+            handleClose();
+            const chartObj = chartRef?.current;
+            if (!chartObj) {
+                toast.error('Chart is not ready yet');
+                return;
+            }
+            setCopied(true);
+            copyChartToClipboard(chartObj, title);
+            setTimeout(() => setCopied(false), 2000);
+        };
+
+        const handleDownload = () => {
+            handleClose();
+            const chartObj = chartRef?.current;
+            if (!chartObj) {
+                toast.error('Chart is not ready yet');
+                return;
+            }
+            setDownloaded(true);
+            downloadChartImage(chartObj, filename);
+            setTimeout(() => setDownloaded(false), 2000);
+        };
+
+        // Determine active icon and label
+        let mainIcon = <ContentCopyIcon fontSize="small" />;
+        let mainLabel = 'Copy';
+
+        if (copied) {
+            mainIcon = <CheckIcon fontSize="small" sx={{ color: 'success.main' }} />;
+            mainLabel = 'Copied!';
+        } else if (downloaded) {
+            mainIcon = <CheckIcon fontSize="small" sx={{ color: 'success.main' }} />;
+            mainLabel = 'Downloaded!';
+        }
+
+        return (
+            <Box>
+                <ButtonGroup variant="outlined" size="small" sx={{ borderRadius: 2 }}>
+                    <Button
+                        onClick={handleCopy}
+                        startIcon={mainIcon}
+                        sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            borderColor: (copied || downloaded) ? 'success.main' : 'rgba(226, 232, 240, 0.8)',
+                            color: (copied || downloaded) ? 'success.main' : 'text.primary',
+                            bgcolor: 'background.paper',
+                            '&:hover': { bgcolor: 'action.hover' },
+                            '.dark &': { borderColor: (copied || downloaded) ? '#4ade80' : 'rgba(255,255,255,0.15)', color: (copied || downloaded) ? '#4ade80' : '#fff' }
+                        }}
+                    >
+                        {mainLabel}
+                    </Button>
+                    <Button
+                        size="small"
+                        onClick={handleClick}
+                        sx={{
+                            px: 0.75,
+                            borderColor: (copied || downloaded) ? 'success.main' : 'rgba(226, 232, 240, 0.8)',
+                            color: (copied || downloaded) ? 'success.main' : 'text.primary',
+                            bgcolor: 'background.paper',
+                            '&:hover': { bgcolor: 'action.hover' },
+                            '.dark &': { borderColor: (copied || downloaded) ? '#4ade80' : 'rgba(255,255,255,0.15)', color: (copied || downloaded) ? '#4ade80' : '#fff' }
+                        }}
+                    >
+                        <KeyboardArrowDownIcon fontSize="small" />
+                    </Button>
+                </ButtonGroup>
+
+                <Menu
+                    anchorEl={anchorEl}
+                    open={open}
+                    onClose={handleClose}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    slotProps={{
+                        paper: {
+                            elevation: 3,
+                            sx: {
+                                borderRadius: 2,
+                                minWidth: 160,
+                                mt: 0.5,
+                                '.dark &': { bgcolor: '#1e293b', color: '#fff' }
+                            }
+                        }
+                    }}
+                >
+                    <MenuItem onClick={handleCopy} sx={{ fontSize: '0.8125rem', gap: 1.5, py: 1 }}>
+                        {copied ? <CheckIcon fontSize="small" sx={{ color: 'success.main' }} /> : <ContentCopyIcon fontSize="small" sx={{ color: 'primary.main' }} />}
+                        {copied ? 'Copied to Clipboard' : 'Copy as Image'}
+                    </MenuItem>
+                    <MenuItem onClick={handleDownload} sx={{ fontSize: '0.8125rem', gap: 1.5, py: 1 }}>
+                        {downloaded ? <CheckIcon fontSize="small" sx={{ color: 'success.main' }} /> : <FileDownloadIcon fontSize="small" sx={{ color: 'success.main' }} />}
+                        {downloaded ? 'Downloaded!' : 'Download PNG'}
+                    </MenuItem>
+                </Menu>
+            </Box>
+        );
+    };
 
     // Flatpickr ref
     const dateRangeInputRef = useRef(null);
@@ -110,13 +336,11 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             chart: {
                 type: 'bar',
                 height: 350,
-                toolbar: { show: false },
+                toolbar: {
+                    show: true,
+                    tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false }
+                },
                 background: 'transparent'
-            },
-            title: {
-                text: 'Actual vs Target (Grams)',
-                align: 'left',
-                style: { fontSize: '16px', fontWeight: 'bold', color: document.documentElement.classList.contains('dark') ? '#FAF9F6' : '#1E293B' }
             },
             colors: ['#FACC15', '#94A3B8'],
             plotOptions: {
@@ -160,6 +384,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
         if (gramChartRef.current) {
             gramChartRef.current.innerHTML = '';
             const chart = new ApexCharts(gramChartRef.current, gramOptions);
+            gramChartObjRef.current = chart;
             chart.render();
         }
 
@@ -169,13 +394,11 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             chart: {
                 type: 'bar',
                 height: 350,
-                toolbar: { show: false },
+                toolbar: {
+                    show: true,
+                    tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false }
+                },
                 background: 'transparent'
-            },
-            title: {
-                text: 'Actual vs Target (Pieces)',
-                align: 'left',
-                style: { fontSize: '16px', fontWeight: 'bold', color: document.documentElement.classList.contains('dark') ? '#FAF9F6' : '#1E293B' }
             },
             colors: ['#2DD4BF', '#94A3B8'],
             plotOptions: {
@@ -219,6 +442,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
         if (pcsChartRef.current) {
             pcsChartRef.current.innerHTML = '';
             const chart = new ApexCharts(pcsChartRef.current, pcsOptions);
+            pcsChartObjRef.current = chart;
             chart.render();
         }
 
@@ -231,19 +455,19 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
         const lc = dashboardData.line_chart || {};
         const labels = lc.labels || [];
         const overlaps = lc.overlap_counts || [];
+        const customerValues = lc.customer || [];
         
-        // Select active line values
+        // Select active primary metric values
         let rawValues = [];
         if (activeMetric === 'weight') rawValues = lc.weight || [];
-        else if (activeMetric === 'quantity') rawValues = lc.quantity || [];
-        else rawValues = lc.customer || [];
+        else rawValues = lc.quantity || [];
 
-        // Build segment series
+        // Build segment series for primary metric with PA campaign highlights
         const s0 = Array(rawValues.length).fill(null); // No PA (gray, dotted)
-        const s1 = Array(rawValues.length).fill(null); // 1 PA (green)
-        const s2 = Array(rawValues.length).fill(null); // 2 PA (blue)
-        const s3 = Array(rawValues.length).fill(null); // 3 PA (yellow)
-        const s4 = Array(rawValues.length).fill(null); // >3 PA (red)
+        const s1 = Array(rawValues.length).fill(null); // 1 PA (yellow)
+        const s2 = Array(rawValues.length).fill(null); // 2 PA (teal)
+        const s3 = Array(rawValues.length).fill(null); // 3 PA (dark yellow)
+        const s4 = Array(rawValues.length).fill(null); // 3+ PA (dark teal)
 
         for (let i = 0; i < rawValues.length; i++) {
             const val = rawValues[i];
@@ -268,11 +492,23 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             }
         }
 
+        const primaryValidNums = rawValues.filter(v => v !== null && v !== undefined && !isNaN(v));
+        const custValidNums = customerValues.filter(v => v !== null && v !== undefined && !isNaN(v));
+        
+        const rawMaxPrimary = primaryValidNums.length > 0 ? Math.max(...primaryValidNums) : 100;
+        const rawMaxCust = custValidNums.length > 0 ? Math.max(...custValidNums) : 100;
+
+        const primaryYMax = Math.ceil(rawMaxPrimary * 1.1);
+        const custYMax = Math.ceil(rawMaxCust * 1.1);
+
         const lineOptions = {
             chart: {
                 type: 'line',
                 height: 400,
-                toolbar: { show: false },
+                toolbar: {
+                    show: true,
+                    tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false }
+                },
                 events: {
                     markerClick: (event, chartContext, { dataPointIndex }) => {
                         const label = labels[dataPointIndex];
@@ -284,32 +520,109 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 }
             },
             series: [
+                { name: 'Customer Count (Gray Line)', data: customerValues },
                 { name: 'No Campaign (Gray Dotted)', data: s0 },
-                { name: '1 Promote Action (Green)', data: s1 },
-                { name: '2 Promote Actions (Blue)', data: s2 },
-                { name: '3 Promote Actions (Yellow)', data: s3 },
-                { name: '3+ Promote Actions (Red)', data: s4 }
+                { name: '1 Promote Action (Yellow)', data: s1 },
+                { name: '2 Promote Actions (Teal)', data: s2 },
+                { name: '3 Promote Actions (Dark Yellow)', data: s3 },
+                { name: '3+ Promote Actions (Dark Teal)', data: s4 }
             ],
             stroke: {
-                width: 3,
+                width: [2, 3, 3, 3, 3, 3],
                 curve: 'smooth',
-                dashArray: [5, 0, 0, 0, 0] // 5 for s0 (dotted), others solid
+                dashArray: [0, 5, 0, 0, 0, 0] // 0 for Customer, 5 for s0 (dotted), others solid
             },
-            colors: ['#94A3B8', '#FEF08A', '#99F6E4', '#EAB308', '#0D9488'],
+            colors: ['#CBD5E1', '#94A3B8', '#FEF08A', '#99F6E4', '#EAB308', '#0D9488'],
             markers: {
-                size: 5,
+                size: [3, 5, 5, 5, 5, 5],
                 hover: { size: 7 }
             },
             xaxis: {
                 categories: labels,
                 labels: { style: { colors: '#64748B' } }
             },
-            yaxis: {
-                title: { text: activeMetric.toUpperCase() }
-            },
+            yaxis: [
+                {
+                    seriesName: 'Customer Count (Gray Line)',
+                    opposite: true,
+                    title: { text: 'CUSTOMER COUNT' },
+                    labels: { style: { colors: '#94A3B8' } },
+                    min: 0,
+                    max: custYMax
+                },
+                {
+                    seriesName: 'No Campaign (Gray Dotted)',
+                    title: { text: activeMetric === 'weight' ? 'WEIGHT (G)' : 'QUANTITY (PCS)' },
+                    labels: { style: { colors: '#64748B' } },
+                    min: 0,
+                    max: primaryYMax
+                },
+                {
+                    seriesName: '1 Promote Action (Yellow)',
+                    show: false,
+                    min: 0,
+                    max: primaryYMax
+                },
+                {
+                    seriesName: '2 Promote Actions (Teal)',
+                    show: false,
+                    min: 0,
+                    max: primaryYMax
+                },
+                {
+                    seriesName: '3 Promote Actions (Dark Yellow)',
+                    show: false,
+                    min: 0,
+                    max: primaryYMax
+                },
+                {
+                    seriesName: '3+ Promote Actions (Dark Teal)',
+                    show: false,
+                    min: 0,
+                    max: primaryYMax
+                }
+            ],
             tooltip: {
-                shared: true,
-                intersect: false
+                custom: function({ dataPointIndex }) {
+                    const label = labels[dataPointIndex];
+                    const val = rawValues[dataPointIndex];
+                    const cust = customerValues[dataPointIndex];
+                    const details = lc.overlap_details?.[label] || [];
+                    const metricUnit = activeMetric === 'weight' ? 'g' : 'pcs';
+
+                    let detailsHtml = '';
+                    if (details.length === 0) {
+                        detailsHtml = `<div style="font-size: 11px; color: #94A3B8; font-style: italic; margin-top: 4px;">No active promote actions</div>`;
+                    } else {
+                        detailsHtml = details.map(d => `
+                            <div style="display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 11px; font-weight: 700; color: #0F172A;">
+                                <span>📢</span>
+                                <span>${d.name}</span>
+                                <span style="font-size: 10px; font-weight: 500; color: #64748B;">(${d.department || 'N/A'})</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    return `
+                        <div style="padding: 10px 12px; background: #ffffff; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); font-family: inherit;">
+                            <div style="font-weight: 700; font-size: 12px; color: #0F172A; margin-bottom: 4px;">
+                                📅 ${label}
+                            </div>
+                            <div style="font-size: 12px; font-weight: 600; color: #475569; padding-bottom: 4px;">
+                                ${activeMetric.toUpperCase()}: <span style="font-weight: 800; color: #0F172A;">${val !== null && val !== undefined ? val : 0} ${metricUnit}</span>
+                            </div>
+                            <div style="font-size: 12px; font-weight: 600; color: #64748B; padding-bottom: 6px; border-bottom: 1px solid #F1F5F9;">
+                                CUSTOMER: <span style="font-weight: 800; color: #475569;">${cust !== null && cust !== undefined ? cust : 0} cust</span>
+                            </div>
+                            <div style="margin-top: 6px;">
+                                <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748B;">
+                                    Promote Action Items (${details.length})
+                                </div>
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
             },
             legend: {
                 position: 'top',
@@ -320,6 +633,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
         if (lineChartRef.current) {
             lineChartRef.current.innerHTML = '';
             const chart = new ApexCharts(lineChartRef.current, lineOptions);
+            lineChartObjRef.current = chart;
             chart.render();
         }
 
@@ -377,11 +691,29 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                 .join(', ')
                         }
                     </span>
-                    <span className="text-[10px] text-slate-400">▼</span>
+                    <ArrowDropDownIcon fontSize="small" className="text-slate-400" />
                 </button>
 
                 {branchDropdownOpen && (
-                    <div className="absolute right-0 mt-1 w-56 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 space-y-0.5">
+                    <div className="absolute right-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 space-y-0.5">
+                        {/* Combined Reset Action inside Selection Dropdown */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setStartDate(defaultFrom);
+                                setEndDate(defaultTo);
+                                setSelectedBranches([]);
+                                if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
+                                    dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
+                                }
+                                setBranchDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-xs font-bold transition border-b border-slate-100 dark:border-slate-700 pb-2 mb-1"
+                        >
+                            <RefreshIcon fontSize="small" className="text-slate-500" />
+                            <span>Reset All Filters</span>
+                        </button>
+
                         {branches.map((b) => {
                             const isChecked = selectedBranches.includes(b.id);
                             return (
@@ -419,31 +751,31 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm w-44"
             />
 
-            {/* Reset Filter Button */}
-            <button
-                onClick={() => {
-                    setStartDate(defaultFrom);
-                    setEndDate(defaultTo);
-                    setSelectedBranches([]);
-                    if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
-                        dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
-                    }
-                }}
-                className="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition shadow-sm"
-            >
-                Reset
-            </button>
+            {/* View Promote Actions Trigger Button displaying Detail Item Names */}
+            {(() => {
+                const paList = dashboardData?.promote_actions || [];
+                let buttonText = 'PA (0)';
+                if (paList.length === 1) {
+                    buttonText = paList[0].name;
+                } else if (paList.length === 2) {
+                    buttonText = `${paList[0].name}, ${paList[1].name}`;
+                } else if (paList.length > 2) {
+                    buttonText = `${paList[0].name}, ${paList[1].name} (+${paList.length - 2})`;
+                }
 
-            {/* View Promote Actions Trigger Button */}
-            <button
-                onClick={() => setShowPromoteActionsListModal(true)}
-                className="h-8 px-3 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
-            >
-                <span>📢</span>
-                <span>
-                    PA ({dashboardData?.promote_actions ? dashboardData.promote_actions.length : 0})
-                </span>
-            </button>
+                return (
+                    <button
+                        onClick={() => setShowPromoteActionsListModal(true)}
+                        className="h-8 px-3 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-sm max-w-xs md:max-w-md"
+                        title={paList.length > 0 ? paList.map(pa => pa.name).join(', ') : 'No active promote actions'}
+                    >
+                        <CampaignIcon fontSize="small" />
+                        <span className="truncate">
+                            {paList.length === 0 ? 'PA (0)' : `PA: ${buttonText}`}
+                        </span>
+                    </button>
+                );
+            })()}
         </div>
     );
 
@@ -461,10 +793,33 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
 
                 {/* Section 1: Column Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm">
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Actual vs Target (Grams)</h3>
+                                <p className="text-xs text-slate-500">Branch weight performance overview</p>
+                            </div>
+                            <ChartExportMenu 
+                                chartRef={gramChartObjRef} 
+                                filename="gram-kpi-chart.png" 
+                                title="Grams Chart" 
+                            />
+                        </div>
                         <div ref={gramChartRef} />
                     </div>
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm">
+
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Actual vs Target (Pieces)</h3>
+                                <p className="text-xs text-slate-500">Branch quantity performance overview</p>
+                            </div>
+                            <ChartExportMenu 
+                                chartRef={pcsChartObjRef} 
+                                filename="pcs-kpi-chart.png" 
+                                title="Pieces Chart" 
+                            />
+                        </div>
                         <div ref={pcsChartRef} />
                     </div>
                 </div>
@@ -478,10 +833,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                         </div>
 
                         {/* Controls */}
-                        <div className="flex items-center gap-3 self-end">
+                        <div className="flex items-center gap-3 flex-wrap self-end sm:self-center">
+                            {/* MUI Dropdown Export Menu */}
+                            <ChartExportMenu 
+                                chartRef={lineChartObjRef} 
+                                filename="trend-kpi-chart.png" 
+                                title="Trend Chart" 
+                            />
                             {/* Metric Toggle */}
                             <div className="flex bg-slate-100 dark:bg-slate-850 p-1 rounded-xl">
-                                {['weight', 'quantity', 'customer'].map((m) => (
+                                {['weight', 'quantity'].map((m) => (
                                     <button
                                         key={m}
                                         onClick={() => setActiveMetric(m)}
@@ -522,7 +883,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
                     <div>
                         <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                            <span>👑</span>
+                            <EmojiEventsIcon sx={{ color: '#F59E0B' }} />
                             <span>Top Performer</span>
                         </h3>
                         <p className="text-xs text-slate-500">Branch ranking based on selected KPI performance ratio</p>
@@ -595,9 +956,9 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                                         >
                                                             {col.key === 'branch_name' ? (
                                                                 <div className="flex items-center gap-2.5">
-                                                                    {index === 0 && <span className="text-base" title="1st Place Crown">👑</span>}
-                                                                    {index === 1 && <span className="text-base" title="2nd Place Silver">🥈</span>}
-                                                                    {index === 2 && <span className="text-base" title="3rd Place Bronze">🥉</span>}
+                                                                    {index === 0 && <WorkspacePremiumIcon sx={{ color: '#F59E0B', fontSize: 20 }} titleAccess="1st Place Gold" />}
+                                                                    {index === 1 && <MilitaryTechIcon sx={{ color: '#94A3B8', fontSize: 20 }} titleAccess="2nd Place Silver" />}
+                                                                    {index === 2 && <MilitaryTechIcon sx={{ color: '#B45309', fontSize: 20 }} titleAccess="3rd Place Bronze" />}
                                                                     {index > 2 && <span className="text-xs font-bold text-slate-400 w-5 text-center">#{index + 1}</span>}
                                                                     <span>{capitalize(val)}</span>
                                                                 </div>
@@ -636,7 +997,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                 onClick={() => setShowLineDetailModal(false)} 
                                 className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                             >
-                                ✕
+                                <CloseIcon fontSize="small" />
                             </button>
                         </div>
                         
@@ -651,8 +1012,9 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                         key={pa.id} 
                                         className="p-3 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-100 dark:border-slate-800"
                                     >
-                                        <h4 className="font-semibold text-xs text-slate-800 dark:text-slate-250">
-                                            {pa.name}
+                                        <h4 className="font-semibold text-xs text-slate-800 dark:text-slate-250 flex items-center gap-1.5">
+                                            <CampaignIcon fontSize="small" className="text-amber-500" />
+                                            <span>{pa.name}</span>
                                         </h4>
                                         <div className="text-[10px] text-slate-500 mt-2 space-y-1">
                                             <div>Duration: {pa.start_at} to {pa.end_at}</div>
@@ -699,15 +1061,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                         setShowPromoteActionsListModal(false);
                                         openCreatePromoteModal();
                                     }}
-                                    className="h-9 px-4 bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 rounded-xl text-xs font-semibold shadow-sm transition"
+                                    className="h-9 px-4 bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-1"
                                 >
-                                    + Create Promotion
+                                    <AddIcon fontSize="small" />
+                                    <span>Create Promotion</span>
                                 </button>
                                 <button 
                                     onClick={() => setShowPromoteActionsListModal(false)} 
                                     className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                                 >
-                                    ✕
+                                    <CloseIcon fontSize="small" />
                                 </button>
                             </div>
                         </div>
@@ -734,13 +1097,27 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                     ) : (
                                         (dashboardData.promote_actions).map((pa) => (
                                             <tr key={pa.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-200">{pa.name}</td>
-                                                <td className="px-6 py-4">{pa.target_branch}</td>
-                                                <td className="px-6 py-4">{pa.action_by_dept}</td>
-                                                <td className="px-6 py-4">{pa.start_at}</td>
-                                                <td className="px-6 py-4">{pa.end_at}</td>
-                                                <td className="px-6 py-4 text-xs font-mono">
-                                                    {pa.reference ? JSON.stringify(pa.reference) : 'None'}
+                                                <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                                                    <CampaignIcon fontSize="small" className="text-amber-500" />
+                                                    <span>{pa.name}</span>
+                                                </td>
+                                                <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{pa.target_branch}</td>
+                                                <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{pa.action_by_dept}</td>
+                                                <td className="px-6 py-4 text-xs font-semibold text-slate-600 dark:text-slate-400">{pa.start_at}</td>
+                                                <td className="px-6 py-4 text-xs font-semibold text-slate-600 dark:text-slate-400">{pa.end_at}</td>
+                                                <td className="px-6 py-4 text-xs">
+                                                    {pa.reference ? (
+                                                        typeof pa.reference === 'object' && pa.reference.title ? (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 font-semibold border border-amber-200 dark:border-amber-900/40">
+                                                                <LinkIcon fontSize="small" />
+                                                                <span>{pa.reference.title}</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="font-mono text-[11px] text-slate-500">{JSON.stringify(pa.reference)}</span>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-slate-400">None</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))

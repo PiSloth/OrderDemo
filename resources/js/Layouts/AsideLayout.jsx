@@ -2,6 +2,42 @@ import React, { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 
+// Material UI Imports
+import {
+    AppBar,
+    Toolbar,
+    IconButton,
+    Drawer,
+    Typography,
+    Box,
+    Button,
+    List,
+    ListItem,
+    ListItemButton,
+    ListItemIcon,
+    ListItemText,
+    Collapse,
+    Avatar,
+    Chip
+} from '@mui/material';
+
+import {
+    Menu as MenuIcon,
+    ChevronLeft as ChevronLeftIcon,
+    TrendingUp as TrendingUpIcon,
+    BarChart as BarChartIcon,
+    Assignment as AssignmentIcon,
+    FormatListNumbered as ListIcon,
+    DesktopWindows as MonitorIcon,
+    CalendarMonth as CalendarIcon,
+    ExpandLess,
+    ExpandMore,
+    Add as AddIcon,
+    Person as PersonIcon
+} from '@mui/icons-material';
+
+const drawerWidth = 280;
+
 export default function AsideLayout({ children, title, headerActions }) {
     const { auth = {}, url = '' } = usePage().props;
     const currentUrl = usePage().url || window.location.pathname;
@@ -10,14 +46,8 @@ export default function AsideLayout({ children, title, headerActions }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState({
         performance: false,
-        order: false,
-        psi: false,
-        todo: false,
-        operation: false,
         kpi: false,
-        whiteboard: false,
-        officeAsset: false,
-        calendar: false,
+        todo: false,
     });
 
     // Auto-open group based on current URL path
@@ -26,14 +56,8 @@ export default function AsideLayout({ children, title, headerActions }) {
         const newGroups = { ...openGroups };
         
         if (path.startsWith('/performance')) newGroups.performance = true;
-        else if (path.startsWith('/order')) newGroups.order = true;
-        else if (path.startsWith('/psi')) newGroups.psi = true;
-        else if (path.startsWith('/todo')) newGroups.todo = true;
-        else if (path.startsWith('/operation')) newGroups.operation = true;
         else if (path.startsWith('/kpi') && !path.startsWith('/kpi/sale-kpi')) newGroups.kpi = true;
-        else if (path.startsWith('/whiteboard')) newGroups.whiteboard = true;
-        else if (path.startsWith('/office-asset')) newGroups.officeAsset = true;
-        else if (path.startsWith('/calendar')) newGroups.calendar = true;
+        else if (path.startsWith('/todo')) newGroups.todo = true;
 
         setOpenGroups(newGroups);
     }, [currentUrl]);
@@ -49,232 +73,334 @@ export default function AsideLayout({ children, title, headerActions }) {
         }));
     };
 
-    const linkBase = "flex items-center p-2 text-sm font-medium rounded-xl transition-all group";
-    const linkActive = "bg-[#FEF08A] text-slate-900 font-bold shadow-sm";
-    const linkInactive = "text-slate-650 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-350 dark:hover:bg-slate-800/70 dark:hover:text-slate-100";
- 
-    const dropdownHeaderCls = "w-full flex items-center justify-between p-2.5 text-sm font-semibold rounded-xl text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 transition-all";
+    const handleDrawerToggle = () => {
+        setSidebarOpen(!sidebarOpen);
+    };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col">
-            {/* Backdrop overlay for all screens */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 z-40 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
-
-            {/* Sidebar Navigation Drawer (Hidden by default for wide report view) */}
-            <aside
-                className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-900 overflow-y-auto shadow-2xl ${
-                    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                }`}
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }} className="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
+            {/* Top MUI Navigation Bar */}
+            <AppBar 
+                position="sticky" 
+                elevation={0}
+                sx={{
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    color: 'text.primary',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    backdropFilter: 'blur(8px)',
+                    zIndex: (theme) => theme.zIndex.drawer + 1,
+                    '.dark &': {
+                        bgcolor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                        color: '#fff',
+                    }
+                }}
             >
-                <div className="flex h-full flex-col justify-between p-4">
-                    <div>
-                        {/* ShweTatar Brand Header & Close Button */}
-                        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800 pb-4">
-                            <a href="/order" className="flex items-center gap-3">
-                                <img src="/images/logo.png" alt="STT Logo" className="w-10 h-8 bg-white rounded-md p-0.5 shadow-sm" />
-                                <div>
-                                    <span className="block font-bold text-slate-800 dark:text-white leading-tight">ShweTatar</span>
-                                    <span className="block text-[10px] text-slate-500 font-medium">Gold & Jewellery</span>
-                                </div>
-                            </a>
-                            <button
-                                type="button"
-                                onClick={() => setSidebarOpen(false)}
-                                className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                                title="Close sidebar"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        {/* Hot Create Todo Button */}
-                        <div className="my-4 px-1">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    window.location.href = '/todo/list?createTask=1';
-                                }}
-                                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#FEF08A] hover:bg-[#FDE047] py-2.5 px-3 text-xs font-bold text-slate-800 shadow-md hover:scale-[1.02] active:scale-98 transition-all"
-                            >
-                                <span className="text-sm">+</span>
-                                <span>Create Todo Task</span>
-                            </button>
-                        </div>
-
-                        {/* Navigation Items */}
-                        <nav className="space-y-1">
-                            <ul className="space-y-1">
-                                {/* Performance Dropdown */}
-                                <li>
-                                    <button onClick={() => toggleGroup('performance')} className={dropdownHeaderCls}>
-                                        <span className="flex items-center">
-                                            <span className="mr-3 text-base">📈</span>
-                                            <span>Performance</span>
-                                        </span>
-                                        <span className={`transform transition-transform ${openGroups.performance ? 'rotate-180' : ''}`}>▼</span>
-                                    </button>
-                                    {openGroups.performance && (
-                                        <ul className="mt-1 pl-6 space-y-1">
-                                            <li>
-                                                <a href="/performance/branch-score" className={`${linkBase} ${isCurrentUrl('/performance/branch-score') ? linkActive : linkInactive}`}>
-                                                    <span>Daily Scores</span>
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="/performance/sale-dashboard" className={`${linkBase} ${isCurrentUrl('/performance/sale-dashboard') ? linkActive : linkInactive}`}>
-                                                    <span>Sale</span>
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    )}
-                                </li>
-
-                                {/* Sale KPI Top Level Link */}
-                                <li>
-                                    <a href="/sale-kpi" className={`${linkBase} ${isCurrentUrl('/sale-kpi') ? linkActive : linkInactive} py-2.5`}>
-                                        <span className="mr-3 text-base">📊</span>
-                                        <span className="font-semibold text-slate-800 dark:text-slate-200">Sale KPI</span>
-                                    </a>
-                                </li>
-
-                                {/* KPI Tasks Dropdown */}
-                                <li>
-                                    <button onClick={() => toggleGroup('kpi')} className={dropdownHeaderCls}>
-                                        <span className="flex items-center">
-                                            <span className="mr-3 text-base">📋</span>
-                                            <span>KPI Tasks</span>
-                                        </span>
-                                        <span className={`transform transition-transform ${openGroups.kpi ? 'rotate-180' : ''}`}>▼</span>
-                                    </button>
-                                    {openGroups.kpi && (
-                                        <ul className="mt-1 pl-6 space-y-1">
-                                            <li>
-                                                <a href="/kpi/dashboard" className={`${linkBase} ${isCurrentUrl('/kpi/dashboard') ? linkActive : linkInactive}`}>
-                                                    <span>Dashboard</span>
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="/kpi/tasks" className={`${linkBase} ${isCurrentUrl('/kpi/tasks') ? linkActive : linkInactive}`}>
-                                                    <span>My Tasks</span>
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="/kpi/approvals" className={`${linkBase} ${isCurrentUrl('/kpi/approvals') ? linkActive : linkInactive}`}>
-                                                    <span>Approvals</span>
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    )}
-                                </li>
-
-                                {/* Todo Dropdown */}
-                                <li>
-                                    <button onClick={() => toggleGroup('todo')} className={dropdownHeaderCls}>
-                                        <span className="flex items-center">
-                                            <span className="mr-3 text-base">📝</span>
-                                            <span>Todo Lists</span>
-                                        </span>
-                                        <span className={`transform transition-transform ${openGroups.todo ? 'rotate-180' : ''}`}>▼</span>
-                                    </button>
-                                    {openGroups.todo && (
-                                        <ul className="mt-1 pl-6 space-y-1">
-                                            <li>
-                                                <a href="/todo/dashboard" className={`${linkBase} ${isCurrentUrl('/todo/dashboard') ? linkActive : linkInactive}`}>
-                                                    <span>Dashboard</span>
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="/todo/list" className={`${linkBase} ${isCurrentUrl('/todo/list') ? linkActive : linkInactive}`}>
-                                                    <span>Task List</span>
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    )}
-                                </li>
-
-                                {/* Whiteboard */}
-                                <li>
-                                    <a href="/whiteboard/config" className={`${linkBase} ${isCurrentUrl('/whiteboard/config') ? linkActive : linkInactive}`}>
-                                        <span className="mr-3 text-base">🖥️</span>
-                                        <span>Whiteboard Config</span>
-                                    </a>
-                                </li>
-
-                                {/* Calendar */}
-                                <li>
-                                    <a href="/calendar/index" className={`${linkBase} ${isCurrentUrl('/calendar/index') ? linkActive : linkInactive}`}>
-                                        <span className="mr-3 text-base">📅</span>
-                                        <span>Calendar</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-
-                    {/* User profile section */}
-                    {user && (
-                        <div className="border-t border-slate-100 dark:border-slate-850 p-3">
-                            <div className="text-xs font-semibold text-slate-800 dark:text-slate-205">{user.name}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">{user.email}</div>
-                        </div>
-                    )}
-                </div>
-            </aside>
-
-            {/* Top Navigation Bar with Responsive Multi-Row Filter Layout */}
-            <header className="sticky top-0 z-30 flex flex-col md:flex-row md:items-center justify-between min-h-[3.5rem] p-3 px-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 gap-2.5 shadow-sm">
-                <div className="flex items-center justify-between w-full md:w-auto gap-3 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none transition border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center justify-center"
-                            title="Toggle Sidebar Navigation"
+                <Toolbar sx={{ justifyContent: 'space-between', gap: 2, flexWrap: { xs: 'wrap', md: 'nowrap' }, py: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <IconButton
+                            color="inherit"
+                            aria-label="open drawer"
+                            edge="start"
+                            onClick={handleDrawerToggle}
+                            sx={{ 
+                                border: '1px solid', 
+                                borderColor: 'divider', 
+                                borderRadius: 2,
+                                '.dark &': { borderColor: 'rgba(255,255,255,0.2)' } 
+                            }}
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
-                        <a href="/order" className="flex items-center gap-2">
-                            <img src="/images/logo.png" alt="STT Logo" className="w-7 h-6 bg-white rounded p-0.5 shadow-sm" />
-                            <span className="font-bold text-sm text-slate-800 dark:text-white">ShweTatar</span>
-                        </a>
-                    </div>
+                            <MenuIcon />
+                        </IconButton>
 
-                    {/* Mobile user badge */}
-                    {user && (
-                        <div className="md:hidden text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
-                            {user.name}
-                        </div>
+                        <Box component="a" href="/order" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'inherit' }}>
+                            <Box 
+                                component="img" 
+                                src="/images/logo.png" 
+                                alt="STT Logo" 
+                                sx={{ width: 32, height: 26, bgcolor: '#fff', borderRadius: 1, p: 0.5, boxShadow: 1 }} 
+                            />
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                                    ShweTatar
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', lineHeight: 1 }}>
+                                    Gold & Jewellery
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Box>
+
+                    {/* Header Actions or Title & User Profile */}
+                    {headerActions ? (
+                        <Box sx={{ width: { xs: '100%', md: 'auto' }, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1 }}>
+                            {headerActions}
+                        </Box>
+                    ) : (
+                        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
+                            {title && (
+                                <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary' }}>
+                                    {title}
+                                </Typography>
+                            )}
+                            {user && (
+                                <Chip 
+                                    avatar={<Avatar sx={{ width: 24, height: 24 }}><PersonIcon fontSize="small" /></Avatar>} 
+                                    label={user.name} 
+                                    variant="outlined" 
+                                    size="small" 
+                                />
+                            )}
+                        </Box>
                     )}
-                </div>
+                </Toolbar>
+            </AppBar>
 
-                {headerActions ? (
-                    <div className="w-full md:w-auto flex flex-wrap items-center justify-start md:justify-end gap-2">
-                        {headerActions}
-                    </div>
-                ) : (
-                    <div className="hidden md:flex items-center gap-3">
-                        {title && <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</span>}
-                        {user && (
-                            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                {user.name}
-                            </div>
-                        )}
-                    </div>
-                )}
-            </header>
+            {/* MUI AppDrawer Navigation */}
+            <Drawer
+                variant="temporary"
+                open={sidebarOpen}
+                onClose={handleDrawerToggle}
+                ModalProps={{ keepMounted: true }}
+                sx={{
+                    '& .MuiDrawer-paper': { 
+                        width: drawerWidth, 
+                        boxSizing: 'border-box',
+                        bgcolor: 'background.paper',
+                        boxShadow: 24,
+                        '.dark &': {
+                            bgcolor: '#0f172a',
+                            color: '#fff',
+                            borderColor: 'rgba(255,255,255,0.1)'
+                        }
+                    },
+                }}
+            >
+                <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    {/* Drawer Header */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <Box component="a" href="/order" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'inherit' }}>
+                            <Box 
+                                component="img" 
+                                src="/images/logo.png" 
+                                alt="STT Logo" 
+                                sx={{ width: 36, height: 28, bgcolor: '#fff', borderRadius: 1, p: 0.5, boxShadow: 1 }} 
+                            />
+                            <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                                    ShweTatar
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                    Gold & Jewellery
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <IconButton onClick={handleDrawerToggle} size="small">
+                            <ChevronLeftIcon />
+                        </IconButton>
+                    </Box>
 
-            {/* Full-Width Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0">
-                <main className="flex-1 p-6">{children}</main>
-            </div>
+                    {/* Quick Action Button */}
+                    <Box sx={{ p: 2, pb: 1 }}>
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => { window.location.href = '/todo/list?createTask=1'; }}
+                            sx={{
+                                bgcolor: '#FEF08A',
+                                color: '#1e293b',
+                                fontWeight: 700,
+                                borderRadius: 3,
+                                textTransform: 'none',
+                                boxShadow: 2,
+                                '&:hover': { bgcolor: '#FDE047' }
+                            }}
+                        >
+                            Create Todo Task
+                        </Button>
+                    </Box>
+
+                    {/* Navigation Items List */}
+                    <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1, py: 1 }}>
+                        <List component="nav" size="small" disablePadding>
+                            {/* Performance Group */}
+                            <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+                                <ListItemButton onClick={() => toggleGroup('performance')} sx={{ borderRadius: 2 }}>
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'primary.main' }}>
+                                        <TrendingUpIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Performance" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                    {openGroups.performance ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </ListItemButton>
+                                <Collapse in={openGroups.performance} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding sx={{ pl: 3 }}>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/performance/branch-score" 
+                                            selected={isCurrentUrl('/performance/branch-score')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Daily Scores" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/performance/sale-dashboard" 
+                                            selected={isCurrentUrl('/performance/sale-dashboard')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Sale" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                    </List>
+                                </Collapse>
+                            </ListItem>
+
+                            {/* Sale KPI Item */}
+                            <ListItem disablePadding sx={{ mb: 0.5 }}>
+                                <ListItemButton 
+                                    component="a" 
+                                    href="/sale-kpi" 
+                                    selected={isCurrentUrl('/sale-kpi')}
+                                    sx={{ 
+                                        borderRadius: 2,
+                                        '&.Mui-selected': { bgcolor: '#FEF08A', color: '#0f172a', fontWeight: 'bold', '&:hover': { bgcolor: '#FDE047' } }
+                                    }}
+                                >
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'warning.main' }}>
+                                        <BarChartIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Sale KPI" primaryTypographyProps={{ fontWeight: 700, fontSize: '0.875rem' }} />
+                                </ListItemButton>
+                            </ListItem>
+
+                            {/* KPI Tasks Group */}
+                            <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+                                <ListItemButton onClick={() => toggleGroup('kpi')} sx={{ borderRadius: 2 }}>
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'info.main' }}>
+                                        <AssignmentIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="KPI Tasks" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                    {openGroups.kpi ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </ListItemButton>
+                                <Collapse in={openGroups.kpi} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding sx={{ pl: 3 }}>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/kpi/dashboard" 
+                                            selected={isCurrentUrl('/kpi/dashboard')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Dashboard" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/kpi/tasks" 
+                                            selected={isCurrentUrl('/kpi/tasks')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="My Tasks" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/kpi/approvals" 
+                                            selected={isCurrentUrl('/kpi/approvals')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Approvals" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                    </List>
+                                </Collapse>
+                            </ListItem>
+
+                            {/* Todo Lists Group */}
+                            <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+                                <ListItemButton onClick={() => toggleGroup('todo')} sx={{ borderRadius: 2 }}>
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'success.main' }}>
+                                        <ListIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Todo Lists" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                    {openGroups.todo ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </ListItemButton>
+                                <Collapse in={openGroups.todo} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding sx={{ pl: 3 }}>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/todo/dashboard" 
+                                            selected={isCurrentUrl('/todo/dashboard')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Dashboard" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/todo/list" 
+                                            selected={isCurrentUrl('/todo/list')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Task List" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                    </List>
+                                </Collapse>
+                            </ListItem>
+
+                            {/* Whiteboard Config */}
+                            <ListItem disablePadding sx={{ mb: 0.5 }}>
+                                <ListItemButton 
+                                    component="a" 
+                                    href="/whiteboard/config" 
+                                    selected={isCurrentUrl('/whiteboard/config')}
+                                    sx={{ borderRadius: 2 }}
+                                >
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'secondary.main' }}>
+                                        <MonitorIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Whiteboard Config" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                </ListItemButton>
+                            </ListItem>
+
+                            {/* Calendar */}
+                            <ListItem disablePadding sx={{ mb: 0.5 }}>
+                                <ListItemButton 
+                                    component="a" 
+                                    href="/calendar/index" 
+                                    selected={isCurrentUrl('/calendar/index')}
+                                    sx={{ borderRadius: 2 }}
+                                >
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'error.main' }}>
+                                        <CalendarIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Calendar" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                </ListItemButton>
+                            </ListItem>
+                        </List>
+                    </Box>
+
+                    {/* User Profile Footer */}
+                    {user && (
+                        <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontWeight: 'bold' }}>
+                                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {user.name}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {user.email}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
+                </Box>
+            </Drawer>
+
+            {/* Main Content Body */}
+            <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 3 } }}>
+                {children}
+            </Box>
+
             <CreatePromoteActionModal />
-        </div>
+        </Box>
     );
 }

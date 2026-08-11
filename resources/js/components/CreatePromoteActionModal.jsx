@@ -106,7 +106,7 @@ export default function CreatePromoteActionModal() {
         setErrors({});
 
         const referencePayload = referenceType && referenceId 
-            ? { [referenceType]: referenceId } 
+            ? { type: referenceType, id: referenceId, title: referenceSearch } 
             : null;
 
         axios.post('/sale-kpi/promote-actions', {
