@@ -571,7 +571,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                         } else if (index === 1) {
                                             rowBgClass = "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold";
                                         } else if (index === 2) {
-                                            rowBgClass = "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 font-semibold";
+                                            rowBgClass = "bg-orange-100/80 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 font-semibold";
                                         }
 
                                         return (
@@ -580,13 +580,9 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                                     let val = row[col.key];
                                                     const isHighlighted = col.key === selectedRewardsColumn;
                                                     
-                                                    let cellHighlight = '';
-                                                    if (isHighlighted) {
-                                                        if (index === 0) cellHighlight = 'bg-amber-200/80 dark:bg-amber-800/60 font-black';
-                                                        else if (index === 1) cellHighlight = 'bg-slate-200/80 dark:bg-slate-700/60 font-black';
-                                                        else if (index === 2) cellHighlight = 'bg-amber-100 dark:bg-amber-900/50 font-black';
-                                                        else cellHighlight = 'bg-amber-100/40 dark:bg-amber-950/20 font-bold';
-                                                    }
+                                                    const cellHighlight = isHighlighted 
+                                                        ? 'font-black underline decoration-slate-400/60 decoration-2' 
+                                                        : '';
 
                                                     return (
                                                         <td 
