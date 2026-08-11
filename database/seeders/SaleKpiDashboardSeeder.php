@@ -25,9 +25,12 @@ class SaleKpiDashboardSeeder extends Seeder
         // 1. Ensure Position and Admin User exist
         $position = Position::firstOrCreate(['name' => 'Super Admin']);
         
-        $branch1 = Branch::firstOrCreate(['name' => 'branch 1']);
-        $branch2 = Branch::firstOrCreate(['name' => 'branch 2']);
-        $branch3 = Branch::firstOrCreate(['name' => 'branch 3']);
+        $branch1 = Branch::firstOrCreate(['name' => 'branch 1'], ['is_jewelry_shop' => true]);
+        $branch1->update(['is_jewelry_shop' => true]);
+        $branch2 = Branch::firstOrCreate(['name' => 'branch 2'], ['is_jewelry_shop' => true]);
+        $branch2->update(['is_jewelry_shop' => true]);
+        $branch3 = Branch::firstOrCreate(['name' => 'branch 3'], ['is_jewelry_shop' => true]);
+        $branch3->update(['is_jewelry_shop' => true]);
         $branches = [$branch1, $branch2, $branch3];
 
         $admin = User::updateOrCreate(

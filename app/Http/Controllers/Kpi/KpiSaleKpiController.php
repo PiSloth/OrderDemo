@@ -25,10 +25,13 @@ class KpiSaleKpiController extends Controller
      */
     public function index(Request $request): Response
     {
-        $branches = Branch::orderBy('name')->get(['id', 'name'])->map(function ($b) {
-            $b->name = ucwords(strtolower($b->name));
-            return $b;
-        });
+        $branches = Branch::where('is_jewelry_shop', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(function ($b) {
+                $b->name = ucwords(strtolower($b->name));
+                return $b;
+            });
         $departments = Department::orderBy('name')->get(['id', 'name']);
 
         // Determine default date range based on active promote actions
@@ -86,7 +89,7 @@ class KpiSaleKpiController extends Controller
             }
         }
 
-        // 2. Resolve branch filters
+        // 2. Resolve branch filters (only jewellery shops)
         $branchIdsRaw = $request->input('branch_ids');
         $branchIds = [];
         if (!empty($branchIdsRaw)) {
@@ -98,8 +101,8 @@ class KpiSaleKpiController extends Controller
             $branchIds = array_values(array_filter(array_map('intval', $branchIds)));
         }
 
-        // Fetch selected or all branches
-        $branchesQuery = Branch::query();
+        // Fetch selected or all jewellery shop branches
+        $branchesQuery = Branch::where('is_jewelry_shop', true);
         if (!empty($branchIds)) {
             $branchesQuery->whereIn('id', $branchIds);
         }
@@ -108,13 +111,13 @@ class KpiSaleKpiController extends Controller
             return $b;
         });
 
+        $jewelBranchIds = $branches->pluck('id')->toArray();
+
         // 3. Fetch Daily Report Records & Targets in date range
         $records = DailyReportRecord::query()
             ->join('daily_reports', 'daily_reports.id', '=', 'daily_report_records.daily_report_id')
             ->whereBetween('daily_report_records.report_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
-            ->when(!empty($branchIds), function ($q) use ($branchIds) {
-                return $q->whereIn('daily_report_records.branch_id', $branchIds);
-            })
+            ->whereIn('daily_report_records.branch_id', !empty($branchIds) ? $branchIds : (empty($jewelBranchIds) ? [0] : $jewelBranchIds))
             ->select('daily_report_records.*', 'daily_reports.properties')
             ->get()
             ->map(function ($record) {
@@ -125,9 +128,7 @@ class KpiSaleKpiController extends Controller
             });
 
         $targets = BranchTarget::whereBetween('year', [$from->year, $to->year])
-            ->when(!empty($branchIds), function ($q) use ($branchIds) {
-                return $q->whereIn('branch_id', $branchIds);
-            })
+            ->whereIn('branch_id', !empty($branchIds) ? $branchIds : (empty($jewelBranchIds) ? [0] : $jewelBranchIds))
             ->get()
             ->filter(function ($t) use ($from, $to) {
                 $date = Carbon::create($t->year, $t->month, $t->day);

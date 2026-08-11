@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 
-export default function AsideLayout({ children, title }) {
+export default function AsideLayout({ children, title, headerActions }) {
     const { auth = {}, url = '' } = usePage().props;
     const currentUrl = usePage().url || window.location.pathname;
     const user = auth?.user;
 
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState({
         performance: false,
         order: false,
@@ -56,24 +56,24 @@ export default function AsideLayout({ children, title }) {
     const dropdownHeaderCls = "w-full flex items-center justify-between p-2.5 text-sm font-semibold rounded-xl text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 transition-all";
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 lg:flex">
-            {/* Mobile backdrop */}
-            {mobileMenuOpen && (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col">
+            {/* Backdrop overlay for all screens */}
+            {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-slate-900/40 dark:bg-slate-950/70 lg:hidden backdrop-blur-sm transition-all"
-                    onClick={() => setMobileMenuOpen(false)}
+                    className="fixed inset-0 z-40 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300"
+                    onClick={() => setSidebarOpen(false)}
                 />
             )}
 
-            {/* Sidebar Navigation */}
+            {/* Sidebar Navigation Drawer (Hidden by default for wide report view) */}
             <aside
-                className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-slate-200 bg-white transition-transform duration-200 ease-out dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 overflow-y-auto ${
-                    mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-900 overflow-y-auto shadow-2xl ${
+                    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
                 <div className="flex h-full flex-col justify-between p-4">
                     <div>
-                        {/* ShweTatar Brand Header */}
+                        {/* ShweTatar Brand Header & Close Button */}
                         <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800 pb-4">
                             <a href="/order" className="flex items-center gap-3">
                                 <img src="/images/logo.png" alt="STT Logo" className="w-10 h-8 bg-white rounded-md p-0.5 shadow-sm" />
@@ -82,15 +82,14 @@ export default function AsideLayout({ children, title }) {
                                     <span className="block text-[10px] text-slate-500 font-medium">Gold & Jewellery</span>
                                 </div>
                             </a>
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    type="button"
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
-                                >
-                                    ✕
-                                </button>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSidebarOpen(false)}
+                                className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                                title="Close sidebar"
+                            >
+                                ✕
+                            </button>
                         </div>
 
                         {/* Hot Create Todo Button */}
@@ -227,7 +226,51 @@ export default function AsideLayout({ children, title }) {
                 </div>
             </aside>
 
-            {/* Main Content Area */}
+            {/* Top Navigation Bar with Responsive Multi-Row Filter Layout */}
+            <header className="sticky top-0 z-30 flex flex-col md:flex-row md:items-center justify-between min-h-[3.5rem] p-3 px-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 gap-2.5 shadow-sm">
+                <div className="flex items-center justify-between w-full md:w-auto gap-3 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none transition border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center justify-center"
+                            title="Toggle Sidebar Navigation"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                        <a href="/order" className="flex items-center gap-2">
+                            <img src="/images/logo.png" alt="STT Logo" className="w-7 h-6 bg-white rounded p-0.5 shadow-sm" />
+                            <span className="font-bold text-sm text-slate-800 dark:text-white">ShweTatar</span>
+                        </a>
+                    </div>
+
+                    {/* Mobile user badge */}
+                    {user && (
+                        <div className="md:hidden text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                            {user.name}
+                        </div>
+                    )}
+                </div>
+
+                {headerActions ? (
+                    <div className="w-full md:w-auto flex flex-wrap items-center justify-start md:justify-end gap-2">
+                        {headerActions}
+                    </div>
+                ) : (
+                    <div className="hidden md:flex items-center gap-3">
+                        {title && <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</span>}
+                        {user && (
+                            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                                {user.name}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </header>
+
+            {/* Full-Width Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0">
                 <main className="flex-1 p-6">{children}</main>
             </div>

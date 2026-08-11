@@ -54,8 +54,8 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
     const dateRangeInputRef = useRef(null);
 
     // Fetch dashboard data
-    const fetchDashboardData = () => {
-        setLoading(true);
+    const fetchDashboardData = (isInitial = false) => {
+        if (isInitial) setLoading(true);
         axios.get('/sale-kpi/data', {
             params: {
                 start_date: startDate,
@@ -77,7 +77,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
 
     // Refetch when filters change
     useEffect(() => {
-        fetchDashboardData();
+        fetchDashboardData(dashboardData === null);
     }, [startDate, endDate, selectedBranches, viewType]);
 
     // Initialize Flatpickr
@@ -118,12 +118,23 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 align: 'left',
                 style: { fontSize: '16px', fontWeight: 'bold', color: document.documentElement.classList.contains('dark') ? '#FAF9F6' : '#1E293B' }
             },
-            colors: ['#FEF08A', '#94A3B8'],
+            colors: ['#FACC15', '#94A3B8'],
             plotOptions: {
                 bar: {
                     horizontal: false,
-                    columnWidth: '55%',
-                    borderRadius: 6
+                    columnWidth: '45%',
+                    borderRadius: 0
+                }
+            },
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shade: 'light',
+                    type: 'vertical',
+                    shadeIntensity: 0.2,
+                    opacityFrom: 0.95,
+                    opacityTo: 0.8,
+                    stops: [0, 100]
                 }
             },
             dataLabels: { enabled: false },
@@ -166,12 +177,23 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 align: 'left',
                 style: { fontSize: '16px', fontWeight: 'bold', color: document.documentElement.classList.contains('dark') ? '#FAF9F6' : '#1E293B' }
             },
-            colors: ['#99F6E4', '#94A3B8'],
+            colors: ['#2DD4BF', '#94A3B8'],
             plotOptions: {
                 bar: {
                     horizontal: false,
-                    columnWidth: '55%',
-                    borderRadius: 6
+                    columnWidth: '45%',
+                    borderRadius: 0
+                }
+            },
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shade: 'light',
+                    type: 'vertical',
+                    shadeIntensity: 0.2,
+                    opacityFrom: 0.95,
+                    opacityTo: 0.8,
+                    stops: [0, 100]
                 }
             },
             dataLabels: { enabled: false },
@@ -337,270 +359,266 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
         return [...rewardsRows].sort((a, b) => b[selectedRewardsColumn] - a[selectedRewardsColumn]);
     }, [dashboardData, selectedRewardsColumn]);
 
+    const headerFilterActions = (
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Branch Filters - Custom Dropdown Checkbox */}
+            <div className="relative" ref={branchDropdownRef}>
+                <button
+                    type="button"
+                    onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+                    className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 transition flex items-center justify-between gap-1.5 min-w-36 shadow-sm"
+                >
+                    <span className="truncate">
+                        {selectedBranches.length === 0 
+                            ? 'All Branches' 
+                            : branches
+                                .filter(b => selectedBranches.includes(b.id))
+                                .map(b => capitalize(b.name))
+                                .join(', ')
+                        }
+                    </span>
+                    <span className="text-[10px] text-slate-400">▼</span>
+                </button>
+
+                {branchDropdownOpen && (
+                    <div className="absolute right-0 mt-1 w-56 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 space-y-0.5">
+                        {branches.map((b) => {
+                            const isChecked = selectedBranches.includes(b.id);
+                            return (
+                                <label
+                                    key={b.id}
+                                    className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition select-none"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => {
+                                            if (isChecked) {
+                                                setSelectedBranches(selectedBranches.filter(id => id !== b.id));
+                                            } else {
+                                                setSelectedBranches([...selectedBranches, b.id]);
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded border-slate-350 dark:border-slate-650 text-slate-900 focus:ring-slate-500 cursor-pointer"
+                                    />
+                                    <span className="text-xs text-slate-700 dark:text-slate-350 font-medium">
+                                        {capitalize(b.name)}
+                                    </span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Date Range Picker */}
+            <input
+                ref={dateRangeInputRef}
+                type="text"
+                placeholder="Select Date Range"
+                className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm w-44"
+            />
+
+            {/* Reset Filter Button */}
+            <button
+                onClick={() => {
+                    setStartDate(defaultFrom);
+                    setEndDate(defaultTo);
+                    setSelectedBranches([]);
+                    if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
+                        dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
+                    }
+                }}
+                className="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition shadow-sm"
+            >
+                Reset
+            </button>
+
+            {/* View Promote Actions Trigger Button */}
+            <button
+                onClick={() => setShowPromoteActionsListModal(true)}
+                className="h-8 px-3 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            >
+                <span>📢</span>
+                <span>
+                    PA ({dashboardData?.promote_actions ? dashboardData.promote_actions.length : 0})
+                </span>
+            </button>
+        </div>
+    );
+
     return (
-        <AsideLayout title="Sale KPI Report Dashboard">
+        <AsideLayout title="Sale KPI Report Dashboard" headerActions={headerFilterActions}>
             <Head title="Sale KPI Report Dashboard" />
 
             <div className="space-y-6 text-slate-800 dark:text-slate-100">
-                {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Sale KPI Dashboard</h1>
-                        <p className="text-sm text-slate-500">Analyze actual sale grams and quantities compared with target thresholds</p>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* Branch Filters - Custom Dropdown Checkbox */}
-                        <div className="relative" ref={branchDropdownRef}>
-                            <button
-                                type="button"
-                                onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-                                className="h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-205 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-500 transition flex items-center justify-between gap-2 min-w-44"
-                            >
-                                <span className="truncate">
-                                    {selectedBranches.length === 0 
-                                        ? 'All Branches' 
-                                        : branches
-                                            .filter(b => selectedBranches.includes(b.id))
-                                            .map(b => capitalize(b.name))
-                                            .join(', ')
-                                    }
-                                </span>
-                                <span className="text-[10px] text-slate-400">▼</span>
-                            </button>
-
-                            {branchDropdownOpen && (
-                                <div className="absolute left-0 mt-1 w-56 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 p-2 space-y-0.5">
-                                    {branches.map((b) => {
-                                        const isChecked = selectedBranches.includes(b.id);
-                                        return (
-                                            <label
-                                                key={b.id}
-                                                className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition select-none"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    onChange={() => {
-                                                        if (isChecked) {
-                                                            setSelectedBranches(selectedBranches.filter(id => id !== b.id));
-                                                        } else {
-                                                            setSelectedBranches([...selectedBranches, b.id]);
-                                                        }
-                                                    }}
-                                                    className="w-4 h-4 rounded border-slate-350 dark:border-slate-650 text-slate-900 focus:ring-slate-500 cursor-pointer"
-                                                />
-                                                <span className="text-xs text-slate-700 dark:text-slate-350 font-medium">
-                                                    {capitalize(b.name)}
-                                                </span>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Date Range Picker */}
-                        <input
-                                    ref={dateRangeInputRef}
-                                    type="text"
-                                    placeholder="Select Date Range"
-                                    className="h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                />
-
-                        {/* Reset Filter Button */}
-                        <button
-                            onClick={() => {
-                                setStartDate(defaultFrom);
-                                setEndDate(defaultTo);
-                                setSelectedBranches([]);
-                                if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
-                                    dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
-                                }
-                            }}
-                            className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-55 dark:hover:bg-slate-800 text-sm"
-                        >
-                            Reset
-                        </button>
-
-                        {/* View Promote Actions Trigger Button */}
-                        <button
-                            onClick={() => setShowPromoteActionsListModal(true)}
-                            className="h-10 px-4 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-sm font-semibold transition flex items-center gap-2 shadow-sm"
-                        >
-                            <span>📢</span>
-                            <span>
-                                Promote Actions ({dashboardData?.promote_actions ? dashboardData.promote_actions.length : 0})
-                            </span>
-                        </button>
-                    </div>
-                </div>
-
-                {loading && (
+                {loading && !dashboardData && (
                     <div className="flex justify-center items-center py-12">
                         <div className="w-8 h-8 border-4 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin"></div>
                     </div>
                 )}
 
                 {/* Section 1: Column Charts */}
-                {!loading && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm">
-                            <div ref={gramChartRef} />
-                        </div>
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm">
-                            <div ref={pcsChartRef} />
-                        </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm">
+                        <div ref={gramChartRef} />
                     </div>
-                )}
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm">
+                        <div ref={pcsChartRef} />
+                    </div>
+                </div>
+
                 {/* Section 3: Line Chart */}
-                {!loading && (
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Trend & Campaign Overlap Chart</h3>
-                                <p className="text-xs text-slate-500">Tracks performance overlap during active campaign periods (Dotted: No PA, Yellow: 1 PA, Teal: 2 PA, Dark Yellow: 3 PA, Dark Teal: 3+ PA)</p>
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Trend & Campaign Overlap Chart</h3>
+                            <p className="text-xs text-slate-500">Tracks performance overlap during active campaign periods (Dotted: No PA, Yellow: 1 PA, Teal: 2 PA, Dark Yellow: 3 PA, Dark Teal: 3+ PA)</p>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex items-center gap-3 self-end">
+                            {/* Metric Toggle */}
+                            <div className="flex bg-slate-100 dark:bg-slate-850 p-1 rounded-xl">
+                                {['weight', 'quantity', 'customer'].map((m) => (
+                                    <button
+                                        key={m}
+                                        onClick={() => setActiveMetric(m)}
+                                        className={`px-3 py-1 text-xs font-semibold rounded-lg capitalize transition ${
+                                            activeMetric === m 
+                                                ? 'bg-[#FEF08A] shadow text-slate-900 font-bold' 
+                                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-350'
+                                        }`}
+                                    >
+                                        {m}
+                                    </button>
+                                ))}
                             </div>
- 
-                            {/* Controls */}
-                            <div className="flex items-center gap-3 self-end">
-                                {/* Metric Toggle */}
-                                <div className="flex bg-slate-100 dark:bg-slate-850 p-1 rounded-xl">
-                                    {['weight', 'quantity', 'customer'].map((m) => (
-                                        <button
-                                            key={m}
-                                            onClick={() => setActiveMetric(m)}
-                                            className={`px-3 py-1 text-xs font-semibold rounded-lg capitalize transition ${
-                                                activeMetric === m 
-                                                    ? 'bg-[#FEF08A] shadow text-slate-900 font-bold' 
-                                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-350'
-                                            }`}
-                                        >
-                                            {m}
-                                        </button>
-                                    ))}
-                                </div>
- 
-                                {/* Date View Mode (Daily vs Monthly) */}
-                                <div className="flex bg-slate-100 dark:bg-slate-850 p-1 rounded-xl">
-                                    {['daily', 'monthly'].map((v) => (
-                                        <button
-                                            key={v}
-                                            onClick={() => setViewType(v)}
-                                            className={`px-3 py-1 text-xs font-semibold rounded-lg capitalize transition ${
-                                                viewType === v 
-                                                    ? 'bg-[#FEF08A] shadow text-slate-900 font-bold' 
-                                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-350'
-                                            }`}
-                                        >
-                                            {v}
-                                        </button>
-                                    ))}
-                                </div>
+
+                            {/* Date View Mode (Daily vs Monthly) */}
+                            <div className="flex bg-slate-100 dark:bg-slate-850 p-1 rounded-xl">
+                                {['daily', 'monthly'].map((v) => (
+                                    <button
+                                        key={v}
+                                        onClick={() => setViewType(v)}
+                                        className={`px-3 py-1 text-xs font-semibold rounded-lg capitalize transition ${
+                                            viewType === v 
+                                                ? 'bg-[#FEF08A] shadow text-slate-900 font-bold' 
+                                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-350'
+                                        }`}
+                                    >
+                                        {v}
+                                    </button>
+                                ))}
                             </div>
                         </div>
- 
-                        <div ref={lineChartRef} />
                     </div>
-                )}
+
+                    <div ref={lineChartRef} />
+                </div>
 
                 {/* Section 4: Top Performer Table */}
-                {!loading && (
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
-                        <div>
-                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                                <span>👑</span>
-                                <span>Top Performer</span>
-                            </h3>
-                            <p className="text-xs text-slate-500">Branch ranking based on selected KPI performance ratio</p>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs uppercase font-semibold">
-                                    <tr>
-                                        {dynamicCols.map((col) => {
-                                            const isSortable = col.key !== 'branch_name';
-                                            return (
-                                                <th key={col.key} className="px-6 py-3">
-                                                    <div className="flex items-center gap-2">
-                                                        {isSortable && (
-                                                            <input
-                                                                type="radio"
-                                                                name="rewards_sort"
-                                                                checked={selectedRewardsColumn === col.key}
-                                                                onChange={() => setSelectedRewardsColumn(col.key)}
-                                                                className="w-4 h-4 text-slate-900 border-slate-300 dark:border-slate-650 focus:ring-slate-500 cursor-pointer"
-                                                            />
-                                                        )}
-                                                        <span className={isSortable ? 'cursor-pointer' : ''} onClick={() => isSortable && setSelectedRewardsColumn(col.key)}>
-                                                            {col.label}
-                                                        </span>
-                                                    </div>
-                                                </th>
-                                            );
-                                        })}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {sortedRewardsRows.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={dynamicCols.length} className="px-6 py-8 text-center text-slate-400">
-                                                No rewards data available.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        sortedRewardsRows.map((row, index) => {
-                                            // Rank-based row styling
-                                            let rowBgClass = "hover:bg-slate-50/50 dark:hover:bg-slate-800/40";
-                                            if (index === 0) {
-                                                rowBgClass = "bg-amber-100/70 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-950 dark:text-amber-100 font-semibold";
-                                            } else if (index === 1) {
-                                                rowBgClass = "bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium";
-                                            } else if (index === 2) {
-                                                rowBgClass = "bg-amber-700/10 dark:bg-amber-900/25 hover:bg-amber-700/15 text-amber-900 dark:text-amber-200 font-medium";
-                                            }
-
-                                            return (
-                                                <tr key={row.branch_id} className={`transition-colors ${rowBgClass}`}>
-                                                    {dynamicCols.map((col) => {
-                                                        let val = row[col.key];
-                                                        const isHighlighted = col.key === selectedRewardsColumn;
-                                                        
-                                                        return (
-                                                            <td 
-                                                                key={col.key} 
-                                                                className={`px-6 py-4 ${
-                                                                    col.key === 'branch_name' 
-                                                                        ? 'font-bold text-slate-900 dark:text-slate-100' 
-                                                                        : 'font-semibold'
-                                                                } ${
-                                                    isHighlighted ? 'bg-amber-200/40 dark:bg-amber-900/30' : ''
-                                                                }`}
-                                                            >
-                                                                {col.key === 'branch_name' ? (
-                                                                    <div className="flex items-center gap-2.5">
-                                                                        {index === 0 && <span className="text-base" title="1st Place Crown">👑</span>}
-                                                                        {index === 1 && <span className="text-base" title="2nd Place Silver">🥈</span>}
-                                                                        {index === 2 && <span className="text-base" title="3rd Place Bronze">🥉</span>}
-                                                                        {index > 2 && <span className="text-xs font-bold text-slate-400 w-5 text-center">#{index + 1}</span>}
-                                                                        <span>{capitalize(val)}</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    val
-                                                                )}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
+                    <div>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            <span>👑</span>
+                            <span>Top Performer</span>
+                        </h3>
+                        <p className="text-xs text-slate-500">Branch ranking based on selected KPI performance ratio</p>
                     </div>
-                )}
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs uppercase font-semibold">
+                                <tr>
+                                    {dynamicCols.map((col) => {
+                                        const isSortable = col.key !== 'branch_name';
+                                        return (
+                                            <th key={col.key} className="px-6 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    {isSortable && (
+                                                        <input
+                                                            type="radio"
+                                                            name="rewards_sort"
+                                                            checked={selectedRewardsColumn === col.key}
+                                                            onChange={() => setSelectedRewardsColumn(col.key)}
+                                                            className="w-4 h-4 text-slate-900 border-slate-300 dark:border-slate-650 focus:ring-slate-500 cursor-pointer"
+                                                        />
+                                                    )}
+                                                    <span className={isSortable ? 'cursor-pointer' : ''} onClick={() => isSortable && setSelectedRewardsColumn(col.key)}>
+                                                        {col.label}
+                                                    </span>
+                                                </div>
+                                            </th>
+                                        );
+                                    })}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                {sortedRewardsRows.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={dynamicCols.length} className="px-6 py-8 text-center text-slate-400">
+                                            No rewards data available.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    sortedRewardsRows.map((row, index) => {
+                                        // Rank-based permanent row styling
+                                        let rowBgClass = "hover:bg-slate-50/50 dark:hover:bg-slate-800/40";
+                                        if (index === 0) {
+                                            rowBgClass = "bg-amber-100 dark:bg-amber-900/60 text-amber-950 dark:text-amber-100 font-bold";
+                                        } else if (index === 1) {
+                                            rowBgClass = "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold";
+                                        } else if (index === 2) {
+                                            rowBgClass = "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 font-semibold";
+                                        }
+
+                                        return (
+                                            <tr key={row.branch_id} className={`transition-colors ${rowBgClass}`}>
+                                                {dynamicCols.map((col) => {
+                                                    let val = row[col.key];
+                                                    const isHighlighted = col.key === selectedRewardsColumn;
+                                                    
+                                                    let cellHighlight = '';
+                                                    if (isHighlighted) {
+                                                        if (index === 0) cellHighlight = 'bg-amber-200/80 dark:bg-amber-800/60 font-black';
+                                                        else if (index === 1) cellHighlight = 'bg-slate-200/80 dark:bg-slate-700/60 font-black';
+                                                        else if (index === 2) cellHighlight = 'bg-amber-100 dark:bg-amber-900/50 font-black';
+                                                        else cellHighlight = 'bg-amber-100/40 dark:bg-amber-950/20 font-bold';
+                                                    }
+
+                                                    return (
+                                                        <td 
+                                                            key={col.key} 
+                                                            className={`px-6 py-4 ${
+                                                                col.key === 'branch_name' 
+                                                                    ? 'font-bold text-slate-900 dark:text-slate-100' 
+                                                                    : 'font-semibold'
+                                                            } ${cellHighlight}`}
+                                                        >
+                                                            {col.key === 'branch_name' ? (
+                                                                <div className="flex items-center gap-2.5">
+                                                                    {index === 0 && <span className="text-base" title="1st Place Crown">👑</span>}
+                                                                    {index === 1 && <span className="text-base" title="2nd Place Silver">🥈</span>}
+                                                                    {index === 2 && <span className="text-base" title="3rd Place Bronze">🥉</span>}
+                                                                    {index > 2 && <span className="text-xs font-bold text-slate-400 w-5 text-center">#{index + 1}</span>}
+                                                                    <span>{capitalize(val)}</span>
+                                                                </div>
+                                                            ) : (
+                                                                val
+                                                            )}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             {/* Line Chart marker details Modal */}
