@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
+import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 
 export default function KpiLayout({ children, title }) {
     const { auth = {}, url = '' } = usePage().props;
@@ -117,6 +118,7 @@ export default function KpiLayout({ children, title }) {
 
                 <main className="flex-1 p-6">{children}</main>
             </div>
+            <CreatePromoteActionModal />
         </div>
     );
 }

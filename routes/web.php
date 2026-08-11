@@ -210,6 +210,14 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::get('/notifications', App\Livewire\Todo\Notifications::class)->name('notifications');
 });
 
+Route::middleware(['auth'])->group(function () {
+    Route::get('/sale-kpi', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'index'])->name('kpi.sale-kpi');
+    Route::get('/sale-kpi/data', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getData'])->name('kpi.sale-kpi.data');
+    Route::post('/sale-kpi/promote-actions', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'storePromoteAction'])->name('kpi.sale-kpi.promote-actions.store');
+    Route::get('/sale-kpi/search-todos', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'searchTodos'])->name('kpi.sale-kpi.search-todos');
+    Route::get('/sale-kpi/search-kpi-tasks', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'searchKpiTasks'])->name('kpi.sale-kpi.search-kpi-tasks');
+});
+
 Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::get('/', KpiDashboard::class)->name('dashboard');
     Route::get('/dashboard', KpiDashboard::class)->name('dashboard.home');

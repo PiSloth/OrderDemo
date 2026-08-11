@@ -60,7 +60,7 @@
             request()->routeIs('operation.titles') ||
             request()->routeIs('operation.daily-notes');
 
-        $kpiGroupActive = request()->routeIs('kpi.*');
+        $kpiGroupActive = request()->routeIs('kpi.*') && !request()->routeIs('kpi.sale-kpi');
 
         $whiteboardGroupActive = request()->routeIs('whiteboard.*');
 
@@ -426,6 +426,17 @@
                         </a>
                     </li> --}}
                 </ul>
+            </li>
+
+            <!-- Sale KPI -->
+            <li class="mt-2">
+                @php $active = request()->routeIs('kpi.sale-kpi'); @endphp
+                <a wire:navigate href="{{ route('kpi.sale-kpi') }}"
+                    class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                    <x-icon name="chart-bar"
+                        class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                    <span class="ml-3 font-semibold">Sale KPI</span>
+                </a>
             </li>
 
             <!-- KPI Group -->
