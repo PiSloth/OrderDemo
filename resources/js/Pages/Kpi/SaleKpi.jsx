@@ -7,13 +7,20 @@ import 'flatpickr/dist/flatpickr.min.css';
 import ApexCharts from 'apexcharts';
 import toast from 'react-hot-toast';
 
+import ReportEditorContainer from '../../Components/ReportStudio/ReportEditorContainer';
+
 // MUI Imports
 import {
     Button,
     ButtonGroup,
     Menu,
     MenuItem,
-    Box
+    Box,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    IconButton,
+    Typography
 } from '@mui/material';
 
 import {
@@ -29,11 +36,36 @@ import {
     Add as AddIcon,
     Close as CloseIcon,
     Link as LinkIcon,
-    Check as CheckIcon
+    Check as CheckIcon,
+    Description as DescriptionIcon
 } from '@mui/icons-material';
 
-export default function SaleKpi({ branches = [], departments = [], defaultFrom, defaultTo }) {
+export default function SaleKpi({ branches = [], departments = [], defaultFrom, defaultTo, taxonomies = {} }) {
     const capitalize = (str) => (!str ? '' : str.replace(/\b\w/g, (l) => l.toUpperCase()));
+
+    const [showRichTextReportModal, setShowRichTextReportModal] = useState(false);
+
+    // Format date string (e.g. 2026-08-09 -> Sun-9-Aug)
+    const formatTrendDate = (dateStr) => {
+        if (!dateStr || typeof dateStr !== 'string') return dateStr;
+        const cleanStr = dateStr.trim().split(' ')[0];
+        const parts = cleanStr.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // 0-indexed
+            const day = parseInt(parts[2], 10);
+            
+            if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                const d = new Date(year, month, day);
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const dayName = days[d.getDay()];
+                const monthName = months[d.getMonth()];
+                return `${dayName}-${day}-${monthName}`;
+            }
+        }
+        return dateStr;
+    };
 
     const [startDate, setStartDate] = useState(defaultFrom);
     const [endDate, setEndDate] = useState(defaultTo);
@@ -511,9 +543,10 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 },
                 events: {
                     markerClick: (event, chartContext, { dataPointIndex }) => {
-                        const label = labels[dataPointIndex];
-                        const details = lc.overlap_details?.[label] || [];
-                        setLineDetailLabel(label);
+                        const rawLabel = labels[dataPointIndex];
+                        const formattedLabel = formatTrendDate(rawLabel);
+                        const details = lc.overlap_details?.[rawLabel] || lc.overlap_details?.[formattedLabel] || [];
+                        setLineDetailLabel(formattedLabel);
                         setActivePromoteActions(details);
                         setShowLineDetailModal(true);
                     }
@@ -538,7 +571,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 hover: { size: 7 }
             },
             xaxis: {
-                categories: labels,
+                categories: labels.map(formatTrendDate),
                 labels: { style: { colors: '#64748B' } }
             },
             yaxis: [
@@ -584,10 +617,11 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             ],
             tooltip: {
                 custom: function({ dataPointIndex }) {
-                    const label = labels[dataPointIndex];
+                    const rawLabel = labels[dataPointIndex];
+                    const formattedLabel = formatTrendDate(rawLabel);
                     const val = rawValues[dataPointIndex];
                     const cust = customerValues[dataPointIndex];
-                    const details = lc.overlap_details?.[label] || [];
+                    const details = lc.overlap_details?.[rawLabel] || lc.overlap_details?.[formattedLabel] || [];
                     const metricUnit = activeMetric === 'weight' ? 'g' : 'pcs';
 
                     let detailsHtml = '';
@@ -596,7 +630,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     } else {
                         detailsHtml = details.map(d => `
                             <div style="display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 11px; font-weight: 700; color: #0F172A;">
-                                <span>📢</span>
+                                <span style="font-size: 12px;">📢</span>
                                 <span>${d.name}</span>
                                 <span style="font-size: 10px; font-weight: 500; color: #64748B;">(${d.department || 'N/A'})</span>
                             </div>
@@ -606,7 +640,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     return `
                         <div style="padding: 10px 12px; background: #ffffff; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); font-family: inherit;">
                             <div style="font-weight: 700; font-size: 12px; color: #0F172A; margin-bottom: 4px;">
-                                📅 ${label}
+                                📅 ${formattedLabel}
                             </div>
                             <div style="font-size: 12px; font-weight: 600; color: #475569; padding-bottom: 4px;">
                                 ${activeMetric.toUpperCase()}: <span style="font-weight: 800; color: #0F172A;">${val !== null && val !== undefined ? val : 0} ${metricUnit}</span>
@@ -776,6 +810,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     </button>
                 );
             })()}
+
+            {/* Rich Text Report Studio Modal Trigger */}
+            <button
+                type="button"
+                onClick={() => setShowRichTextReportModal(true)}
+                className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            >
+                <DescriptionIcon fontSize="small" />
+                <span>Rich Text Report</span>
+            </button>
         </div>
     );
 
@@ -1137,6 +1181,33 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     </div>
                 </div>
             )}
+
+            {/* Rich Text Reporting Studio Full Modal */}
+            <Dialog
+                open={showRichTextReportModal}
+                onClose={() => setShowRichTextReportModal(false)}
+                fullWidth
+                maxWidth="xl"
+                scroll="paper"
+                PaperProps={{
+                    sx: { borderRadius: 3, minHeight: '85vh', bgcolor: '#F8FAFC' }
+                }}
+            >
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1, borderBottom: '1px solid #E2E8F0' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <DescriptionIcon color="primary" />
+                        <Typography variant="h6" fontWeight="bold">
+                            Context-Aware Rich Text Reporting Studio
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={() => setShowRichTextReportModal(false)}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers sx={{ p: 2 }}>
+                    <ReportEditorContainer taxonomies={taxonomies} />
+                </DialogContent>
+            </Dialog>
         </AsideLayout>
     );
 }

@@ -10,6 +10,7 @@ use App\Livewire\Operation\IT\Issue\Configure as ItIssueConfigure;
 use App\Livewire\Operation\IT\Issue\Create as ItIssueCreate;
 use App\Livewire\Operation\IT\Issue\Dashboard as ItIssueDashboard;
 use App\Livewire\Operation\IT\Issue\Index as ItIssueIndex;
+use App\Http\Controllers\Operation\IT\ItIssueController;
 use App\Livewire\Operation\Branch\BranchConfig;
 use App\Livewire\Operation\Branch\BranchChecklist\Operation as BranchChecklistOperation;
 use App\Livewire\Operation\Branch\BranchChecklist\Report as BranchChecklistReport;
@@ -289,13 +290,43 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
     });
 
     Route::prefix('it')->name('it.')->group(function () {
-        Route::get('/issues/configure', ItIssueConfigure::class)->name('issues.configure');
-        Route::get('/issues/dashboard', ItIssueDashboard::class)->name('issues.dashboard');
-        Route::get('/issues', ItIssueIndex::class)->name('issues.index');
-        Route::get('/issues/create', ItIssueCreate::class)->name('issues.create');
-        Route::patch('/issues/{issue}/status', [IssueStatusController::class, 'update'])->name('issues.status.update');
+        Route::get('/issues', [ItIssueController::class, 'index'])->name('issues.index');
+        Route::get('/issues/create', [ItIssueController::class, 'create'])->name('issues.create');
+        Route::post('/issues', [ItIssueController::class, 'store'])->name('issues.store');
+        Route::get('/issues/dashboard', [ItIssueController::class, 'dashboard'])->name('issues.dashboard');
+        Route::get('/issues/reports', [ItIssueController::class, 'reports'])->name('issues.reports');
+        Route::get('/issues/reports/export', [ItIssueController::class, 'exportReport'])->name('issues.reports.export');
+        Route::get('/issues/configure', [ItIssueController::class, 'configure'])->name('issues.configure');
+        
+        // IT Issue Configuration CRUD & Swap Routes
+        Route::post('/issues/configure/priorities', [ItIssueController::class, 'storePriorityConfig'])->name('issues.configure.priorities.store');
+        Route::patch('/issues/configure/priorities/{id}', [ItIssueController::class, 'updatePriorityConfig'])->name('issues.configure.priorities.update');
+        Route::delete('/issues/configure/priorities/{id}', [ItIssueController::class, 'destroyPriorityConfig'])->name('issues.configure.priorities.destroy');
+        Route::post('/issues/configure/priorities/swap', [ItIssueController::class, 'swapPriorityConfig'])->name('issues.configure.priorities.swap');
+
+        Route::post('/issues/configure/importance', [ItIssueController::class, 'storeImportanceConfig'])->name('issues.configure.importance.store');
+        Route::patch('/issues/configure/importance/{id}', [ItIssueController::class, 'updateImportanceConfig'])->name('issues.configure.importance.update');
+        Route::delete('/issues/configure/importance/{id}', [ItIssueController::class, 'destroyImportanceConfig'])->name('issues.configure.importance.destroy');
+        Route::post('/issues/configure/importance/swap', [ItIssueController::class, 'swapImportanceConfig'])->name('issues.configure.importance.swap');
+
+        Route::post('/issues/configure/statuses', [ItIssueController::class, 'storeStatusConfig'])->name('issues.configure.statuses.store');
+        Route::patch('/issues/configure/statuses/{id}', [ItIssueController::class, 'updateStatusConfig'])->name('issues.configure.statuses.update');
+        Route::delete('/issues/configure/statuses/{id}', [ItIssueController::class, 'destroyStatusConfig'])->name('issues.configure.statuses.destroy');
+        Route::post('/issues/configure/statuses/swap', [ItIssueController::class, 'swapStatusConfig'])->name('issues.configure.statuses.swap');
+
+        Route::post('/issues/configure/root-causes', [ItIssueController::class, 'storeRootCauseConfig'])->name('issues.configure.root-causes.store');
+        Route::patch('/issues/configure/root-causes/{id}', [ItIssueController::class, 'updateRootCauseConfig'])->name('issues.configure.root-causes.update');
+        Route::delete('/issues/configure/root-causes/{id}', [ItIssueController::class, 'destroyRootCauseConfig'])->name('issues.configure.root-causes.destroy');
+        Route::post('/issues/configure/root-causes/swap', [ItIssueController::class, 'swapRootCauseConfig'])->name('issues.configure.root-causes.swap');
+        Route::put('/issues/{issue}', [ItIssueController::class, 'update'])->name('issues.update');
+        Route::delete('/issues/{issue}', [ItIssueController::class, 'destroy'])->name('issues.destroy');
+        Route::post('/issues/reorder-sequence', [ItIssueController::class, 'reorderSequence'])->name('issues.reorder-sequence');
+        Route::patch('/issues/{issue}/priority', [ItIssueController::class, 'updatePriority'])->name('issues.priority.update');
+        Route::patch('/issues/{issue}/status', [ItIssueController::class, 'updateStatus'])->name('issues.status.update');
+        Route::patch('/issues/{issue}/reported-date', [ItIssueController::class, 'updateReportedDate'])->name('issues.reported-date.update');
+        Route::post('/issues/{issue}/override-sla', [ItIssueController::class, 'overrideSla'])->name('issues.override-sla');
         Route::patch('/issues/{issue}/assignment', [IssueAssignmentController::class, 'update'])->name('issues.assignment.update');
-        Route::post('/issues/{issue}/messages', [IssueMessageController::class, 'store'])->name('issues.messages.store');
+        Route::post('/issues/{issue}/messages', [ItIssueController::class, 'addMessage'])->name('issues.messages.store');
     });
 });
 
@@ -380,5 +411,28 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
     });
 });
 
+Route::middleware(['auth'])->prefix('taxonomies')->name('taxonomies.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\TaxonomyController::class, 'index'])->name('index');
+    Route::post('/', [\App\Http\Controllers\TaxonomyController::class, 'store'])->name('store');
+    Route::post('/rename-group', [\App\Http\Controllers\TaxonomyController::class, 'renameGroup'])->name('rename-group');
+    Route::delete('/groups/{groupKey}', [\App\Http\Controllers\TaxonomyController::class, 'destroyGroup'])->name('destroy-group');
+    Route::put('/{taxonomy}', [\App\Http\Controllers\TaxonomyController::class, 'update'])->name('update');
+    Route::delete('/{taxonomy}', [\App\Http\Controllers\TaxonomyController::class, 'destroy'])->name('destroy');
+});
+
+Route::middleware(['auth'])->prefix('reports')->name('reports.')->group(function () {
+    Route::get('/create', [\App\Http\Controllers\ReportController::class, 'create'])->name('create');
+    Route::get('/analytic-board', [\App\Http\Controllers\ReportController::class, 'analyticBoard'])->name('analytic-board');
+    Route::get('/history-blocks', [\App\Http\Controllers\ReportController::class, 'history'])->name('history-blocks');
+    Route::get('/imageboard-threads', [\App\Http\Controllers\ReportController::class, 'imageboardThreads'])->name('imageboard-threads');
+    Route::post('/upload-image', [\App\Http\Controllers\ReportController::class, 'uploadImage'])->name('upload-image');
+    Route::get('/{report}/edit', [\App\Http\Controllers\ReportController::class, 'edit'])->name('edit');
+    Route::post('/save', [\App\Http\Controllers\ReportController::class, 'store'])->name('store');
+    Route::post('/{report}/replies', [\App\Http\Controllers\ReportController::class, 'reply'])->name('replies');
+    Route::post('/{report}/metadata', [\App\Http\Controllers\ReportController::class, 'updateMetadata'])->name('metadata');
+    Route::put('/{report}', [\App\Http\Controllers\ReportController::class, 'update'])->name('update');
+});
+
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');
 // Route::get('/guest',AppLayout::class);
+

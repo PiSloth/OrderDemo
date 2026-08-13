@@ -15,7 +15,7 @@ class Issue extends Model
     protected $fillable = [
         'title', 'description', 'issue_category_id', 'issue_priority_id', 'issue_importance_id', 'issue_by',
         'issue_at', 'created_by', 'proposed_solution', 'resolution_department_id', 'assigned_user_id', 'due_date',
-        'issue_status_id', 'follow_up_date', 'follow_up_updated_by', 'follow_up_interval', 'closed_date',
+        'is_sla_failed', 'fail_points', 'issue_status_id', 'follow_up_date', 'follow_up_updated_by', 'follow_up_interval', 'closed_date',
         'is_third_party_resolver', 'resolution_sequence', 'started_at',
     ];
 
@@ -26,9 +26,11 @@ class Issue extends Model
         'follow_up_date' => 'datetime',
         'closed_date' => 'datetime',
         'is_third_party_resolver' => 'boolean',
+        'is_sla_failed' => 'boolean',
+        'fail_points' => 'integer',
     ];
 
-    protected $appends = ['is_overdue', 'is_urgent', 'resolution_days'];
+    protected $appends = ['is_overdue', 'is_urgent', 'resolution_days', 'sla_state'];
 
     public function category(): BelongsTo { return $this->belongsTo(IssueCategory::class, 'issue_category_id'); }
     public function priority(): BelongsTo { return $this->belongsTo(IssuePriority::class, 'issue_priority_id'); }
@@ -77,5 +79,25 @@ class Issue extends Model
         $end = $this->closed_date ?? now();
 
         return $start ? $start->diffInDays($end) : 0;
+    }
+
+    public function getSlaStateAttribute(): string
+    {
+        if ($this->is_sla_failed) {
+            return 'FAILED';
+        }
+
+        if ($this->closed_date !== null) {
+            if ($this->due_date && $this->closed_date->gt($this->due_date)) {
+                return 'FAILED';
+            }
+            return 'PASSED';
+        }
+
+        if ($this->due_date && $this->due_date->isPast()) {
+            return 'OVERDUE';
+        }
+
+        return 'ON_TIME';
     }
 }

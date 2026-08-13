@@ -33,7 +33,10 @@ import {
     ExpandLess,
     ExpandMore,
     Add as AddIcon,
-    Person as PersonIcon
+    Person as PersonIcon,
+    Description as DescriptionIcon,
+    Assessment as AssessmentIcon,
+    BugReport as BugReportIcon
 } from '@mui/icons-material';
 
 const drawerWidth = 280;
@@ -48,6 +51,8 @@ export default function AsideLayout({ children, title, headerActions }) {
         performance: false,
         kpi: false,
         todo: false,
+        reports: false,
+        itIssues: false,
     });
 
     // Auto-open group based on current URL path
@@ -58,6 +63,8 @@ export default function AsideLayout({ children, title, headerActions }) {
         if (path.startsWith('/performance')) newGroups.performance = true;
         else if (path.startsWith('/kpi') && !path.startsWith('/kpi/sale-kpi')) newGroups.kpi = true;
         else if (path.startsWith('/todo')) newGroups.todo = true;
+        else if (path.startsWith('/reports') || path.startsWith('/taxonomies')) newGroups.reports = true;
+        else if (path.startsWith('/operations/it/issues')) newGroups.itIssues = true;
 
         setOpenGroups(newGroups);
     }, [currentUrl]);
@@ -339,6 +346,95 @@ export default function AsideLayout({ children, title, headerActions }) {
                                             sx={{ borderRadius: 2, my: 0.2 }}
                                         >
                                             <ListItemText primary="Task List" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                    </List>
+                                </Collapse>
+                            </ListItem>
+
+                            {/* IT Issue Operations Group */}
+                            <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+                                <ListItemButton onClick={() => toggleGroup('itIssues')} sx={{ borderRadius: 2 }}>
+                                    <ListItemIcon sx={{ minWidth: 36, color: '#3b0764' }}>
+                                        <BugReportIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="IT Issue Operations" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                    {openGroups.itIssues ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </ListItemButton>
+                                <Collapse in={openGroups.itIssues} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding sx={{ pl: 3 }}>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/operations/it/issues" 
+                                            selected={isCurrentUrl('/operations/it/issues') && currentUrl === '/operations/it/issues'}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Issue Tracking List" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 600 }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/operations/it/issues/dashboard" 
+                                            selected={isCurrentUrl('/operations/it/issues/dashboard')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="SLA Analytics Board" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                         <ListItemButton 
+                                            component="a" 
+                                            href="/operations/it/issues/configure" 
+                                            selected={isCurrentUrl('/operations/it/issues/configure')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Issue Configuration" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/operations/it/issues/reports" 
+                                            selected={isCurrentUrl('/operations/it/issues/reports')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="SLA & Credit Reports" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                    </List>
+                                </Collapse>
+                            </ListItem>
+
+                            {/* Rich Text Reports Group */}
+                            <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+                                <ListItemButton onClick={() => toggleGroup('reports')} sx={{ borderRadius: 2 }}>
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'primary.main' }}>
+                                        <DescriptionIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Rich Text Reports" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                    {openGroups.reports ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </ListItemButton>
+                                <Collapse in={openGroups.reports} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding sx={{ pl: 3 }}>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/reports/analytic-board" 
+                                            selected={isCurrentUrl('/reports/analytic-board')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemIcon sx={{ minWidth: 28, color: 'primary.main' }}>
+                                                <AssessmentIcon fontSize="small" />
+                                            </ListItemIcon>
+                                            <ListItemText primary="Analytic Report" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 600 }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/reports/create" 
+                                            selected={isCurrentUrl('/reports/create')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="New Report Studio" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/taxonomies" 
+                                            selected={isCurrentUrl('/taxonomies')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Taxonomy Admin" primaryTypographyProps={{ fontSize: '0.825rem' }} />
                                         </ListItemButton>
                                     </List>
                                 </Collapse>

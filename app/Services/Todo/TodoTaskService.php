@@ -25,16 +25,27 @@ class TodoTaskService
     {
         $creator = $creator ?: Auth::user();
         $creatorId = $creator ? $creator->id : null;
-        $departmentId = $data['requested_by_department_id'] ?? ($creator ? $creator->department_id : null);
-
         $dueTimeId = $data['selected_due_time_id'] ?? $data['todo_due_time_id'] ?? null;
         $dueDate = $data['due_date'] ?? null;
 
-        if (!$dueDate && $dueTimeId) {
-            $dueTime = TodoDueTime::find($dueTimeId);
-            if ($dueTime && $dueTime->duration) {
-                $dueDate = WorkingHoursHelper::calculateDueDate($dueTime->duration)->format('Y-m-d H:i:s');
-            }
+        $dueTimeObj = $dueTimeId ? TodoDueTime::with('category')->find($dueTimeId) : null;
+
+        // Resolve requested_by_department_id with fallbacks to ensure non-null
+        $departmentId = $data['requested_by_department_id']
+            ?? $data['requestedByDepartmentId']
+            ?? ($dueTimeObj?->category?->department_id)
+            ?? ($creator?->department_id)
+            ?? (!empty($data['assigned_user_id']) ? User::find($data['assigned_user_id'])?->department_id : null)
+            ?? \App\Models\Department::first()?->id;
+
+        // Resolve requested_by_branch_id with fallbacks to ensure non-null
+        $branchId = $data['requested_by_branch_id']
+            ?? $data['requestedByBranchId']
+            ?? ($creator?->branch_id)
+            ?? \App\Models\Branch::first()?->id;
+
+        if (!$dueDate && $dueTimeObj && $dueTimeObj->duration) {
+            $dueDate = WorkingHoursHelper::calculateDueDate($dueTimeObj->duration)->format('Y-m-d H:i:s');
         }
 
         $newStatus = TodoStatus::where('status', 'new')->first();
@@ -54,7 +65,7 @@ class TodoTaskService
             'assigned_user_id' => !empty($data['assigned_user_id']) ? $data['assigned_user_id'] : null,
             'created_by_user_id' => $creatorId,
             'requested_by_department_id' => $departmentId,
-            'requested_by_branch_id' => $data['requested_by_branch_id'],
+            'requested_by_branch_id' => $branchId,
         ]);
 
         // Send notification to assignee if assigned to another user

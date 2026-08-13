@@ -25,15 +25,11 @@ class DepartmentSeeder extends Seeder
         ];
 
 
-        Location::create(['name' => 'Head Office']);
-
-        // Get the first location as default
-        $defaultLocationId = \App\Models\Location::first()->id ?? 1;
+        Location::firstOrCreate(['name' => 'Head Office']);
 
         foreach ($departments as $department) {
-            Department::create([
+            Department::firstOrCreate([
                 'name' => $department,
-                'location_id' => $defaultLocationId,
             ]);
         }
     }

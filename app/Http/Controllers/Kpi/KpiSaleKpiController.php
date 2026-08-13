@@ -50,11 +50,17 @@ class KpiSaleKpiController extends Controller
             $defaultTo = Carbon::now()->subWeek()->endOfWeek(Carbon::SUNDAY)->format('Y-m-d');
         }
 
+        $taxonomies = \App\Models\MasterTaxonomy::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('group_key');
+
         return Inertia::render('Kpi/SaleKpi', [
             'branches' => $branches,
             'departments' => $departments,
             'defaultFrom' => $defaultFrom,
             'defaultTo' => $defaultTo,
+            'taxonomies' => $taxonomies,
         ]);
     }
 

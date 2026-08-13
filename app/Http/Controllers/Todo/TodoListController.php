@@ -368,6 +368,7 @@ class TodoListController extends Controller
         return DB::transaction(function () use ($validated, $request, $taskService) {
             $dueTimeId = $validated['selectedDueTimeId'] ?? $validated['todo_due_time_id'] ?? null;
             $branchId = $validated['requestedByBranchId'] ?? $validated['requested_by_branch_id'] ?? Auth::user()?->branch_id;
+            $departmentId = $validated['requestedByDepartmentId'] ?? $validated['requested_by_department_id'] ?? $request->input('departmentId') ?? $request->input('requested_by_department_id') ?? Auth::user()?->department_id;
             $assignedUserId = $validated['assignedUserId'] ?? $validated['assigned_user_id'] ?? null;
             $dueDate = $validated['dueDate'] ?? $validated['due_date'] ?? null;
 
@@ -403,6 +404,7 @@ class TodoListController extends Controller
                 'task' => $validated['task'],
                 'assigned_user_id' => $assignedUserId,
                 'requested_by_branch_id' => $branchId,
+                'requested_by_department_id' => $departmentId,
                 'due_date' => $dueDate,
             ]);
 

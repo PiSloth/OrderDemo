@@ -1,6 +1,6 @@
 {
-  "_apexcharts.common-fe946039.js": {
-    "file": "assets/apexcharts.common-fe946039.js",
+  "_apexcharts.common-75f13bbd.js": {
+    "file": "assets/apexcharts.common-75f13bbd.js",
     "isDynamicEntry": true
   },
   "node_modules/@fontsource/roboto/files/roboto-cyrillic-300-normal.woff": {
@@ -291,22 +291,41 @@
     "file": "assets/roboto-vietnamese-700-normal-bec340ec.woff2",
     "src": "node_modules/@fontsource/roboto/files/roboto-vietnamese-700-normal.woff2"
   },
+  "node_modules/canvg/lib/index.es.js": {
+    "file": "assets/index.es-9f64436c.js",
+    "imports": [
+      "_apexcharts.common-75f13bbd.js",
+      "resources/js/app.jsx"
+    ],
+    "isDynamicEntry": true,
+    "src": "node_modules/canvg/lib/index.es.js"
+  },
+  "node_modules/dompurify/dist/purify.es.mjs": {
+    "file": "assets/purify.es-267fe820.js",
+    "isDynamicEntry": true,
+    "src": "node_modules/dompurify/dist/purify.es.mjs"
+  },
+  "node_modules/html2canvas/dist/html2canvas.esm.js": {
+    "file": "assets/html2canvas.esm-e0a7d97b.js",
+    "isDynamicEntry": true,
+    "src": "node_modules/html2canvas/dist/html2canvas.esm.js"
+  },
   "resources/css/app.css": {
     "file": "assets/app-acc14e46.css",
     "isEntry": true,
     "src": "resources/css/app.css"
   },
   "resources/js/app.css": {
-    "file": "assets/app-a66ac37d.css",
+    "file": "assets/app-c159b6ea.css",
     "src": "resources/js/app.css"
   },
   "resources/js/app.js": {
     "css": [
       "assets/app-d3ed812b.css"
     ],
-    "file": "assets/app-3a2e326f.js",
+    "file": "assets/app-99b5d672.js",
     "imports": [
-      "_apexcharts.common-fe946039.js"
+      "_apexcharts.common-75f13bbd.js"
     ],
     "isEntry": true,
     "src": "resources/js/app.js"
@@ -387,14 +406,17 @@
       "assets/roboto-latin-700-normal-19e78b1c.woff"
     ],
     "css": [
-      "assets/app-a66ac37d.css"
+      "assets/app-c159b6ea.css"
     ],
     "dynamicImports": [
-      "_apexcharts.common-fe946039.js"
+      "_apexcharts.common-75f13bbd.js",
+      "node_modules/html2canvas/dist/html2canvas.esm.js",
+      "node_modules/dompurify/dist/purify.es.mjs",
+      "node_modules/canvg/lib/index.es.js"
     ],
-    "file": "assets/app-9e796a8b.js",
+    "file": "assets/app-db939ec9.js",
     "imports": [
-      "_apexcharts.common-fe946039.js"
+      "_apexcharts.common-75f13bbd.js"
     ],
     "isEntry": true,
     "src": "resources/js/app.jsx"

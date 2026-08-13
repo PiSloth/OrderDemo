@@ -1,5 +1,6 @@
 import './bootstrap';
 import '../css/app.css';
+import 'tippy.js/dist/tippy.css';
 
 import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';

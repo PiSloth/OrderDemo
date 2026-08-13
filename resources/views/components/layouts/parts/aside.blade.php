@@ -634,6 +634,16 @@
                 </button>
 
                 <ul x-show="openGroup === 'document'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
+                    @php $active = request()->routeIs('reports.analytic-board'); @endphp
+                    <li>
+                        <a wire:navigate href="{{ route('reports.analytic-board') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="chart-bar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Analytic Report</span>
+                        </a>
+                    </li>
+
                     @php $active = request()->routeIs('document.email-list'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('document.email-list') }}"

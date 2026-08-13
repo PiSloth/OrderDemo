@@ -86,16 +86,21 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
+        $firstPositionId = Position::first()?->id ?? 1;
+
         \App\Models\User::factory()->create([
             'name' => 'PiOs',
             'email' => 'pos@nexgen.com',
-            'position_id' => 1,
+            'position_id' => $firstPositionId,
             'branch_id' => 1,
         ]);
 
-        // Seed departments and user-department relationships
+        // Seed departments, master taxonomies, todo task module, and IT issue SLA sample data
         $this->call([
             DepartmentSeeder::class,
+            MasterTaxonomySeeder::class,
+            TodoSeeder::class,
+            ItIssueSeeder::class,
         ]);
     }
 }

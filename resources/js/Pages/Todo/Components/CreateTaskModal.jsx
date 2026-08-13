@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
+import { Snackbar, Alert } from '@mui/material';
 import SearchableUserSelect from '../../../Components/SearchableUserSelect';
 
 export default function CreateTaskModal({
     isOpen: propIsOpen = false,
     onClose: propOnClose = null,
+    onSuccessTask: propOnSuccessTask = null,
     formattedDueTimes = [],
     branches = [],
     departments = [],
@@ -23,6 +25,7 @@ export default function CreateTaskModal({
         task: '',
         assignedUserId: '',
         requestedByBranchId: userBranchId ? String(userBranchId) : '',
+        requestedByDepartmentId: '',
         dueDate: '',
     });
 
@@ -146,6 +149,11 @@ export default function CreateTaskModal({
         }
     }, [selectedCategoryId, filteredDueTimes]);
 
+    // Sync selectedDepartmentId into formData.requestedByDepartmentId for submit payload
+    useEffect(() => {
+        setFormData('requestedByDepartmentId', selectedDepartmentId);
+    }, [selectedDepartmentId]);
+
     // Keep internal isOpen state synced with prop
     useEffect(() => {
         setIsOpen(propIsOpen);
@@ -266,18 +274,62 @@ export default function CreateTaskModal({
         }
     };
 
-    // Submit task
+    const [validationSnackbar, setValidationSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'warning'
+    });
+
+    // Submit task with MUI field validation checks
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // Check required step-by-step fields
+        const missingFields = [];
+        if (!selectedDepartmentId) missingFields.push('Step 1: Department');
+        if (!formData.assignedUserId) missingFields.push('Step 2: Assignee Employee');
+        if (!selectedCategoryId) missingFields.push('Step 3: Category');
+        if (!formData.selectedDueTimeId) missingFields.push('Step 4: Due Time Description');
+        if (!formData.requestedByBranchId) missingFields.push('Request By Branch');
+        if (!formData.task || !formData.task.trim()) missingFields.push('Task Description');
+
+        if (missingFields.length > 0) {
+            setValidationSnackbar({
+                open: true,
+                message: `⚠️ Missing required fields: ${missingFields.join(', ')}`,
+                severity: 'warning'
+            });
+            return;
+        }
+
         if (taskProcessing) return;
+
         postTask('/todo/tasks', {
             preserveScroll: true,
             onSuccess: () => {
+                const taskInfo = {
+                    task: formData.task,
+                    status: 'In Progress',
+                    formData
+                };
+                if (propOnSuccessTask) {
+                    propOnSuccessTask(taskInfo);
+                }
+                window.dispatchEvent(new CustomEvent('todo-task-created', { detail: taskInfo }));
+
                 resetTaskForm();
                 setSelectedDepartmentId('');
                 setSelectedCategoryId('');
                 handleClose();
             },
+            onError: (errors) => {
+                const errMsgs = Object.values(errors).flat().join(' | ');
+                setValidationSnackbar({
+                    open: true,
+                    message: `⚠️ Validation error: ${errMsgs || 'Failed to save task.'}`,
+                    severity: 'error'
+                });
+            }
         });
     };
 
@@ -634,6 +686,24 @@ export default function CreateTaskModal({
                     </div>
                 </form>
             </div>
+
+            {/* MUI VALIDATION & ERROR NOTIFICATION SNACKBAR */}
+            <Snackbar
+                open={validationSnackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setValidationSnackbar((prev) => ({ ...prev, open: false }))}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                style={{ zIndex: 999999 }}
+            >
+                <Alert
+                    onClose={() => setValidationSnackbar((prev) => ({ ...prev, open: false }))}
+                    severity={validationSnackbar.severity}
+                    variant="filled"
+                    sx={{ width: '100%', fontWeight: 700, borderRadius: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}
+                >
+                    {validationSnackbar.message}
+                </Alert>
+            </Snackbar>
         </div>
     );
 }

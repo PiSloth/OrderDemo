@@ -18,6 +18,10 @@ export default defineConfig({
             ],
             refresh: true,
         }),
+        // laravel({
+        //     input: 'resources/js/app.jsx', // or your entry \resources\js\app.jsx
+        //     refresh: true, // Enables full page reloads on Blade/PHP changes
+        // }),
         react(),
     ],
 });
