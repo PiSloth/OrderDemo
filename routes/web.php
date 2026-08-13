@@ -324,6 +324,7 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
         Route::patch('/issues/{issue}/priority', [ItIssueController::class, 'updatePriority'])->name('issues.priority.update');
         Route::patch('/issues/{issue}/status', [ItIssueController::class, 'updateStatus'])->name('issues.status.update');
         Route::patch('/issues/{issue}/reported-date', [ItIssueController::class, 'updateReportedDate'])->name('issues.reported-date.update');
+        Route::patch('/issues/{issue}/due-date', [ItIssueController::class, 'updateDueDate'])->name('issues.due-date.update');
         Route::post('/issues/{issue}/override-sla', [ItIssueController::class, 'overrideSla'])->name('issues.override-sla');
         Route::patch('/issues/{issue}/assignment', [IssueAssignmentController::class, 'update'])->name('issues.assignment.update');
         Route::post('/issues/{issue}/messages', [ItIssueController::class, 'addMessage'])->name('issues.messages.store');

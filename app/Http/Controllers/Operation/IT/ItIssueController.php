@@ -324,6 +324,37 @@ class ItIssueController extends Controller
     }
 
     /**
+     * Update Due Date manually for manual schedule priorities.
+     * Log user remark as yellow system log note.
+     */
+    public function updateDueDate(Request $request, Issue $issue)
+    {
+        $validated = $request->validate([
+            'due_date' => ['required', 'date'],
+            'remark'   => ['required', 'string'],
+        ]);
+
+        $oldDueDate = $issue->due_date ? Carbon::parse($issue->due_date)->format('Y-m-d H:i') : 'N/A';
+        $newDueDate = Carbon::parse($validated['due_date']);
+        $newDueDateStr = $newDueDate->format('Y-m-d H:i');
+
+        $issue->update([
+            'due_date' => $newDueDate,
+        ]);
+
+        $logMsg = "[DUE DATE UPDATED]: Manual schedule due date set from {$oldDueDate} to {$newDueDateStr}. Remark: {$validated['remark']}";
+
+        IssueMessage::create([
+            'issue_id' => $issue->id,
+            'created_by' => auth()->id(),
+            'message' => $logMsg,
+            'is_log_note' => true,
+        ]);
+
+        return back()->with('success', 'Due date updated and remark saved to log notes!');
+    }
+
+    /**
      * Update Issue Status
      */
     public function updateStatus(Request $request, Issue $issue)
@@ -447,8 +478,11 @@ class ItIssueController extends Controller
         $endDate = $request->input('end_date');
         $resolverType = $request->input('resolver_type', 'all');
         $categoryIds = $request->input('category_ids');
+        $statusCodes = $request->input('status_codes', $request->input('status_code'));
 
-        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds);
+        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes);
+
+        $authUser = auth()->user()?->load('department');
 
         return Inertia::render('Operation/IT/Issues/Reports', [
             'report'          => $report,
@@ -458,6 +492,12 @@ class ItIssueController extends Controller
                 'end_date'      => $endDate,
                 'resolver_type' => $resolverType,
                 'category_ids'  => is_array($categoryIds) ? $categoryIds : ($categoryIds ? explode(',', $categoryIds) : []),
+                'status_codes'  => is_array($statusCodes) ? $statusCodes : ($statusCodes ? explode(',', $statusCodes) : []),
+            ],
+            'auth_user'       => [
+                'id'          => $authUser?->id,
+                'name'        => $authUser?->name ?? '',
+                'department'  => $authUser?->department?->name ?? '',
             ],
             'app_name'        => config('app.name'),
             'categories'      => IssueCategory::all(),
@@ -480,8 +520,9 @@ class ItIssueController extends Controller
         $endDate = $request->input('end_date');
         $resolverType = $request->input('resolver_type', 'all');
         $categoryIds = $request->input('category_ids');
+        $statusCodes = $request->input('status_codes', $request->input('status_code'));
 
-        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds);
+        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes);
 
         $filename = "SLA_Service_Credit_Report_{$periodType}_" . now()->format('Y-m-d') . ".xlsx";
         $writer = SimpleExcelWriter::streamDownload($filename);

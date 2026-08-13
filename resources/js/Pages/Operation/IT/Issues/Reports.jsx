@@ -154,7 +154,7 @@ const ALL_COLUMNS = [
     { key: 'actions', label: 'Actions (Edit / Manage)' },
 ];
 
-export default function Reports({ report, filters, categories = [], priorities = [], importanceLevels = [], statuses = [], departments = [], users = [], rootCauses = [], app_name = 'Our Company' }) {
+export default function Reports({ report, filters, categories = [], priorities = [], importanceLevels = [], statuses = [], departments = [], users = [], rootCauses = [], app_name = 'Our Company', auth_user = {} }) {
     const [periodType, setPeriodType] = useState(filters.period_type || 'weekly');
     const [startDate, setStartDate] = useState(filters.start_date || report.start_date);
     const [endDate, setEndDate] = useState(filters.end_date || report.end_date);
@@ -197,6 +197,11 @@ export default function Reports({ report, filters, categories = [], priorities =
         : [];
     const [selectedCategoryIds, setSelectedCategoryIds] = useState(initialCategoryIds);
 
+    const initialStatusCodes = filters.status_codes
+        ? (Array.isArray(filters.status_codes) ? filters.status_codes : filters.status_codes.toString().split(',').filter(Boolean))
+        : [];
+    const [selectedStatusCodes, setSelectedStatusCodes] = useState(initialStatusCodes);
+
     // Flatpickr ref
     const dateRangeRef = useRef(null);
     const fpInstance = useRef(null);
@@ -207,7 +212,7 @@ export default function Reports({ report, filters, categories = [], priorities =
 
     useEffect(() => {
         setPage(1);
-    }, [report.items, periodType, resolverType, startDate, endDate, selectedCategoryIds]);
+    }, [report.items, periodType, resolverType, startDate, endDate, selectedCategoryIds, selectedStatusCodes]);
 
     const totalPages = Math.ceil((report.items || []).length / pageSize);
     const paginatedItems = (report.items || []).slice((page - 1) * pageSize, page * pageSize);
@@ -302,12 +307,16 @@ export default function Reports({ report, filters, categories = [], priorities =
         const catIds = overrides.category_ids !== undefined ? overrides.category_ids : selectedCategoryIds;
         const catStr = Array.isArray(catIds) ? catIds.join(',') : catIds;
 
+        const stCodes = overrides.status_codes !== undefined ? overrides.status_codes : selectedStatusCodes;
+        const stStr = Array.isArray(stCodes) ? stCodes.join(',') : stCodes;
+
         const params = {
             period_type: periodType,
             start_date: startDate,
             end_date: endDate,
             resolver_type: resolverType,
             category_ids: catStr,
+            status_codes: stStr,
             ...overrides,
         };
         router.get('/operations/it/issues/reports', params, { preserveState: true });
@@ -319,6 +328,14 @@ export default function Reports({ report, filters, categories = [], priorities =
         const newCatIds = typeof value === 'string' ? value.split(',') : value;
         setSelectedCategoryIds(newCatIds);
         applyFilters({ category_ids: newCatIds });
+    };
+
+    // Status Multi-Select Handler
+    const handleStatusChange = (event) => {
+        const { target: { value } } = event;
+        const newStatusCodes = typeof value === 'string' ? value.split(',') : value;
+        setSelectedStatusCodes(newStatusCodes);
+        applyFilters({ status_codes: newStatusCodes });
     };
 
     // ── Flatpickr date-range initialisation ─────────────────────────────────
@@ -386,6 +403,11 @@ export default function Reports({ report, filters, categories = [], priorities =
     const [editDateValue, setEditDateValue] = useState('');
     const [editDateRemark, setEditDateRemark] = useState('');
 
+    // Edit Manual Schedule Due Date Modal State
+    const [editDueDateIssue, setEditDueDateIssue] = useState(null);
+    const [editDueDateValue, setEditDueDateValue] = useState('');
+    const [editDueDateRemark, setEditDueDateRemark] = useState('');
+
     const getDatetimeLocalString = (dateStr) => {
         if (!dateStr) return '';
         const d = new Date(dateStr);
@@ -416,6 +438,36 @@ export default function Reports({ report, filters, categories = [], priorities =
                     setEditDateIssue(null);
                     setEditDateValue('');
                     setEditDateRemark('');
+                },
+            }
+        );
+    };
+
+    const handleOpenEditDueDateModal = (item) => {
+        setEditDueDateIssue(item);
+        const rawDate = item.due_date_raw || item.due_date;
+        setEditDueDateValue(getDatetimeLocalString(rawDate));
+        setEditDueDateRemark('');
+    };
+
+    const handleSaveDueDate = () => {
+        if (!editDueDateIssue || !editDueDateValue || !editDueDateRemark.trim()) {
+            alert('Please select a Due Date and provide a remark.');
+            return;
+        }
+        router.patch(
+            `/operations/it/issues/${editDueDateIssue.id}/due-date`,
+            {
+                due_date: editDueDateValue,
+                remark: editDueDateRemark,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    setEditDueDateIssue(null);
+                    setEditDueDateValue('');
+                    setEditDueDateRemark('');
                 },
             }
         );
@@ -528,7 +580,8 @@ export default function Reports({ report, filters, categories = [], priorities =
 
     const handleExport = () => {
         const catStr = selectedCategoryIds.join(',');
-        const url = `/operations/it/issues/reports/export?period_type=${periodType}&start_date=${startDate || ''}&end_date=${endDate || ''}&resolver_type=${resolverType}&category_ids=${catStr}`;
+        const stStr = selectedStatusCodes.join(',');
+        const url = `/operations/it/issues/reports/export?period_type=${periodType}&start_date=${startDate || ''}&end_date=${endDate || ''}&resolver_type=${resolverType}&category_ids=${catStr}&status_codes=${stStr}`;
         window.open(url, '_blank');
     };
 
@@ -784,11 +837,20 @@ export default function Reports({ report, filters, categories = [], priorities =
         doc.setTextColor(60, 60, 60);
         doc.text('Report Exported By:', 14, useY + 8);
 
-        // Left column — Exporter
+        // Left column — Exporter (Auto-fill current logged-in user name & department)
+        const exporterName = auth_user?.name || '';
+        const exporterDept = auth_user?.department ? ` (${auth_user.department})` : '';
+        const fullExporterText = exporterName ? `${exporterName}${exporterDept}` : '';
+
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.text('Name:', 14, useY + 16);
-        doc.line(30, useY + 16, 105, useY + 16);
+        if (fullExporterText) {
+            doc.setFont('helvetica', 'bold');
+            doc.text(fullExporterText, 28, useY + 15);
+            doc.setFont('helvetica', 'normal');
+        }
+        doc.line(28, useY + 16, 105, useY + 16);
 
         doc.text('Signature:', 14, useY + 28);
         doc.line(34, useY + 28, 105, useY + 28);
@@ -1100,6 +1162,56 @@ export default function Reports({ report, filters, categories = [], priorities =
                             </FormControl>
                         </Grid>
 
+                        {/* Status Multi-Select Filter */}
+                        <Grid item xs={12} sm={4} md={3}>
+                            <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
+                                <InputLabel
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: '#4f46e5',
+                                        fontSize: '0.82rem',
+                                        '&.Mui-focused': { color: '#4f46e5' },
+                                    }}
+                                >
+                                    Filter by Status
+                                </InputLabel>
+                                <Select
+                                    multiple
+                                    value={selectedStatusCodes}
+                                    onChange={handleStatusChange}
+                                    input={<OutlinedInput label="Filter by Status" />}
+                                    renderValue={(selected) => {
+                                        if (!selected.length) return <em style={{ color: '#94a3b8', fontStyle: 'normal' }}>All Statuses</em>;
+                                        return statuses
+                                            .filter(s => selected.includes(s.code))
+                                            .map(s => s.name || s.code)
+                                            .join(', ');
+                                    }}
+                                    sx={{
+                                        borderRadius: 2.5,
+                                        fontWeight: 600,
+                                        fontSize: '0.85rem',
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: '#c7d2fe',
+                                            borderWidth: '1.5px',
+                                        },
+                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#4f46e5' },
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4f46e5' },
+                                    }}
+                                >
+                                    {statuses.map((st) => (
+                                        <MenuItem key={st.id || st.code} value={st.code}>
+                                            <Checkbox
+                                                checked={selectedStatusCodes.includes(st.code)}
+                                                size="small"
+                                                sx={{ p: 0.5, mr: 1, color: '#4f46e5', '&.Mui-checked': { color: '#4f46e5' } }}
+                                            />
+                                            {st.name || st.code}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
                     </Grid>
                 </Paper>
 
@@ -1425,7 +1537,51 @@ export default function Reports({ report, filters, categories = [], priorities =
                                                     </Box>
                                                 </TableCell>
                                             )}
-                                            {isColumnVisible('due_date') && <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDateCustom(item.due_date)}</TableCell>}
+                                            {isColumnVisible('due_date') && (
+                                                <TableCell
+                                                    onClick={(e) => {
+                                                        if (item.priority_is_manual_schedule || item.priority_clock_type === 'manual_schedule') {
+                                                            e.stopPropagation();
+                                                            handleOpenEditDueDateModal(item);
+                                                        }
+                                                    }}
+                                                    sx={
+                                                        (item.priority_is_manual_schedule || item.priority_clock_type === 'manual_schedule')
+                                                            ? {
+                                                                whiteSpace: 'nowrap',
+                                                                cursor: 'pointer',
+                                                                color: '#7c3aed',
+                                                                fontWeight: 600,
+                                                                transition: 'all 0.15s ease',
+                                                                '&:hover': {
+                                                                    backgroundColor: '#f5f3ff',
+                                                                    borderRadius: 1,
+                                                                },
+                                                            }
+                                                            : { whiteSpace: 'nowrap' }
+                                                    }
+                                                    title={
+                                                        (item.priority_is_manual_schedule || item.priority_clock_type === 'manual_schedule')
+                                                            ? 'Manual Schedule Priority: Click to set Due Date & add log remark'
+                                                            : 'SLA Target Due Date'
+                                                    }
+                                                >
+                                                    {(item.priority_is_manual_schedule || item.priority_clock_type === 'manual_schedule') ? (
+                                                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.8 }}>
+                                                            <Chip
+                                                                label={item.due_date ? formatDateCustom(item.due_date) : 'Set Due Date'}
+                                                                size="small"
+                                                                color={item.due_date ? 'secondary' : 'warning'}
+                                                                variant={item.due_date ? 'outlined' : 'filled'}
+                                                                icon={<EditIcon sx={{ fontSize: 13 }} />}
+                                                                sx={{ fontWeight: 700, cursor: 'pointer' }}
+                                                            />
+                                                        </Box>
+                                                    ) : (
+                                                        formatDateCustom(item.due_date)
+                                                    )}
+                                                </TableCell>
+                                            )}
                                             {isColumnVisible('closed_date') && <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDateCustom(item.closed_date)}</TableCell>}
                                             {isColumnVisible('sla_status') && (
                                                 <TableCell>
@@ -2270,6 +2426,58 @@ export default function Reports({ report, filters, categories = [], priorities =
                             disabled={!editDateValue || !editDateRemark.trim()}
                         >
                             Save Date & Recalculate SLA
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Set Schedule Due Date Modal */}
+                <Dialog
+                    open={Boolean(editDueDateIssue)}
+                    onClose={() => setEditDueDateIssue(null)}
+                    maxWidth="xs"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ backgroundColor: '#4c1d95', color: '#fff', fontWeight: 'bold' }}>
+                        Set Manual Schedule Due Date (Issue #{editDueDateIssue?.id})
+                    </DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Priority for <strong>{editDueDateIssue?.title}</strong> is set to a manual schedule type. Set the manual target due date and enter a log note remark.
+                        </Typography>
+                        <Stack spacing={2.5} sx={{ mt: 1 }}>
+                            <TextField
+                                label="Target Due Date & Time"
+                                type="datetime-local"
+                                fullWidth
+                                size="small"
+                                value={editDueDateValue}
+                                onChange={(e) => setEditDueDateValue(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                            <TextField
+                                label="Remark / Log Note Reason"
+                                required
+                                multiline
+                                rows={3}
+                                fullWidth
+                                size="small"
+                                value={editDueDateRemark}
+                                onChange={(e) => setEditDueDateRemark(e.target.value)}
+                                placeholder="Enter reason for setting/changing manual schedule due date..."
+                            />
+                        </Stack>
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setEditDueDateIssue(null)} color="inherit">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveDueDate}
+                            variant="contained"
+                            sx={{ backgroundColor: '#7c3aed', color: '#fff', '&:hover': { backgroundColor: '#6d28d9' } }}
+                            disabled={!editDueDateValue || !editDueDateRemark.trim()}
+                        >
+                            Save Due Date & Log Note
                         </Button>
                     </DialogActions>
                 </Dialog>

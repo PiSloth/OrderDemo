@@ -15,7 +15,7 @@ class SlaReportService
     /**
      * Generate Weekly or Monthly SLA Report.
      */
-    public function generateReport(string $periodType = 'weekly', ?string $startDateStr = null, ?string $endDateStr = null, ?string $resolverType = 'all', array|string|null $categoryIds = null): array
+    public function generateReport(string $periodType = 'weekly', ?string $startDateStr = null, ?string $endDateStr = null, ?string $resolverType = 'all', array|string|null $categoryIds = null, array|string|null $statusCodes = null): array
     {
         $now = now();
 
@@ -30,6 +30,9 @@ class SlaReportService
         $catIds = is_array($categoryIds) ? $categoryIds : ($categoryIds ? explode(',', $categoryIds) : []);
         $catIds = array_filter(array_map('intval', $catIds));
 
+        $stCodes = is_array($statusCodes) ? $statusCodes : ($statusCodes ? explode(',', $statusCodes) : []);
+        $stCodes = array_filter(array_map('trim', $stCodes));
+
         $issues = Issue::query()
             ->with(['status', 'priority', 'importance', 'category', 'creator', 'assignedUser', 'messages.creator'])
             ->where(function ($query) use ($start, $end) {
@@ -40,6 +43,7 @@ class SlaReportService
             ->when($resolverType === 'third_party', fn($q) => $q->where('is_third_party_resolver', true))
             ->when($resolverType === 'internal', fn($q) => $q->where('is_third_party_resolver', false))
             ->when(!empty($catIds), fn($q) => $q->whereIn('issue_category_id', $catIds))
+            ->when(!empty($stCodes), fn($q) => $q->whereHas('status', fn($s) => $s->whereIn('code', $stCodes)))
             ->orderBy('issue_at', 'desc')
             ->get();
 
@@ -129,6 +133,8 @@ class SlaReportService
                 'category_name' => $issue->category?->name ?? 'N/A',
                 'priority_code' => $priority ? (substr($priority->name, 0, 2)) : 'P3',
                 'priority_name' => $priority?->name ?? 'N/A',
+                'priority_clock_type' => $priority?->clock_type ?? 'office_hours',
+                'priority_is_manual_schedule' => (bool)($priority?->is_manual_schedule ?? false),
                 'status_name' => $issue->status?->name ?? 'Open',
                 'status_code' => $issue->status?->code ?? 'OPEN',
                 'issue_status_id' => $issue->issue_status_id,
