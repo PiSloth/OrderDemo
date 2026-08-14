@@ -62,6 +62,7 @@ import {
 const STATUS_STEPS = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'DONE', 'CLOSED'];
 
 export default function Index({
+    auth,
     issues,
     filters,
     categories,
@@ -731,6 +732,8 @@ export default function Index({
                     priorities={priorities}
                     departments={departments}
                     importanceLevels={importanceLevels}
+                    users={users}
+                    auth={auth}
                 />
                 {/* Blade-Inspired Manage Issue Modal */}
 

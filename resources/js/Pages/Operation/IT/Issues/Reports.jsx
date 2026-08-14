@@ -1476,6 +1476,8 @@ export default function Reports({ report, filters, categories = [], priorities =
                     priorities={priorities}
                     departments={departments}
                     importanceLevels={importanceLevels}
+                    users={users}
+                    auth={{ user: auth_user }}
                 />
 
                 {/* Manage Issue Modal in Reports View */}

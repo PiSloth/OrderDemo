@@ -66,7 +66,7 @@ class ItIssueController extends Controller
         $importanceLevels = IssueImportanceLevel::orderBy('level')->get();
         $statuses = IssueStatus::all();
         $departments = Department::all();
-        $users = User::select('id', 'name', 'branch_id')->get();
+        $users = User::select('id', 'name', 'email', 'department_id', 'branch_id')->with(['department:id,name', 'branch:id,name'])->orderBy('name')->get();
         $branches = Branch::all();
 
         return Inertia::render('Operation/IT/Issues/Index', [
@@ -528,7 +528,7 @@ class ItIssueController extends Controller
             'importanceLevels' => IssueImportanceLevel::orderBy('level')->get(),
             'statuses'        => IssueStatus::all(),
             'departments'     => Department::all(),
-            'users'           => User::select('id', 'name')->get(),
+            'users'           => User::select('id', 'name', 'email', 'department_id', 'branch_id')->with(['department:id,name', 'branch:id,name'])->orderBy('name')->get(),
             'rootCauses'      => IssueRootCause::orderBy('name')->get(),
         ]);
     }
