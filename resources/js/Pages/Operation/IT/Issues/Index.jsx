@@ -71,6 +71,7 @@ export default function Index({
     departments,
     users,
     branches,
+    rootCauses = [],
 }) {
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');
@@ -88,6 +89,14 @@ export default function Index({
 
     // Create Issue Modal State (Empty Priority by Default!)
     const [openCreateModal, setOpenCreateModal] = useState(false);
+
+    // Root Cause Modal for Close / Done
+    const [rootCauseModal, setRootCauseModal] = useState({ open: false, issue: null, targetStatus: null });
+    const [rootCauseForm, setRootCauseForm] = useState({ root_cause_id: '', remark: '' });
+
+    // Reopen / Change Back Status Modal State (shown when changing from CLOSED or DONE)
+    const [reopenModal, setReopenModal] = useState({ open: false, issue: null, targetStatus: null });
+    const [reopenRemark, setReopenRemark] = useState('');
     const [createForm, setCreateForm] = useState({
         title: '',
         description: '',
@@ -239,6 +248,22 @@ export default function Index({
         const targetStatus = statuses.find((s) => s.code === targetStatusCode);
         if (!targetStatus) return;
 
+        const currentCode = manageIssue.status?.code || manageIssue.status_code;
+        const isCurrentlyClosedOrDone = currentCode === 'CLOSED' || currentCode === 'DONE';
+        const isTargetClosedOrDone = targetStatus.code === 'CLOSED' || targetStatus.code === 'DONE';
+
+        if (isTargetClosedOrDone) {
+            setRootCauseModal({ open: true, issue: manageIssue, targetStatus });
+            setRootCauseForm({ root_cause_id: '', remark: '' });
+            return;
+        }
+
+        if (isCurrentlyClosedOrDone && !isTargetClosedOrDone) {
+            setReopenModal({ open: true, issue: manageIssue, targetStatus });
+            setReopenRemark('');
+            return;
+        }
+
         router.patch(
             `/operations/it/issues/${manageIssue.id}/status`,
             {
@@ -249,6 +274,61 @@ export default function Index({
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => setManageIssue(null),
+            }
+        );
+    };
+
+    const handleConfirmCloseWithRootCause = () => {
+        const { issue, targetStatus } = rootCauseModal;
+        if (!issue || !targetStatus) return;
+
+        if (!rootCauseForm.root_cause_id) {
+            alert('Please select a Root Cause before changing status to ' + (targetStatus.name || targetStatus.code));
+            return;
+        }
+
+        router.patch(
+            `/operations/it/issues/${issue.id}/status`,
+            {
+                issue_status_id: targetStatus.id,
+                root_cause_id: rootCauseForm.root_cause_id,
+                remark: rootCauseForm.remark,
+                proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    setRootCauseModal({ open: false, issue: null, targetStatus: null });
+                    setManageIssue(null);
+                },
+            }
+        );
+    };
+
+    const handleConfirmReopen = () => {
+        const { issue, targetStatus } = reopenModal;
+        if (!issue || !targetStatus) return;
+
+        if (!reopenRemark.trim()) {
+            alert('Please provide a remark explaining the status change.');
+            return;
+        }
+
+        router.patch(
+            `/operations/it/issues/${issue.id}/status`,
+            {
+                issue_status_id: targetStatus.id,
+                remark: reopenRemark.trim(),
+                proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    setReopenModal({ open: false, issue: null, targetStatus: null });
+                    setManageIssue(null);
+                },
             }
         );
     };
@@ -976,6 +1056,103 @@ export default function Index({
                         <Button onClick={() => setSelectedIssueForOverride(null)}>Cancel</Button>
                         <Button variant="contained" color="success" onClick={handleSlaOverride} disabled={!adminRemark.trim()}>
                             Override to Success
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+                {/* Root Cause Modal (Triggered when user closes or marks issue as done) */}
+                <Dialog
+                    open={rootCauseModal.open}
+                    onClose={() => setRootCauseModal({ open: false, issue: null, targetStatus: null })}
+                    maxWidth="xs"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ backgroundColor: '#0f172a', color: '#fff', fontWeight: 'bold' }}>
+                        Record Root Cause & {rootCauseModal.targetStatus?.name || 'Close Issue'}
+                    </DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Root cause category is <strong>required</strong> before changing status to <strong>{rootCauseModal.targetStatus?.name || 'Closed'}</strong> for <em>{rootCauseModal.issue?.title}</em>.
+                        </Typography>
+                        <Stack spacing={2.5} sx={{ mt: 1 }}>
+                            <FormControl fullWidth required size="small" error={!rootCauseForm.root_cause_id}>
+                                <InputLabel>Root Cause Category *</InputLabel>
+                                <Select
+                                    value={rootCauseForm.root_cause_id}
+                                    label="Root Cause Category *"
+                                    onChange={(e) => setRootCauseForm({ ...rootCauseForm, root_cause_id: e.target.value })}
+                                >
+                                    <MenuItem value=""><em>Select Root Cause...</em></MenuItem>
+                                    {rootCauses.map((rc) => (
+                                        <MenuItem key={rc.id} value={rc.id}>{rc.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <TextField
+                                label="Resolution Remarks / Notes"
+                                multiline
+                                rows={3}
+                                fullWidth
+                                size="small"
+                                value={rootCauseForm.remark}
+                                onChange={(e) => setRootCauseForm({ ...rootCauseForm, remark: e.target.value })}
+                                placeholder="Enter details on how the issue was resolved or root cause notes..."
+                            />
+                        </Stack>
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setRootCauseModal({ open: false, issue: null, targetStatus: null })} color="inherit">
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleConfirmCloseWithRootCause} 
+                            variant="contained" 
+                            color="success"
+                            disabled={!rootCauseForm.root_cause_id}
+                        >
+                            Confirm & {rootCauseModal.targetStatus?.name || 'Close Issue'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+                {/* Reopen / Change Back Status Modal (Mandatory Remark) */}
+                <Dialog
+                    open={reopenModal.open}
+                    onClose={() => setReopenModal({ open: false, issue: null, targetStatus: null })}
+                    maxWidth="xs"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ backgroundColor: '#1e293b', color: '#fff', fontWeight: 'bold' }}>
+                        Reopen / Change Status Reason
+                    </DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Issue <strong>#{reopenModal.issue?.id}</strong> is currently <strong>{reopenModal.issue?.status?.name || reopenModal.issue?.status_name || 'Closed/Done'}</strong>. Please provide a reason for changing status back to <strong>{reopenModal.targetStatus?.name}</strong>.
+                        </Typography>
+                        <TextField
+                            label="Reason / Log Note *"
+                            required
+                            multiline
+                            rows={3}
+                            fullWidth
+                            size="small"
+                            value={reopenRemark}
+                            onChange={(e) => setReopenRemark(e.target.value)}
+                            placeholder="Explain why this issue is being reopened or changed back..."
+                            error={!reopenRemark.trim()}
+                            helperText={!reopenRemark.trim() ? 'Remark is required to record in issue logs.' : ''}
+                        />
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setReopenModal({ open: false, issue: null, targetStatus: null })} color="inherit">
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleConfirmReopen} 
+                            variant="contained" 
+                            color="warning"
+                            disabled={!reopenRemark.trim()}
+                        >
+                            Confirm & Change to {reopenModal.targetStatus?.name}
                         </Button>
                     </DialogActions>
                 </Dialog>

@@ -86,6 +86,7 @@ class ItIssueController extends Controller
             'departments' => $departments,
             'users' => $users,
             'branches' => $branches,
+            'rootCauses' => IssueRootCause::orderBy('name')->get(),
         ]);
     }
 
@@ -366,15 +367,37 @@ class ItIssueController extends Controller
             'remark' => ['nullable', 'string'],
         ]);
 
+        $currentStatus = $issue->status;
+        $isCurrentlyClosedOrDone = $currentStatus && in_array($currentStatus->code, ['CLOSED', 'DONE']);
+
         $status = IssueStatus::findOrFail($validated['issue_status_id']);
         $isClosing = $status->code === 'CLOSED';
-        $closedDate = $isClosing ? now() : $issue->closed_date;
+        $isDone = $status->code === 'DONE';
+        $isClosingOrDone = $isClosing || $isDone;
+
+        // 1. If moving to CLOSED or DONE, require a Root Cause
+        if ($isClosingOrDone) {
+            $hasExistingRootCause = $issue->rootCauses()->exists();
+            if (!$hasExistingRootCause && empty($validated['root_cause_id'])) {
+                return back()->withErrors(['root_cause_id' => "Root cause is required before changing status to {$status->name}."]);
+            }
+        }
+
+        // 2. If moving back from CLOSED or DONE to an open status, require a Reason / Remark
+        if ($isCurrentlyClosedOrDone && !$isClosingOrDone) {
+            if (empty(trim($validated['remark'] ?? ''))) {
+                return back()->withErrors(['remark' => "A remark / log note is required when reopening or changing status from {$currentStatus->name} to {$status->name}."]);
+            }
+            $closedDate = null; // Reset closed date upon reopening
+        } else {
+            $closedDate = $isClosing ? now() : $issue->closed_date;
+        }
 
         $isFailed = $issue->is_sla_failed;
         $failPoints = $issue->fail_points;
 
         if ($isClosing && $issue->due_date) {
-            if ($closedDate->gt($issue->due_date)) {
+            if ($closedDate && $closedDate->gt($issue->due_date)) {
                 $isFailed = true;
                 $failPoints = $issue->priority ? $this->slaCalculationService->getFailPoints($issue->priority) : 1;
             } else {
@@ -395,7 +418,7 @@ class ItIssueController extends Controller
             $issue->rootCauses()->syncWithoutDetaching([$validated['root_cause_id']]);
         }
 
-        $logMsg = "Status changed to {$status->name}.";
+        $logMsg = $currentStatus ? "Status changed from {$currentStatus->name} to {$status->name}." : "Status changed to {$status->name}.";
         if (!empty($validated['root_cause_id'])) {
             $rc = IssueRootCause::find($validated['root_cause_id']);
             if ($rc) {
@@ -403,7 +426,7 @@ class ItIssueController extends Controller
             }
         }
         if (!empty($validated['remark'])) {
-            $logMsg .= " Remark: {$validated['remark']}";
+            $logMsg .= " Reason / Remark: {$validated['remark']}";
         }
 
         IssueMessage::create([

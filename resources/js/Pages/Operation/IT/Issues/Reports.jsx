@@ -4,8 +4,7 @@ import AsideLayout from '@/Layouts/AsideLayout';
 import CreateIssueModal from '@/Components/IT/CreateIssueModal';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { exportDetailedIssuePDF, exportCategorySummaryPDF } from '@/utils/pdfExportHelper';
 import StatusStepper from '@/Components/IT/StatusStepper';
 import {
     Box,
@@ -393,6 +392,10 @@ export default function Reports({ report, filters, categories = [], priorities =
     const [rootCauseModal, setRootCauseModal] = useState({ open: false, issue: null, targetStatus: null });
     const [rootCauseForm, setRootCauseForm] = useState({ root_cause_id: '', remark: '' });
 
+    // Reopen / Change Back Status Modal State (shown when changing from CLOSED or DONE)
+    const [reopenModal, setReopenModal] = useState({ open: false, issue: null, targetStatus: null });
+    const [reopenRemark, setReopenRemark] = useState('');
+
     // Dedicated Discussion & Log Note Modal State
     const [discussionIssue, setDiscussionIssue] = useState(null);
     const [discussionMessage, setDiscussionMessage] = useState('');
@@ -527,25 +530,44 @@ export default function Reports({ report, filters, categories = [], priorities =
 
     const handleStatusStepClick = (issue, targetStatus) => {
         handleCloseStatusPopover();
-        if (targetStatus.code === 'CLOSED' || targetStatus.code === 'DONE') {
+        const currentCode = issue.status?.code || issue.status_code;
+        const isCurrentlyClosedOrDone = currentCode === 'CLOSED' || currentCode === 'DONE';
+        const isTargetClosedOrDone = targetStatus.code === 'CLOSED' || targetStatus.code === 'DONE';
+
+        // 1. Moving to CLOSED or DONE -> Requires Root Cause
+        if (isTargetClosedOrDone) {
             setRootCauseModal({ open: true, issue, targetStatus });
             setRootCauseForm({ root_cause_id: '', remark: '' });
-        } else {
-            router.patch(
-                `/operations/it/issues/${issue.id}/status`,
-                { issue_status_id: targetStatus.id },
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    onSuccess: () => setManageIssue(null),
-                }
-            );
+            return;
         }
+
+        // 2. Moving back from CLOSED or DONE -> Requires Mandatory Reason / Remark
+        if (isCurrentlyClosedOrDone && !isTargetClosedOrDone) {
+            setReopenModal({ open: true, issue, targetStatus });
+            setReopenRemark('');
+            return;
+        }
+
+        // Normal transition
+        router.patch(
+            `/operations/it/issues/${issue.id}/status`,
+            { issue_status_id: targetStatus.id },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => setManageIssue(null),
+            }
+        );
     };
 
     const handleConfirmCloseWithRootCause = () => {
         const { issue, targetStatus } = rootCauseModal;
         if (!issue || !targetStatus) return;
+
+        if (!rootCauseForm.root_cause_id) {
+            alert('Please select a Root Cause before changing status to ' + (targetStatus.name || targetStatus.code));
+            return;
+        }
 
         router.patch(
             `/operations/it/issues/${issue.id}/status`,
@@ -553,12 +575,40 @@ export default function Reports({ report, filters, categories = [], priorities =
                 issue_status_id: targetStatus.id,
                 root_cause_id: rootCauseForm.root_cause_id,
                 remark: rootCauseForm.remark,
+                proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
             },
             {
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
                     setRootCauseModal({ open: false, issue: null, targetStatus: null });
+                    setManageIssue(null);
+                },
+            }
+        );
+    };
+
+    const handleConfirmReopen = () => {
+        const { issue, targetStatus } = reopenModal;
+        if (!issue || !targetStatus) return;
+
+        if (!reopenRemark.trim()) {
+            alert('Please provide a remark explaining the status change.');
+            return;
+        }
+
+        router.patch(
+            `/operations/it/issues/${issue.id}/status`,
+            {
+                issue_status_id: targetStatus.id,
+                remark: reopenRemark.trim(),
+                proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    setReopenModal({ open: false, issue: null, targetStatus: null });
                     setManageIssue(null);
                 },
             }
@@ -587,301 +637,36 @@ export default function Reports({ report, filters, categories = [], priorities =
 
 
     // ── PDF Category Summary Export ──────────────────────────────────────
-    const handleExportPDF = () => {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-        // ─ Company name logic based on resolver filter ─
-        const companyDisplay =
-            resolverType === 'third_party'
-                ? `${app_name}  \u2194  External Developer`
-                : resolverType === 'internal'
-                    ? `${app_name}  (Internal IT)`
-                    : `${app_name}  (All Resolvers)`;
-
-        const resolverLabel =
-            resolverType === 'third_party' ? 'Third-Party Developer Fix'
-                : resolverType === 'internal' ? 'Internal IT / User Fix'
-                    : 'All Resolvers (Internal + Third-Party)';
-
-        // ─ Build category summary from report.items ─
-        const catMap = {};
-        (report.items || []).forEach((item) => {
-            const cat = item.category_name || 'Uncategorized';
-            if (!catMap[cat]) catMap[cat] = { success: 0, fail: 0, failPoints: 0 };
-            if (item.is_sla_failed) {
-                catMap[cat].fail++;
-                catMap[cat].failPoints += Number(item.fail_points || 0);
-            } else {
-                catMap[cat].success++;
-            }
+    const handleExportPDF = async () => {
+        await exportCategorySummaryPDF({
+            report,
+            filters: {
+                periodType,
+                startDate,
+                endDate,
+                resolverType,
+            },
+            app_name,
         });
-
-        const rows = Object.entries(catMap).map(([cat, d], idx) => {
-            const total = d.success + d.fail;
-            const rate = total > 0 ? ((d.success / total) * 100).toFixed(1) : '0.0';
-            return [idx + 1, cat, d.success, d.fail, d.failPoints, `${rate}%`];
-        });
-
-        // Grand total row
-        const totalSuccess = rows.reduce((s, r) => s + r[2], 0);
-        const totalFail = rows.reduce((s, r) => s + r[3], 0);
-        const totalFP = rows.reduce((s, r) => s + r[4], 0);
-        const grandTotal = totalSuccess + totalFail;
-        const grandRate = grandTotal > 0 ? ((totalSuccess / grandTotal) * 100).toFixed(1) : '0.0';
-        const svcCredit = report.summary?.service_credit_pct ?? 0;
-
-        // ─ Header ─
-        const PURPLE = [59, 7, 100];     // #3b0764
-        const TEAL = [13, 148, 136];   // #0d9488
-        const WHITE = [255, 255, 255];
-
-        // Banner
-        doc.setFillColor(...PURPLE);
-        doc.rect(0, 0, 210, 28, 'F');
-        doc.setTextColor(...WHITE);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('SLA & Service Credit — Category Summary Report', 14, 11);
-        doc.setFontSize(8.5);
-        doc.setFont('helvetica', 'normal');
-        doc.text(companyDisplay, 14, 18);
-        doc.text(`Generated: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`, 14, 23);
-
-        // Sub-header info block
-        doc.setFillColor(240, 240, 255);
-        doc.rect(0, 28, 210, 22, 'F');
-        doc.setTextColor(30, 30, 80);
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.text('REPORT PERIOD', 14, 34);
-        doc.text('RESOLVER SCOPE', 80, 34);
-        doc.text('REPORT EXPLAINS', 140, 34);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        const periodStr = startDate && endDate
-            ? `${startDate}  →  ${endDate}`
-            : report.period_label || periodType.toUpperCase();
-        doc.text(periodStr, 14, 39);
-        doc.text(resolverLabel, 80, 39);
-        doc.setFont('helvetica', 'italic');
-        const explain = 'This report shows the number of SLA-passed and SLA-failed IT issues\nper category, their weighted fail points, and the success rate\nfor the selected period and resolver scope.';
-        doc.text(explain, 140, 39, { maxWidth: 62 });
-
-        // ─ Table ─
-        autoTable(doc, {
-            startY: 53,
-            head: [['#', 'Category', 'Success \u2714', 'Fail \u2718', 'Fail Points', 'Success Rate']],
-            body: rows,
-            styles: { fontSize: 8.5, cellPadding: 3 },
-            headStyles: {
-                fillColor: PURPLE,
-                textColor: WHITE,
-                fontStyle: 'bold',
-                halign: 'center',
-            },
-            columnStyles: {
-                0: { halign: 'center', cellWidth: 10 },
-                1: { cellWidth: 60 },
-                2: { halign: 'center', textColor: [21, 128, 61], fontStyle: 'bold' }, // green
-                3: { halign: 'center', textColor: [185, 28, 28], fontStyle: 'bold' }, // red
-                4: { halign: 'center', textColor: [185, 28, 28] },
-                5: { halign: 'center', fontStyle: 'bold' },
-            },
-            alternateRowStyles: { fillColor: [248, 245, 255] },  // light purple stripe
-            didParseCell: (data) => {
-                // Success rate coloring: >=80% green, >=50% amber, else red
-                if (data.column.index === 5 && data.section === 'body') {
-                    const pct = parseFloat(data.cell.raw);
-                    data.cell.styles.textColor =
-                        pct >= 80 ? [21, 128, 61] :
-                            pct >= 50 ? [161, 98, 7] :
-                                [185, 28, 28];
-                }
-            },
-            foot: [['', 'GRAND TOTAL', totalSuccess, totalFail, totalFP, `${grandRate}%`]],
-            footStyles: {
-                fillColor: TEAL,
-                textColor: WHITE,
-                fontStyle: 'bold',
-                halign: 'center',
-            },
-        });
-
-        // ─ Service Credit block ─
-        const finalY = doc.lastAutoTable.finalY + 8;
-        const msgText = svcCredit > 0
-            ? `[!] Service Credit Refund Due: ${svcCredit}% — Maintenance credit must be applied for this period.`
-            : `[OK] No Service Credit Refund Required — SLA targets were met for this period.`;
-
-        doc.setFontSize(8.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...(svcCredit > 0 ? [185, 28, 28] : [21, 128, 61]));
-
-        const splitText = doc.splitTextToSize(msgText, 172);
-        const boxHeight = Math.max(14, splitText.length * 5 + 6);
-
-        doc.setFillColor(...(svcCredit > 0 ? [254, 242, 242] : [240, 253, 244]));
-        doc.roundedRect(14, finalY, 182, boxHeight, 3, 3, 'F');
-        doc.text(splitText, 105, finalY + (boxHeight / 2) + 1, { align: 'center', baseline: 'middle' });
-
-        // ─ Footer ─
-        const pageH = doc.internal.pageSize.height;
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(150, 150, 150);
-        doc.text('Fail Point Weightage: P1 = 10 pts  |  P2 = 5 pts  |  P3/P4 = 1 pt', 105, pageH - 8, { align: 'center' });
-
-        const filename = `SLA_Category_Summary_${periodType}_${startDate || 'all'}_to_${endDate || 'all'}.pdf`;
-        doc.save(filename);
     };
 
     // ── PDF Detailed Issue List Export ──────────────────────────────────────
-    const handleExportDetailedPDF = () => {
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const PURPLE = [59, 7, 100];
-        const WHITE = [255, 255, 255];
-        const LIGHT_PURPLE = [245, 240, 255];
-
-        const isSingle = startDate && endDate && startDate === endDate;
-        const reportAtLabel = isSingle
-            ? `Report At: ${formatDateShort(startDate)}`
-            : (startDate && endDate
-                ? `Period: ${formatDateShort(startDate)}  →  ${formatDateShort(endDate)}`
-                : `Period: ${report.period_label || 'All Dates'}`);
-
-        const resolverLabel = resolverType === 'third_party' ? 'Third-Party Developer'
-            : resolverType === 'internal' ? 'Internal IT Team'
-                : 'All Resolvers';
-
-        const catLabel = selectedCategoryIds.length > 0
-            ? categories.filter(c => selectedCategoryIds.includes(c.id)).map(c => c.name).join(', ')
-            : 'All Categories';
-
-        // ─ Header Banner ─
-        doc.setFillColor(...PURPLE);
-        doc.rect(0, 0, 297, 22, 'F');
-
-        doc.setTextColor(...WHITE);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.text('Issue Tracking Detail Report', 14, 10);
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`${app_name}  |  ${resolverLabel}`, 14, 16);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 283, 16, { align: 'right' });
-
-        // ─ Info Bar ─
-        doc.setFillColor(...LIGHT_PURPLE);
-        doc.rect(0, 22, 297, 16, 'F');
-        doc.setTextColor(...PURPLE);
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.text(reportAtLabel, 14, 29);
-        doc.text(`Resolver: ${resolverLabel}`, 120, 29);
-        doc.text(`Categories: ${catLabel}`, 200, 29);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
-        doc.text('This report lists individual IT issues with their tracking details, priorities, and SLA dates.', 14, 35);
-
-        // ─ Table ─
-        const items = report.items || [];
-        const tableBody = items.map((item, idx) => [
-            idx + 1,
-            item.title || '',
-            item.category_name || 'N/A',
-            item.priority_name || 'N/A',
-            formatDateCustom(item.issue_at),
-            formatDateCustom(item.due_date),
-        ]);
-
-        autoTable(doc, {
-            startY: 40,
-            head: [['#', 'Issue Title', 'Category', 'Priority', 'Issue At', 'Due Date']],
-            body: tableBody,
-            theme: 'grid',
-            margin: { left: 14, right: 14 },
-            styles: { fontSize: 7.5, cellPadding: 2.5, overflow: 'linebreak' },
-            headStyles: {
-                fillColor: PURPLE,
-                textColor: WHITE,
-                fontStyle: 'bold',
-                halign: 'center',
+    const handleExportDetailedPDF = async () => {
+        await exportDetailedIssuePDF({
+            report,
+            filters: {
+                periodType,
+                startDate,
+                endDate,
+                resolverType,
+                selectedCategoryIds,
             },
-            columnStyles: {
-                0: { halign: 'center', cellWidth: 8 },
-                1: { cellWidth: 80 },
-                2: { cellWidth: 40 },
-                3: { halign: 'center', cellWidth: 28 },
-                4: { halign: 'center', cellWidth: 38 },
-                5: { halign: 'center', cellWidth: 38 },
-            },
-            alternateRowStyles: { fillColor: [248, 245, 255] },
+            auth_user,
+            app_name,
+            categories,
+            formatDateShort,
+            formatDateCustom,
         });
-
-        // ─ Signature Block ─
-        const sigY = doc.lastAutoTable.finalY + 14;
-        const pageH = doc.internal.pageSize.height;
-        const pageW = doc.internal.pageSize.width;
-
-        // Check if we need a new page for signature
-        const neededSpace = 50;
-        const useY = sigY + neededSpace > pageH - 10 ? (doc.addPage(), 20) : sigY;
-
-        doc.setDrawColor(180, 180, 180);
-        doc.setLineWidth(0.3);
-        doc.line(14, useY, pageW - 14, useY);
-
-        doc.setFontSize(8.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(60, 60, 60);
-        doc.text('Report Exported By:', 14, useY + 8);
-
-        // Left column — Exporter (Auto-fill current logged-in user name & department)
-        const exporterName = auth_user?.name || '';
-        const exporterDept = auth_user?.department ? ` (${auth_user.department})` : '';
-        const fullExporterText = exporterName ? `${exporterName}${exporterDept}` : '';
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text('Name:', 14, useY + 16);
-        if (fullExporterText) {
-            doc.setFont('helvetica', 'bold');
-            doc.text(fullExporterText, 28, useY + 15);
-            doc.setFont('helvetica', 'normal');
-        }
-        doc.line(28, useY + 16, 105, useY + 16);
-
-        doc.text('Signature:', 14, useY + 28);
-        doc.line(34, useY + 28, 105, useY + 28);
-
-        doc.text('Date:', 14, useY + 40);
-        doc.text(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }), 28, useY + 40);
-
-        // Right column — Acknowledged by
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.text('Acknowledged By:', pageW - 120, useY + 8);
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text('Name:', pageW - 120, useY + 16);
-        doc.line(pageW - 105, useY + 16, pageW - 14, useY + 16);
-
-        doc.text('Signature:', pageW - 120, useY + 28);
-        doc.line(pageW - 101, useY + 28, pageW - 14, useY + 28);
-
-        doc.text('Date:', pageW - 120, useY + 40);
-        doc.line(pageW - 107, useY + 40, pageW - 14, useY + 40);
-
-        // ─ Footer ─
-        doc.setFontSize(6.5);
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(170, 170, 170);
-        doc.text(`${app_name} — IT Issue Detail Report — ${reportAtLabel}`, pageW / 2, pageH - 6, { align: 'center' });
-
-        const filename = `IT_Issue_Detail_Report_${startDate || 'all'}_to_${endDate || 'all'}.pdf`;
-        doc.save(filename);
     };
 
 
@@ -915,6 +700,22 @@ export default function Reports({ report, filters, categories = [], priorities =
         if (!manageIssue) return;
         const targetStatus = statuses.find((s) => s.code === targetStatusCode);
         if (!targetStatus) return;
+
+        const currentCode = manageIssue.status?.code || manageIssue.status_code;
+        const isCurrentlyClosedOrDone = currentCode === 'CLOSED' || currentCode === 'DONE';
+        const isTargetClosedOrDone = targetStatus.code === 'CLOSED' || targetStatus.code === 'DONE';
+
+        if (isTargetClosedOrDone) {
+            setRootCauseModal({ open: true, issue: manageIssue, targetStatus });
+            setRootCauseForm({ root_cause_id: '', remark: '' });
+            return;
+        }
+
+        if (isCurrentlyClosedOrDone && !isTargetClosedOrDone) {
+            setReopenModal({ open: true, issue: manageIssue, targetStatus });
+            setReopenRemark('');
+            return;
+        }
 
         router.patch(
             `/operations/it/issues/${manageIssue.id}/status`,
@@ -2230,7 +2031,7 @@ export default function Reports({ report, filters, categories = [], priorities =
                     </ClickAwayListener>
                 </Popper>
 
-                {/* Root Cause Modal (Triggered when user closes an issue) */}
+                {/* Root Cause Modal (Triggered when user closes or marks issue as done) */}
                 <Dialog
                     open={rootCauseModal.open}
                     onClose={() => setRootCauseModal({ open: false, issue: null, targetStatus: null })}
@@ -2238,18 +2039,18 @@ export default function Reports({ report, filters, categories = [], priorities =
                     fullWidth
                 >
                     <DialogTitle sx={{ backgroundColor: '#0f172a', color: '#fff', fontWeight: 'bold' }}>
-                        Record Root Cause & Close Issue
+                        Record Root Cause & {rootCauseModal.targetStatus?.name || 'Close Issue'}
                     </DialogTitle>
                     <DialogContent sx={{ p: 3, pt: 3 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Please select the root cause category and enter resolution notes for <strong>{rootCauseModal.issue?.title}</strong>.
+                            Root cause category is <strong>required</strong> before changing status to <strong>{rootCauseModal.targetStatus?.name || 'Closed'}</strong> for <em>{rootCauseModal.issue?.title}</em>.
                         </Typography>
                         <Stack spacing={2.5} sx={{ mt: 1 }}>
-                            <FormControl fullWidth required size="small">
-                                <InputLabel>Root Cause Category</InputLabel>
+                            <FormControl fullWidth required size="small" error={!rootCauseForm.root_cause_id}>
+                                <InputLabel>Root Cause Category *</InputLabel>
                                 <Select
                                     value={rootCauseForm.root_cause_id}
-                                    label="Root Cause Category"
+                                    label="Root Cause Category *"
                                     onChange={(e) => setRootCauseForm({ ...rootCauseForm, root_cause_id: e.target.value })}
                                 >
                                     <MenuItem value=""><em>Select Root Cause...</em></MenuItem>
@@ -2275,8 +2076,56 @@ export default function Reports({ report, filters, categories = [], priorities =
                         <Button onClick={() => setRootCauseModal({ open: false, issue: null, targetStatus: null })} color="inherit">
                             Cancel
                         </Button>
-                        <Button onClick={handleConfirmCloseWithRootCause} variant="contained" color="success">
-                            Confirm & Close Issue
+                        <Button 
+                            onClick={handleConfirmCloseWithRootCause} 
+                            variant="contained" 
+                            color="success"
+                            disabled={!rootCauseForm.root_cause_id}
+                        >
+                            Confirm & {rootCauseModal.targetStatus?.name || 'Close Issue'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Reopen / Change Back Status Modal (Mandatory Remark) */}
+                <Dialog
+                    open={reopenModal.open}
+                    onClose={() => setReopenModal({ open: false, issue: null, targetStatus: null })}
+                    maxWidth="xs"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ backgroundColor: '#1e293b', color: '#fff', fontWeight: 'bold' }}>
+                        Reopen / Change Status Reason
+                    </DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Issue <strong>#{reopenModal.issue?.id}</strong> is currently <strong>{reopenModal.issue?.status?.name || reopenModal.issue?.status_name || 'Closed/Done'}</strong>. Please provide a reason for changing status back to <strong>{reopenModal.targetStatus?.name}</strong>.
+                        </Typography>
+                        <TextField
+                            label="Reason / Log Note *"
+                            required
+                            multiline
+                            rows={3}
+                            fullWidth
+                            size="small"
+                            value={reopenRemark}
+                            onChange={(e) => setReopenRemark(e.target.value)}
+                            placeholder="Explain why this issue is being reopened or changed back..."
+                            error={!reopenRemark.trim()}
+                            helperText={!reopenRemark.trim() ? 'Remark is required to record in issue logs.' : ''}
+                        />
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setReopenModal({ open: false, issue: null, targetStatus: null })} color="inherit">
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleConfirmReopen} 
+                            variant="contained" 
+                            color="warning"
+                            disabled={!reopenRemark.trim()}
+                        >
+                            Confirm & Change to {reopenModal.targetStatus?.name}
                         </Button>
                     </DialogActions>
                 </Dialog>

@@ -292,7 +292,7 @@
     "src": "node_modules/@fontsource/roboto/files/roboto-vietnamese-700-normal.woff2"
   },
   "node_modules/canvg/lib/index.es.js": {
-    "file": "assets/index.es-b88dce4e.js",
+    "file": "assets/index.es-4f6c570a.js",
     "imports": [
       "_apexcharts.common-75f13bbd.js",
       "resources/js/app.jsx"
@@ -305,18 +305,13 @@
     "isDynamicEntry": true,
     "src": "node_modules/dompurify/dist/purify.es.mjs"
   },
-  "node_modules/html2canvas/dist/html2canvas.esm.js": {
-    "file": "assets/html2canvas.esm-e0a7d97b.js",
-    "isDynamicEntry": true,
-    "src": "node_modules/html2canvas/dist/html2canvas.esm.js"
-  },
   "resources/css/app.css": {
-    "file": "assets/app-acc14e46.css",
+    "file": "assets/app-6c143b9a.css",
     "isEntry": true,
     "src": "resources/css/app.css"
   },
   "resources/js/app.css": {
-    "file": "assets/app-c159b6ea.css",
+    "file": "assets/app-4f0ec44e.css",
     "src": "resources/js/app.css"
   },
   "resources/js/app.js": {
@@ -406,15 +401,14 @@
       "assets/roboto-latin-700-normal-19e78b1c.woff"
     ],
     "css": [
-      "assets/app-c159b6ea.css"
+      "assets/app-4f0ec44e.css"
     ],
     "dynamicImports": [
       "_apexcharts.common-75f13bbd.js",
-      "node_modules/html2canvas/dist/html2canvas.esm.js",
       "node_modules/dompurify/dist/purify.es.mjs",
       "node_modules/canvg/lib/index.es.js"
     ],
-    "file": "assets/app-aef4c209.js",
+    "file": "assets/app-59714438.js",
     "imports": [
       "_apexcharts.common-75f13bbd.js"
     ],

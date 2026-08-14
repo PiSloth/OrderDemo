@@ -398,7 +398,7 @@
                         </a>
                     </li>
 
-                    @php $active = request()->routeIs('operation.it.issues.create') || request()->routeIs('operation.it.issues.index'); @endphp
+                    @php $active = request()->routeIs('operation.it.issues.create') || request()->routeIs('operation.it.issues.reports'); @endphp
                     <li>
                         <a wire:navigate href="{{ route('operation.it.issues.create') }}"
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
@@ -408,11 +408,10 @@
                         </a>
                     </li>
                     <li>
-                        <a href="{{ route('operation.it.issues.index') }}"
-                            class="{{ $linkBase }} ">
+                        <a href="{{ route('operation.it.issues.reports') }}" class="{{ $linkBase }} ">
                             <x-icon name="ticket"
-                                class="w-5 h-5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200" />
-                            <span class="ml-3">All Tickets</span>
+                                class="w-5 h-5 text-slate-400  group-hover:text-slate-700 dark:group-hover:text-slate-200" />
+                            <span class="ml-3 dark:text-slate-400">All Tickets</span>
                         </a>
                     </li>
 
@@ -527,7 +526,8 @@
             <li class="mt-2">
                 <button type="button" @click="openGroup = openGroup === 'office-asset' ? '' : 'office-asset'"
                     class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                    x-bind:class="openGroup === 'office-asset' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                    x-bind:class="openGroup === 'office-asset' ?
+                        'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
                         'text-slate-600 dark:text-slate-200'">
                     <span class="flex items-center">
                         <x-icon name="desktop-computer" class="w-5 h-5 text-slate-400" />

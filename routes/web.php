@@ -191,7 +191,7 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
     Route::post('/task-comments/{commentId}/respond', [TodoListController::class, 'respondActionStep'])->name('todo.comments.respond');
     Route::post('/task-comments/{commentId}/delete', [TodoListController::class, 'destroyComment'])->name('todo.comments.delete_post');
     Route::delete('/task-comments/{commentId}', [TodoListController::class, 'destroyComment'])->name('todo.comments.destroy');
-    
+
     // Inertia React Config & Category CRUD Routes
     Route::get('/config', [\App\Http\Controllers\Todo\TodoConfigController::class, 'index'])->name('todo_config');
     Route::post('/config/categories', [\App\Http\Controllers\Todo\TodoConfigController::class, 'storeCategory'])->name('todo.config.categories.store');
@@ -293,11 +293,12 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
         Route::get('/issues', [ItIssueController::class, 'index'])->name('issues.index');
         Route::get('/issues/create', [ItIssueController::class, 'create'])->name('issues.create');
         Route::post('/issues', [ItIssueController::class, 'store'])->name('issues.store');
+        // Route::post('/issues', [ItIssueController::class, 'reports'])->name('issues.store');
         Route::get('/issues/dashboard', [ItIssueController::class, 'dashboard'])->name('issues.dashboard');
         Route::get('/issues/reports', [ItIssueController::class, 'reports'])->name('issues.reports');
         Route::get('/issues/reports/export', [ItIssueController::class, 'exportReport'])->name('issues.reports.export');
         Route::get('/issues/configure', [ItIssueController::class, 'configure'])->name('issues.configure');
-        
+
         // IT Issue Configuration CRUD & Swap Routes
         Route::post('/issues/configure/priorities', [ItIssueController::class, 'storePriorityConfig'])->name('issues.configure.priorities.store');
         Route::patch('/issues/configure/priorities/{id}', [ItIssueController::class, 'updatePriorityConfig'])->name('issues.configure.priorities.update');
@@ -436,4 +437,3 @@ Route::middleware(['auth'])->prefix('reports')->name('reports.')->group(function
 
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');
 // Route::get('/guest',AppLayout::class);
-
