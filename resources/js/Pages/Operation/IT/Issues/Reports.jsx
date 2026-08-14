@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AsideLayout from '@/Layouts/AsideLayout';
 import CreateIssueModal from '@/Components/IT/CreateIssueModal';
+import UserSelectModal from '@/Components/IT/UserSelectModal';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 import { exportDetailedIssuePDF, exportCategorySummaryPDF } from '@/utils/pdfExportHelper';
@@ -78,6 +79,7 @@ import {
     LowPriority as LowPriorityIcon,
     PersonOutlined as PersonOutlineIcon,
     AccessTime as AccessTimeIcon,
+    Search as SearchIcon,
 } from '@mui/icons-material';
 
 import { styled } from '@mui/material/styles';
@@ -153,7 +155,7 @@ const ALL_COLUMNS = [
     { key: 'actions', label: 'Actions (Edit / Manage)' },
 ];
 
-export default function Reports({ report, filters, categories = [], priorities = [], importanceLevels = [], statuses = [], departments = [], users = [], rootCauses = [], app_name = 'Our Company', auth_user = {} }) {
+export default function Reports({ report, filters, categories = [], priorities = [], importanceLevels = [], statuses = [], departments = [], resolverDepartments = [], users = [], rootCauses = [], app_name = 'Our Company', auth_user = {} }) {
     const [periodType, setPeriodType] = useState(filters.period_type || 'weekly');
     const [startDate, setStartDate] = useState(filters.start_date || report.start_date);
     const [endDate, setEndDate] = useState(filters.end_date || report.end_date);
@@ -201,6 +203,11 @@ export default function Reports({ report, filters, categories = [], priorities =
         : [];
     const [selectedStatusCodes, setSelectedStatusCodes] = useState(initialStatusCodes);
 
+    const initialDepartmentIds = filters.department_ids
+        ? (Array.isArray(filters.department_ids) ? filters.department_ids.map(Number) : filters.department_ids.toString().split(',').map(Number).filter(Boolean))
+        : [];
+    const [selectedDepartmentIds, setSelectedDepartmentIds] = useState(initialDepartmentIds);
+
     // Flatpickr ref
     const dateRangeRef = useRef(null);
     const fpInstance = useRef(null);
@@ -211,7 +218,7 @@ export default function Reports({ report, filters, categories = [], priorities =
 
     useEffect(() => {
         setPage(1);
-    }, [report.items, periodType, resolverType, startDate, endDate, selectedCategoryIds, selectedStatusCodes]);
+    }, [report.items, periodType, resolverType, startDate, endDate, selectedCategoryIds, selectedStatusCodes, selectedDepartmentIds]);
 
     const totalPages = Math.ceil((report.items || []).length / pageSize);
     const paginatedItems = (report.items || []).slice((page - 1) * pageSize, page * pageSize);
@@ -309,6 +316,9 @@ export default function Reports({ report, filters, categories = [], priorities =
         const stCodes = overrides.status_codes !== undefined ? overrides.status_codes : selectedStatusCodes;
         const stStr = Array.isArray(stCodes) ? stCodes.join(',') : stCodes;
 
+        const deptIds = overrides.department_ids !== undefined ? overrides.department_ids : selectedDepartmentIds;
+        const deptStr = Array.isArray(deptIds) ? deptIds.join(',') : deptIds;
+
         const params = {
             period_type: periodType,
             start_date: startDate,
@@ -316,6 +326,7 @@ export default function Reports({ report, filters, categories = [], priorities =
             resolver_type: resolverType,
             category_ids: catStr,
             status_codes: stStr,
+            department_ids: deptStr,
             ...overrides,
         };
         router.get('/operations/it/issues/reports', params, { preserveState: true });
@@ -335,6 +346,14 @@ export default function Reports({ report, filters, categories = [], priorities =
         const newStatusCodes = typeof value === 'string' ? value.split(',') : value;
         setSelectedStatusCodes(newStatusCodes);
         applyFilters({ status_codes: newStatusCodes });
+    };
+
+    // Resolver Department Multi-Select Handler
+    const handleDepartmentChange = (event) => {
+        const { target: { value } } = event;
+        const newDeptIds = typeof value === 'string' ? value.split(',').map(Number) : value;
+        setSelectedDepartmentIds(newDeptIds);
+        applyFilters({ department_ids: newDeptIds });
     };
 
     // ── Flatpickr date-range initialisation ─────────────────────────────────
@@ -393,8 +412,11 @@ export default function Reports({ report, filters, categories = [], priorities =
     const [rootCauseForm, setRootCauseForm] = useState({ root_cause_id: '', remark: '' });
 
     // Reopen / Change Back Status Modal State (shown when changing from CLOSED or DONE)
-    const [reopenModal, setReopenModal] = useState({ open: false, issue: null, targetStatus: null });
+    const [reopenModal, setReopenModal] = useState({ open: false, issue: null, targetStatus: null, assignedUserId: null });
     const [reopenRemark, setReopenRemark] = useState('');
+
+    // Assign User Modal State (for Edit Form or Status Transition)
+    const [assignUserModal, setAssignUserModal] = useState({ open: false, issue: null, targetStatus: null, mode: 'transition' });
 
     // Dedicated Discussion & Log Note Modal State
     const [discussionIssue, setDiscussionIssue] = useState(null);
@@ -530,28 +552,46 @@ export default function Reports({ report, filters, categories = [], priorities =
 
     const handleStatusStepClick = (issue, targetStatus) => {
         handleCloseStatusPopover();
+        const currentAssignedId = issue.assigned_user_id || issue.assigned_user?.id;
+
+        // If transitioning past OPEN and no assigned user exists, prompt to assign user
+        if (targetStatus.code !== 'OPEN' && !currentAssignedId) {
+            setAssignUserModal({
+                open: true,
+                issue,
+                targetStatus,
+                mode: 'transition',
+            });
+            return;
+        }
+
+        executeStatusTransition(issue, targetStatus, currentAssignedId);
+    };
+
+    const executeStatusTransition = (issue, targetStatus, assignedUserId = null) => {
         const currentCode = issue.status?.code || issue.status_code;
         const isCurrentlyClosedOrDone = currentCode === 'CLOSED' || currentCode === 'DONE';
         const isTargetClosedOrDone = targetStatus.code === 'CLOSED' || targetStatus.code === 'DONE';
 
-        // 1. Moving to CLOSED or DONE -> Requires Root Cause
         if (isTargetClosedOrDone) {
-            setRootCauseModal({ open: true, issue, targetStatus });
+            setRootCauseModal({ open: true, issue, targetStatus, assignedUserId });
             setRootCauseForm({ root_cause_id: '', remark: '' });
             return;
         }
 
-        // 2. Moving back from CLOSED or DONE -> Requires Mandatory Reason / Remark
         if (isCurrentlyClosedOrDone && !isTargetClosedOrDone) {
-            setReopenModal({ open: true, issue, targetStatus });
+            setReopenModal({ open: true, issue, targetStatus, assignedUserId });
             setReopenRemark('');
             return;
         }
 
-        // Normal transition
         router.patch(
             `/operations/it/issues/${issue.id}/status`,
-            { issue_status_id: targetStatus.id },
+            {
+                issue_status_id: targetStatus.id,
+                assigned_user_id: assignedUserId || issue.assigned_user_id,
+                proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
+            },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -560,8 +600,27 @@ export default function Reports({ report, filters, categories = [], priorities =
         );
     };
 
+    const handleUserSelectedForAssign = (user) => {
+        if (assignUserModal.mode === 'edit_form') {
+            setManageForm((prev) => ({ ...prev, assigned_user_id: user.id }));
+            setAssignUserModal({ open: false, issue: null, targetStatus: null, mode: 'edit_form' });
+            return;
+        }
+
+        // Mode is 'transition'
+        const { issue, targetStatus } = assignUserModal;
+        if (manageIssue) {
+            setManageForm((prev) => ({ ...prev, assigned_user_id: user.id }));
+        }
+        setAssignUserModal({ open: false, issue: null, targetStatus: null, mode: 'transition' });
+
+        if (issue && targetStatus) {
+            executeStatusTransition(issue, targetStatus, user.id);
+        }
+    };
+
     const handleConfirmCloseWithRootCause = () => {
-        const { issue, targetStatus } = rootCauseModal;
+        const { issue, targetStatus, assignedUserId } = rootCauseModal;
         if (!issue || !targetStatus) return;
 
         if (!rootCauseForm.root_cause_id) {
@@ -573,6 +632,7 @@ export default function Reports({ report, filters, categories = [], priorities =
             `/operations/it/issues/${issue.id}/status`,
             {
                 issue_status_id: targetStatus.id,
+                assigned_user_id: assignedUserId || manageForm?.assigned_user_id || issue.assigned_user_id,
                 root_cause_id: rootCauseForm.root_cause_id,
                 remark: rootCauseForm.remark,
                 proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
@@ -581,7 +641,7 @@ export default function Reports({ report, filters, categories = [], priorities =
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    setRootCauseModal({ open: false, issue: null, targetStatus: null });
+                    setRootCauseModal({ open: false, issue: null, targetStatus: null, assignedUserId: null });
                     setManageIssue(null);
                 },
             }
@@ -589,7 +649,7 @@ export default function Reports({ report, filters, categories = [], priorities =
     };
 
     const handleConfirmReopen = () => {
-        const { issue, targetStatus } = reopenModal;
+        const { issue, targetStatus, assignedUserId } = reopenModal;
         if (!issue || !targetStatus) return;
 
         if (!reopenRemark.trim()) {
@@ -601,6 +661,7 @@ export default function Reports({ report, filters, categories = [], priorities =
             `/operations/it/issues/${issue.id}/status`,
             {
                 issue_status_id: targetStatus.id,
+                assigned_user_id: assignedUserId || manageForm?.assigned_user_id || issue.assigned_user_id,
                 remark: reopenRemark.trim(),
                 proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
             },
@@ -608,7 +669,7 @@ export default function Reports({ report, filters, categories = [], priorities =
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    setReopenModal({ open: false, issue: null, targetStatus: null });
+                    setReopenModal({ open: false, issue: null, targetStatus: null, assignedUserId: null });
                     setManageIssue(null);
                 },
             }
@@ -631,7 +692,8 @@ export default function Reports({ report, filters, categories = [], priorities =
     const handleExport = () => {
         const catStr = selectedCategoryIds.join(',');
         const stStr = selectedStatusCodes.join(',');
-        const url = `/operations/it/issues/reports/export?period_type=${periodType}&start_date=${startDate || ''}&end_date=${endDate || ''}&resolver_type=${resolverType}&category_ids=${catStr}&status_codes=${stStr}`;
+        const deptStr = selectedDepartmentIds.join(',');
+        const url = `/operations/it/issues/reports/export?period_type=${periodType}&start_date=${startDate || ''}&end_date=${endDate || ''}&resolver_type=${resolverType}&category_ids=${catStr}&status_codes=${stStr}&department_ids=${deptStr}`;
         window.open(url, '_blank');
     };
 
@@ -660,10 +722,12 @@ export default function Reports({ report, filters, categories = [], priorities =
                 endDate,
                 resolverType,
                 selectedCategoryIds,
+                selectedDepartmentIds,
             },
             auth_user,
             app_name,
             categories,
+            departments,
             formatDateShort,
             formatDateCustom,
         });
@@ -701,34 +765,20 @@ export default function Reports({ report, filters, categories = [], priorities =
         const targetStatus = statuses.find((s) => s.code === targetStatusCode);
         if (!targetStatus) return;
 
-        const currentCode = manageIssue.status?.code || manageIssue.status_code;
-        const isCurrentlyClosedOrDone = currentCode === 'CLOSED' || currentCode === 'DONE';
-        const isTargetClosedOrDone = targetStatus.code === 'CLOSED' || targetStatus.code === 'DONE';
+        const currentAssignedId = manageForm.assigned_user_id || manageIssue.assigned_user_id;
 
-        if (isTargetClosedOrDone) {
-            setRootCauseModal({ open: true, issue: manageIssue, targetStatus });
-            setRootCauseForm({ root_cause_id: '', remark: '' });
+        // If transitioning past OPEN and no assigned user exists, prompt to assign user
+        if (targetStatus.code !== 'OPEN' && !currentAssignedId) {
+            setAssignUserModal({
+                open: true,
+                issue: manageIssue,
+                targetStatus,
+                mode: 'transition',
+            });
             return;
         }
 
-        if (isCurrentlyClosedOrDone && !isTargetClosedOrDone) {
-            setReopenModal({ open: true, issue: manageIssue, targetStatus });
-            setReopenRemark('');
-            return;
-        }
-
-        router.patch(
-            `/operations/it/issues/${manageIssue.id}/status`,
-            {
-                issue_status_id: targetStatus.id,
-                proposed_solution: manageForm.proposed_solution,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                onSuccess: () => setManageIssue(null),
-            }
-        );
+        executeStatusTransition(manageIssue, targetStatus, currentAssignedId);
     };
 
     const handleAddMessage = () => {
@@ -913,8 +963,8 @@ export default function Reports({ report, filters, categories = [], priorities =
                         </Grid>
 
                         {/* Category Multi-Select Filter */}
-                        <Grid item xs={12} sm={4} md={3}>
-                            <FormControl fullWidth size="small" sx={{ minWidth: 200 }}>
+                        <Grid item xs={12} sm={6} md={2.5}>
+                            <FormControl fullWidth size="small" sx={{ minWidth: 160 }}>
                                 <InputLabel
                                     sx={{
                                         fontWeight: 700,
@@ -964,8 +1014,8 @@ export default function Reports({ report, filters, categories = [], priorities =
                         </Grid>
 
                         {/* Status Multi-Select Filter */}
-                        <Grid item xs={12} sm={4} md={3}>
-                            <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
+                        <Grid item xs={12} sm={6} md={2.5}>
+                            <FormControl fullWidth size="small" sx={{ minWidth: 150 }}>
                                 <InputLabel
                                     sx={{
                                         fontWeight: 700,
@@ -1008,6 +1058,58 @@ export default function Reports({ report, filters, categories = [], priorities =
                                                 sx={{ p: 0.5, mr: 1, color: '#4f46e5', '&.Mui-checked': { color: '#4f46e5' } }}
                                             />
                                             {st.name || st.code}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+
+                        {/* Resolver Department Multi-Select Filter */}
+                        <Grid item xs={12} sm={6} md={2.5}>
+                            <FormControl fullWidth size="small" sx={{ minWidth: 160 }}>
+                                <InputLabel
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: '#4f46e5',
+                                        fontSize: '0.82rem',
+                                        '&.Mui-focused': { color: '#4f46e5' },
+                                    }}
+                                >
+                                    Filter by Resolver Dept
+                                </InputLabel>
+                                <Select
+                                    multiple
+                                    value={selectedDepartmentIds}
+                                    onChange={handleDepartmentChange}
+                                    input={<OutlinedInput label="Filter by Resolver Dept" />}
+                                    renderValue={(selected) => {
+                                        if (!selected.length) return <em style={{ color: '#94a3b8', fontStyle: 'normal' }}>All Resolver Depts</em>;
+                                        const deptList = resolverDepartments.length > 0 ? resolverDepartments : departments;
+                                        return deptList
+                                            .filter(d => selected.includes(d.id))
+                                            .map(d => d.name)
+                                            .join(', ');
+                                    }}
+                                    sx={{
+                                        borderRadius: 2.5,
+                                        fontWeight: 600,
+                                        fontSize: '0.85rem',
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: '#c7d2fe',
+                                            borderWidth: '1.5px',
+                                        },
+                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#4f46e5' },
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4f46e5' },
+                                    }}
+                                >
+                                    {(resolverDepartments.length > 0 ? resolverDepartments : departments).map((dept) => (
+                                        <MenuItem key={dept.id} value={dept.id}>
+                                            <Checkbox
+                                                checked={selectedDepartmentIds.includes(dept.id)}
+                                                size="small"
+                                                sx={{ p: 0.5, mr: 1, color: '#4f46e5', '&.Mui-checked': { color: '#4f46e5' } }}
+                                            />
+                                            {dept.name}
                                         </MenuItem>
                                     ))}
                                 </Select>
@@ -1311,7 +1413,20 @@ export default function Reports({ report, filters, categories = [], priorities =
                                                     />
                                                 </TableCell>
                                             )}
-                                            {isColumnVisible('assigned_user') && <TableCell>{item.assigned_user_name}</TableCell>}
+                                            {isColumnVisible('assigned_user') && (
+                                                <TableCell>
+                                                    <Box>
+                                                        <Typography variant="body2" fontWeight={600} sx={{ color: '#1e293b' }}>
+                                                            {item.assigned_user_name}
+                                                        </Typography>
+                                                        {item.assigned_user_department_name && (
+                                                            <Typography variant="caption" sx={{ color: '#64748b', display: 'block', fontSize: '0.72rem' }}>
+                                                                {item.assigned_user_department_name}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </TableCell>
+                                            )}
                                             {isColumnVisible('reported_date') && (
                                                 <TableCell
                                                     onClick={(e) => {
@@ -1826,28 +1941,49 @@ export default function Reports({ report, filters, categories = [], priorities =
                                                     }}
                                                 >
                                                     <PersonOutlineIcon color="action" />
-                                                    <FormControl fullWidth size="small" variant="standard">
-                                                        <InputLabel>Assigned To</InputLabel>
-                                                        <Select
-                                                            value={manageForm.assigned_user_id}
-                                                            label="Assigned To"
-                                                            onChange={(e) =>
-                                                                setManageForm({
-                                                                    ...manageForm,
-                                                                    assigned_user_id: e.target.value,
-                                                                })
-                                                            }
-                                                        >
-                                                            <MenuItem value="">
-                                                                <em>Unassigned</em>
-                                                            </MenuItem>
-                                                            {users.map((u) => (
-                                                                <MenuItem key={u.id} value={u.id}>
-                                                                    {u.name}
+                                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: '100%' }}>
+                                                        <FormControl fullWidth size="small" variant="standard">
+                                                            <InputLabel>Assigned To</InputLabel>
+                                                            <Select
+                                                                value={manageForm.assigned_user_id}
+                                                                label="Assigned To"
+                                                                onChange={(e) =>
+                                                                    setManageForm({
+                                                                        ...manageForm,
+                                                                        assigned_user_id: e.target.value,
+                                                                    })
+                                                                }
+                                                            >
+                                                                <MenuItem value="">
+                                                                    <em>Unassigned</em>
                                                                 </MenuItem>
-                                                            ))}
-                                                        </Select>
-                                                    </FormControl>
+                                                                {users.map((u) => (
+                                                                    <MenuItem key={u.id} value={u.id}>
+                                                                        {u.name} {u.department?.name ? `(${u.department.name})` : ''}
+                                                                    </MenuItem>
+                                                                ))}
+                                                            </Select>
+                                                        </FormControl>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outlined"
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setAssignUserModal({
+                                                                    open: true,
+                                                                    issue: manageIssue,
+                                                                    targetStatus: null,
+                                                                    mode: 'edit_form',
+                                                                });
+                                                            }}
+                                                            sx={{ minWidth: 36, height: 32, p: 0.5, borderColor: '#cbd5e1', flexShrink: 0 }}
+                                                            title="Search user with department filter"
+                                                        >
+                                                            <SearchIcon fontSize="small" />
+                                                        </Button>
+                                                    </Box>
                                                 </Paper>
 
                                                 {/* Resolver Type Toggle Card */}
@@ -2332,6 +2468,32 @@ export default function Reports({ report, filters, categories = [], priorities =
                         </Button>
                     </DialogActions>
                 </Dialog>
+
+                {/* Shared User Select Modal (for Assigning User with Department Filter & Real-Time Search) */}
+                <UserSelectModal
+                    open={assignUserModal.open}
+                    onClose={() => setAssignUserModal({ open: false, issue: null, targetStatus: null, mode: 'transition' })}
+                    onSelect={handleUserSelectedForAssign}
+                    title={
+                        assignUserModal.mode === 'transition' && assignUserModal.targetStatus
+                            ? `Assign User to Advance Status to "${assignUserModal.targetStatus.name}"`
+                            : 'Select Assigned Employee'
+                    }
+                    subtitle={
+                        assignUserModal.mode === 'transition'
+                            ? 'An assigned person is required for this stage. Select an employee to proceed.'
+                            : 'Search by name, branch, or filter by department'
+                    }
+                    selectedUserId={manageForm.assigned_user_id || manageIssue?.assigned_user_id}
+                    users={users}
+                    departments={departments}
+                    currentUserName={auth_user?.name || ''}
+                    initialDepartmentIds={
+                        manageForm.resolution_department_id
+                            ? [Number(manageForm.resolution_department_id)]
+                            : (manageIssue?.resolution_department_id ? [Number(manageIssue.resolution_department_id)] : [])
+                    }
+                />
             </Box>
         </AsideLayout>
     );

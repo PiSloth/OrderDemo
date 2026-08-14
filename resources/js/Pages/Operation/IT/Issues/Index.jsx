@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import AsideLayout from '@/Layouts/AsideLayout';
 import CreateIssueModal from '@/Components/IT/CreateIssueModal';
+import UserSelectModal from '@/Components/IT/UserSelectModal';
 import {
     Box,
     Button,
@@ -57,6 +58,7 @@ import {
     Flag as FlagIcon,
     AutoAwesome as AutoAwesomeIcon,
     DragHandle as DragHandleIcon,
+    Search as SearchIcon,
 } from '@mui/icons-material';
 
 const STATUS_STEPS = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'DONE', 'CLOSED'];
@@ -96,8 +98,11 @@ export default function Index({
     const [rootCauseForm, setRootCauseForm] = useState({ root_cause_id: '', remark: '' });
 
     // Reopen / Change Back Status Modal State (shown when changing from CLOSED or DONE)
-    const [reopenModal, setReopenModal] = useState({ open: false, issue: null, targetStatus: null });
+    const [reopenModal, setReopenModal] = useState({ open: false, issue: null, targetStatus: null, assignedUserId: null });
     const [reopenRemark, setReopenRemark] = useState('');
+
+    // Assign User Modal State (for Edit Form or Status Transition)
+    const [assignUserModal, setAssignUserModal] = useState({ open: false, issue: null, targetStatus: null, mode: 'transition' });
     const [createForm, setCreateForm] = useState({
         title: '',
         description: '',
@@ -249,26 +254,44 @@ export default function Index({
         const targetStatus = statuses.find((s) => s.code === targetStatusCode);
         if (!targetStatus) return;
 
-        const currentCode = manageIssue.status?.code || manageIssue.status_code;
+        const currentAssignedId = manageForm.assigned_user_id || manageIssue.assigned_user_id;
+
+        // If transitioning past OPEN (e.g. ASSIGNED, IN_PROGRESS, PENDING, DONE, CLOSED) and no assigned user exists, prompt to assign user
+        if (targetStatus.code !== 'OPEN' && !currentAssignedId) {
+            setAssignUserModal({
+                open: true,
+                issue: manageIssue,
+                targetStatus,
+                mode: 'transition',
+            });
+            return;
+        }
+
+        executeStatusTransition(manageIssue, targetStatus, currentAssignedId);
+    };
+
+    const executeStatusTransition = (issue, targetStatus, assignedUserId = null) => {
+        const currentCode = issue.status?.code || issue.status_code;
         const isCurrentlyClosedOrDone = currentCode === 'CLOSED' || currentCode === 'DONE';
         const isTargetClosedOrDone = targetStatus.code === 'CLOSED' || targetStatus.code === 'DONE';
 
         if (isTargetClosedOrDone) {
-            setRootCauseModal({ open: true, issue: manageIssue, targetStatus });
+            setRootCauseModal({ open: true, issue, targetStatus, assignedUserId });
             setRootCauseForm({ root_cause_id: '', remark: '' });
             return;
         }
 
         if (isCurrentlyClosedOrDone && !isTargetClosedOrDone) {
-            setReopenModal({ open: true, issue: manageIssue, targetStatus });
+            setReopenModal({ open: true, issue, targetStatus, assignedUserId });
             setReopenRemark('');
             return;
         }
 
         router.patch(
-            `/operations/it/issues/${manageIssue.id}/status`,
+            `/operations/it/issues/${issue.id}/status`,
             {
                 issue_status_id: targetStatus.id,
+                assigned_user_id: assignedUserId || manageForm?.assigned_user_id || issue.assigned_user_id,
                 proposed_solution: manageForm.proposed_solution,
             },
             {
@@ -279,8 +302,25 @@ export default function Index({
         );
     };
 
+    const handleUserSelectedForAssign = (user) => {
+        if (assignUserModal.mode === 'edit_form') {
+            setManageForm((prev) => ({ ...prev, assigned_user_id: user.id }));
+            setAssignUserModal({ open: false, issue: null, targetStatus: null, mode: 'edit_form' });
+            return;
+        }
+
+        // Mode is 'transition'
+        const { issue, targetStatus } = assignUserModal;
+        setManageForm((prev) => ({ ...prev, assigned_user_id: user.id }));
+        setAssignUserModal({ open: false, issue: null, targetStatus: null, mode: 'transition' });
+
+        if (issue && targetStatus) {
+            executeStatusTransition(issue, targetStatus, user.id);
+        }
+    };
+
     const handleConfirmCloseWithRootCause = () => {
-        const { issue, targetStatus } = rootCauseModal;
+        const { issue, targetStatus, assignedUserId } = rootCauseModal;
         if (!issue || !targetStatus) return;
 
         if (!rootCauseForm.root_cause_id) {
@@ -292,6 +332,7 @@ export default function Index({
             `/operations/it/issues/${issue.id}/status`,
             {
                 issue_status_id: targetStatus.id,
+                assigned_user_id: assignedUserId || manageForm?.assigned_user_id || issue.assigned_user_id,
                 root_cause_id: rootCauseForm.root_cause_id,
                 remark: rootCauseForm.remark,
                 proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
@@ -300,7 +341,7 @@ export default function Index({
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    setRootCauseModal({ open: false, issue: null, targetStatus: null });
+                    setRootCauseModal({ open: false, issue: null, targetStatus: null, assignedUserId: null });
                     setManageIssue(null);
                 },
             }
@@ -308,7 +349,7 @@ export default function Index({
     };
 
     const handleConfirmReopen = () => {
-        const { issue, targetStatus } = reopenModal;
+        const { issue, targetStatus, assignedUserId } = reopenModal;
         if (!issue || !targetStatus) return;
 
         if (!reopenRemark.trim()) {
@@ -320,6 +361,7 @@ export default function Index({
             `/operations/it/issues/${issue.id}/status`,
             {
                 issue_status_id: targetStatus.id,
+                assigned_user_id: assignedUserId || manageForm?.assigned_user_id || issue.assigned_user_id,
                 remark: reopenRemark.trim(),
                 proposed_solution: manageForm?.proposed_solution || issue.proposed_solution,
             },
@@ -327,7 +369,7 @@ export default function Index({
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    setReopenModal({ open: false, issue: null, targetStatus: null });
+                    setReopenModal({ open: false, issue: null, targetStatus: null, assignedUserId: null });
                     setManageIssue(null);
                 },
             }
@@ -835,19 +877,41 @@ export default function Index({
                                             </FormControl>
                                         </Grid>
                                         <Grid item xs={12} sm={6}>
-                                            <FormControl fullWidth>
-                                                <InputLabel>Assigned Staff</InputLabel>
-                                                <Select
-                                                    value={manageForm.assigned_user_id}
-                                                    label="Assigned Staff"
-                                                    onChange={(e) => setManageForm({ ...manageForm, assigned_user_id: e.target.value })}
+                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                                <FormControl fullWidth>
+                                                    <InputLabel>Assigned Staff</InputLabel>
+                                                    <Select
+                                                        value={manageForm.assigned_user_id}
+                                                        label="Assigned Staff"
+                                                        onChange={(e) => setManageForm({ ...manageForm, assigned_user_id: e.target.value })}
+                                                    >
+                                                        <MenuItem value=""><em>Unassigned</em></MenuItem>
+                                                        {users.map((u) => (
+                                                            <MenuItem key={u.id} value={u.id}>
+                                                                {u.name} {u.department?.name ? `(${u.department.name})` : ''}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                                <Button
+                                                    type="button"
+                                                    variant="outlined"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setAssignUserModal({
+                                                            open: true,
+                                                            issue: manageIssue,
+                                                            targetStatus: null,
+                                                            mode: 'edit_form',
+                                                        });
+                                                    }}
+                                                    sx={{ minWidth: 44, height: 40, px: 1.5, borderColor: '#cbd5e1', flexShrink: 0 }}
+                                                    title="Search and select user with department filter"
                                                 >
-                                                    <MenuItem value=""><em>Unassigned</em></MenuItem>
-                                                    {users.map((u) => (
-                                                        <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
-                                                    ))}
-                                                </Select>
-                                            </FormControl>
+                                                    <SearchIcon fontSize="small" />
+                                                </Button>
+                                            </Box>
                                         </Grid>
                                         <Grid item xs={12} sm={6}>
                                             <FormControl fullWidth>
@@ -1159,6 +1223,32 @@ export default function Index({
                         </Button>
                     </DialogActions>
                 </Dialog>
+
+                {/* Shared User Select Modal (for Assigning User with Department Filter & Real-Time Search) */}
+                <UserSelectModal
+                    open={assignUserModal.open}
+                    onClose={() => setAssignUserModal({ open: false, issue: null, targetStatus: null, mode: 'transition' })}
+                    onSelect={handleUserSelectedForAssign}
+                    title={
+                        assignUserModal.mode === 'transition' && assignUserModal.targetStatus
+                            ? `Assign User to Advance Status to "${assignUserModal.targetStatus.name}"`
+                            : 'Select Assigned Employee'
+                    }
+                    subtitle={
+                        assignUserModal.mode === 'transition'
+                            ? 'An assigned person is required for this stage. Select an employee to proceed.'
+                            : 'Search by name, branch, or filter by department'
+                    }
+                    selectedUserId={manageForm.assigned_user_id || manageIssue?.assigned_user_id}
+                    users={users}
+                    departments={departments}
+                    currentUserName={auth?.user?.name || ''}
+                    initialDepartmentIds={
+                        manageForm.resolution_department_id
+                            ? [Number(manageForm.resolution_department_id)]
+                            : (manageIssue?.resolution_department_id ? [Number(manageIssue.resolution_department_id)] : [])
+                    }
+                />
             </Box>
         </AsideLayout>
     );

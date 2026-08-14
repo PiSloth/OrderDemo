@@ -362,6 +362,7 @@ class ItIssueController extends Controller
     {
         $validated = $request->validate([
             'issue_status_id' => ['required', 'exists:issue_statuses,id'],
+            'assigned_user_id' => ['nullable', 'exists:users,id'],
             'proposed_solution' => ['nullable', 'string'],
             'root_cause_id' => ['nullable', 'exists:issue_root_causes,id'],
             'remark' => ['nullable', 'string'],
@@ -375,7 +376,13 @@ class ItIssueController extends Controller
         $isDone = $status->code === 'DONE';
         $isClosingOrDone = $isClosing || $isDone;
 
-        // 1. If moving to CLOSED or DONE, require a Root Cause
+        // 1. If moving past OPEN (e.g. ASSIGNED, IN_PROGRESS, PENDING, DONE, CLOSED), require an assigned user
+        $assignedUserId = !empty($validated['assigned_user_id']) ? $validated['assigned_user_id'] : $issue->assigned_user_id;
+        if ($status->code !== 'OPEN' && empty($assignedUserId)) {
+            return back()->withErrors(['assigned_user_id' => "An assigned user is required to change status to {$status->name}."]);
+        }
+
+        // 2. If moving to CLOSED or DONE, require a Root Cause
         if ($isClosingOrDone) {
             $hasExistingRootCause = $issue->rootCauses()->exists();
             if (!$hasExistingRootCause && empty($validated['root_cause_id'])) {
@@ -383,7 +390,7 @@ class ItIssueController extends Controller
             }
         }
 
-        // 2. If moving back from CLOSED or DONE to an open status, require a Reason / Remark
+        // 3. If moving back from CLOSED or DONE to an open status, require a Reason / Remark
         if ($isCurrentlyClosedOrDone && !$isClosingOrDone) {
             if (empty(trim($validated['remark'] ?? ''))) {
                 return back()->withErrors(['remark' => "A remark / log note is required when reopening or changing status from {$currentStatus->name} to {$status->name}."]);
@@ -406,8 +413,11 @@ class ItIssueController extends Controller
             }
         }
 
+        $assignedChanged = !empty($validated['assigned_user_id']) && $validated['assigned_user_id'] != $issue->assigned_user_id;
+
         $issue->update([
             'issue_status_id' => $status->id,
+            'assigned_user_id' => $assignedUserId,
             'closed_date' => $closedDate,
             'proposed_solution' => $validated['proposed_solution'] ?? $issue->proposed_solution,
             'is_sla_failed' => $isFailed,
@@ -419,6 +429,12 @@ class ItIssueController extends Controller
         }
 
         $logMsg = $currentStatus ? "Status changed from {$currentStatus->name} to {$status->name}." : "Status changed to {$status->name}.";
+        if ($assignedChanged) {
+            $newAssigned = User::find($validated['assigned_user_id']);
+            if ($newAssigned) {
+                $logMsg .= " Assigned to: {$newAssigned->name}.";
+            }
+        }
         if (!empty($validated['root_cause_id'])) {
             $rc = IssueRootCause::find($validated['root_cause_id']);
             if ($rc) {
@@ -502,20 +518,35 @@ class ItIssueController extends Controller
         $resolverType = $request->input('resolver_type', 'all');
         $categoryIds = $request->input('category_ids');
         $statusCodes = $request->input('status_codes', $request->input('status_code'));
+        $departmentIds = $request->input('department_ids', $request->input('resolver_department_ids'));
 
-        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes);
+        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes, $departmentIds);
 
         $authUser = auth()->user()?->load('department');
+
+        $resolverDepartments = Department::where(function ($query) {
+            $query->whereIn('id', function ($sub) {
+                $sub->select('users.department_id')
+                    ->from('issues')
+                    ->join('users', 'issues.assigned_user_id', '=', 'users.id')
+                    ->whereNotNull('users.department_id');
+            })->orWhereIn('id', function ($sub) {
+                $sub->select('resolution_department_id')
+                    ->from('issues')
+                    ->whereNotNull('resolution_department_id');
+            });
+        })->orderBy('name')->get();
 
         return Inertia::render('Operation/IT/Issues/Reports', [
             'report'          => $report,
             'filters'         => [
-                'period_type'   => $periodType,
-                'start_date'    => $startDate,
-                'end_date'      => $endDate,
-                'resolver_type' => $resolverType,
-                'category_ids'  => is_array($categoryIds) ? $categoryIds : ($categoryIds ? explode(',', $categoryIds) : []),
-                'status_codes'  => is_array($statusCodes) ? $statusCodes : ($statusCodes ? explode(',', $statusCodes) : []),
+                'period_type'    => $periodType,
+                'start_date'     => $startDate,
+                'end_date'       => $endDate,
+                'resolver_type'  => $resolverType,
+                'category_ids'   => is_array($categoryIds) ? $categoryIds : ($categoryIds ? explode(',', $categoryIds) : []),
+                'status_codes'   => is_array($statusCodes) ? $statusCodes : ($statusCodes ? explode(',', $statusCodes) : []),
+                'department_ids' => is_array($departmentIds) ? $departmentIds : ($departmentIds ? explode(',', $departmentIds) : []),
             ],
             'auth_user'       => [
                 'id'          => $authUser?->id,
@@ -528,6 +559,7 @@ class ItIssueController extends Controller
             'importanceLevels' => IssueImportanceLevel::orderBy('level')->get(),
             'statuses'        => IssueStatus::all(),
             'departments'     => Department::all(),
+            'resolverDepartments' => $resolverDepartments,
             'users'           => User::select('id', 'name', 'email', 'department_id', 'branch_id')->with(['department:id,name', 'branch:id,name'])->orderBy('name')->get(),
             'rootCauses'      => IssueRootCause::orderBy('name')->get(),
         ]);
@@ -544,8 +576,9 @@ class ItIssueController extends Controller
         $resolverType = $request->input('resolver_type', 'all');
         $categoryIds = $request->input('category_ids');
         $statusCodes = $request->input('status_codes', $request->input('status_code'));
+        $departmentIds = $request->input('department_ids', $request->input('resolver_department_ids'));
 
-        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes);
+        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes, $departmentIds);
 
         $filename = "SLA_Service_Credit_Report_{$periodType}_" . now()->format('Y-m-d') . ".xlsx";
         $writer = SimpleExcelWriter::streamDownload($filename);

@@ -198,12 +198,13 @@ export const exportDetailedIssuePDF = async ({
     auth_user = {},
     app_name = 'OrderDemo',
     categories = [],
+    departments = [],
     formatDateShort,
     formatDateCustom,
 }) => {
     await ensureFontLoaded();
 
-    const { periodType = 'weekly', startDate, endDate, resolverType = 'all', selectedCategoryIds = [] } = filters;
+    const { periodType = 'weekly', startDate, endDate, resolverType = 'all', selectedCategoryIds = [], selectedDepartmentIds = [] } = filters;
     const isSingle = startDate && endDate && startDate === endDate;
     const reportAtLabel = isSingle
         ? `Report At: ${formatDateShort ? formatDateShort(startDate) : startDate}`
@@ -218,6 +219,10 @@ export const exportDetailedIssuePDF = async ({
     const catLabel = selectedCategoryIds && selectedCategoryIds.length > 0
         ? categories.filter(c => selectedCategoryIds.includes(c.id)).map(c => c.name).join(', ')
         : 'All Categories';
+
+    const deptLabel = selectedDepartmentIds && selectedDepartmentIds.length > 0
+        ? departments.filter(d => selectedDepartmentIds.includes(d.id)).map(d => d.name).join(', ')
+        : 'All Resolver Depts';
 
     const exporterName = auth_user?.name || '';
     const exporterDept = auth_user?.department ? ` (${auth_user.department})` : '';
@@ -281,10 +286,11 @@ export const exportDetailedIssuePDF = async ({
                 </div>
 
                 <div style="background-color: #f5f0ff; color: #3b0764; padding: 6px 16px; border-radius: 0 0 6px 6px; font-size: 10.5px; margin-bottom: 10px; border: 1px solid #e9d5ff; border-top: none;">
-                    <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 2px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 2px; flex-wrap: wrap; gap: 8px;">
                         <span>${reportAtLabel}</span>
                         <span>Resolver: ${resolverLabel}</span>
                         <span>Categories: ${catLabel}</span>
+                        <span>Depts: ${deptLabel}</span>
                     </div>
                     <div style="font-size: 9.5px; color: #581c87; opacity: 0.9;">
                         Continuous 24/7 Clock issues are listed first, followed by issues sorted by Due Date (today/upcoming first).

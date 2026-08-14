@@ -15,7 +15,7 @@ class SlaReportService
     /**
      * Generate Weekly or Monthly SLA Report.
      */
-    public function generateReport(string $periodType = 'weekly', ?string $startDateStr = null, ?string $endDateStr = null, ?string $resolverType = 'all', array|string|null $categoryIds = null, array|string|null $statusCodes = null): array
+    public function generateReport(string $periodType = 'weekly', ?string $startDateStr = null, ?string $endDateStr = null, ?string $resolverType = 'all', array|string|null $categoryIds = null, array|string|null $statusCodes = null, array|string|null $departmentIds = null): array
     {
         $now = now();
 
@@ -33,8 +33,11 @@ class SlaReportService
         $stCodes = is_array($statusCodes) ? $statusCodes : ($statusCodes ? explode(',', $statusCodes) : []);
         $stCodes = array_filter(array_map('trim', $stCodes));
 
+        $deptIds = is_array($departmentIds) ? $departmentIds : ($departmentIds ? explode(',', $departmentIds) : []);
+        $deptIds = array_filter(array_map('intval', $deptIds));
+
         $issues = Issue::query()
-            ->with(['status', 'priority', 'importance', 'category', 'creator', 'assignedUser', 'messages.creator'])
+            ->with(['status', 'priority', 'importance', 'category', 'creator', 'assignedUser.department', 'resolutionDepartment', 'messages.creator'])
             ->where(function ($query) use ($start, $end) {
                 $query->whereBetween('issue_at', [$start, $end])
                     ->orWhereBetween('due_date', [$start, $end])
@@ -44,6 +47,12 @@ class SlaReportService
             ->when($resolverType === 'internal', fn($q) => $q->where('is_third_party_resolver', false))
             ->when(!empty($catIds), fn($q) => $q->whereIn('issue_category_id', $catIds))
             ->when(!empty($stCodes), fn($q) => $q->whereHas('status', fn($s) => $s->whereIn('code', $stCodes)))
+            ->when(!empty($deptIds), function ($q) use ($deptIds) {
+                $q->where(function ($sub) use ($deptIds) {
+                    $sub->whereHas('assignedUser', fn($u) => $u->whereIn('department_id', $deptIds))
+                        ->orWhereIn('resolution_department_id', $deptIds);
+                });
+            })
             ->orderBy('issue_at', 'desc')
             ->get();
 
@@ -139,6 +148,7 @@ class SlaReportService
                 'status_code' => $issue->status?->code ?? 'OPEN',
                 'issue_status_id' => $issue->issue_status_id,
                 'assigned_user_name' => $issue->assignedUser?->name ?? 'Unassigned',
+                'assigned_user_department_name' => $issue->assignedUser?->department?->name ?? $issue->resolutionDepartment?->name ?? null,
                 'issue_at' => $issue->issue_at?->format($formatPattern),
                 'due_date' => $issue->due_date?->format($formatPattern),
                 'closed_date' => $issue->closed_date?->format($formatPattern),

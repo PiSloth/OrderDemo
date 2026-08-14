@@ -292,8 +292,8 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
     Route::prefix('it')->name('it.')->group(function () {
         Route::get('/issues', [ItIssueController::class, 'index'])->name('issues.index');
         Route::get('/issues/create', [ItIssueController::class, 'create'])->name('issues.create');
-        Route::post('/issues', [ItIssueController::class, 'store'])->name('issues.store');
-        // Route::post('/issues', [ItIssueController::class, 'reports'])->name('issues.store');
+        // Route::post('/issues', [ItIssueController::class, 'store'])->name('issues.store');
+        // Route::post('/issues', [ItIssueController::class, 'store'])->name('issues.store');
         Route::get('/issues/dashboard', [ItIssueController::class, 'dashboard'])->name('issues.dashboard');
         Route::get('/issues/reports', [ItIssueController::class, 'reports'])->name('issues.reports');
         Route::get('/issues/reports/export', [ItIssueController::class, 'exportReport'])->name('issues.reports.export');
