@@ -15,7 +15,7 @@ if (typeof window !== 'undefined' && typeof window.route !== 'undefined') {
     globalThis.route = window.route;
 }
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'ShweTatar';
 const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
 
 const el = document.getElementById('app');

@@ -292,7 +292,7 @@
     "src": "node_modules/@fontsource/roboto/files/roboto-vietnamese-700-normal.woff2"
   },
   "node_modules/canvg/lib/index.es.js": {
-    "file": "assets/index.es-b7345b8d.js",
+    "file": "assets/index.es-f1617bb3.js",
     "imports": [
       "_apexcharts.common-75f13bbd.js",
       "resources/js/app.jsx"
@@ -408,7 +408,7 @@
       "node_modules/dompurify/dist/purify.es.mjs",
       "node_modules/canvg/lib/index.es.js"
     ],
-    "file": "assets/app-b7365392.js",
+    "file": "assets/app-f8aadb46.js",
     "imports": [
       "_apexcharts.common-75f13bbd.js"
     ],

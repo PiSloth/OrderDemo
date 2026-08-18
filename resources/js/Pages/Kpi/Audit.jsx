@@ -52,14 +52,28 @@ export default function Audit({
         router.get('/kpi/audit', { month: m, userId: u }, { preserveState: true, replace: true });
     };
 
-    // Client-side task filter inside table grid
+    // Client-side task filter and group-based sorting inside table grid
     const filteredRows = useMemo(() => {
-        if (!taskSearch.trim()) return rows;
-        const term = taskSearch.toLowerCase();
-        return rows.filter((r) => {
-            const title = r.assignment.template?.title || '';
-            const groupName = r.assignment.template?.group?.name || '';
-            return title.toLowerCase().includes(term) || groupName.toLowerCase().includes(term);
+        let list = rows;
+        if (taskSearch.trim()) {
+            const term = taskSearch.toLowerCase();
+            list = list.filter((r) => {
+                const title = r.assignment.template?.title || '';
+                const groupName = r.assignment.template?.group?.name || '';
+                return title.toLowerCase().includes(term) || groupName.toLowerCase().includes(term);
+            });
+        }
+
+        // Sort table rows primarily by KPI Group Name, then by Template Title
+        return [...list].sort((a, b) => {
+            const groupA = (a.assignment?.template?.group?.name || 'zzzzzz').toLowerCase();
+            const groupB = (b.assignment?.template?.group?.name || 'zzzzzz').toLowerCase();
+            if (groupA !== groupB) {
+                return groupA.localeCompare(groupB);
+            }
+            const titleA = (a.assignment?.template?.title || '').toLowerCase();
+            const titleB = (b.assignment?.template?.title || '').toLowerCase();
+            return titleA.localeCompare(titleB);
         });
     }, [rows, taskSearch]);
 
@@ -147,6 +161,96 @@ export default function Audit({
         if (!selectedInstanceId) return null;
         return allMarkersFlat.find((m) => m.instance?.id === selectedInstanceId) || null;
     }, [allMarkersFlat, selectedInstanceId]);
+
+    // 10 Distinct, Non-Overlapping Color Themes for KPI Groups
+    const DISTINCT_GROUP_COLORS = useMemo(
+        () => [
+            {
+                bg: 'bg-indigo-50/95 dark:bg-indigo-950/75',
+                hover: 'hover:bg-indigo-100/90 dark:hover:bg-indigo-900/75',
+                border: 'border-l-4 border-l-indigo-500',
+                badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/70 dark:text-indigo-200',
+            },
+            {
+                bg: 'bg-emerald-50/95 dark:bg-emerald-950/75',
+                hover: 'hover:bg-emerald-100/90 dark:hover:bg-emerald-900/75',
+                border: 'border-l-4 border-l-emerald-500',
+                badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-200',
+            },
+            {
+                bg: 'bg-amber-50/95 dark:bg-amber-950/75',
+                hover: 'hover:bg-amber-100/90 dark:hover:bg-amber-900/75',
+                border: 'border-l-4 border-l-amber-500',
+                badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-200',
+            },
+            {
+                bg: 'bg-fuchsia-50/95 dark:bg-fuchsia-950/75',
+                hover: 'hover:bg-fuchsia-100/90 dark:hover:bg-fuchsia-900/75',
+                border: 'border-l-4 border-l-fuchsia-500',
+                badge: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/70 dark:text-fuchsia-200',
+            },
+            {
+                bg: 'bg-cyan-50/95 dark:bg-cyan-950/75',
+                hover: 'hover:bg-cyan-100/90 dark:hover:bg-cyan-900/75',
+                border: 'border-l-4 border-l-cyan-500',
+                badge: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/70 dark:text-cyan-200',
+            },
+            {
+                bg: 'bg-rose-50/95 dark:bg-rose-950/75',
+                hover: 'hover:bg-rose-100/90 dark:hover:bg-rose-900/75',
+                border: 'border-l-4 border-l-rose-500',
+                badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/70 dark:text-rose-200',
+            },
+            {
+                bg: 'bg-violet-50/95 dark:bg-violet-950/75',
+                hover: 'hover:bg-violet-100/90 dark:hover:bg-violet-900/75',
+                border: 'border-l-4 border-l-violet-500',
+                badge: 'bg-violet-100 text-violet-800 dark:bg-violet-900/70 dark:text-violet-200',
+            },
+            {
+                bg: 'bg-teal-50/95 dark:bg-teal-950/75',
+                hover: 'hover:bg-teal-100/90 dark:hover:bg-teal-900/75',
+                border: 'border-l-4 border-l-teal-500',
+                badge: 'bg-teal-100 text-teal-800 dark:bg-teal-900/70 dark:text-teal-200',
+            },
+            {
+                bg: 'bg-orange-50/95 dark:bg-orange-950/75',
+                hover: 'hover:bg-orange-100/90 dark:hover:bg-orange-900/75',
+                border: 'border-l-4 border-l-orange-500',
+                badge: 'bg-orange-100 text-orange-800 dark:bg-orange-900/70 dark:text-orange-200',
+            },
+            {
+                bg: 'bg-lime-50/95 dark:bg-lime-950/75',
+                hover: 'hover:bg-lime-100/90 dark:hover:bg-lime-900/75',
+                border: 'border-l-4 border-l-lime-500',
+                badge: 'bg-lime-100 text-lime-800 dark:bg-lime-900/70 dark:text-lime-200',
+            },
+        ],
+        []
+    );
+
+    // Map each distinct KPI group to its dedicated color
+    const groupColorMap = useMemo(() => {
+        const map = {};
+        let colorIdx = 0;
+
+        (kpiGroups || []).forEach((g) => {
+            if (g && g.id && !map[g.id]) {
+                map[g.id] = DISTINCT_GROUP_COLORS[colorIdx % DISTINCT_GROUP_COLORS.length];
+                colorIdx++;
+            }
+        });
+
+        rows.forEach((row) => {
+            const group = row.assignment?.template?.group;
+            if (group && group.id && !map[group.id]) {
+                map[group.id] = DISTINCT_GROUP_COLORS[colorIdx % DISTINCT_GROUP_COLORS.length];
+                colorIdx++;
+            }
+        });
+
+        return map;
+    }, [kpiGroups, rows, DISTINCT_GROUP_COLORS]);
 
     // Track active marker's index within current scoped filter list
     const currentIndex = useMemo(() => {
@@ -424,36 +528,50 @@ export default function Audit({
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredRows.map((row, rIdx) => (
-                                        <tr key={row.assignment.id || rIdx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
-                                            {/* Task Name Column */}
-                                            <td
-                                                onClick={() => {
-                                                    if (canManageTemplates && row.assignment?.template) {
-                                                        setEditingTemplate(row.assignment.template);
-                                                        setEditingAssignment(row.assignment);
-                                                        setIsTemplateModalOpen(true);
-                                                    }
-                                                }}
-                                                className={`p-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 font-medium ${
-                                                    canManageTemplates ? 'cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition' : ''
-                                                }`}
-                                                title={canManageTemplates ? "Click to edit template / inactive for month" : row.assignment.template?.title}
-                                            >
-                                                <div className="truncate max-w-[230px] text-slate-800 dark:text-slate-200 font-semibold flex items-center justify-between group">
-                                                    <span>{row.assignment.template?.title || 'Untitled Task'}</span>
-                                                    {canManageTemplates && (
-                                                        <svg className="w-3.5 h-3.5 text-indigo-500 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21H3v-3.572L16.732 3.732z" />
-                                                        </svg>
-                                                    )}
-                                                </div>
-                                                <div className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                                    <span className="capitalize">{row.assignment.template?.frequency}</span>
-                                                    <span>•</span>
-                                                    <span>{row.assignment.template?.group?.name || 'No Group'}</span>
-                                                </div>
-                                            </td>
+                                    filteredRows.map((row, rIdx) => {
+                                        const group = row.assignment?.template?.group;
+                                        const groupColor = group?.id ? groupColorMap[group.id] : null;
+
+                                        return (
+                                            <tr key={row.assignment.id || rIdx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                                {/* Task Name Column */}
+                                                <td
+                                                    onClick={() => {
+                                                        if (canManageTemplates && row.assignment?.template) {
+                                                            setEditingTemplate(row.assignment.template);
+                                                            setEditingAssignment(row.assignment);
+                                                            setIsTemplateModalOpen(true);
+                                                        }
+                                                    }}
+                                                    className={`p-3 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-800 font-medium ${
+                                                        groupColor
+                                                            ? `${groupColor.bg} ${groupColor.border} ${canManageTemplates ? groupColor.hover : ''}`
+                                                            : 'bg-white dark:bg-slate-900 border-l-4 border-l-transparent'
+                                                    } ${
+                                                        canManageTemplates ? 'cursor-pointer transition' : ''
+                                                    }`}
+                                                    title={canManageTemplates ? "Click to edit template / inactive for month" : row.assignment.template?.title}
+                                                >
+                                                    <div className="truncate max-w-[230px] text-slate-900 dark:text-slate-100 font-semibold flex items-center justify-between group">
+                                                        <span>{row.assignment.template?.title || 'Untitled Task'}</span>
+                                                        {canManageTemplates && (
+                                                            <svg className="w-3.5 h-3.5 text-indigo-500 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21H3v-3.572L16.732 3.732z" />
+                                                            </svg>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1">
+                                                        <span className="capitalize">{row.assignment.template?.frequency}</span>
+                                                        <span>•</span>
+                                                        {row.assignment.template?.group?.name ? (
+                                                            <span className={`px-1.5 py-0.5 rounded font-medium ${groupColor ? groupColor.badge : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
+                                                                {row.assignment.template.group.name}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="italic text-slate-400">No Group</span>
+                                                        )}
+                                                    </div>
+                                                </td>
 
                                             {/* Day Cells */}
                                             {row.cells.map((cell, cIdx) => {
@@ -525,8 +643,9 @@ export default function Audit({
                                                 )}
                                             </td>
                                         </tr>
-                                    ))
-                                )}
+                                    );
+                                })
+                            )}
                             </tbody>
                         </table>
                     </div>
