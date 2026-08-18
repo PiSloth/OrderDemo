@@ -78,8 +78,6 @@ export default function AssignmentModal({
         }
     }, [editingAssignment, isOpen, onClose, isTemplateModalOpen, userModalType]);
 
-    if (!isOpen) return null;
-
     // Selected objects resolution
     const selectedTemplate = useMemo(() => {
         return templates.find((t) => String(t.id) === String(data.assignmentTemplateId)) || null;
@@ -104,6 +102,8 @@ export default function AssignmentModal({
         }
         return [];
     }, [selectedTemplate]);
+
+    if (!isOpen) return null;
 
     const resolveUrl = (name, id = null) => {
         if (typeof window !== 'undefined' && typeof window.route === 'function') {
