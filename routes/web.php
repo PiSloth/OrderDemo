@@ -31,7 +31,7 @@ use App\Livewire\Document\EmailList as DocumentEmailList;
 use App\Livewire\Kpi\Approvals as KpiApprovals;
 use App\Livewire\Kpi\AssociateTasks as KpiAssociateTasks;
 use App\Livewire\Kpi\Audit as KpiAudit;
-use App\Livewire\Kpi\Assignments as KpiAssignments;
+use App\Http\Controllers\Kpi\KpiAssignmentController;
 use App\Http\Controllers\Kpi\KpiCertificateController;
 use App\Livewire\Kpi\Dashboard as KpiDashboard;
 use App\Livewire\Kpi\Exclusions as KpiExclusions;
@@ -250,7 +250,12 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::post('/templates', [KpiGroupController::class, 'storeTemplate'])->middleware('can:kpiManageTemplates')->name('templates.store');
     Route::put('/templates/{template}', [KpiGroupController::class, 'updateTemplate'])->middleware('can:kpiManageTemplates')->name('templates.update');
     Route::delete('/templates/{template}', [KpiGroupController::class, 'destroyTemplate'])->middleware('can:kpiManageTemplates')->name('templates.destroy');
-    Route::get('/assignments', KpiAssignments::class)->middleware('can:kpiManageAssignments')->name('assignments');
+    Route::get('/assignments', [KpiAssignmentController::class, 'index'])->middleware('can:kpiManageAssignments')->name('assignments');
+    Route::post('/assignments', [KpiAssignmentController::class, 'store'])->middleware('can:kpiManageAssignments')->name('assignments.store');
+    Route::put('/assignments/{assignment}', [KpiAssignmentController::class, 'update'])->middleware('can:kpiManageAssignments')->name('assignments.update');
+    Route::delete('/assignments/{assignment}', [KpiAssignmentController::class, 'destroy'])->middleware('can:kpiManageAssignments')->name('assignments.destroy');
+    Route::post('/assignments/instances/{instance}', [KpiAssignmentController::class, 'updateInstance'])->middleware('can:isSuperAdmin')->name('assignments.instances.update');
+    Route::delete('/assignments/instances/{instance}', [KpiAssignmentController::class, 'destroyInstance'])->middleware('can:isSuperAdmin')->name('assignments.instances.destroy');
     Route::get('/import-export', KpiImportExport::class)->middleware('can:kpiManageImports')->name('import-export');
     Route::get('/import-export/template', [KpiImportExportController::class, 'downloadTemplate'])
         ->middleware('can:kpiManageImports')
