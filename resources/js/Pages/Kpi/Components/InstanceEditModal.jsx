@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from '@inertiajs/react';
 
 export default function InstanceEditModal({
@@ -136,40 +137,42 @@ export default function InstanceEditModal({
             onClick={(e) => e.target === e.currentTarget && onClose()}
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6"
         >
-            <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 no-scrollbar">
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 no-scrollbar">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
                     <div>
                         <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold uppercase text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                             Super Admin Action
                         </span>
-                        <h3 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
+                        <h3 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
                             Edit Task Instance #{instance.id}
                         </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
                             {instance.template?.title} • Employee: {instance.user?.name}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                     >
-                        ✕
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="mt-5 space-y-5">
+                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                     {/* Status & Mark as late */}
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                                 Instance Status
                             </label>
                             <select
                                 value={data.instanceStatus}
                                 onChange={(e) => setData('instanceStatus', e.target.value)}
-                                className="mt-1.5 block w-full rounded-2xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:border-slate-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                className="mt-1 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                             >
                                 {Object.entries(statusOptions).map(([val, label]) => {
                                     if (val === 'all') return null;
@@ -186,7 +189,7 @@ export default function InstanceEditModal({
                         </div>
 
                         {data.editingSubmissionId && (
-                            <div className="flex items-center pt-6">
+                            <div className="flex items-center pt-5">
                                 <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                                     <input
                                         type="checkbox"
@@ -201,7 +204,7 @@ export default function InstanceEditModal({
                     </div>
 
                     {/* Requirements Notice */}
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                         <span className="font-bold text-slate-900 dark:text-slate-100">Evidence Rule: </span>
                         {buildEvidenceSummary()}
                     </div>
@@ -209,14 +212,14 @@ export default function InstanceEditModal({
                     {/* Task Date & Due Date */}
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 Task Date
                             </label>
                             <input
                                 type="date"
                                 value={data.instanceTaskDate}
                                 onChange={(e) => setData('instanceTaskDate', e.target.value)}
-                                className="mt-1 block w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-sm focus:border-slate-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                className="mt-1 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             />
                             {errors.instanceTaskDate && (
                                 <p className="mt-1 text-xs text-rose-600">{errors.instanceTaskDate}</p>
@@ -224,14 +227,14 @@ export default function InstanceEditModal({
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 Due At
                             </label>
                             <input
                                 type="datetime-local"
                                 value={data.instanceDueAt}
                                 onChange={(e) => setData('instanceDueAt', e.target.value)}
-                                className="mt-1 block w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-sm focus:border-slate-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                className="mt-1 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             />
                             {errors.instanceDueAt && (
                                 <p className="mt-1 text-xs text-rose-600">{errors.instanceDueAt}</p>
@@ -242,7 +245,7 @@ export default function InstanceEditModal({
                     {/* Period Start & Period End */}
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 Period Start <span className="text-rose-500">*</span>
                             </label>
                             <input
@@ -250,7 +253,7 @@ export default function InstanceEditModal({
                                 required
                                 value={data.instancePeriodStart}
                                 onChange={(e) => setData('instancePeriodStart', e.target.value)}
-                                className="mt-1 block w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-sm focus:border-slate-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                className="mt-1 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             />
                             {errors.instancePeriodStart && (
                                 <p className="mt-1 text-xs text-rose-600">{errors.instancePeriodStart}</p>
@@ -258,7 +261,7 @@ export default function InstanceEditModal({
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 Period End <span className="text-rose-500">*</span>
                             </label>
                             <input
@@ -266,7 +269,7 @@ export default function InstanceEditModal({
                                 required
                                 value={data.instancePeriodEnd}
                                 onChange={(e) => setData('instancePeriodEnd', e.target.value)}
-                                className="mt-1 block w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-sm focus:border-slate-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                className="mt-1 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             />
                             {errors.instancePeriodEnd && (
                                 <p className="mt-1 text-xs text-rose-600">{errors.instancePeriodEnd}</p>
@@ -321,7 +324,7 @@ export default function InstanceEditModal({
 
                         {/* Upload new images */}
                         <div>
-                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
                                 Add New Photos
                             </label>
                             <input
@@ -363,19 +366,19 @@ export default function InstanceEditModal({
                         )}
                     </div>
 
-                    {/* Actions */}
+                    {/* Footer Actions */}
                     <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={processing}
-                            className="rounded-2xl bg-slate-900 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
+                            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
                         >
                             {processing ? 'Saving...' : 'Update Task Instance'}
                         </button>

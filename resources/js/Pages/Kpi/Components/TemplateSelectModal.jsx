@@ -124,6 +124,9 @@ export default function TemplateSelectModal({
             fullWidth
             disableRestoreFocus
             keepMounted={false}
+            sx={{
+                zIndex: 10000,
+            }}
             onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                     e.stopPropagation();

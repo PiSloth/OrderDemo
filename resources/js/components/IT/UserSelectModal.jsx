@@ -168,6 +168,9 @@ export default function UserSelectModal({
             fullWidth
             disableRestoreFocus
             keepMounted={false}
+            sx={{
+                zIndex: 10000,
+            }}
             onKeyDown={(e) => {
                 // Prevent Escape key from bubbling to any parent Dialog
                 if (e.key === 'Escape') {
