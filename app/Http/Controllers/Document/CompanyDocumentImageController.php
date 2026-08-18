@@ -10,7 +10,7 @@ class CompanyDocumentImageController
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'image' => ['required', 'file', 'image', 'max:1024'], // 5MB
+            'image' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,webp,svg', 'max:10240'], // 10MB
         ]);
 
         $path = $validated['image']->store('company-documents/images', 'public');

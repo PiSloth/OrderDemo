@@ -26,10 +26,8 @@ use App\Livewire\CommentHistory;
 use App\Livewire\Calendar\Index as CalendarIndex;
 use App\Livewire\Calendar\AutoSync as CalendarAutoSync;
 use App\Livewire\ManufactureCost;
+use App\Http\Controllers\Document\DocumentLibraryController;
 use App\Livewire\Document\EmailList as DocumentEmailList;
-use App\Livewire\Document\Library\Browser as DocumentLibraryBrowser;
-use App\Livewire\Document\Library\Create as DocumentLibraryCreate;
-use App\Livewire\Document\Library\Edit as DocumentLibraryEdit;
 use App\Livewire\Kpi\Approvals as KpiApprovals;
 use App\Livewire\Kpi\AssociateTasks as KpiAssociateTasks;
 use App\Livewire\Kpi\Audit as KpiAudit;
@@ -128,11 +126,16 @@ Route::middleware(['auth'])->prefix('document')->name('document.')->group(functi
     Route::get('email-list', DocumentEmailList::class)->name('email-list');
     Route::get('email-list/export', EmailListExportController::class)->name('email-list.export');
 
-    Route::get('library', DocumentLibraryBrowser::class)->name('library.index');
+    Route::get('library', [DocumentLibraryController::class, 'index'])->name('library.index');
+    Route::post('library', [DocumentLibraryController::class, 'store'])->name('library.store');
     Route::post('library/upload-image', [CompanyDocumentImageController::class, 'store'])->name('library.upload-image');
-    Route::get('library/create', DocumentLibraryCreate::class)->name('library.create');
-    Route::get('library/{document}', DocumentLibraryBrowser::class)->name('library.show');
-    Route::get('library/{document}/edit', DocumentLibraryEdit::class)->name('library.edit');
+    Route::get('library/suggestions', [DocumentLibraryController::class, 'suggestions'])->name('library.suggestions');
+    Route::get('library/search-api', [DocumentLibraryController::class, 'searchApi'])->name('library.search-api');
+    Route::get('library/create', [DocumentLibraryController::class, 'create'])->name('library.create');
+    Route::get('library/{document}', [DocumentLibraryController::class, 'show'])->name('library.show');
+    Route::get('library/{document}/edit', [DocumentLibraryController::class, 'edit'])->name('library.edit');
+    Route::put('library/{document}', [DocumentLibraryController::class, 'update'])->name('library.update');
+    Route::delete('library/{document}', [DocumentLibraryController::class, 'destroy'])->name('library.destroy');
 });
 
 

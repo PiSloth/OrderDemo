@@ -36,7 +36,8 @@ import {
     Person as PersonIcon,
     Description as DescriptionIcon,
     Assessment as AssessmentIcon,
-    BugReport as BugReportIcon
+    BugReport as BugReportIcon,
+    LocalLibrary as LibraryIcon
 } from '@mui/icons-material';
 
 const drawerWidth = 280;
@@ -53,6 +54,7 @@ export default function AsideLayout({ children, title, headerActions }) {
         todo: false,
         reports: false,
         itIssues: false,
+        documents: false,
     });
 
     // Auto-open group based on current URL path
@@ -65,6 +67,7 @@ export default function AsideLayout({ children, title, headerActions }) {
         else if (path.startsWith('/todo')) newGroups.todo = true;
         else if (path.startsWith('/reports') || path.startsWith('/taxonomies')) newGroups.reports = true;
         else if (path.startsWith('/operations/it/issues')) newGroups.itIssues = true;
+        else if (path.startsWith('/document')) newGroups.documents = true;
 
         setOpenGroups(newGroups);
     }, [currentUrl]);
@@ -435,6 +438,45 @@ export default function AsideLayout({ children, title, headerActions }) {
                                             sx={{ borderRadius: 2, my: 0.2 }}
                                         >
                                             <ListItemText primary="Taxonomy Admin" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                    </List>
+                                </Collapse>
+                            </ListItem>
+
+                            {/* Document Library Group */}
+                            <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+                                <ListItemButton onClick={() => toggleGroup('documents')} sx={{ borderRadius: 2 }}>
+                                    <ListItemIcon sx={{ minWidth: 36, color: 'info.main' }}>
+                                        <LibraryIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Document Library" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                    {openGroups.documents ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </ListItemButton>
+                                <Collapse in={openGroups.documents} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding sx={{ pl: 3 }}>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/document/library" 
+                                            selected={isCurrentUrl('/document/library')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Browse Documents" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 600 }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/document/library/create" 
+                                            selected={isCurrentUrl('/document/library/create')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="New Document" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/document/email-list" 
+                                            selected={isCurrentUrl('/document/email-list')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Email List" primaryTypographyProps={{ fontSize: '0.825rem' }} />
                                         </ListItemButton>
                                     </List>
                                 </Collapse>

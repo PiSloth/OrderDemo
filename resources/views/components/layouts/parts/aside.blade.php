@@ -656,7 +656,7 @@
 
                     @php $active = request()->routeIs('document.library.*'); @endphp
                     <li>
-                        <a wire:navigate href="{{ route('document.library.index') }}"
+                        <a href="{{ route('document.library.index') }}"
                             class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
                             <x-icon name="document-text"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />

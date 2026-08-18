@@ -19,6 +19,60 @@ import {
 } from '@mui/icons-material';
 import UserSelectModal from './UserSelectModal';
 
+// ── Shared label floating above border ──────────────────────────────────
+const FloatLabel = ({ text, color }) => (
+    <Typography
+        variant="caption"
+        fontWeight="800"
+        sx={{
+            position: 'absolute',
+            top: -10,
+            left: 14,
+            backgroundColor: '#ffffff',
+            px: 0.8,
+            color,
+            zIndex: 1,
+            textTransform: 'uppercase',
+            lineHeight: 1,
+        }}
+    >
+        {text}
+    </Typography>
+);
+
+// ── Shared border-box wrapper ────────────────────────────────────────────
+const BorderBox = ({ borderColor, children, sx = {} }) => (
+    <Box
+        sx={{
+            display: 'flex',
+            alignItems: 'center',
+            border: `2.5px solid ${borderColor}`,
+            borderRadius: '12px',
+            px: 1.5,
+            py: 1.2,
+            backgroundColor: '#fff',
+            ...sx,
+        }}
+    >
+        {children}
+    </Box>
+);
+
+// ── Shared bare <input> / <select> / <textarea> style ───────────────────
+const nativeInputStyle = {
+    width: '100%',
+    border: 'none',
+    outline: 'none',
+    fontSize: '0.92rem',
+    fontWeight: '600',
+    color: '#1e293b',
+    backgroundColor: 'transparent',
+    fontFamily: 'inherit',
+    cursor: 'text',
+};
+
+const nativeSelectStyle = { ...nativeInputStyle, cursor: 'pointer' };
+
 /**
  * CreateIssueModal — Globally reusable "Create New IT Issue" modal.
  *
@@ -141,60 +195,6 @@ export default function CreateIssueModal({
         }
         setUserSelectorOpen(false);
     };
-
-    // ── Shared label floating above border ──────────────────────────────────
-    const FloatLabel = ({ text, color }) => (
-        <Typography
-            variant="caption"
-            fontWeight="800"
-            sx={{
-                position: 'absolute',
-                top: -10,
-                left: 14,
-                backgroundColor: '#ffffff',
-                px: 0.8,
-                color,
-                zIndex: 1,
-                textTransform: 'uppercase',
-                lineHeight: 1,
-            }}
-        >
-            {text}
-        </Typography>
-    );
-
-    // ── Shared border-box wrapper ────────────────────────────────────────────
-    const BorderBox = ({ borderColor, children, sx = {} }) => (
-        <Box
-            sx={{
-                display: 'flex',
-                alignItems: 'center',
-                border: `2.5px solid ${borderColor}`,
-                borderRadius: '12px',
-                px: 1.5,
-                py: 1.2,
-                backgroundColor: '#fff',
-                ...sx,
-            }}
-        >
-            {children}
-        </Box>
-    );
-
-    // ── Shared bare <input> / <select> / <textarea> style ───────────────────
-    const nativeInputStyle = {
-        width: '100%',
-        border: 'none',
-        outline: 'none',
-        fontSize: '0.92rem',
-        fontWeight: '600',
-        color: '#1e293b',
-        backgroundColor: 'transparent',
-        fontFamily: 'inherit',
-        cursor: 'text',
-    };
-
-    const nativeSelectStyle = { ...nativeInputStyle, cursor: 'pointer' };
 
     return (
         <>
