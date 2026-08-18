@@ -162,68 +162,88 @@ export default function Audit({
         return allMarkersFlat.find((m) => m.instance?.id === selectedInstanceId) || null;
     }, [allMarkersFlat, selectedInstanceId]);
 
-    // 10 Distinct, Non-Overlapping Color Themes for KPI Groups
+    // 10 Distinct, Non-Overlapping Color Themes for KPI Group Cells
     const DISTINCT_GROUP_COLORS = useMemo(
         () => [
             {
-                bg: 'bg-indigo-50/95 dark:bg-indigo-950/75',
-                hover: 'hover:bg-indigo-100/90 dark:hover:bg-indigo-900/75',
-                border: 'border-l-4 border-l-indigo-500',
-                badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/70 dark:text-indigo-200',
+                bg: 'bg-indigo-100 dark:bg-indigo-950/80',
+                hover: 'hover:bg-indigo-200/80 dark:hover:bg-indigo-900/80',
+                border: 'border-l-4 border-l-indigo-600 dark:border-l-indigo-400',
+                title: 'text-indigo-950 dark:text-indigo-100',
+                sub: 'text-indigo-700 dark:text-indigo-300',
+                badge: 'bg-indigo-200/90 text-indigo-900 dark:bg-indigo-800/90 dark:text-indigo-100',
             },
             {
-                bg: 'bg-emerald-50/95 dark:bg-emerald-950/75',
-                hover: 'hover:bg-emerald-100/90 dark:hover:bg-emerald-900/75',
-                border: 'border-l-4 border-l-emerald-500',
-                badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-200',
+                bg: 'bg-emerald-100 dark:bg-emerald-950/80',
+                hover: 'hover:bg-emerald-200/80 dark:hover:bg-emerald-900/80',
+                border: 'border-l-4 border-l-emerald-600 dark:border-l-emerald-400',
+                title: 'text-emerald-950 dark:text-emerald-100',
+                sub: 'text-emerald-700 dark:text-emerald-300',
+                badge: 'bg-emerald-200/90 text-emerald-900 dark:bg-emerald-800/90 dark:text-emerald-100',
             },
             {
-                bg: 'bg-amber-50/95 dark:bg-amber-950/75',
-                hover: 'hover:bg-amber-100/90 dark:hover:bg-amber-900/75',
-                border: 'border-l-4 border-l-amber-500',
-                badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-200',
+                bg: 'bg-amber-100 dark:bg-amber-950/80',
+                hover: 'hover:bg-amber-200/80 dark:hover:bg-amber-900/80',
+                border: 'border-l-4 border-l-amber-600 dark:border-l-amber-400',
+                title: 'text-amber-950 dark:text-amber-100',
+                sub: 'text-amber-800 dark:text-amber-300',
+                badge: 'bg-amber-200/90 text-amber-900 dark:bg-amber-800/90 dark:text-amber-100',
             },
             {
-                bg: 'bg-fuchsia-50/95 dark:bg-fuchsia-950/75',
-                hover: 'hover:bg-fuchsia-100/90 dark:hover:bg-fuchsia-900/75',
-                border: 'border-l-4 border-l-fuchsia-500',
-                badge: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/70 dark:text-fuchsia-200',
+                bg: 'bg-fuchsia-100 dark:bg-fuchsia-950/80',
+                hover: 'hover:bg-fuchsia-200/80 dark:hover:bg-fuchsia-900/80',
+                border: 'border-l-4 border-l-fuchsia-600 dark:border-l-fuchsia-400',
+                title: 'text-fuchsia-950 dark:text-fuchsia-100',
+                sub: 'text-fuchsia-700 dark:text-fuchsia-300',
+                badge: 'bg-fuchsia-200/90 text-fuchsia-900 dark:bg-fuchsia-800/90 dark:text-fuchsia-100',
             },
             {
-                bg: 'bg-cyan-50/95 dark:bg-cyan-950/75',
-                hover: 'hover:bg-cyan-100/90 dark:hover:bg-cyan-900/75',
-                border: 'border-l-4 border-l-cyan-500',
-                badge: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/70 dark:text-cyan-200',
+                bg: 'bg-cyan-100 dark:bg-cyan-950/80',
+                hover: 'hover:bg-cyan-200/80 dark:hover:bg-cyan-900/80',
+                border: 'border-l-4 border-l-cyan-600 dark:border-l-cyan-400',
+                title: 'text-cyan-950 dark:text-cyan-100',
+                sub: 'text-cyan-700 dark:text-cyan-300',
+                badge: 'bg-cyan-200/90 text-cyan-900 dark:bg-cyan-800/90 dark:text-cyan-100',
             },
             {
-                bg: 'bg-rose-50/95 dark:bg-rose-950/75',
-                hover: 'hover:bg-rose-100/90 dark:hover:bg-rose-900/75',
-                border: 'border-l-4 border-l-rose-500',
-                badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/70 dark:text-rose-200',
+                bg: 'bg-rose-100 dark:bg-rose-950/80',
+                hover: 'hover:bg-rose-200/80 dark:hover:bg-rose-900/80',
+                border: 'border-l-4 border-l-rose-600 dark:border-l-rose-400',
+                title: 'text-rose-950 dark:text-rose-100',
+                sub: 'text-rose-700 dark:text-rose-300',
+                badge: 'bg-rose-200/90 text-rose-900 dark:bg-rose-800/90 dark:text-rose-100',
             },
             {
-                bg: 'bg-violet-50/95 dark:bg-violet-950/75',
-                hover: 'hover:bg-violet-100/90 dark:hover:bg-violet-900/75',
-                border: 'border-l-4 border-l-violet-500',
-                badge: 'bg-violet-100 text-violet-800 dark:bg-violet-900/70 dark:text-violet-200',
+                bg: 'bg-violet-100 dark:bg-violet-950/80',
+                hover: 'hover:bg-violet-200/80 dark:hover:bg-violet-900/80',
+                border: 'border-l-4 border-l-violet-600 dark:border-l-violet-400',
+                title: 'text-violet-950 dark:text-violet-100',
+                sub: 'text-violet-700 dark:text-violet-300',
+                badge: 'bg-violet-200/90 text-violet-900 dark:bg-violet-800/90 dark:text-violet-100',
             },
             {
-                bg: 'bg-teal-50/95 dark:bg-teal-950/75',
-                hover: 'hover:bg-teal-100/90 dark:hover:bg-teal-900/75',
-                border: 'border-l-4 border-l-teal-500',
-                badge: 'bg-teal-100 text-teal-800 dark:bg-teal-900/70 dark:text-teal-200',
+                bg: 'bg-teal-100 dark:bg-teal-950/80',
+                hover: 'hover:bg-teal-200/80 dark:hover:bg-teal-900/80',
+                border: 'border-l-4 border-l-teal-600 dark:border-l-teal-400',
+                title: 'text-teal-950 dark:text-teal-100',
+                sub: 'text-teal-700 dark:text-teal-300',
+                badge: 'bg-teal-200/90 text-teal-900 dark:bg-teal-800/90 dark:text-teal-100',
             },
             {
-                bg: 'bg-orange-50/95 dark:bg-orange-950/75',
-                hover: 'hover:bg-orange-100/90 dark:hover:bg-orange-900/75',
-                border: 'border-l-4 border-l-orange-500',
-                badge: 'bg-orange-100 text-orange-800 dark:bg-orange-900/70 dark:text-orange-200',
+                bg: 'bg-orange-100 dark:bg-orange-950/80',
+                hover: 'hover:bg-orange-200/80 dark:hover:bg-orange-900/80',
+                border: 'border-l-4 border-l-orange-600 dark:border-l-orange-400',
+                title: 'text-orange-950 dark:text-orange-100',
+                sub: 'text-orange-800 dark:text-orange-300',
+                badge: 'bg-orange-200/90 text-orange-900 dark:bg-orange-800/90 dark:text-orange-100',
             },
             {
-                bg: 'bg-lime-50/95 dark:bg-lime-950/75',
-                hover: 'hover:bg-lime-100/90 dark:hover:bg-lime-900/75',
-                border: 'border-l-4 border-l-lime-500',
-                badge: 'bg-lime-100 text-lime-800 dark:bg-lime-900/70 dark:text-lime-200',
+                bg: 'bg-lime-100 dark:bg-lime-950/80',
+                hover: 'hover:bg-lime-200/80 dark:hover:bg-lime-900/80',
+                border: 'border-l-4 border-l-lime-600 dark:border-l-lime-400',
+                title: 'text-lime-950 dark:text-lime-100',
+                sub: 'text-lime-800 dark:text-lime-300',
+                badge: 'bg-lime-200/90 text-lime-900 dark:bg-lime-800/90 dark:text-lime-100',
             },
         ],
         []
@@ -552,23 +572,23 @@ export default function Audit({
                                                     }`}
                                                     title={canManageTemplates ? "Click to edit template / inactive for month" : row.assignment.template?.title}
                                                 >
-                                                    <div className="truncate max-w-[230px] text-slate-900 dark:text-slate-100 font-semibold flex items-center justify-between group">
+                                                    <div className={`truncate max-w-[230px] font-bold flex items-center justify-between group ${groupColor ? groupColor.title : 'text-slate-900 dark:text-slate-100'}`}>
                                                         <span>{row.assignment.template?.title || 'Untitled Task'}</span>
                                                         {canManageTemplates && (
-                                                            <svg className="w-3.5 h-3.5 text-indigo-500 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21H3v-3.572L16.732 3.732z" />
                                                             </svg>
                                                         )}
                                                     </div>
-                                                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1">
-                                                        <span className="capitalize">{row.assignment.template?.frequency}</span>
+                                                    <div className={`text-[10px] flex items-center gap-1.5 mt-1 ${groupColor ? groupColor.sub : 'text-slate-500 dark:text-slate-400'}`}>
+                                                        <span className="capitalize font-semibold">{row.assignment.template?.frequency}</span>
                                                         <span>•</span>
                                                         {row.assignment.template?.group?.name ? (
-                                                            <span className={`px-1.5 py-0.5 rounded font-medium ${groupColor ? groupColor.badge : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
+                                                            <span className={`px-1.5 py-0.5 rounded font-bold ${groupColor ? groupColor.badge : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
                                                                 {row.assignment.template.group.name}
                                                             </span>
                                                         ) : (
-                                                            <span className="italic text-slate-400">No Group</span>
+                                                            <span className="italic opacity-60">No Group</span>
                                                         )}
                                                     </div>
                                                 </td>
