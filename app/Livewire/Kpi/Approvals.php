@@ -161,6 +161,59 @@ class Approvals extends Component
         return $steps->values();
     }
 
+    public function openStep(int $stepId): void
+    {
+        $step = $this->findOwnedPendingStep($stepId);
+
+        if (!$this->isActionableStep($step)) {
+            throw ValidationException::withMessages([
+                'selectedStepId' => 'This approval is not ready yet.',
+            ]);
+        }
+
+        $this->selectedStepId = $step->id;
+        $this->decisionRemark = '';
+        $this->resetErrorBag();
+        $this->dispatch('close-first-step-queue');
+    }
+
+    public function cancelDecision(): void
+    {
+        $this->selectedStepId = null;
+        $this->decisionRemark = '';
+        $this->resetErrorBag();
+    }
+
+    public function approveSelected(): void
+    {
+        $this->decideSelected('approved');
+    }
+
+    public function rejectSelected(): void
+    {
+        if (trim($this->decisionRemark) === '') {
+            throw ValidationException::withMessages([
+                'decisionRemark' => 'Remark is required when rejecting a submission.',
+            ]);
+        }
+
+        $this->decideSelected('rejected');
+    }
+
+    public function getSelectedStepProperty(): ?KpiTaskApprovalStep
+    {
+        if (!$this->selectedStepId) {
+            return null;
+        }
+
+        return KpiTaskApprovalStep::query()
+            ->with($this->approvalRelations())
+            ->where('id', $this->selectedStepId)
+            ->where('approver_user_id', Auth::id())
+            ->where('status', 'pending')
+            ->first();
+    }
+
     public function approveStepDirectly(int $stepId, string $remark = ''): void
     {
         $this->selectedStepId = $stepId;
