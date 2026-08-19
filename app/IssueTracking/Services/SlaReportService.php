@@ -15,7 +15,7 @@ class SlaReportService
     /**
      * Generate Weekly or Monthly SLA Report.
      */
-    public function generateReport(string $periodType = 'weekly', ?string $startDateStr = null, ?string $endDateStr = null, ?string $resolverType = 'all', array|string|null $categoryIds = null, array|string|null $statusCodes = null, array|string|null $departmentIds = null): array
+    public function generateReport(string $periodType = 'weekly', ?string $startDateStr = null, ?string $endDateStr = null, ?string $resolverType = 'all', array|string|null $categoryIds = null, array|string|null $statusCodes = null, array|string|null $departmentIds = null, ?string $quickFilter = 'all'): array
     {
         $now = now();
 
@@ -36,12 +36,56 @@ class SlaReportService
         $deptIds = is_array($departmentIds) ? $departmentIds : ($departmentIds ? explode(',', $departmentIds) : []);
         $deptIds = array_filter(array_map('intval', $deptIds));
 
+        $today = Carbon::today()->toDateString();
+        $tomorrow = Carbon::tomorrow()->toDateString();
+
         $issues = Issue::query()
             ->with(['status', 'priority', 'importance', 'category', 'creator', 'assignedUser.department', 'resolutionDepartment', 'messages.creator'])
-            ->where(function ($query) use ($start, $end) {
-                $query->whereBetween('issue_at', [$start, $end])
-                    ->orWhereBetween('due_date', [$start, $end])
-                    ->orWhereBetween('closed_date', [$start, $end]);
+            ->when($quickFilter === 'today_due', function ($q) use ($today) {
+                $q->whereNull('closed_date')
+                    ->whereHas('status', fn($s) => $s->whereNotIn('code', ['CLOSED', 'DONE']))
+                    ->whereDate('due_date', $today);
+            })
+            ->when($quickFilter === 'in_progress', function ($q) use ($today) {
+                $q->whereNull('closed_date')
+                    ->whereHas('status', fn($s) => $s->whereNotIn('code', ['CLOSED', 'DONE']))
+                    ->whereNotNull('due_date')
+                    ->whereDate('due_date', '>', $today)
+                    ->where(function ($sub) use ($today) {
+                        $sub->where(function ($s1) use ($today) {
+                            $s1->whereNotNull('started_at')
+                               ->whereDate('started_at', '<=', $today);
+                        })->orWhere(function ($s2) use ($today) {
+                            $s2->whereNull('started_at')
+                               ->whereDate('issue_at', '<=', $today);
+                        });
+                    });
+            })
+            ->when($quickFilter === 'tomorrow_start', function ($q) use ($tomorrow) {
+                $q->whereNull('closed_date')
+                    ->whereHas('status', fn($s) => $s->whereNotIn('code', ['CLOSED', 'DONE']))
+                    ->where(function ($sub) use ($tomorrow) {
+                        $sub->where(function ($s1) use ($tomorrow) {
+                            $s1->whereNotNull('started_at')
+                               ->whereDate('started_at', $tomorrow);
+                        })->orWhere(function ($s2) use ($tomorrow) {
+                            $s2->whereNull('started_at')
+                               ->whereDate('issue_at', $tomorrow);
+                        });
+                    });
+            })
+            ->when($quickFilter === 'overdue', function ($q) {
+                $q->whereNull('closed_date')
+                    ->whereHas('status', fn($s) => $s->whereNotIn('code', ['CLOSED', 'DONE']))
+                    ->whereNotNull('due_date')
+                    ->where('due_date', '<', Carbon::now());
+            })
+            ->when(!$quickFilter || $quickFilter === 'all', function ($q) use ($start, $end) {
+                $q->where(function ($query) use ($start, $end) {
+                    $query->whereBetween('issue_at', [$start, $end])
+                        ->orWhereBetween('due_date', [$start, $end])
+                        ->orWhereBetween('closed_date', [$start, $end]);
+                });
             })
             ->when($resolverType === 'third_party', fn($q) => $q->where('is_third_party_resolver', true))
             ->when($resolverType === 'internal', fn($q) => $q->where('is_third_party_resolver', false))

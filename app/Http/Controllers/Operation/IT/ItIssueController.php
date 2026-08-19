@@ -519,8 +519,9 @@ class ItIssueController extends Controller
         $categoryIds = $request->input('category_ids');
         $statusCodes = $request->input('status_codes', $request->input('status_code'));
         $departmentIds = $request->input('department_ids', $request->input('resolver_department_ids'));
+        $quickFilter = $request->input('quick_filter', 'all');
 
-        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes, $departmentIds);
+        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes, $departmentIds, $quickFilter);
 
         $authUser = auth()->user()?->load('department');
 
@@ -547,6 +548,7 @@ class ItIssueController extends Controller
                 'category_ids'   => is_array($categoryIds) ? $categoryIds : ($categoryIds ? explode(',', $categoryIds) : []),
                 'status_codes'   => is_array($statusCodes) ? $statusCodes : ($statusCodes ? explode(',', $statusCodes) : []),
                 'department_ids' => is_array($departmentIds) ? $departmentIds : ($departmentIds ? explode(',', $departmentIds) : []),
+                'quick_filter'   => $quickFilter,
             ],
             'auth_user'       => [
                 'id'          => $authUser?->id,
@@ -577,8 +579,9 @@ class ItIssueController extends Controller
         $categoryIds = $request->input('category_ids');
         $statusCodes = $request->input('status_codes', $request->input('status_code'));
         $departmentIds = $request->input('department_ids', $request->input('resolver_department_ids'));
+        $quickFilter = $request->input('quick_filter', 'all');
 
-        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes, $departmentIds);
+        $report = $this->slaReportService->generateReport($periodType, $startDate, $endDate, $resolverType, $categoryIds, $statusCodes, $departmentIds, $quickFilter);
 
         $filename = "SLA_Service_Credit_Report_{$periodType}_" . now()->format('Y-m-d') . ".xlsx";
         $writer = SimpleExcelWriter::streamDownload($filename);

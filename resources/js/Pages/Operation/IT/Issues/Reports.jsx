@@ -80,6 +80,9 @@ import {
     PersonOutlined as PersonOutlineIcon,
     AccessTime as AccessTimeIcon,
     Search as SearchIcon,
+    Today as TodayIcon,
+    Upcoming as UpcomingIcon,
+    WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 
 import { styled } from '@mui/material/styles';
@@ -160,6 +163,7 @@ export default function Reports({ report, filters, categories = [], priorities =
     const [startDate, setStartDate] = useState(filters.start_date || report.start_date);
     const [endDate, setEndDate] = useState(filters.end_date || report.end_date);
     const [resolverType, setResolverType] = useState(filters.resolver_type || 'all');
+    const [quickFilter, setQuickFilter] = useState(filters.quick_filter || 'all');
 
     // ── Table Column Visibility & Browser Storage Persistence ──────────────────
     const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -218,7 +222,7 @@ export default function Reports({ report, filters, categories = [], priorities =
 
     useEffect(() => {
         setPage(1);
-    }, [report.items, periodType, resolverType, startDate, endDate, selectedCategoryIds, selectedStatusCodes, selectedDepartmentIds]);
+    }, [report.items, periodType, resolverType, startDate, endDate, selectedCategoryIds, selectedStatusCodes, selectedDepartmentIds, quickFilter]);
 
     const totalPages = Math.ceil((report.items || []).length / pageSize);
     const paginatedItems = (report.items || []).slice((page - 1) * pageSize, page * pageSize);
@@ -319,6 +323,8 @@ export default function Reports({ report, filters, categories = [], priorities =
         const deptIds = overrides.department_ids !== undefined ? overrides.department_ids : selectedDepartmentIds;
         const deptStr = Array.isArray(deptIds) ? deptIds.join(',') : deptIds;
 
+        const qFilter = overrides.quick_filter !== undefined ? overrides.quick_filter : quickFilter;
+
         const params = {
             period_type: periodType,
             start_date: startDate,
@@ -327,9 +333,19 @@ export default function Reports({ report, filters, categories = [], priorities =
             category_ids: catStr,
             status_codes: stStr,
             department_ids: deptStr,
+            quick_filter: qFilter,
             ...overrides,
         };
-        router.get('/operations/it/issues/reports', params, { preserveState: true });
+        router.get('/operations/it/issues/reports', params, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
+    // Quick Filter (Today Due, In Progress, Tomorrow Start, Overdue, All) Handler
+    const handleQuickFilterChange = (val) => {
+        setQuickFilter(val);
+        applyFilters({ quick_filter: val });
     };
 
     // Category Multi-Select Handler
@@ -693,7 +709,7 @@ export default function Reports({ report, filters, categories = [], priorities =
         const catStr = selectedCategoryIds.join(',');
         const stStr = selectedStatusCodes.join(',');
         const deptStr = selectedDepartmentIds.join(',');
-        const url = `/operations/it/issues/reports/export?period_type=${periodType}&start_date=${startDate || ''}&end_date=${endDate || ''}&resolver_type=${resolverType}&category_ids=${catStr}&status_codes=${stStr}&department_ids=${deptStr}`;
+        const url = `/operations/it/issues/reports/export?period_type=${periodType}&start_date=${startDate || ''}&end_date=${endDate || ''}&resolver_type=${resolverType}&category_ids=${catStr}&status_codes=${stStr}&department_ids=${deptStr}&quick_filter=${quickFilter}`;
         window.open(url, '_blank');
     };
 
@@ -1116,6 +1132,108 @@ export default function Reports({ report, filters, categories = [], priorities =
                             </FormControl>
                         </Grid>
                     </Grid>
+
+                    {/* Divider between generic selects and Quick Timeline/Status Filters */}
+                    <Divider sx={{ my: 2, borderColor: '#e0e7ff' }} />
+
+                    {/* Quick Filters: All, Today Due, In Progress, Tomorrow Start, Overdue */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <Typography
+                                variant="caption"
+                                fontWeight="700"
+                                sx={{
+                                    color: '#4f46e5',
+                                    textTransform: 'uppercase',
+                                    fontSize: '0.72rem',
+                                    letterSpacing: '0.05em',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    mr: 0.5,
+                                }}
+                            >
+                                <SearchIcon sx={{ fontSize: 16 }} /> Quick Filters:
+                            </Typography>
+
+                            {[
+                                {
+                                    value: 'all',
+                                    label: 'All Issues',
+                                    icon: <AllIcon sx={{ fontSize: 16 }} />,
+                                    activeBg: '#4f46e5',
+                                    activeBorder: '#4338ca',
+                                    hoverColor: '#4f46e5',
+                                },
+                                {
+                                    value: 'today_due',
+                                    label: 'Today Due',
+                                    icon: <TodayIcon sx={{ fontSize: 16 }} />,
+                                    activeBg: '#d97706',
+                                    activeBorder: '#b45309',
+                                    hoverColor: '#d97706',
+                                },
+                                {
+                                    value: 'in_progress',
+                                    label: 'In Progress',
+                                    icon: <AutorenewIcon sx={{ fontSize: 16 }} />,
+                                    activeBg: '#2563eb',
+                                    activeBorder: '#1d4ed8',
+                                    hoverColor: '#2563eb',
+                                },
+                                {
+                                    value: 'tomorrow_start',
+                                    label: 'Tomorrow Start',
+                                    icon: <UpcomingIcon sx={{ fontSize: 16 }} />,
+                                    activeBg: '#0284c7',
+                                    activeBorder: '#0369a1',
+                                    hoverColor: '#0284c7',
+                                },
+                                {
+                                    value: 'overdue',
+                                    label: 'Overdue',
+                                    icon: <WarningAmberIcon sx={{ fontSize: 16 }} />,
+                                    activeBg: '#dc2626',
+                                    activeBorder: '#b91c1c',
+                                    hoverColor: '#dc2626',
+                                },
+                            ].map((opt) => {
+                                const isSelected = (quickFilter || 'all') === opt.value;
+                                return (
+                                    <Box
+                                        key={opt.value}
+                                        onClick={() => handleQuickFilterChange(opt.value)}
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 0.7,
+                                            px: 1.8,
+                                            py: 0.7,
+                                            borderRadius: '20px',
+                                            border: isSelected ? `2px solid ${opt.activeBorder}` : '1.5px solid #cbd5e1',
+                                            backgroundColor: isSelected ? opt.activeBg : '#ffffff',
+                                            color: isSelected ? '#ffffff' : '#334155',
+                                            cursor: 'pointer',
+                                            fontWeight: 700,
+                                            fontSize: '0.78rem',
+                                            fontFamily: 'inherit',
+                                            userSelect: 'none',
+                                            boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                                            transition: 'all 0.18s ease',
+                                            '&:hover': {
+                                                borderColor: opt.activeBorder,
+                                                color: isSelected ? '#ffffff' : opt.hoverColor,
+                                                transform: 'translateY(-1px)',
+                                            },
+                                        }}
+                                    >
+                                        {opt.icon}
+                                        {opt.label}
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    </Box>
                 </Paper>
 
                 {/* Summary Metric Cards */}
