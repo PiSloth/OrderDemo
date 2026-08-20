@@ -39,7 +39,11 @@ class SlaReportService
         $today = Carbon::today()->toDateString();
         $tomorrow = Carbon::tomorrow()->toDateString();
 
-        $issues = Issue::query()
+        $query = ($quickFilter === 'trash' || $quickFilter === 'deleted')
+            ? Issue::onlyTrashed()
+            : Issue::query();
+
+        $issues = $query
             ->with(['status', 'priority', 'importance', 'category', 'creator', 'assignedUser.department', 'resolutionDepartment', 'messages.creator'])
             ->when($quickFilter === 'today_due', function ($q) use ($today) {
                 $q->whereNull('closed_date')
@@ -79,6 +83,10 @@ class SlaReportService
                     ->whereHas('status', fn($s) => $s->whereNotIn('code', ['CLOSED', 'DONE']))
                     ->whereNotNull('due_date')
                     ->where('due_date', '<', Carbon::now());
+            })
+            ->when($quickFilter === 'trash' || $quickFilter === 'deleted', function ($q) use ($start, $end) {
+                // If viewing trash, show all trashed issues or within date
+                // We don't restrict strictly by date so users can easily find any trashed issue
             })
             ->when(!$quickFilter || $quickFilter === 'all', function ($q) use ($start, $end) {
                 $q->where(function ($query) use ($start, $end) {
@@ -169,6 +177,17 @@ class SlaReportService
             // Get last admin log note (if any remark was logged)
             $logNote = $issue->messages->where('is_log_note', true)->last()?->message;
 
+            // Get deletion / archiving reason log note
+            $deletionMessage = $issue->messages->where('is_log_note', true)->filter(fn($m) => str_contains($m->message, '[ARCHIVED / DELETED]'))->last();
+            $deletionReason = null;
+            if ($deletionMessage) {
+                $deletionReason = [
+                    'reason' => trim(str_replace('[ARCHIVED / DELETED]:', '', $deletionMessage->message)),
+                    'user_name' => $deletionMessage->creator?->name ?? 'User',
+                    'created_at' => $deletionMessage->created_at?->format('j M y, g:i A'),
+                ];
+            }
+
             // Date format: 13 Aug 26, 4:00 PM
             $formatPattern = 'j M y, g:i A';
 
@@ -196,9 +215,13 @@ class SlaReportService
                 'issue_at' => $issue->issue_at?->format($formatPattern),
                 'due_date' => $issue->due_date?->format($formatPattern),
                 'closed_date' => $issue->closed_date?->format($formatPattern),
+                'deleted_at' => $issue->deleted_at?->format($formatPattern),
                 'issue_at_raw' => $issue->issue_at?->toIso8601String(),
                 'due_date_raw' => $issue->due_date?->toIso8601String(),
                 'closed_date_raw' => $issue->closed_date?->toIso8601String(),
+                'deleted_at_raw' => $issue->deleted_at?->toIso8601String(),
+                'is_deleted' => (bool)$issue->trashed(),
+                'deletion_reason' => $deletionReason,
                 'is_third_party_resolver' => (bool)$issue->is_third_party_resolver,
                 'resolver_label' => $issue->is_third_party_resolver ? 'Third-Party Developer' : 'Internal User',
                 'sla_status_code' => $slaStatus,
@@ -252,6 +275,7 @@ class SlaReportService
                 'p4_fail_count' => $p4FailCount,
                 'resolution_rate' => $resolutionRate,
                 'service_credit_pct' => $serviceCreditPct,
+                'deleted_issues_count' => Issue::onlyTrashed()->count(),
             ],
             'items' => $reportItems,
         ];

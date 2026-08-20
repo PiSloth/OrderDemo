@@ -39,8 +39,11 @@ class ItIssueController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $query = Issue::query()
-            ->with(['category', 'priority', 'importance', 'status', 'creator.branch', 'assignedUser', 'resolutionDepartment', 'messages' => fn($q) => $q->where('is_log_note', true)->with('creator')->latest()])
+        $query = ($tabFilter === 'trash')
+            ? Issue::onlyTrashed()
+            : Issue::query();
+
+        $query->with(['category', 'priority', 'importance', 'status', 'creator.branch', 'assignedUser', 'resolutionDepartment', 'messages' => fn($q) => $q->where('is_log_note', true)->with('creator')->latest()])
             ->when($tabFilter === 'third', fn($q) => $q->where('is_third_party_resolver', true))
             ->when($tabFilter === 'erp', fn($q) => $q->whereHas('category', fn($c) => $c->where('is_erp', true)))
             ->when($statusFilter, fn($q) => $q->whereHas('status', fn($s) => $s->where('code', $statusFilter)))
@@ -87,6 +90,7 @@ class ItIssueController extends Controller
             'users' => $users,
             'branches' => $branches,
             'rootCauses' => IssueRootCause::orderBy('name')->get(),
+            'deletedCount' => Issue::onlyTrashed()->count(),
         ]);
     }
 
@@ -204,16 +208,49 @@ class ItIssueController extends Controller
     }
 
     /**
-     * Delete issue (Delete CRUD)
+     * Soft delete issue (Move to Trash / Archive)
      */
-    public function destroy(Issue $issue)
+    public function destroy(Request $request, Issue $issue)
     {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:3'],
+        ]);
+
+        IssueMessage::create([
+            'issue_id' => $issue->id,
+            'created_by' => auth()->id(),
+            'message' => "[ARCHIVED / DELETED]: " . $validated['reason'],
+            'is_log_note' => true,
+        ]);
+
+        $issue->delete();
+
+        return back()->with('success', 'Issue moved to Trash and deletion reason recorded as log note!');
+    }
+
+    /**
+     * Restore a soft-deleted issue
+     */
+    public function restore($id)
+    {
+        $issue = Issue::onlyTrashed()->findOrFail($id);
+        $issue->restore();
+
+        return back()->with('success', 'Issue restored successfully!');
+    }
+
+    /**
+     * Permanently delete an issue
+     */
+    public function forceDelete($id)
+    {
+        $issue = Issue::onlyTrashed()->findOrFail($id);
         $issue->messages()->delete();
         $issue->statusHistories()->delete();
         $issue->activityLogs()->delete();
-        $issue->delete();
+        $issue->forceDelete();
 
-        return back()->with('success', 'Issue deleted successfully!');
+        return back()->with('success', 'Issue permanently deleted!');
     }
 
     /**

@@ -328,6 +328,8 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
         Route::post('/issues/configure/root-causes/swap', [ItIssueController::class, 'swapRootCauseConfig'])->name('issues.configure.root-causes.swap');
         Route::put('/issues/{issue}', [ItIssueController::class, 'update'])->name('issues.update');
         Route::delete('/issues/{issue}', [ItIssueController::class, 'destroy'])->name('issues.destroy');
+        Route::post('/issues/{id}/restore', [ItIssueController::class, 'restore'])->name('issues.restore');
+        Route::delete('/issues/{id}/force-delete', [ItIssueController::class, 'forceDelete'])->name('issues.force-delete');
         Route::post('/issues/reorder-sequence', [ItIssueController::class, 'reorderSequence'])->name('issues.reorder-sequence');
         Route::patch('/issues/{issue}/priority', [ItIssueController::class, 'updatePriority'])->name('issues.priority.update');
         Route::patch('/issues/{issue}/status', [ItIssueController::class, 'updateStatus'])->name('issues.status.update');

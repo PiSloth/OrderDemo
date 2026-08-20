@@ -83,6 +83,9 @@ import {
     Today as TodayIcon,
     Upcoming as UpcomingIcon,
     WarningAmber as WarningAmberIcon,
+    Delete as DeleteIcon,
+    RestoreFromTrash as RestoreFromTrashIcon,
+    DeleteForever as DeleteForeverIcon,
 } from '@mui/icons-material';
 
 import { styled } from '@mui/material/styles';
@@ -448,6 +451,32 @@ export default function Reports({ report, filters, categories = [], priorities =
     const [editDueDateIssue, setEditDueDateIssue] = useState(null);
     const [editDueDateValue, setEditDueDateValue] = useState('');
     const [editDueDateRemark, setEditDueDateRemark] = useState('');
+
+    // Soft Delete & Restore Modal States
+    const [deleteIssue, setDeleteIssue] = useState(null);
+    const [deleteReason, setDeleteReason] = useState('');
+    const [restoreIssue, setRestoreIssue] = useState(null);
+
+    const handleConfirmSoftDelete = () => {
+        if (!deleteIssue || !deleteReason.trim()) return;
+        router.delete(`/operations/it/issues/${deleteIssue.id}`, {
+            data: { reason: deleteReason },
+            preserveScroll: true,
+            onSuccess: () => {
+                setDeleteIssue(null);
+                setDeleteReason('');
+            },
+        });
+    };
+
+    const handleConfirmRestore = (issue) => {
+        const target = issue || restoreIssue;
+        if (!target) return;
+        router.post(`/operations/it/issues/${target.id}/restore`, {}, {
+            preserveScroll: true,
+            onSuccess: () => setRestoreIssue(null),
+        });
+    };
 
     const getDatetimeLocalString = (dateStr) => {
         if (!dateStr) return '';
@@ -1197,6 +1226,14 @@ export default function Reports({ report, filters, categories = [], priorities =
                                     activeBorder: '#b91c1c',
                                     hoverColor: '#dc2626',
                                 },
+                                {
+                                    value: 'trash',
+                                    label: `Trash (${summary.deleted_issues_count ?? 0})`,
+                                    icon: <DeleteIcon sx={{ fontSize: 16 }} />,
+                                    activeBg: '#475569',
+                                    activeBorder: '#334155',
+                                    hoverColor: '#475569',
+                                },
                             ].map((opt) => {
                                 const isSelected = (quickFilter || 'all') === opt.value;
                                 return (
@@ -1454,7 +1491,15 @@ export default function Reports({ report, filters, categories = [], priorities =
                                     </TableRow>
                                 ) : (
                                     paginatedItems.map((item, idx) => (
-                                        <TableRow key={item.id} hover sx={{ minHeight: 52, '& td': { py: 1.8 } }}>
+                                        <TableRow
+                                            key={item.id}
+                                            hover
+                                            sx={{
+                                                minHeight: 52,
+                                                '& td': { py: 1.8 },
+                                                backgroundColor: item.is_deleted ? 'rgba(254, 226, 226, 0.4)' : 'inherit',
+                                            }}
+                                        >
                                             {isColumnVisible('sequence') && (
                                                 <TableCell fontWeight="bold" sx={{ minHeight: 52 }}>
                                                     <Chip label={`#${item.resolution_sequence || (page - 1) * pageSize + idx + 1}`} color="primary" size="small" />
@@ -1462,18 +1507,51 @@ export default function Reports({ report, filters, categories = [], priorities =
                                             )}
                                             {isColumnVisible('title') && (
                                                 <TableCell
-                                                    onClick={() => handleOpenManage(item)}
+                                                    onClick={() => !item.is_deleted && handleOpenManage(item)}
                                                     sx={{
                                                         minWidth: 280,
                                                         minHeight: 52,
                                                         whiteSpace: 'normal !important',
-                                                        cursor: 'pointer',
+                                                        cursor: item.is_deleted ? 'default' : 'pointer',
                                                         transition: 'color 0.15s ease-in-out',
-                                                        '&:hover': { color: 'primary.main' },
+                                                        '&:hover': { color: item.is_deleted ? 'inherit' : 'primary.main' },
                                                     }}
                                                 >
-                                                    <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.4 }}>{item.title}</Typography>
-                                                    <Typography variant="caption" color="text.secondary">{item.category_name} ({item.resolver_label})</Typography>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexWrap: 'wrap' }}>
+                                                        {item.is_deleted && (
+                                                            <Chip
+                                                                label="TRASHED"
+                                                                size="small"
+                                                                color="error"
+                                                                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
+                                                            />
+                                                        )}
+                                                        <Typography
+                                                            variant="body2"
+                                                            fontWeight="bold"
+                                                            sx={{
+                                                                lineHeight: 1.4,
+                                                                textDecoration: item.is_deleted ? 'line-through' : 'none',
+                                                                color: item.is_deleted ? 'text.secondary' : 'inherit',
+                                                            }}
+                                                        >
+                                                            {item.title}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                                        {item.category_name} ({item.resolver_label})
+                                                        {item.deleted_at && ` • Archived on: ${item.deleted_at}`}
+                                                    </Typography>
+                                                    {item.deletion_reason && (
+                                                        <Box sx={{ mt: 0.8, p: 0.8, backgroundColor: '#fef2f2', borderLeft: '3px solid #ef4444', borderRadius: '4px' }}>
+                                                            <Typography variant="caption" sx={{ fontWeight: 700, color: '#991b1b', display: 'block', fontSize: '0.72rem' }}>
+                                                                📝 Reason ({item.deletion_reason.user_name} • {item.deletion_reason.created_at}):
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: '#7f1d1d', fontStyle: 'italic', fontSize: '0.75rem' }}>
+                                                                "{item.deletion_reason.reason}"
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
                                                 </TableCell>
                                             )}
                                             {isColumnVisible('priority') && (
@@ -1637,45 +1715,83 @@ export default function Reports({ report, filters, categories = [], priorities =
                                             )}
                                             {isColumnVisible('actions') && (
                                                 <TableCell align="center">
-                                                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
-                                                        <IconButton
-                                                            size="small"
-                                                            color="info"
-                                                            title="Discussion Messages & Log Notes"
-                                                            onClick={() => {
-                                                                setDiscussionIssue(item);
-                                                                setDiscussionMessage('');
-                                                                setDiscussionIsLogNote(false);
-                                                            }}
-                                                        >
-                                                            <Badge badgeContent={item.messages_count ?? item.messages?.length ?? 0} color="primary" max={99}>
-                                                                <ChatIcon fontSize="small" />
-                                                            </Badge>
-                                                        </IconButton>
-
-                                                        <IconButton
-                                                            size="small"
-                                                            color="primary"
-                                                            title="Manage / Edit Issue"
-                                                            onClick={() => handleOpenManage(item)}
-                                                        >
-                                                            <EditIcon fontSize="small" />
-                                                        </IconButton>
-
-                                                        {item.is_sla_failed && (
-                                                            <Button
+                                                    {item.is_deleted ? (
+                                                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
+                                                            <IconButton
                                                                 size="small"
-                                                                variant="outlined"
-                                                                color="success"
+                                                                color="info"
+                                                                title="View Discussion Messages & Log Notes"
                                                                 onClick={() => {
-                                                                    setSelectedIssueForOverride(item);
-                                                                    setAdminRemark('');
+                                                                    setDiscussionIssue(item);
+                                                                    setDiscussionMessage('');
+                                                                    setDiscussionIsLogNote(false);
                                                                 }}
                                                             >
-                                                                Override
+                                                                <Badge badgeContent={item.messages_count ?? item.messages?.length ?? 0} color="primary" max={99}>
+                                                                    <ChatIcon fontSize="small" />
+                                                                </Badge>
+                                                            </IconButton>
+                                                            <Button
+                                                                size="small"
+                                                                variant="contained"
+                                                                color="success"
+                                                                startIcon={<RestoreFromTrashIcon fontSize="small" />}
+                                                                onClick={() => setRestoreIssue(item)}
+                                                                sx={{ textTransform: 'none', fontWeight: 'bold', px: 1.5, py: 0.3 }}
+                                                            >
+                                                                Restore
                                                             </Button>
-                                                        )}
-                                                    </Box>
+                                                        </Box>
+                                                    ) : (
+                                                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
+                                                            <IconButton
+                                                                size="small"
+                                                                color="info"
+                                                                title="Discussion Messages & Log Notes"
+                                                                onClick={() => {
+                                                                    setDiscussionIssue(item);
+                                                                    setDiscussionMessage('');
+                                                                    setDiscussionIsLogNote(false);
+                                                                }}
+                                                            >
+                                                                <Badge badgeContent={item.messages_count ?? item.messages?.length ?? 0} color="primary" max={99}>
+                                                                    <ChatIcon fontSize="small" />
+                                                                </Badge>
+                                                            </IconButton>
+
+                                                            <IconButton
+                                                                size="small"
+                                                                color="primary"
+                                                                title="Manage / Edit Issue"
+                                                                onClick={() => handleOpenManage(item)}
+                                                            >
+                                                                <EditIcon fontSize="small" />
+                                                            </IconButton>
+
+                                                            <IconButton
+                                                                size="small"
+                                                                color="error"
+                                                                title="Move Issue to Trash"
+                                                                onClick={() => setDeleteIssue(item)}
+                                                            >
+                                                                <DeleteIcon fontSize="small" />
+                                                            </IconButton>
+
+                                                            {item.is_sla_failed && (
+                                                                <Button
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    color="success"
+                                                                    onClick={() => {
+                                                                        setSelectedIssueForOverride(item);
+                                                                        setAdminRemark('');
+                                                                    }}
+                                                                >
+                                                                    Override
+                                                                </Button>
+                                                            )}
+                                                        </Box>
+                                                    )}
                                                 </TableCell>
                                             )}
                                         </TableRow>
@@ -2612,6 +2728,84 @@ export default function Reports({ report, filters, categories = [], priorities =
                             : (manageIssue?.resolution_department_id ? [Number(manageIssue.resolution_department_id)] : [])
                     }
                 />
+
+                {/* Soft Delete Modal */}
+                <Dialog
+                    open={Boolean(deleteIssue)}
+                    onClose={() => setDeleteIssue(null)}
+                    maxWidth="sm"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ backgroundColor: '#dc2626', color: '#fff', fontWeight: 'bold' }}>
+                        Archive / Move Issue to Trash
+                    </DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body1" sx={{ mt: 1, mb: 1 }}>
+                            Are you sure you want to archive Issue <strong>#{deleteIssue?.id} &mdash; {deleteIssue?.title}</strong>?
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Please provide a reason for archiving/deleting this issue. This will be permanently recorded in the issue's log notes.
+                        </Typography>
+                        <TextField
+                            label="Archive / Deletion Reason *"
+                            required
+                            multiline
+                            rows={3}
+                            fullWidth
+                            size="small"
+                            value={deleteReason}
+                            onChange={(e) => setDeleteReason(e.target.value)}
+                            placeholder="Please explain why this issue is being archived or deleted..."
+                            error={deleteIssue && !deleteReason.trim()}
+                            helperText={!deleteReason.trim() ? 'A reason is required to archive this issue.' : ''}
+                        />
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setDeleteIssue(null)} color="inherit">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleConfirmSoftDelete}
+                            variant="contained"
+                            color="error"
+                            disabled={!deleteReason.trim()}
+                            startIcon={<DeleteIcon />}
+                        >
+                            Archive Issue
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Restore Issue Modal */}
+                <Dialog
+                    open={Boolean(restoreIssue)}
+                    onClose={() => setRestoreIssue(null)}
+                    maxWidth="xs"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ backgroundColor: '#16a34a', color: '#fff', fontWeight: 'bold' }}>
+                        Restore Issue from Trash?
+                    </DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body1" sx={{ mt: 1 }}>
+                            Are you sure you want to restore Issue <strong>#{restoreIssue?.id} &mdash; {restoreIssue?.title}</strong> back to active issues?
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setRestoreIssue(null)} color="inherit">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => handleConfirmRestore(restoreIssue)}
+                            variant="contained"
+                            color="success"
+                            startIcon={<RestoreFromTrashIcon />}
+                        >
+                            Restore Issue
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
             </Box>
         </AsideLayout>
     );

@@ -6,12 +6,15 @@ use App\Models\Department;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Issue extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'title', 'description', 'issue_category_id', 'issue_priority_id', 'issue_importance_id', 'issue_by',
         'issue_at', 'created_by', 'proposed_solution', 'resolution_department_id', 'assigned_user_id', 'due_date',
@@ -25,6 +28,7 @@ class Issue extends Model
         'due_date' => 'datetime',
         'follow_up_date' => 'datetime',
         'closed_date' => 'datetime',
+        'deleted_at' => 'datetime',
         'is_third_party_resolver' => 'boolean',
         'is_sla_failed' => 'boolean',
         'fail_points' => 'integer',

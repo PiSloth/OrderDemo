@@ -40,6 +40,7 @@ import {
     Radio,
     Checkbox,
     Tooltip,
+    Stack,
 } from '@mui/material';
 
 import {
@@ -59,6 +60,8 @@ import {
     AutoAwesome as AutoAwesomeIcon,
     DragHandle as DragHandleIcon,
     Search as SearchIcon,
+    RestoreFromTrash as RestoreFromTrashIcon,
+    DeleteForever as DeleteForeverIcon,
 } from '@mui/icons-material';
 
 const STATUS_STEPS = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'DONE', 'CLOSED'];
@@ -75,6 +78,7 @@ export default function Index({
     users,
     branches,
     rootCauses = [],
+    deletedCount = 0,
 }) {
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');
@@ -423,13 +427,32 @@ export default function Index({
         );
     };
 
-    // Submit Delete
+    // Soft Delete and Restore States
+    const [deleteReason, setDeleteReason] = useState('');
+    const [restoreIssue, setRestoreIssue] = useState(null);
+
+    // Submit Soft Delete
     const handleDeleteSubmit = () => {
-        if (!deletingIssue) return;
+        if (!deletingIssue || !deleteReason.trim()) return;
         router.delete(`/operations/it/issues/${deletingIssue.id}`, {
+            data: { reason: deleteReason },
             preserveState: true,
             preserveScroll: true,
-            onSuccess: () => setDeletingIssue(null),
+            onSuccess: () => {
+                setDeletingIssue(null);
+                setDeleteReason('');
+            },
+        });
+    };
+
+    // Submit Restore
+    const handleRestoreSubmit = (issue) => {
+        const target = issue || restoreIssue;
+        if (!target) return;
+        router.post(`/operations/it/issues/${target.id}/restore`, {}, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => setRestoreIssue(null),
         });
     };
 
@@ -523,6 +546,7 @@ export default function Index({
                         <Tab label="All Issues" value="all" />
                         <Tab label="ERP Issues" value="erp" />
                         <Tab label="Third-Party Resolver" value="third" />
+                        <Tab label={`Trash (${deletedCount})`} value="trash" />
                     </Tabs>
 
                     <Grid container spacing={2} alignItems="center">
@@ -651,10 +675,43 @@ export default function Index({
                                                 '&:hover': { color: 'primary.main' },
                                             }}
                                         >
-                                            <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.4, textDecoration: 'underline decoration-transparent', '&:hover': { textDecorationColor: 'inherit' } }}>
-                                                {issue.title}
-                                            </Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexWrap: 'wrap' }}>
+                                                {activeTab === 'trash' && (
+                                                    <Chip
+                                                        label="TRASHED"
+                                                        size="small"
+                                                        color="error"
+                                                        sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
+                                                    />
+                                                )}
+                                                <Typography
+                                                    variant="body2"
+                                                    fontWeight="bold"
+                                                    sx={{
+                                                        lineHeight: 1.4,
+                                                        textDecoration: activeTab === 'trash' ? 'line-through' : 'underline decoration-transparent',
+                                                        '&:hover': { textDecorationColor: 'inherit' },
+                                                    }}
+                                                >
+                                                    {issue.title}
+                                                </Typography>
+                                            </Box>
                                             <Chip label={issue.category?.name || 'General'} size="small" variant="outlined" sx={{ mt: 0.5, pointerEvents: 'none' }} />
+                                            {(() => {
+                                                const delMsg = (issue.messages || []).find((m) => (m.message || '').includes('[ARCHIVED / DELETED]'));
+                                                if (!delMsg) return null;
+                                                const reasonText = delMsg.message.replace('[ARCHIVED / DELETED]:', '').trim();
+                                                return (
+                                                    <Box sx={{ mt: 0.8, p: 0.8, backgroundColor: '#fef2f2', borderLeft: '3px solid #ef4444', borderRadius: '4px' }}>
+                                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#991b1b', display: 'block', fontSize: '0.72rem' }}>
+                                                            📝 Archive Reason ({delMsg.creator?.name || 'User'}):
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ color: '#7f1d1d', fontStyle: 'italic', fontSize: '0.75rem' }}>
+                                                            "{reasonText}"
+                                                        </Typography>
+                                                    </Box>
+                                                );
+                                            })()}
                                         </TableCell>
 
                                         {/* Priority (P-Level) */}
@@ -728,35 +785,50 @@ export default function Index({
 
                                         {/* Actions */}
                                         <TableCell align="center">
-                                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                                                <IconButton
-                                                    size="small"
-                                                    color="primary"
-                                                    title="Manage Issue & Transition Workflow"
-                                                    onClick={(e) => { e.stopPropagation(); handleOpenManageModal(issue); }}
-                                                >
-                                                    <AutoAwesomeIcon fontSize="small" />
-                                                </IconButton>
-
-                                                <IconButton size="small" color="error" title="Delete Issue" onClick={(e) => { e.stopPropagation(); setDeletingIssue(issue); }}>
-                                                    <DeleteIcon fontSize="small" />
-                                                </IconButton>
-
-                                                {issue.is_sla_failed && (
+                                            {activeTab === 'trash' ? (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
                                                     <Button
                                                         size="small"
-                                                        variant="outlined"
+                                                        variant="contained"
                                                         color="success"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedIssueForOverride(issue);
-                                                            setAdminRemark('');
-                                                        }}
+                                                        startIcon={<RestoreFromTrashIcon fontSize="small" />}
+                                                        onClick={(e) => { e.stopPropagation(); setRestoreIssue(issue); }}
+                                                        sx={{ textTransform: 'none', fontWeight: 'bold', px: 1.5, py: 0.3 }}
                                                     >
-                                                        Override
+                                                        Restore
                                                     </Button>
-                                                )}
-                                            </Box>
+                                                </Box>
+                                            ) : (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                                                    <IconButton
+                                                        size="small"
+                                                        color="primary"
+                                                        title="Manage Issue & Transition Workflow"
+                                                        onClick={(e) => { e.stopPropagation(); handleOpenManageModal(issue); }}
+                                                    >
+                                                        <AutoAwesomeIcon fontSize="small" />
+                                                    </IconButton>
+
+                                                    <IconButton size="small" color="error" title="Move to Trash" onClick={(e) => { e.stopPropagation(); setDeletingIssue(issue); }}>
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+
+                                                    {issue.is_sla_failed && (
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            color="success"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedIssueForOverride(issue);
+                                                                setAdminRemark('');
+                                                            }}
+                                                        >
+                                                            Override
+                                                        </Button>
+                                                    )}
+                                                </Box>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -1085,18 +1157,56 @@ export default function Index({
                     </DialogActions>
                 </Dialog>
 
-                {/* Delete Issue Confirm Modal */}
-                <Dialog open={Boolean(deletingIssue)} onClose={() => setDeletingIssue(null)} maxWidth="xs" fullWidth>
-                    <DialogTitle color="error.main">Confirm Delete Issue</DialogTitle>
-                    <DialogContent>
-                        <Typography variant="body2">
-                            Are you sure you want to permanently delete Issue <strong>#{deletingIssue?.id} ({deletingIssue?.title})</strong>?
+                {/* Move Issue to Trash Confirm Modal */}
+                <Dialog open={Boolean(deletingIssue)} onClose={() => setDeletingIssue(null)} maxWidth="sm" fullWidth>
+                    <DialogTitle sx={{ backgroundColor: '#dc2626', color: '#fff', fontWeight: 'bold' }}>Archive / Move Issue to Trash</DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body1" sx={{ mt: 1, mb: 1 }}>
+                            Are you sure you want to archive Issue <strong>#{deletingIssue?.id} ({deletingIssue?.title})</strong>?
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Please provide a reason for archiving/deleting this issue. This will be recorded in the issue's log notes.
+                        </Typography>
+                        <TextField
+                            label="Archive / Deletion Reason *"
+                            required
+                            multiline
+                            rows={3}
+                            fullWidth
+                            size="small"
+                            value={deleteReason}
+                            onChange={(e) => setDeleteReason(e.target.value)}
+                            placeholder="Please explain why this issue is being archived or deleted..."
+                            error={deletingIssue && !deleteReason.trim()}
+                            helperText={!deleteReason.trim() ? 'A reason is required to archive this issue.' : ''}
+                        />
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setDeletingIssue(null)} color="inherit">Cancel</Button>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            disabled={!deleteReason.trim()}
+                            onClick={handleDeleteSubmit}
+                            startIcon={<DeleteIcon />}
+                        >
+                            Archive Issue
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Restore Issue Modal */}
+                <Dialog open={Boolean(restoreIssue)} onClose={() => setRestoreIssue(null)} maxWidth="xs" fullWidth>
+                    <DialogTitle sx={{ backgroundColor: '#16a34a', color: '#fff', fontWeight: 'bold' }}>Restore Issue from Trash?</DialogTitle>
+                    <DialogContent sx={{ p: 3, pt: 3 }}>
+                        <Typography variant="body1" sx={{ mt: 1 }}>
+                            Are you sure you want to restore Issue <strong>#{restoreIssue?.id} ({restoreIssue?.title})</strong> back to active issues?
                         </Typography>
                     </DialogContent>
-                    <DialogActions>
-                        <Button onClick={() => setDeletingIssue(null)}>Cancel</Button>
-                        <Button variant="contained" color="error" onClick={handleDeleteSubmit}>
-                            Confirm Delete
+                    <DialogActions sx={{ p: 2, backgroundColor: '#f8fafc' }}>
+                        <Button onClick={() => setRestoreIssue(null)} color="inherit">Cancel</Button>
+                        <Button variant="contained" color="success" onClick={() => handleRestoreSubmit(restoreIssue)} startIcon={<RestoreFromTrashIcon />}>
+                            Restore Issue
                         </Button>
                     </DialogActions>
                 </Dialog>
