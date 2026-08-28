@@ -1,0 +1,259 @@
+<?php
+
+namespace App\Services\Training;
+
+use App\Models\Training\Training;
+use App\Models\Training\TrainingAssignment;
+use App\Models\Training\TrainingScope;
+use App\Models\Training\TrainingSession;
+use App\Models\Training\TrainingSessionParticipant;
+use App\Models\Training\TrainingTrigger;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class TrainingAssignmentService
+{
+    /**
+     * Assign training to all users matching training scopes for a given trigger.
+     */
+    public function assignByScope(Training $training, TrainingTrigger $trigger): int
+    {
+        return DB::transaction(function () use ($training, $trigger) {
+            $scopes = $training->scopes;
+            if ($scopes->isEmpty()) {
+                return 0;
+            }
+
+            // Find all matching users with department_id (+ office_position_id if scoped to a position)
+            $query = User::query()->where('suspended', false);
+
+            $query->where(function ($q) use ($scopes) {
+                foreach ($scopes as $scope) {
+                    $q->orWhere(function ($sub) use ($scope) {
+                        $sub->where('department_id', $scope->department_id);
+                        if (!empty($scope->office_position_id)) {
+                            $sub->where('office_position_id', $scope->office_position_id);
+                        }
+                    });
+                }
+            });
+
+            $users = $query->get();
+            $assignedCount = 0;
+
+            foreach ($users as $user) {
+                $assignment = $this->createAssignmentForUser($training, $user, $trigger);
+                if ($assignment) {
+                    $assignedCount++;
+                }
+            }
+
+            return $assignedCount;
+        });
+    }
+
+    /**
+     * Handle onboarding when a new user is created or updated with dept or dept + position.
+     */
+    public function assignNewUser(User $user): int
+    {
+        if (!$user->department_id || $user->suspended) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($user) {
+            // Find all active trainings that match this department (whole department or matching position)
+            $matchingTrainingIds = TrainingScope::query()
+                ->where('department_id', $user->department_id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('office_position_id');
+                    if (!empty($user->office_position_id)) {
+                        $q->orWhere('office_position_id', $user->office_position_id);
+                    }
+                })
+                ->pluck('training_id')
+                ->unique();
+
+            if ($matchingTrainingIds->isEmpty()) {
+                return 0;
+            }
+
+            $trainings = Training::query()
+                ->whereIn('id', $matchingTrainingIds)
+                ->where('status', 'active')
+                ->get();
+
+            $count = 0;
+            foreach ($trainings as $training) {
+                // Create a NEW_USER trigger if not exists recently
+                $positionLabel = $user->officePosition?->name ?? 'All Positions';
+                $deptLabel = $user->department?->name ?? 'Department';
+                $trigger = TrainingTrigger::create([
+                    'training_id' => $training->id,
+                    'trigger_type' => 'NEW_USER',
+                    'source_type' => User::class,
+                    'source_id' => $user->id,
+                    'reason' => "New user onboarding ({$positionLabel} in {$deptLabel})",
+                    'status' => 'ACTIVE',
+                    'created_by' => auth()->id() ?? $user->id,
+                ]);
+
+                $assignment = $this->createAssignmentForUser($training, $user, $trigger);
+                if ($assignment) {
+                    $count++;
+                }
+            }
+
+            return $count;
+        });
+    }
+
+    /**
+     * Create assignment and initial pending session for user.
+     */
+    public function createAssignmentForUser(Training $training, User $user, ?TrainingTrigger $trigger = null, ?Carbon $dueDate = null): ?TrainingAssignment
+    {
+        // Calculate default due date if not provided
+        if (!$dueDate) {
+            $dueDate = now()->addDays(30);
+        }
+
+        // Check if there is an existing pending or in_progress assignment for this user & training
+        $existing = TrainingAssignment::query()
+            ->where('training_id', $training->id)
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['PENDING', 'IN_PROGRESS'])
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $assignment = TrainingAssignment::create([
+            'training_id' => $training->id,
+            'user_id' => $user->id,
+            'training_trigger_id' => $trigger?->id,
+            'due_date' => $dueDate,
+            'status' => 'PENDING',
+        ]);
+
+        // Automatically provision Session #1 in PENDING state
+        $this->provisionSessionForAssignment($assignment, 1);
+
+        return $assignment;
+    }
+
+    /**
+     * Provision a session (or link to existing open/pending session) for the assignment.
+     */
+    public function provisionSessionForAssignment(TrainingAssignment $assignment, int $sessionNumber = 1): TrainingSessionParticipant
+    {
+        $training = $assignment->training;
+
+        if ($sessionNumber === 1) {
+            // Check if there is already an uncancelled session created for this assignment
+            $existingParticipant = TrainingSessionParticipant::query()
+                ->where('training_assignment_id', $assignment->id)
+                ->whereHas('session', function ($q) {
+                    $q->whereIn('status', ['PENDING', 'OPEN', 'IN_PROGRESS']);
+                })
+                ->first();
+
+            if ($existingParticipant) {
+                return $existingParticipant;
+            }
+        }
+
+        // Create a new session in PENDING state (waiting trainer approval/scheduling)
+        $session = TrainingSession::create([
+            'training_id' => $training->id,
+            'trainer_id' => null,
+            'session_code' => $training->code . '-S' . str_pad((string) $sessionNumber, 3, '0', STR_PAD_LEFT) . '-' . strtoupper(Str::random(4)),
+            'title' => $training->title . ' - Session #' . $sessionNumber,
+            'scheduled_at' => now()->addDays(7),
+            'status' => 'PENDING',
+            'created_by' => auth()->id(),
+        ]);
+
+        return TrainingSessionParticipant::create([
+            'training_session_id' => $session->id,
+            'training_assignment_id' => $assignment->id,
+            'user_id' => $assignment->user_id,
+            'attendance_status' => 'REGISTERED',
+        ]);
+    }
+
+    /**
+     * Check retraining due records and generate upcoming assignments.
+     */
+    public function checkRetrainingDues(): array
+    {
+        $completedAssignments = TrainingAssignment::query()
+            ->where('status', 'COMPLETED')
+            ->whereNotNull('completed_at')
+            ->with(['training', 'user'])
+            ->get();
+
+        $generatedCount = 0;
+        $overdueCount = 0;
+
+        foreach ($completedAssignments as $assignment) {
+            $training = $assignment->training;
+            if (!$training || $training->retrain_interval <= 0) {
+                continue;
+            }
+
+            // Calculate next due date
+            $nextDueDate = match ($training->retrain_unit) {
+                'day' => $assignment->completed_at->copy()->addDays((int) $training->retrain_interval),
+                'year' => $assignment->completed_at->copy()->addYears((int) $training->retrain_interval),
+                default => $assignment->completed_at->copy()->addMonths((int) $training->retrain_interval),
+            };
+
+            // Check if there is already a newer assignment created after completed_at
+            $hasNewer = TrainingAssignment::query()
+                ->where('training_id', $training->id)
+                ->where('user_id', $assignment->user_id)
+                ->where('created_at', '>', $assignment->completed_at)
+                ->exists();
+
+            if ($hasNewer) {
+                continue;
+            }
+
+            // Generate retraining assignment if within 30 days of due or already overdue
+            if (now()->diffInDays($nextDueDate, false) <= 30) {
+                $trigger = TrainingTrigger::create([
+                    'training_id' => $training->id,
+                    'trigger_type' => 'RETRAINING',
+                    'source_type' => TrainingAssignment::class,
+                    'source_id' => $assignment->id,
+                    'reason' => 'Scheduled retraining cycle (Every ' . $training->retrain_interval . ' ' . $training->retrain_unit . '(s))',
+                    'status' => 'ACTIVE',
+                    'created_by' => null,
+                ]);
+
+                $this->createAssignmentForUser($training, $assignment->user, $trigger, $nextDueDate);
+                $generatedCount++;
+
+                if (now()->greaterThan($nextDueDate)) {
+                    $overdueCount++;
+                }
+            }
+        }
+
+        // Update overdue status on existing uncompleted assignments
+        TrainingAssignment::query()
+            ->whereIn('status', ['PENDING', 'IN_PROGRESS'])
+            ->where('due_date', '<', now()->toDateString())
+            ->update(['status' => 'OVERDUE']);
+
+        return [
+            'generated_retraining' => $generatedCount,
+            'overdue_count' => $overdueCount,
+        ];
+    }
+}

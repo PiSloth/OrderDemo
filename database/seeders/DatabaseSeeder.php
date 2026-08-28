@@ -38,62 +38,69 @@ class DatabaseSeeder extends Seeder
         $branches = ['branch 1', 'branch 2', 'branch 3', 'branch 4', 'branch 5', 'HO'];
 
         foreach ($branches as $branch) {
-            Branch::factory()->create([
+            Branch::firstOrCreate([
                 'name' => $branch
             ]);
         }
 
         foreach ($grades as $grade) {
-            Grade::factory()->create([
+            Grade::firstOrCreate([
                 'name' => $grade
             ]);
         }
 
         foreach ($priorities as $priority) {
-            Priority::factory()->create([
+            Priority::firstOrCreate([
                 'name' => $priority
             ]);
         }
 
         foreach ($statuses as $status) {
-            Status::factory()->create([
+            Status::firstOrCreate([
                 'name' => $status
             ]);
         }
 
         foreach ($roles as $role) {
             // we used the position table as a role table because we mistakenly assumed using positions would be suitable.
-            Position::factory()->create([
+            Position::firstOrCreate([
                 'name' => $role
             ]);
         }
 
         foreach ($designs as $design) {
-            Design::factory()->create([
+            Design::firstOrCreate([
                 'name' => $design
             ]);
         }
 
         foreach ($qualities as $quality) {
-            Quality::factory()->create([
+            Quality::firstOrCreate([
                 'name' => $quality
             ]);
         }
 
         foreach ($categories as $category) {
-            Category::factory()->create([
+            Category::firstOrCreate([
                 'name' => $category
             ]);
         }
 
-        $firstPositionId = Position::first()?->id ?? 1;
+        $firstPosition = Position::first();
+        $firstBranch = Branch::first();
 
-        \App\Models\User::factory()->create([
-            'name' => 'PiOs',
-            'email' => 'pos@nexgen.com',
-            'position_id' => $firstPositionId,
-            'branch_id' => 1,
-        ]);
+        if ($firstPosition && $firstBranch) {
+            \App\Models\User::firstOrCreate(
+                ['email' => 'pos@nexgen.com'],
+                [
+                    'name' => 'PiOs',
+                    'password' => bcrypt('password'),
+                    'position_id' => $firstPosition->id,
+                    'branch_id' => $firstBranch->id,
+                    'email_verified_at' => now(),
+                ]
+            );
+        }
 
         // Seed departments, master taxonomies, todo task module, and IT issue SLA sample data
         $this->call([
@@ -101,6 +108,7 @@ class DatabaseSeeder extends Seeder
             MasterTaxonomySeeder::class,
             TodoSeeder::class,
             ItIssueSeeder::class,
+            UserDepartmentSeeder::class,
         ]);
     }
 }

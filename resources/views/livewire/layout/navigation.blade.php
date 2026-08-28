@@ -69,6 +69,40 @@ $logout = function (Logout $logout) {
                             @endcan
                         </div>
                     </div>
+
+                    <div class="relative" x-data="{ open: request()->routeIs('training.*') }">
+                        <button type="button" @click="open = !open"
+                            class="inline-flex items-center h-16 text-sm font-medium leading-5 transition duration-150 ease-in-out border-b-2 focus:outline-none {{ request()->routeIs('training.*') ? 'border-sky-400 text-gray-900 dark:text-gray-100' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300' }}">
+                            {{ __('Training') }}
+                            <svg class="w-4 h-4 ml-1 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="open" @click.outside="open = false" x-transition
+                            class="absolute left-0 z-30 mt-2 w-56 rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                            <a href="{{ route('training.dashboard') }}"
+                                class="block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('training.dashboard') ? 'bg-sky-50 text-sky-700 dark:bg-gray-700 dark:text-gray-100 font-bold' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                {{ __('Compliance Dashboard') }}
+                            </a>
+                            <a href="{{ route('training.trainings.index') }}"
+                                class="mt-1 block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('training.trainings.*') ? 'bg-sky-50 text-sky-700 dark:bg-gray-700 dark:text-gray-100 font-bold' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                {{ __('Training Catalog') }}
+                            </a>
+                            <a href="{{ route('training.office-positions.index') }}"
+                                class="mt-1 block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('training.office-positions.*') ? 'bg-sky-50 text-sky-700 dark:bg-gray-700 dark:text-gray-100 font-bold' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                {{ __('Office Positions') }}
+                            </a>
+                            <a href="{{ route('training.sessions.index') }}"
+                                class="mt-1 block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('training.sessions.*') ? 'bg-sky-50 text-sky-700 dark:bg-gray-700 dark:text-gray-100 font-bold' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                {{ __('Sessions & Attendance') }}
+                            </a>
+                            <a href="{{ route('training.employee.my-trainings') }}"
+                                class="mt-1 block rounded-lg px-3 py-2 text-sm {{ request()->routeIs('training.employee.*') ? 'bg-sky-50 text-sky-700 dark:bg-gray-700 dark:text-gray-100 font-bold' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                                {{ __('My Trainings & Tests') }}
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 

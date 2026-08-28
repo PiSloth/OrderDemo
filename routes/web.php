@@ -444,5 +444,41 @@ Route::middleware(['auth'])->prefix('reports')->name('reports.')->group(function
     Route::put('/{report}', [\App\Http\Controllers\ReportController::class, 'update'])->name('update');
 });
 
+Route::middleware(['auth'])->prefix('training')->name('training.')->group(function () {
+    // Compliance & Analytics Dashboard
+    Route::get('/dashboard', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'index'])->name('dashboard');
+
+    // Office Positions
+    Route::get('/office-positions', [\App\Http\Controllers\Training\OfficePositionController::class, 'index'])->name('office-positions.index');
+    Route::post('/office-positions', [\App\Http\Controllers\Training\OfficePositionController::class, 'store'])->name('office-positions.store');
+    Route::put('/office-positions/{officePosition}', [\App\Http\Controllers\Training\OfficePositionController::class, 'update'])->name('office-positions.update');
+    Route::delete('/office-positions/{officePosition}', [\App\Http\Controllers\Training\OfficePositionController::class, 'destroy'])->name('office-positions.destroy');
+    Route::post('/office-positions/{officePosition}/assign-users', [\App\Http\Controllers\Training\OfficePositionController::class, 'assignUsers'])->name('office-positions.assign-users');
+
+    // Training Catalog & Scopes
+    Route::get('/trainings', [\App\Http\Controllers\Training\TrainingController::class, 'index'])->name('trainings.index');
+    Route::post('/trainings', [\App\Http\Controllers\Training\TrainingController::class, 'store'])->name('trainings.store');
+    Route::put('/trainings/{training}', [\App\Http\Controllers\Training\TrainingController::class, 'update'])->name('trainings.update');
+    Route::delete('/trainings/{training}', [\App\Http\Controllers\Training\TrainingController::class, 'destroy'])->name('trainings.destroy');
+    Route::post('/trainings/{training}/assign', [\App\Http\Controllers\Training\TrainingController::class, 'triggerAssign'])->name('trainings.assign');
+
+    // Sessions & Attendance
+    Route::get('/sessions', [\App\Http\Controllers\Training\TrainingSessionController::class, 'index'])->name('sessions.index');
+    Route::post('/sessions', [\App\Http\Controllers\Training\TrainingSessionController::class, 'store'])->name('sessions.store');
+    Route::put('/sessions/{session}', [\App\Http\Controllers\Training\TrainingSessionController::class, 'update'])->name('sessions.update');
+    Route::put('/sessions/{session}/status', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateStatus'])->name('sessions.update-status');
+    Route::put('/sessions/{session}/attendance', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateAttendance'])->name('sessions.update-attendance');
+
+    // Tests & Question Builder
+    Route::get('/trainings/{training}/test-builder', [\App\Http\Controllers\Training\TestController::class, 'builder'])->name('tests.builder');
+    Route::put('/tests/{test}/save-builder', [\App\Http\Controllers\Training\TestController::class, 'saveBuilder'])->name('tests.save-builder');
+
+    // Employee Portal
+    Route::get('/my-trainings', [\App\Http\Controllers\Training\TrainingEmployeeController::class, 'myTrainings'])->name('employee.my-trainings');
+    Route::get('/assignments/{assignment}/tests/{test}/take', [\App\Http\Controllers\Training\TrainingEmployeeController::class, 'takeTest'])->name('employee.take-test');
+    Route::post('/assignments/{assignment}/tests/{test}/submit', [\App\Http\Controllers\Training\TrainingEmployeeController::class, 'submitTest'])->name('employee.submit-test');
+});
+
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');
 // Route::get('/guest',AppLayout::class);
+

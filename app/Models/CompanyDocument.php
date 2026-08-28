@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -66,6 +67,11 @@ class CompanyDocument extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(CompanyDocumentRevision::class)->orderByDesc('version');
+    }
+
+    public function trainings(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Training\Training::class, 'training_company_documents');
     }
 
     public function scopeVisibleTo(Builder $query, ?User $user): Builder

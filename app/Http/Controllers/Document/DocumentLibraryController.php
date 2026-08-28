@@ -124,14 +124,20 @@ class DocumentLibraryController extends Controller
     {
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
         $documentTypes = CompanyDocumentType::query()->orderBy('name')->get(['id', 'name']);
+        $trainings = \App\Models\Training\Training::query()
+            ->where('status', 'active')
+            ->with(['category:id,name', 'scopes.department:id,name', 'scopes.officePosition:id,name'])
+            ->orderBy('title')
+            ->get(['id', 'code', 'title', 'training_category_id', 'passing_score', 'retrain_interval', 'retrain_unit']);
 
         return Inertia::render('Document/Library/Create', [
             'departments' => $departments,
             'documentTypes' => $documentTypes,
+            'trainings' => $trainings,
         ]);
     }
 
-    public function store(Request $request, CompanyDocumentService $service): RedirectResponse
+    public function store(Request $request, CompanyDocumentService $service, \App\Services\Training\TrainingAssignmentService $assignmentService): RedirectResponse
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -140,6 +146,10 @@ class DocumentLibraryController extends Controller
             'department_id' => ['required', 'integer', 'exists:departments,id'],
             'announced_at' => ['nullable', 'date'],
             'body' => ['required', 'string'],
+            'training_ids' => ['nullable', 'array'],
+            'training_ids.*' => ['integer', 'exists:trainings,id'],
+            'training_required' => ['nullable', 'boolean'],
+            'training_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         if (empty($validated['company_document_type_id']) && !empty($validated['new_document_type'])) {
@@ -147,9 +157,41 @@ class DocumentLibraryController extends Controller
             $validated['company_document_type_id'] = $type->id;
         }
 
-        unset($validated['new_document_type']);
+        $trainingIds = $validated['training_ids'] ?? [];
+        $trainingRequired = (bool) ($validated['training_required'] ?? false);
+        $trainingReason = $validated['training_reason'] ?? null;
+
+        unset($validated['new_document_type'], $validated['training_ids'], $validated['training_required'], $validated['training_reason']);
 
         $document = $service->createDocument($validated, $request->user()->id);
+
+        if (!empty($trainingIds)) {
+            $document->trainings()->sync($trainingIds);
+        }
+
+        if ($trainingRequired && !empty($trainingIds)) {
+            $totalAssigned = 0;
+            foreach ($trainingIds as $tId) {
+                $training = \App\Models\Training\Training::find($tId);
+                if (!$training) continue;
+
+                $trigger = \App\Models\Training\TrainingTrigger::create([
+                    'training_id' => $training->id,
+                    'trigger_type' => 'WORKFLOW_CHANGE',
+                    'source_type' => CompanyDocument::class,
+                    'source_id' => $document->id,
+                    'reason' => $trainingReason ?: 'New Document published: ' . $document->title,
+                    'status' => 'ACTIVE',
+                    'created_by' => $request->user()->id,
+                ]);
+
+                $totalAssigned += $assignmentService->assignByScope($training, $trigger);
+            }
+
+            return redirect()
+                ->route('document.library.index', ['doc' => $document->id])
+                ->with('message', "Document created and announced across {$totalAssigned} employee(s) in training scope.");
+        }
 
         return redirect()
             ->route('document.library.index', ['doc' => $document->id])
@@ -163,20 +205,27 @@ class DocumentLibraryController extends Controller
             'type',
             'author',
             'lastEditor',
+            'trainings:id,code,title,passing_score,status,training_category_id',
             'revisions' => fn($q) => $q->with(['editor:id,name', 'department:id,name', 'type:id,name'])->orderByDesc('version'),
         ]);
 
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
         $documentTypes = CompanyDocumentType::query()->orderBy('name')->get(['id', 'name']);
+        $trainings = \App\Models\Training\Training::query()
+            ->where('status', 'active')
+            ->with(['category:id,name', 'scopes.department:id,name', 'scopes.officePosition:id,name'])
+            ->orderBy('title')
+            ->get(['id', 'code', 'title', 'training_category_id', 'passing_score', 'retrain_interval', 'retrain_unit']);
 
         return Inertia::render('Document/Library/Edit', [
             'document' => $document,
             'departments' => $departments,
             'documentTypes' => $documentTypes,
+            'trainings' => $trainings,
         ]);
     }
 
-    public function update(Request $request, CompanyDocument $document, CompanyDocumentService $service): RedirectResponse
+    public function update(Request $request, CompanyDocument $document, CompanyDocumentService $service, \App\Services\Training\TrainingAssignmentService $assignmentService): RedirectResponse
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -185,6 +234,12 @@ class DocumentLibraryController extends Controller
             'department_id' => ['required', 'integer', 'exists:departments,id'],
             'announced_at' => ['nullable', 'date'],
             'body' => ['required', 'string'],
+            'training_required' => ['nullable', 'boolean'],
+            'training_ids' => ['nullable', 'array'],
+            'training_ids.*' => ['integer', 'exists:trainings,id'],
+            'training_id' => ['nullable', 'integer', 'exists:trainings,id'],
+            'training_reason' => ['nullable', 'string', 'max:500'],
+            'change_summary' => ['nullable', 'string', 'max:500'],
         ]);
 
         if (empty($validated['company_document_type_id']) && !empty($validated['new_document_type'])) {
@@ -192,9 +247,47 @@ class DocumentLibraryController extends Controller
             $validated['company_document_type_id'] = $type->id;
         }
 
-        unset($validated['new_document_type']);
+        $trainingRequired = (bool) ($validated['training_required'] ?? false);
+        $trainingIds = $validated['training_ids'] ?? [];
+        if (!empty($validated['training_id']) && !in_array($validated['training_id'], $trainingIds)) {
+            $trainingIds[] = $validated['training_id'];
+        }
+        $trainingReason = $validated['training_reason'] ?? $validated['change_summary'] ?? null;
+
+        unset($validated['new_document_type'], $validated['training_required'], $validated['training_ids'], $validated['training_id'], $validated['training_reason'], $validated['change_summary']);
 
         $service->updateDocument($document, $validated, $request->user()->id);
+
+        // Sync linked trainings
+        $document->trainings()->sync($trainingIds);
+
+        $latestRevision = $document->revisions()->orderByDesc('version')->first();
+
+        // Handle training triggers if training required or trainings linked
+        if ($trainingRequired && !empty($trainingIds)) {
+            $totalAssigned = 0;
+            foreach ($trainingIds as $tId) {
+                $training = \App\Models\Training\Training::find($tId);
+                if (!$training) continue;
+
+                $trigger = \App\Models\Training\TrainingTrigger::create([
+                    'training_id' => $training->id,
+                    'trigger_type' => 'WORKFLOW_CHANGE',
+                    'source_type' => \App\Models\CompanyDocumentRevision::class,
+                    'source_id' => $latestRevision?->id ?? $document->id,
+                    'source_version_id' => $latestRevision?->version,
+                    'reason' => $trainingReason ?: 'Document updated: ' . $document->title,
+                    'status' => 'ACTIVE',
+                    'created_by' => $request->user()->id,
+                ]);
+
+                $totalAssigned += $assignmentService->assignByScope($training, $trigger);
+            }
+
+            return redirect()
+                ->route('document.library.index', ['doc' => $document->id])
+                ->with('message', "Document revision updated. Training trigger announced and assigned to {$totalAssigned} employee(s) in scope.");
+        }
 
         return redirect()
             ->route('document.library.index', ['doc' => $document->id])

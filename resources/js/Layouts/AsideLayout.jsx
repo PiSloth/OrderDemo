@@ -37,7 +37,8 @@ import {
     Description as DescriptionIcon,
     Assessment as AssessmentIcon,
     BugReport as BugReportIcon,
-    LocalLibrary as LibraryIcon
+    LocalLibrary as LibraryIcon,
+    School as SchoolIcon
 } from '@mui/icons-material';
 
 const drawerWidth = 280;
@@ -55,6 +56,7 @@ export default function AsideLayout({ children, title, headerActions }) {
         reports: false,
         itIssues: false,
         documents: false,
+        training: false,
     });
 
     // Auto-open group based on current URL path
@@ -68,6 +70,7 @@ export default function AsideLayout({ children, title, headerActions }) {
         else if (path.startsWith('/reports') || path.startsWith('/taxonomies')) newGroups.reports = true;
         else if (path.startsWith('/operations/it/issues')) newGroups.itIssues = true;
         else if (path.startsWith('/document')) newGroups.documents = true;
+        else if (path.startsWith('/training')) newGroups.training = true;
 
         setOpenGroups(newGroups);
     }, [currentUrl]);
@@ -477,6 +480,61 @@ export default function AsideLayout({ children, title, headerActions }) {
                                             sx={{ borderRadius: 2, my: 0.2 }}
                                         >
                                             <ListItemText primary="Email List" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                    </List>
+                                 </Collapse>
+                             </ListItem>
+
+                            {/* Training & Compliance Group */}
+                            <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+                                <ListItemButton onClick={() => toggleGroup('training')} sx={{ borderRadius: 2 }}>
+                                    <ListItemIcon sx={{ minWidth: 36, color: '#0284c7' }}>
+                                        <SchoolIcon fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Training & Compliance" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }} />
+                                    {openGroups.training ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </ListItemButton>
+                                <Collapse in={openGroups.training} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding sx={{ pl: 3 }}>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/training/dashboard" 
+                                            selected={isCurrentUrl('/training/dashboard')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Compliance Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 600 }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/training/trainings" 
+                                            selected={isCurrentUrl('/training/trainings')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Training Catalog" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/training/office-positions" 
+                                            selected={isCurrentUrl('/training/office-positions')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Office Positions" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/training/sessions" 
+                                            selected={isCurrentUrl('/training/sessions')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="Sessions & Attendance" primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                        </ListItemButton>
+                                        <ListItemButton 
+                                            component="a" 
+                                            href="/training/my-trainings" 
+                                            selected={isCurrentUrl('/training/my-trainings')}
+                                            sx={{ borderRadius: 2, my: 0.2 }}
+                                        >
+                                            <ListItemText primary="My Trainings & Tests" primaryTypographyProps={{ fontSize: '0.825rem' }} />
                                         </ListItemButton>
                                     </List>
                                 </Collapse>

@@ -18,6 +18,9 @@
                     <button @click="activeTab = 'positions'" :class="activeTab === 'positions' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                         Positions
                     </button>
+                    <button @click="activeTab = 'office_positions'" :class="activeTab === 'office_positions' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                        Office Positions
+                    </button>
                     <button @click="activeTab = 'categories'" :class="activeTab === 'categories' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                         Categories
                     </button>
@@ -100,6 +103,7 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Office Position</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
@@ -128,6 +132,7 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->position?->name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-sky-700 font-semibold">{{ $user->officePosition?->name ?? '—' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->department?->name ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->location?->name ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->branch?->name ?? 'N/A' }}</td>
@@ -202,6 +207,86 @@
                             </li>
                         @endforeach
                     </ul>
+                </div>
+            </div>
+
+            <!-- Office Positions Tab -->
+            <div x-show="activeTab === 'office_positions'" class="space-y-4">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium mb-4">Office Positions</h2>
+
+                    <!-- Add New Office Position -->
+                    <form wire:submit.prevent="create_office_position" class="mb-6 space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Position Name *</label>
+                                <input type="text" wire:model="office_position_name" placeholder="e.g. Sales Staff, Supervisor, Cashier" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                @error('office_position_name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Description (Optional)</label>
+                                <input type="text" wire:model="office_position_description" placeholder="Position description or responsibilities" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                @error('office_position_description') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium">Add Office Position</button>
+                        </div>
+                    </form>
+
+                    <!-- Office Positions List -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users Count</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($officePositions as $op)
+                                    <tr class="hover:bg-gray-50">
+                                        @if($editingOfficePositionId == $op->id)
+                                            <td colspan="4" class="px-6 py-3">
+                                                <form wire:submit.prevent="updateOfficePosition" class="space-y-3">
+                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label class="block text-xs font-medium text-gray-700 mb-1">Position Name *</label>
+                                                            <input type="text" wire:model="editingOfficePositionName" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                                            @error('editingOfficePositionName') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                                                            <input type="text" wire:model="editingOfficePositionDescription" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                                            @error('editingOfficePositionDescription') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex justify-end space-x-2">
+                                                        <button type="submit" class="bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 text-xs font-medium">Save</button>
+                                                        <button type="button" wire:click="cancelEditOfficePosition" class="bg-gray-600 text-white px-3 py-1.5 rounded-md hover:bg-gray-700 text-xs font-medium">Cancel</button>
+                                                    </div>
+                                                </form>
+                                            </td>
+                                        @else
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $op->name }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{{ $op->description ?: '—' }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $op->users()->count() }} users</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button wire:click="editOfficePosition({{ $op->id }})" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
+                                                <button wire:click="confirmDeleteOfficePosition({{ $op->id }})" class="text-red-600 hover:text-red-900">Delete</button>
+                                            </td>
+                                        @endif
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="px-6 py-4 text-center text-gray-500 text-sm">No office positions found.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -528,7 +613,7 @@
                         @error('password') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Position</label>
+                        <label class="block text-sm font-medium text-gray-700">Position (Permission Role)</label>
                         <select wire:model="position_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>
                             <option value="">Select Position</option>
                             @foreach ($positions as $position)
@@ -536,6 +621,21 @@
                             @endforeach
                         </select>
                         @error('position_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Office Position (Training & Organization)</label>
+                        <select wire:model="office_position_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">Select Office Position (Optional)</option>
+                            @foreach ($officePositions as $op)
+                                <option value="{{ $op->id }}">{{ $op->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('office_position_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Employment Start Date</label>
+                        <input type="date" wire:model="employment_start_date" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        @error('employment_start_date') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Branch</label>
@@ -597,7 +697,7 @@
                                 class="h-16 w-16 rounded-full object-cover ring-1 ring-gray-200">
                             <div class="flex-1 space-y-2">
                                 <input type="file" wire:model="editProfilePhoto" accept="image/*"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                                 <div class="flex items-center gap-3">
                                     @if ($editCurrentProfilePhotoPath || $editProfilePhoto)
                                         <button type="button" wire:click="clearEditProfilePhoto"
@@ -622,7 +722,7 @@
                         @error('editEmail') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Position</label>
+                        <label class="block text-sm font-medium text-gray-700">Position (Permission Role)</label>
                         <select wire:model="editPositionId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>
                             <option value="">Select Position</option>
                             @foreach ($positions as $position)
@@ -630,6 +730,21 @@
                             @endforeach
                         </select>
                         @error('editPositionId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Office Position (Training & Organization)</label>
+                        <select wire:model="editOfficePositionId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">Select Office Position (Optional)</option>
+                            @foreach ($officePositions as $op)
+                                <option value="{{ $op->id }}">{{ $op->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('editOfficePositionId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Employment Start Date</label>
+                        <input type="date" wire:model="editEmploymentStartDate" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        @error('editEmploymentStartDate') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Branch</label>
@@ -715,6 +830,12 @@ document.addEventListener('livewire:loaded', () => {
     Livewire.on('confirm-delete-position', (data) => {
         if (confirm('Are you sure you want to delete this position?')) {
             $wire.delete_position(data.positionId);
+        }
+    });
+
+    Livewire.on('confirm-delete-office-position', (data) => {
+        if (confirm('Are you sure you want to delete this office position?')) {
+            $wire.delete_office_position(data.officePositionId);
         }
     });
 

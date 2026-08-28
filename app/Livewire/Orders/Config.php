@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Department;
 use App\Models\Design;
 use App\Models\Grade;
+use App\Models\OfficePosition;
 use App\Models\Position;
 use App\Models\Priority;
 use App\Models\Quality;
@@ -40,6 +41,8 @@ class Config extends Component
     public $email = '';
     public $password = '';
     public $position_id = '';
+    public $office_position_id = '';
+    public $employment_start_date = '';
     public $category = '';
     public $status = '';
     public $design = '';
@@ -52,6 +55,8 @@ class Config extends Component
     public $department_id;
     public $location_id;
     public $is_jewelry_shop = false;
+    public $office_position_name = '';
+    public $office_position_description = '';
 
     // User management properties
     public $showCreateUserModal = false;
@@ -61,6 +66,8 @@ class Config extends Component
     public $editUsername = '';
     public $editEmail = '';
     public $editPositionId = '';
+    public $editOfficePositionId = '';
+    public $editEmploymentStartDate = '';
     public $editBranchId = '';
     public $editDepartmentId = '';
     public $editLocationId = '';
@@ -93,6 +100,9 @@ class Config extends Component
     public $editingPriorityId = null;
     public $editingPriorityName = '';
     public $editingPriorityColor = '';
+    public $editingOfficePositionId = null;
+    public $editingOfficePositionName = '';
+    public $editingOfficePositionDescription = '';
 
     // public function __construct(){
     //     $user = auth()->user();
@@ -124,6 +134,8 @@ class Config extends Component
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'position_id' => 'required|exists:positions,id',
+            'office_position_id' => 'nullable|exists:office_positions,id',
+            'employment_start_date' => 'nullable|date',
             'branch_id' => 'required|exists:branches,id',
             'department_id' => 'required|exists:departments,id',
             'location_id' => 'required|exists:locations,id',
@@ -135,25 +147,29 @@ class Config extends Component
             'email' => $this->email,
             'password' => bcrypt($this->password),
             'position_id' => $this->position_id,
+            'office_position_id' => $this->office_position_id ?: null,
+            'employment_start_date' => $this->employment_start_date ?: null,
             'branch_id' => $this->branch_id,
             'department_id' => $this->department_id,
             'location_id' => $this->location_id,
             'profile_photo_path' => $this->profilePhoto ? $this->profilePhoto->store('profile-photos', 'public') : null,
         ]);
 
-        $this->reset(['username', 'email', 'password', 'position_id', 'branch_id', 'department_id', 'location_id', 'profilePhoto']);
+        $this->reset(['username', 'email', 'password', 'position_id', 'office_position_id', 'employment_start_date', 'branch_id', 'department_id', 'location_id', 'profilePhoto']);
         $this->showCreateUserModal = false;
         session()->flash('message', 'User created successfully!');
     }
 
     public function openEditUserModal($userId)
     {
-        $user = User::with('department', 'location')->find($userId);
+        $user = User::with('department', 'location', 'officePosition')->find($userId);
         if ($user) {
             $this->editingUserId = $userId;
             $this->editUsername = $user->name;
             $this->editEmail = $user->email;
             $this->editPositionId = $user->position_id;
+            $this->editOfficePositionId = $user->office_position_id ?? '';
+            $this->editEmploymentStartDate = $user->employment_start_date ? \Carbon\Carbon::parse($user->employment_start_date)->format('Y-m-d') : '';
             $this->editBranchId = $user->branch_id;
             $this->editDepartmentId = $user->department_id ?? '';
             $this->editLocationId = $user->location_id ?? '';
@@ -170,6 +186,8 @@ class Config extends Component
             'editUsername' => 'required|string|max:255',
             'editEmail' => 'required|email|unique:users,email,' . $this->editingUserId,
             'editPositionId' => 'required|exists:positions,id',
+            'editOfficePositionId' => 'nullable|exists:office_positions,id',
+            'editEmploymentStartDate' => 'nullable|date',
             'editBranchId' => 'required|exists:branches,id',
             'editDepartmentId' => 'required|exists:departments,id',
             'editLocationId' => 'required|exists:locations,id',
@@ -195,13 +213,15 @@ class Config extends Component
                 'name' => $this->editUsername,
                 'email' => $this->editEmail,
                 'position_id' => $this->editPositionId,
+                'office_position_id' => $this->editOfficePositionId ?: null,
+                'employment_start_date' => $this->editEmploymentStartDate ?: null,
                 'branch_id' => $this->editBranchId,
                 'department_id' => $this->editDepartmentId,
                 'location_id' => $this->editLocationId,
                 'profile_photo_path' => $user->profile_photo_path,
             ]);
 
-            $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editBranchId', 'editDepartmentId', 'editLocationId', 'editProfilePhoto', 'editCurrentProfilePhotoPath', 'removeEditProfilePhoto']);
+            $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editOfficePositionId', 'editEmploymentStartDate', 'editBranchId', 'editDepartmentId', 'editLocationId', 'editProfilePhoto', 'editCurrentProfilePhotoPath', 'removeEditProfilePhoto']);
             $this->showEditUserModal = false;
             session()->flash('message', 'User updated successfully!');
         }
@@ -237,7 +257,7 @@ class Config extends Component
         $this->showCreateUserModal = false;
         $this->showEditUserModal = false;
         $this->showChangePasswordModal = false;
-        $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editBranchId', 'editDepartmentId', 'editLocationId', 'newPassword', 'confirmPassword', 'profilePhoto', 'editProfilePhoto', 'editCurrentProfilePhotoPath', 'removeEditProfilePhoto']);
+        $this->reset(['editingUserId', 'editUsername', 'editEmail', 'editPositionId', 'editOfficePositionId', 'editEmploymentStartDate', 'editBranchId', 'editDepartmentId', 'editLocationId', 'newPassword', 'confirmPassword', 'profilePhoto', 'editProfilePhoto', 'editCurrentProfilePhotoPath', 'removeEditProfilePhoto']);
     }
 
     public function create_category()
@@ -296,6 +316,22 @@ class Config extends Component
             'color' => $this->color,
         ]);
         $this->reset('priority');
+    }
+
+    public function create_office_position()
+    {
+        $this->validate([
+            'office_position_name' => 'required|string|max:255|unique:office_positions,name',
+            'office_position_description' => 'nullable|string|max:1000',
+        ]);
+
+        OfficePosition::create([
+            'name' => $this->office_position_name,
+            'description' => $this->office_position_description ?: null,
+        ]);
+
+        $this->reset(['office_position_name', 'office_position_description']);
+        session()->flash('message', 'Office Position created successfully!');
     }
 
     public function delete_user($id)
@@ -403,6 +439,11 @@ class Config extends Component
         $this->dispatch('confirm-delete-position', positionId: $id);
     }
 
+    public function confirmDeleteOfficePosition($id)
+    {
+        $this->dispatch('confirm-delete-office-position', officePositionId: $id);
+    }
+
     public function confirmDeleteCategory($id)
     {
         $this->dispatch('confirm-delete-category', categoryId: $id);
@@ -436,6 +477,25 @@ class Config extends Component
     public function confirmDeletePriority($id)
     {
         $this->dispatch('confirm-delete-priority', priorityId: $id);
+    }
+
+    public function delete_position($id)
+    {
+        $position = Position::find($id);
+        if ($position) {
+            $position->delete();
+            session()->flash('message', 'Position deleted successfully!');
+        }
+    }
+
+    public function delete_office_position($id)
+    {
+        $officePosition = OfficePosition::find($id);
+        if ($officePosition) {
+            User::where('office_position_id', $officePosition->id)->update(['office_position_id' => null]);
+            $officePosition->delete();
+            session()->flash('message', 'Office Position deleted successfully!');
+        }
     }
 
     public function delete_category($id)
@@ -694,11 +754,46 @@ class Config extends Component
         $this->editingPriorityColor = '';
     }
 
+    public function editOfficePosition($id)
+    {
+        $officePosition = OfficePosition::find($id);
+        if ($officePosition) {
+            $this->editingOfficePositionId = $id;
+            $this->editingOfficePositionName = $officePosition->name;
+            $this->editingOfficePositionDescription = $officePosition->description ?? '';
+        }
+    }
+
+    public function updateOfficePosition()
+    {
+        $this->validate([
+            'editingOfficePositionName' => 'required|string|max:255|unique:office_positions,name,' . $this->editingOfficePositionId,
+            'editingOfficePositionDescription' => 'nullable|string|max:1000',
+        ]);
+
+        OfficePosition::find($this->editingOfficePositionId)?->update([
+            'name' => $this->editingOfficePositionName,
+            'description' => $this->editingOfficePositionDescription ?: null,
+        ]);
+
+        $this->editingOfficePositionId = null;
+        $this->editingOfficePositionName = '';
+        $this->editingOfficePositionDescription = '';
+        session()->flash('message', 'Office Position updated successfully!');
+    }
+
+    public function cancelEditOfficePosition()
+    {
+        $this->editingOfficePositionId = null;
+        $this->editingOfficePositionName = '';
+        $this->editingOfficePositionDescription = '';
+    }
+
 
     public function render()
     {
         return view('livewire.orders.config', [
-            'users' => User::with(['position', 'branch', 'department', 'location'])
+            'users' => User::with(['position', 'branch', 'department', 'location', 'officePosition'])
                 ->where('suspended', $this->showSuspendedUsers)
                 ->when($this->userDepartmentFilter !== '', fn ($query) => $query->where('department_id', $this->userDepartmentFilter))
                 ->when($this->userSearch !== '', function ($query) {
@@ -712,6 +807,7 @@ class Config extends Component
                 ->orderBy('name')
                 ->paginate(15),
             'positions' => Position::all(),
+            'officePositions' => OfficePosition::orderBy('name')->get(),
             'categories' => Category::all(),
             'statuses' => Status::all(),
             'designs' => Design::all(),

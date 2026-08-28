@@ -65,6 +65,7 @@
         $whiteboardGroupActive = request()->routeIs('whiteboard.*');
 
         $documentGroupActive = request()->routeIs('document.email-list') || request()->routeIs('document.library.*');
+        $trainingGroupActive = request()->routeIs('training.*');
 
         $calendarActive = request()->routeIs('calendar.*');
         $officeAssetGroupActive = request()->routeIs('office-asset.index');
@@ -87,9 +88,11 @@
                                         ? 'jewelry'
                                         : ($documentGroupActive
                                             ? 'document'
-                                            : ($officeAssetGroupActive
-                                                ? 'office-asset'
-                                                : '')))))))));
+                                            : ($trainingGroupActive
+                                                ? 'training'
+                                                : ($officeAssetGroupActive
+                                                    ? 'office-asset'
+                                                    : ''))))))))));
 
         $linkBase =
             'flex items-center p-2 text-base font-normal rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 group';
@@ -661,6 +664,73 @@
                             <x-icon name="document-text"
                                 class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
                             <span class="ml-3">Library</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- Training & Compliance Group -->
+            <li class="mt-2">
+                <button type="button" @click="openGroup = openGroup === 'training' ? '' : 'training'"
+                    class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    x-bind:class="openGroup === 'training' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' :
+                        'text-slate-600 dark:text-slate-200'">
+                    <span class="flex items-center">
+                        <x-icon name="academic-cap" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Training & Compliance</span>
+                    </span>
+                    <x-icon name="chevron-down" class="w-4 h-4 text-slate-400"
+                        x-bind:class="{ 'rotate-180': openGroup === 'training' }" />
+                </button>
+
+                <ul x-show="openGroup === 'training'" x-cloak class="mt-1 space-y-1 pl-2 tree-submenu">
+                    @php $active = request()->routeIs('training.dashboard'); @endphp
+                    <li>
+                        <a href="{{ route('training.dashboard') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="chart-bar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Compliance Dashboard</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('training.trainings.*'); @endphp
+                    <li>
+                        <a href="{{ route('training.trainings.index') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="book-open"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Training Catalog</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('training.office-positions.*'); @endphp
+                    <li>
+                        <a href="{{ route('training.office-positions.index') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="identification"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Office Positions</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('training.sessions.*'); @endphp
+                    <li>
+                        <a href="{{ route('training.sessions.index') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="calendar"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">Sessions & Attendance</span>
+                        </a>
+                    </li>
+
+                    @php $active = request()->routeIs('training.employee.*'); @endphp
+                    <li>
+                        <a href="{{ route('training.employee.my-trainings') }}"
+                            class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                            <x-icon name="check-circle"
+                                class="w-5 h-5 {{ $active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200' }}" />
+                            <span class="ml-3">My Trainings & Tests</span>
                         </a>
                     </li>
                 </ul>

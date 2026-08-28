@@ -29,4 +29,10 @@ class Department extends Model
     {
         return $this->hasMany(CompanyDocument::class);
     }
+
+
+    public function trainingScopes(): HasMany
+    {
+        return $this->hasMany(\App\Models\Training\TrainingScope::class);
+    }
 }

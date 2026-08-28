@@ -15,14 +15,37 @@ import {
   Alert,
   CircularProgress,
   Divider,
-  Grid
+  Paper,
+  Chip,
+  FormControlLabel,
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  InputAdornment,
+  IconButton,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer
 } from '@mui/material';
 
+import SchoolIcon from '@mui/icons-material/School';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 
-export default function Create({ departments = [], documentTypes = [] }) {
+export default function Create({ departments = [], documentTypes = [], trainings = [] }) {
   const [createNewType, setCreateNewType] = useState(false);
+  const [trainingSearchModalOpen, setTrainingSearchModalOpen] = useState(false);
+  const [trainingSearchQuery, setTrainingSearchQuery] = useState('');
+  const [trainingCategoryFilter, setTrainingCategoryFilter] = useState('');
 
   const { data, setData, post, processing, errors } = useForm({
     title: '',
@@ -31,12 +54,50 @@ export default function Create({ departments = [], documentTypes = [] }) {
     department_id: '',
     announced_at: '',
     body: '',
+    training_ids: [],
+    training_required: false,
+    training_reason: '',
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     post('/document/library');
   };
+
+  const toggleTrainingSelection = (trainingId) => {
+    const current = [...(data.training_ids || [])];
+    const exists = current.includes(trainingId);
+    let updated;
+    if (exists) {
+      updated = current.filter((id) => id !== trainingId);
+    } else {
+      updated = [...current, trainingId];
+    }
+    setData('training_ids', updated);
+  };
+
+  const removeTraining = (trainingId) => {
+    const updated = (data.training_ids || []).filter((id) => id !== trainingId);
+    setData('training_ids', updated);
+  };
+
+  // Filter trainings in the search modal
+  const filteredTrainings = trainings.filter((t) => {
+    const matchesCategory = !trainingCategoryFilter || String(t.training_category_id) === String(trainingCategoryFilter);
+    if (!matchesCategory) return false;
+    if (!trainingSearchQuery) return true;
+    const q = trainingSearchQuery.toLowerCase();
+    return (
+      (t.title && t.title.toLowerCase().includes(q)) ||
+      (t.code && t.code.toLowerCase().includes(q)) ||
+      (t.category?.name && t.category.name.toLowerCase().includes(q))
+    );
+  });
+
+  // Unique categories for filter dropdown
+  const trainingCategories = Array.from(
+    new Set(trainings.map((t) => t.category).filter(Boolean).map((c) => JSON.stringify(c)))
+  ).map((c) => JSON.parse(c));
 
   return (
     <AsideLayout title="Create Document">
@@ -50,7 +111,7 @@ export default function Create({ departments = [], documentTypes = [] }) {
               Create New Document
             </Typography>
             <Typography variant="body2" className="text-slate-500 dark:text-slate-400">
-              Publish policies, SOPs, workflows, and announcements with rich formatting.
+              Publish policies, SOPs, workflows, and connect relevant training catalog modules.
             </Typography>
           </Box>
 
@@ -104,7 +165,7 @@ export default function Create({ departments = [], documentTypes = [] }) {
                     >
                       <MenuItem value="">-- Select Type --</MenuItem>
                       {documentTypes.map((type) => (
-                        <MenuItem key={type.id} value={type.id}>
+                        <MenuItem key={type.id} value={String(type.id)}>
                           {type.name}
                         </MenuItem>
                       ))}
@@ -116,7 +177,7 @@ export default function Create({ departments = [], documentTypes = [] }) {
                       value={data.new_document_type}
                       onChange={(e) => setData('new_document_type', e.target.value)}
                       error={Boolean(errors.new_document_type)}
-                      helperText={errors.new_document_type || 'e.g. Policy, Checklist, Guideline'}
+                      helperText={errors.new_document_type}
                       placeholder="e.g. Policy, Guideline"
                     />
                   )}
@@ -144,8 +205,8 @@ export default function Create({ departments = [], documentTypes = [] }) {
                 <div>
                   <TextField
                     select
-                    required
                     fullWidth
+                    required
                     label="Department"
                     value={data.department_id}
                     onChange={(e) => setData('department_id', e.target.value)}
@@ -154,27 +215,120 @@ export default function Create({ departments = [], documentTypes = [] }) {
                   >
                     <MenuItem value="">-- Select Department --</MenuItem>
                     {departments.map((dept) => (
-                      <MenuItem key={dept.id} value={dept.id}>
+                      <MenuItem key={dept.id} value={String(dept.id)}>
                         {dept.name}
                       </MenuItem>
                     ))}
                   </TextField>
                 </div>
 
-                {/* Announcement Date */}
+                {/* Announced Date */}
                 <div>
                   <TextField
                     type="date"
                     fullWidth
-                    label="Announcement Date (Optional)"
+                    label="Announced / Effective Date"
                     InputLabelProps={{ shrink: true }}
                     value={data.announced_at}
                     onChange={(e) => setData('announced_at', e.target.value)}
                     error={Boolean(errors.announced_at)}
-                    helperText={errors.announced_at || 'Set date if this document is a company announcement'}
+                    helperText={errors.announced_at || 'Optional effective date'}
                   />
                 </div>
               </div>
+
+              <Divider />
+
+              {/* Connected Training Catalogs Section with Search Modal */}
+              <Paper
+                elevation={0}
+                className="p-4 rounded-xl border border-sky-200 bg-sky-50/40 dark:bg-sky-950/20 dark:border-sky-800 space-y-3"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                      <SchoolIcon className="text-sky-600" fontSize="small" />
+                      Connected Training Catalogs ({data.training_ids?.length || 0})
+                    </Typography>
+                    <Typography variant="caption" className="text-slate-500 dark:text-slate-400">
+                      Connect training courses to this document to automate onboarding and compliance triggers.
+                    </Typography>
+                  </div>
+
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<SearchIcon />}
+                    onClick={() => setTrainingSearchModalOpen(true)}
+                    sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                  >
+                    Select / Search Training Catalogs
+                  </Button>
+                </div>
+
+                {/* Selected Training Chips */}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {(data.training_ids || []).map((tId) => {
+                    const t = trainings.find((item) => item.id === tId);
+                    if (!t) return null;
+                    return (
+                      <Chip
+                        key={t.id}
+                        icon={<MenuBookIcon fontSize="small" />}
+                        label={`${t.code} - ${t.title}`}
+                        color="primary"
+                        variant="outlined"
+                        onDelete={() => removeTraining(t.id)}
+                        sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                      />
+                    );
+                  })}
+
+                  {(data.training_ids || []).length === 0 && (
+                    <Typography variant="caption" className="text-slate-400 italic">
+                      No training catalogs linked yet. Click "Select / Search Training Catalogs" to connect.
+                    </Typography>
+                  )}
+                </div>
+
+                {/* Checkbox: Announce / Trigger Retraining */}
+                <div className="pt-3 border-t border-sky-100 dark:border-sky-900/50">
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={data.training_required}
+                        onChange={(e) => setData('training_required', e.target.checked)}
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          ☑ Announce and Require Training for In-Scope Employees upon creation
+                        </span>
+                        <span className="block text-[11px] text-slate-500">
+                          When checked, creating this document will immediately schedule training sessions for all employees with matching Department & Office Position scopes.
+                        </span>
+                      </div>
+                    }
+                  />
+
+                  {data.training_required && (
+                    <div className="mt-3 ml-7">
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Workflow / Policy Announcement Reason"
+                        placeholder="e.g. Standard operating procedure published; staff must complete training"
+                        value={data.training_reason}
+                        onChange={(e) => setData('training_reason', e.target.value)}
+                        error={Boolean(errors.training_reason)}
+                        helperText={errors.training_reason}
+                      />
+                    </div>
+                  )}
+                </div>
+              </Paper>
 
               <Divider />
 
@@ -186,8 +340,8 @@ export default function Create({ departments = [], documentTypes = [] }) {
                 <ReactRichTextEditor
                   value={data.body}
                   onChange={(html) => setData('body', html)}
-                  placeholder="Type document content, insert images, format tables, and organize sections..."
-                  minHeight="380px"
+                  placeholder="Write document content, add procedures, steps, images, or tables..."
+                  minHeight="420px"
                 />
                 {errors.body && (
                   <Typography variant="caption" className="text-red-600 block mt-1">
@@ -215,12 +369,202 @@ export default function Create({ departments = [], documentTypes = [] }) {
                   startIcon={processing ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                   sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, px: 3 }}
                 >
-                  {processing ? 'Saving...' : 'Save & Publish Document'}
+                  {processing ? 'Publishing...' : 'Publish Document'}
                 </Button>
               </Box>
             </form>
           </CardContent>
         </Card>
+
+        {/* Training Search Modal */}
+        <Dialog
+          open={trainingSearchModalOpen}
+          onClose={() => setTrainingSearchModalOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle className="font-bold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <SchoolIcon className="text-sky-600" />
+              <span>Select Training Catalogs</span>
+            </div>
+            <Chip
+              label={`${data.training_ids?.length || 0} Selected`}
+              color="primary"
+              size="small"
+              sx={{ fontWeight: 700 }}
+            />
+          </DialogTitle>
+
+          <DialogContent className="space-y-4">
+            <Typography variant="body2" className="text-slate-600 dark:text-slate-300">
+              Search and connect training catalog courses to this company document.
+            </Typography>
+
+            {/* Search Filters */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search training title or code (e.g. ERP-SALE-001)..."
+                value={trainingSearchQuery}
+                onChange={(e) => setTrainingSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" className="text-slate-400" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: trainingSearchQuery ? (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setTrainingSearchQuery('')}>
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                }}
+              />
+
+              <TextField
+                select
+                size="small"
+                label="Category"
+                value={trainingCategoryFilter}
+                onChange={(e) => setTrainingCategoryFilter(e.target.value)}
+                className="w-full sm:w-56"
+              >
+                <MenuItem value="">All Categories</MenuItem>
+                {trainingCategories.map((c) => (
+                  <MenuItem key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </div>
+
+            {/* Trainings Table */}
+            <TableContainer className="border border-slate-200 dark:border-slate-800 rounded-xl max-h-96 overflow-y-auto">
+              <Table size="small" stickyHeader>
+                <TableHead className="bg-slate-100 dark:bg-slate-800">
+                  <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={
+                          filteredTrainings.length > 0 &&
+                          filteredTrainings.every((t) => (data.training_ids || []).includes(t.id))
+                        }
+                        indeterminate={
+                          filteredTrainings.some((t) => (data.training_ids || []).includes(t.id)) &&
+                          !filteredTrainings.every((t) => (data.training_ids || []).includes(t.id))
+                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const newIds = new Set([...(data.training_ids || []), ...filteredTrainings.map((t) => t.id)]);
+                            setData('training_ids', Array.from(newIds));
+                          } else {
+                            const removeIds = new Set(filteredTrainings.map((t) => t.id));
+                            setData(
+                              'training_ids',
+                              (data.training_ids || []).filter((id) => !removeIds.has(id))
+                            );
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="font-bold text-xs">Course Code & Title</TableCell>
+                    <TableCell className="font-bold text-xs">Category</TableCell>
+                    <TableCell className="font-bold text-xs">Retraining & Passing</TableCell>
+                    <TableCell className="font-bold text-xs">Target Audience Scopes</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredTrainings.map((training) => {
+                    const isSelected = (data.training_ids || []).includes(training.id);
+                    return (
+                      <TableRow
+                        key={training.id}
+                        hover
+                        onClick={() => toggleTrainingSelection(training.id)}
+                        className={`cursor-pointer transition-colors ${
+                          isSelected ? 'bg-sky-50/60 dark:bg-sky-950/40' : ''
+                        }`}
+                      >
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            size="small"
+                            checked={isSelected}
+                            color="primary"
+                            onChange={() => toggleTrainingSelection(training.id)}
+                          />
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-bold text-xs text-slate-800 dark:text-slate-100">
+                            {training.title}
+                          </div>
+                          <div className="text-[11px] text-sky-600 font-mono font-bold">
+                            {training.code}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-xs text-slate-600 dark:text-slate-300">
+                          {training.category?.name || '—'}
+                        </TableCell>
+
+                        <TableCell className="text-xs">
+                          <div className="text-slate-700 dark:text-slate-200">
+                            {training.retrain_interval} {training.retrain_unit}(s)
+                          </div>
+                          <div className="text-[11px] text-emerald-600 font-semibold">
+                            Pass: {training.passing_score}%
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-xs">
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {(training.scopes || []).map((sc, idx) => (
+                              <Chip
+                                key={idx}
+                                label={`${sc.department?.name || 'Dept'} + ${sc.office_position?.name || 'Position'}`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ fontSize: '0.65rem' }}
+                              />
+                            ))}
+                            {(training.scopes || []).length === 0 && (
+                              <span className="text-slate-400 italic text-[11px]">No specific scope</span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+
+                  {filteredTrainings.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" className="text-slate-400 py-8">
+                        No training catalogs found matching "{trainingSearchQuery}".
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DialogContent>
+
+          <DialogActions className="p-4">
+            <Button
+              onClick={() => setTrainingSearchModalOpen(false)}
+              variant="contained"
+              color="primary"
+              startIcon={<CheckCircleIcon />}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Done ({data.training_ids?.length || 0} Selected)
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </AsideLayout>
   );

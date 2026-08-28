@@ -29,6 +29,8 @@ class User extends Authenticatable
         'password',
         'profile_photo_path',
         'position_id',
+        'office_position_id',
+        'employment_start_date',
         'branch_id',
         'department_id',
         'location_id',
@@ -52,6 +54,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'employment_start_date' => 'date',
         'password' => 'hashed',
         'suspended' => 'boolean',
         'google_token_expires_at' => 'datetime',
@@ -67,6 +70,12 @@ class User extends Authenticatable
     {
         return $this->belongsTo('App\Models\Position');
     }
+
+    public function officePosition()
+    {
+        return $this->belongsTo(\App\Models\OfficePosition::class, 'office_position_id');
+    }
+
     public function comments()
     {
         return $this->belongsToMany(Comment::class);
@@ -77,10 +86,24 @@ class User extends Authenticatable
         return $this->belongsTo(Branch::class);
     }
 
-
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function trainingAssignments()
+    {
+        return $this->hasMany(\App\Models\Training\TrainingAssignment::class);
+    }
+
+    public function trainingSessionParticipants()
+    {
+        return $this->hasMany(\App\Models\Training\TrainingSessionParticipant::class);
+    }
+
+    public function testAttempts()
+    {
+        return $this->hasMany(\App\Models\Training\TestAttempt::class);
     }
 
     public function location()
