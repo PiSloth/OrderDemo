@@ -26,7 +26,8 @@ import {
   DialogActions,
   Pagination,
   Tooltip,
-  Collapse
+  Collapse,
+  Drawer
 } from '@mui/material';
 
 import AddIcon from '@mui/icons-material/Add';
@@ -43,6 +44,8 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import TuneIcon from '@mui/icons-material/Tune';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 
 export default function Index({
   treeByDepartment = {},
@@ -69,6 +72,7 @@ export default function Index({
   const [activeTab, setActiveTab] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [mobileExplorerOpen, setMobileExplorerOpen] = useState(false);
   const [treeSearch, setTreeSearch] = useState('');
   const [expandedFolders, setExpandedFolders] = useState({});
   const [selectedRevision, setSelectedRevision] = useState(null);
@@ -150,15 +154,18 @@ export default function Index({
     });
   };
 
-  const toggleFolder = (folderKey) => {
+  const toggleFolder = (folderKey, isCurrentlyOpen) => {
     setExpandedFolders((prev) => ({
       ...prev,
-      [folderKey]: prev[folderKey] === undefined ? false : !prev[folderKey],
+      [folderKey]: !isCurrentlyOpen,
     }));
   };
 
-  const isFolderOpen = (folderKey) => {
-    return expandedFolders[folderKey] !== false; // default open
+  const isFolderOpen = (folderKey, defaultOpen = false) => {
+    if (expandedFolders[folderKey] !== undefined) {
+      return Boolean(expandedFolders[folderKey]);
+    }
+    return defaultOpen;
   };
 
   const activeTree = mode === 'type' ? treeByType : treeByDepartment;
@@ -192,11 +199,202 @@ export default function Index({
 
   const hasActiveFilters = search || department || category || creator || announcementOnly || version || publishedFrom || publishedTo || sort !== 'relevance';
 
+  const renderExplorerTreeContent = (isMobile = false) => (
+    <Box className="flex flex-col h-full">
+      {/* Header & Mode Switcher */}
+      <Box className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 flex-shrink-0">
+        <Box className="flex items-center justify-between gap-2 mb-3">
+          <Typography variant="subtitle1" className="font-bold flex items-center gap-1.5 text-slate-800 dark:text-slate-100">
+            <FolderIcon fontSize="small" className="text-indigo-600 dark:text-indigo-400" />
+            Document Explorer
+          </Typography>
+
+          <div className="flex items-center gap-2">
+            <Box className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('department');
+                  executeSearch({ mode: 'department' });
+                }}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  mode === 'department'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                Dept
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('type');
+                  executeSearch({ mode: 'type' });
+                }}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  mode === 'type'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                Type
+              </button>
+            </Box>
+
+            {isMobile && (
+              <IconButton size="small" onClick={() => setMobileExplorerOpen(false)}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
+          </div>
+        </Box>
+
+        {/* Instant Tree Search Input */}
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="Filter explorer tree..."
+          value={treeSearch}
+          onChange={(e) => setTreeSearch(e.target.value)}
+          InputProps={{
+            startAdornment: <SearchIcon fontSize="small" className="text-slate-400 mr-1.5" />,
+            endAdornment: treeSearch ? (
+              <IconButton size="small" onClick={() => setTreeSearch('')}>
+                <ClearIcon fontSize="small" />
+              </IconButton>
+            ) : null,
+            sx: { borderRadius: 2, bgcolor: 'background.paper', fontSize: '0.875rem' },
+          }}
+        />
+      </Box>
+
+      {/* Tree Hierarchical List */}
+      <Box className="p-3 overflow-y-auto flex-1 space-y-1">
+        {Object.keys(filteredTree).length === 0 ? (
+          <Box className="py-8 text-center text-sm text-slate-400">
+            No documents found in explorer.
+          </Box>
+        ) : (
+          Object.entries(filteredTree).map(([groupName, subGroups]) => {
+            const groupKey = `g_${groupName}`;
+            const isGroupOpen = isFolderOpen(groupKey, true);
+            const totalInGroup = Object.values(subGroups || {}).reduce((acc, docs) => acc + (docs?.length || 0), 0);
+
+            return (
+              <Box key={groupKey} className="rounded-xl overflow-hidden mb-1">
+                {/* Top Group Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleFolder(groupKey, isGroupOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-left text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    {isGroupOpen ? (
+                      <FolderOpenIcon fontSize="small" className="text-amber-500" />
+                    ) : (
+                      <FolderIcon fontSize="small" className="text-amber-500" />
+                    )}
+                    <span className="truncate">{groupName}</span>
+                  </span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    {totalInGroup}
+                  </span>
+                </button>
+
+                {/* Sub Groups Collapse */}
+                <Collapse in={isGroupOpen}>
+                  <Box className="pl-3 py-1 space-y-1">
+                    {Object.entries(subGroups || {}).map(([subName, docs]) => {
+                      const subKey = `s_${groupName}_${subName}`;
+                      const hasSearchMatch = Boolean(treeSearch.trim());
+                      const isSubOpen = isFolderOpen(subKey, hasSearchMatch);
+
+                      return (
+                        <Box key={subKey} className="rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() => toggleFolder(subKey, isSubOpen)}
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 text-left text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-md transition-colors"
+                          >
+                            <span className="flex items-center gap-1.5 truncate">
+                              <ChevronRightIcon
+                                fontSize="inherit"
+                                className={`text-slate-400 transition-transform ${isSubOpen ? 'rotate-90' : ''}`}
+                              />
+                              <span className="truncate">{subName}</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {(docs || []).length}
+                            </span>
+                          </button>
+
+                          {/* Document Leaf Nodes */}
+                          <Collapse in={isSubOpen}>
+                            <Box className="pl-4 py-0.5 space-y-0.5">
+                              {(docs || []).map((docItem) => {
+                                const isSelected = String(selectedDocument?.id) === String(docItem.id);
+                                return (
+                                  <button
+                                    key={docItem.id}
+                                    type="button"
+                                    onClick={() => {
+                                      handleOpenDoc(docItem.id);
+                                      if (isMobile) setMobileExplorerOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs rounded-lg transition-all ${
+                                      isSelected
+                                        ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold border-l-4 border-indigo-600'
+                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    <ArticleIcon
+                                      fontSize="inherit"
+                                      className={isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}
+                                    />
+                                    <span className="truncate flex-1">{docItem.title}</span>
+                                    {docItem.announced_at && (
+                                      <CampaignIcon fontSize="inherit" className="text-amber-500" titleAccess="Announcement" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </Box>
+                          </Collapse>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Collapse>
+              </Box>
+            );
+          })
+        )}
+      </Box>
+    </Box>
+  );
+
   return (
     <AsideLayout
       title="Document Library"
       headerActions={
         <Stack direction="row" spacing={1.5} alignItems="center">
+          {/* Mobile Explorer Hamburger Button */}
+          <Button
+            variant="outlined"
+            onClick={() => setMobileExplorerOpen(true)}
+            startIcon={<MenuIcon />}
+            className="lg:!hidden"
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              color: 'text.secondary',
+              borderColor: 'divider',
+              px: 1.5,
+            }}
+          >
+            Explorer
+          </Button>
+
           <Button
             variant="outlined"
             onClick={() => setSearchModalOpen(true)}
@@ -227,172 +425,53 @@ export default function Index({
     >
       <Head title="Document Library" />
 
+      {/* Mobile Explorer Drawer */}
+      <Drawer
+        anchor="left"
+        open={mobileExplorerOpen}
+        onClose={() => setMobileExplorerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: '85vw',
+            maxWidth: 360,
+            bgcolor: 'background.paper',
+            p: 0,
+          },
+        }}
+      >
+        {renderExplorerTreeContent(true)}
+      </Drawer>
+
       <Box className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Side: Tree Navigation Panel */}
-        <Box className="lg:col-span-4 flex flex-col gap-4">
-          <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-            {/* Header & Mode Switcher */}
-            <Box className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60">
-              <Box className="flex items-center justify-between gap-2 mb-3">
-                <Typography variant="subtitle1" className="font-bold flex items-center gap-1.5 text-slate-800 dark:text-slate-100">
-                  <FolderIcon fontSize="small" className="text-indigo-600 dark:text-indigo-400" />
-                  Document Explorer
-                </Typography>
-
-                <Box className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('department');
-                      executeSearch({ mode: 'department' });
-                    }}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                      mode === 'department'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                    }`}
-                  >
-                    Dept
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('type');
-                      executeSearch({ mode: 'type' });
-                    }}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                      mode === 'type'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                    }`}
-                  >
-                    Type
-                  </button>
-                </Box>
-              </Box>
-
-              {/* Instant Tree Search Input */}
-              <TextField
-                size="small"
-                fullWidth
-                placeholder="Filter explorer tree..."
-                value={treeSearch}
-                onChange={(e) => setTreeSearch(e.target.value)}
-                InputProps={{
-                  startAdornment: <SearchIcon fontSize="small" className="text-slate-400 mr-1.5" />,
-                  endAdornment: treeSearch ? (
-                    <IconButton size="small" onClick={() => setTreeSearch('')}>
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  ) : null,
-                  sx: { borderRadius: 2, bgcolor: 'background.paper', fontSize: '0.875rem' },
-                }}
-              />
-            </Box>
-
-            {/* Tree Hierarchical List */}
-            <Box className="p-3 max-h-[calc(100vh-16rem)] overflow-y-auto space-y-1">
-              {Object.keys(filteredTree).length === 0 ? (
-                <Box className="py-8 text-center text-sm text-slate-400">
-                  No documents found in explorer.
-                </Box>
-              ) : (
-                Object.entries(filteredTree).map(([groupName, subGroups]) => {
-                  const groupKey = `g_${groupName}`;
-                  const isGroupOpen = isFolderOpen(groupKey);
-                  const totalInGroup = Object.values(subGroups || {}).reduce((acc, docs) => acc + (docs?.length || 0), 0);
-
-                  return (
-                    <Box key={groupKey} className="rounded-xl overflow-hidden mb-1">
-                      {/* Top Group Header */}
-                      <button
-                        type="button"
-                        onClick={() => toggleFolder(groupKey)}
-                        className="w-full flex items-center justify-between px-3 py-2 text-left text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                      >
-                        <span className="flex items-center gap-2 truncate">
-                          {isGroupOpen ? (
-                            <FolderOpenIcon fontSize="small" className="text-amber-500" />
-                          ) : (
-                            <FolderIcon fontSize="small" className="text-amber-500" />
-                          )}
-                          <span className="truncate">{groupName}</span>
-                        </span>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                          {totalInGroup}
-                        </span>
-                      </button>
-
-                      {/* Sub Groups Collapse */}
-                      <Collapse in={isGroupOpen}>
-                        <Box className="pl-3 py-1 space-y-1">
-                          {Object.entries(subGroups || {}).map(([subName, docs]) => {
-                            const subKey = `s_${groupName}_${subName}`;
-                            const isSubOpen = isFolderOpen(subKey);
-
-                            return (
-                              <Box key={subKey} className="rounded-lg">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleFolder(subKey)}
-                                  className="w-full flex items-center justify-between px-2.5 py-1.5 text-left text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-md transition-colors"
-                                >
-                                  <span className="flex items-center gap-1.5 truncate">
-                                    <ChevronRightIcon
-                                      fontSize="inherit"
-                                      className={`text-slate-400 transition-transform ${isSubOpen ? 'rotate-90' : ''}`}
-                                    />
-                                    <span className="truncate">{subName}</span>
-                                  </span>
-                                  <span className="text-[10px] text-slate-400">
-                                    {(docs || []).length}
-                                  </span>
-                                </button>
-
-                                {/* Document Leaf Nodes */}
-                                <Collapse in={isSubOpen}>
-                                  <Box className="pl-4 py-0.5 space-y-0.5">
-                                    {(docs || []).map((docItem) => {
-                                      const isSelected = String(selectedDocument?.id) === String(docItem.id);
-                                      return (
-                                        <button
-                                          key={docItem.id}
-                                          type="button"
-                                          onClick={() => handleOpenDoc(docItem.id)}
-                                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs rounded-lg transition-all ${
-                                            isSelected
-                                              ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold border-l-4 border-indigo-600'
-                                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                          }`}
-                                        >
-                                          <ArticleIcon
-                                            fontSize="inherit"
-                                            className={isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}
-                                          />
-                                          <span className="truncate flex-1">{docItem.title}</span>
-                                          {docItem.announced_at && (
-                                            <CampaignIcon fontSize="inherit" className="text-amber-500" titleAccess="Announcement" />
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                  </Box>
-                                </Collapse>
-                              </Box>
-                            );
-                          })}
-                        </Box>
-                      </Collapse>
-                    </Box>
-                  );
-                })
-              )}
-            </Box>
+        {/* Left Side: Tree Navigation Panel (Sticky on Desktop) */}
+        <Box className="hidden lg:flex lg:col-span-4 flex-col gap-4 lg:sticky lg:top-20 self-start max-h-[calc(100vh-6rem)]">
+          <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-6rem)]">
+            {renderExplorerTreeContent(false)}
           </Card>
         </Box>
 
         {/* Right Side: Search, Filters & Document Viewer */}
-        <Box className="lg:col-span-8 flex flex-col gap-6">
+        <Box className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+          {/* Mobile Quick Bar */}
+          <Box className="flex lg:hidden items-center justify-between p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <div className="flex items-center gap-2 truncate">
+              <FolderIcon fontSize="small" className="text-indigo-600 dark:text-indigo-400" />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                {selectedDocument ? selectedDocument.title : 'Document Explorer'}
+              </span>
+            </div>
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              startIcon={<MenuIcon fontSize="small" />}
+              onClick={() => setMobileExplorerOpen(true)}
+              sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700, px: 2, whiteSpace: 'nowrap' }}
+            >
+              Browse Tree
+            </Button>
+          </Box>
+
           {/* Command Palette / Quick Search Trigger Bar */}
           <Box className="space-y-3">
             <Box

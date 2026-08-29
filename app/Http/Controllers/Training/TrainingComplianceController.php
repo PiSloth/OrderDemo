@@ -95,10 +95,14 @@ class TrainingComplianceController extends Controller
             ->with([
                 'user.department',
                 'user.officePosition',
-                'training',
+                'training.test',
                 'trigger',
                 'sessionParticipants.session',
-                'testAttempts' => fn($q) => $q->latest()->limit(1),
+                'testAttempts' => fn($q) => $q->with([
+                    'session.trainer',
+                    'answers.selectedOption',
+                    'answers.question.options',
+                ])->latest(),
             ]);
 
         if ($departmentId) {
@@ -145,6 +149,8 @@ class TrainingComplianceController extends Controller
 
         $officePositions = OfficePosition::query()->orderBy('name')->get(['id', 'name']);
 
+        $canViewAttempts = $request->user()?->can('training.attempt.view') || $request->user()?->can('training.catalog.view') ?? false;
+
         return Inertia::render('Training/Dashboard/Compliance', [
             'metrics' => [
                 'active_users' => $totalActiveUsers,
@@ -176,6 +182,39 @@ class TrainingComplianceController extends Controller
                 'due_to' => $dueTo,
                 'search' => $search,
             ],
+            'permissions' => [
+                'can_view_attempts' => $canViewAttempts,
+            ],
+        ]);
+    }
+
+    /**
+     * Fetch complete attempt history for an assignment (Admin / Authorized user).
+     */
+    public function attemptHistory(Request $request, TrainingAssignment $assignment)
+    {
+        $currentUser = $request->user();
+        if ($assignment->user_id !== $currentUser->id && !$currentUser->can('training.attempt.view') && !$currentUser->can('training.catalog.view')) {
+            abort(403, 'Unauthorized to view test attempt history.');
+        }
+
+        $assignment->load([
+            'user.department',
+            'user.officePosition',
+            'training.category',
+            'training.test',
+            'testAttempts' => function ($q) {
+                $q->with([
+                    'session.trainer',
+                    'answers.selectedOption',
+                    'answers.question.options',
+                ])->latest();
+            },
+        ]);
+
+        return response()->json([
+            'assignment' => $assignment,
+            'attempts' => $assignment->testAttempts,
         ]);
     }
 }

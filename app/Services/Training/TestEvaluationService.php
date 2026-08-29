@@ -28,6 +28,10 @@ class TestEvaluationService
             ->where('user_id', $user->id)
             ->count();
 
+        if ($test->attempt_limit && $attemptCount >= $test->attempt_limit) {
+            abort(422, "You have reached the maximum attempt limit ({$test->attempt_limit}) for this assessment.");
+        }
+
         return TestAttempt::create([
             'test_id' => $test->id,
             'user_id' => $user->id,

@@ -69,7 +69,10 @@
 
                 <div class="pl-4">
                     @foreach ($subGroups as $subName => $items)
-                        <details class="group" open>
+                        @php
+                            $subOpen = !empty($search);
+                        @endphp
+                        <details class="group" {{ $subOpen ? 'open' : '' }}>
                             <summary class="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 rounded">
                                 <x-icon name="folder" class="w-4 h-4 text-slate-400" />
                                 <span class="truncate">{{ $subName }}</span>

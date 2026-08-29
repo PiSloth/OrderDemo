@@ -495,6 +495,7 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     // Printable Training Scorecard & Certificate Template
     Route::get('/scorecard', [\App\Http\Controllers\Training\TrainingScorecardController::class, 'show'])->name('scorecard');
     Route::get('/assignments/{assignment}/scorecard', [\App\Http\Controllers\Training\TrainingScorecardController::class, 'show'])->name('employee.scorecard');
+    Route::get('/assignments/{assignment}/attempt-history', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'attemptHistory'])->name('assignments.attempt-history');
 });
 
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');

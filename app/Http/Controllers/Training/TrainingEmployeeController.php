@@ -38,22 +38,29 @@ class TrainingEmployeeController extends Controller
 
     public function takeTest(Request $request, TrainingAssignment $assignment, Test $test): Response
     {
-        abort_if($assignment->user_id !== $request->user()->id, 403, 'Unauthorized');
+        $canViewAnyAttempt = $request->user()->can('training.attempt.view') || $request->user()->can('training.catalog.view');
+        abort_if($assignment->user_id !== $request->user()->id && !$canViewAnyAttempt, 403, 'Unauthorized');
 
-        $assignment->load(['training.category', 'sessionParticipants.session']);
+        $assignment->load(['training.category', 'sessionParticipants.session', 'user.department', 'user.officePosition']);
 
-        // Load test questions and options (without is_correct to prevent inspect cheating)
+        // Load test questions and options (without is_correct to prevent inspect cheating while taking test)
         $test->load(['questions' => function ($q) {
             $q->orderBy('sort_order')->with(['options' => function ($opt) {
                 $opt->select(['id', 'test_question_id', 'answer', 'sort_order'])->orderBy('sort_order');
             }]);
         }]);
 
+        // Load evaluated attempts with questions and their correct answers for the review breakdown
         $previousAttempts = TestAttempt::query()
             ->where('training_assignment_id', $assignment->id)
             ->where('test_id', $test->id)
-            ->where('user_id', $request->user()->id)
-            ->with(['answers.selectedOption', 'answers.question.options'])
+            ->with([
+                'user.department',
+                'user.officePosition',
+                'session.trainer',
+                'answers.selectedOption',
+                'answers.question.options',
+            ])
             ->latest()
             ->get();
 
@@ -61,6 +68,7 @@ class TrainingEmployeeController extends Controller
             'assignment' => $assignment,
             'test' => $test,
             'previousAttempts' => $previousAttempts,
+            'canViewAttempts' => $canViewAnyAttempt,
         ]);
     }
 
