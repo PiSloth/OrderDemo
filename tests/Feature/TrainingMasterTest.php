@@ -414,10 +414,344 @@ class TrainingMasterTest extends TestCase
         $response = $this->actingAs($user)->get(route('training.dashboard'));
         $response->assertStatus(200);
 
+        $user->givePermissionTo('training.catalog.view');
         $responseCatalog = $this->actingAs($user)->get(route('training.trainings.index'));
         $responseCatalog->assertStatus(200);
 
         $responseOfficePositions = $this->actingAs($user)->get(route('training.office-positions.index'));
         $responseOfficePositions->assertStatus(200);
+    }
+
+    public function test_custom_assignment_by_department_position_and_specific_employees(): void
+    {
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+
+        $deptA = Department::firstOrCreate(['name' => 'Dept A ' . uniqid()]);
+        $deptB = Department::firstOrCreate(['name' => 'Dept B ' . uniqid()]);
+        $posA = OfficePosition::firstOrCreate(['name' => 'Position A ' . uniqid()]);
+        $posB = OfficePosition::firstOrCreate(['name' => 'Position B ' . uniqid()]);
+
+        $user1 = User::create([
+            'name' => 'User Dept A Pos A',
+            'email' => 'u1.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $deptA->id,
+            'office_position_id' => $posA->id,
+        ]);
+
+        $user2 = User::create([
+            'name' => 'User Dept A Pos B',
+            'email' => 'u2.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $deptA->id,
+            'office_position_id' => $posB->id,
+        ]);
+
+        $user3 = User::create([
+            'name' => 'User Dept B Pos A',
+            'email' => 'u3.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $deptB->id,
+            'office_position_id' => $posA->id,
+        ]);
+
+        $user1->givePermissionTo('training.catalog.update');
+
+        $training1 = Training::create([
+            'code' => 'CUSTOM-DEPT-' . uniqid(),
+            'title' => 'Custom Dept Assign Training',
+            'retrain_interval' => 6,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        // 1. Assign by department (deptA -> user1 and user2)
+        $respDept = $this->actingAs($user1)->post(route('training.trainings.assign', $training1), [
+            'target_type' => 'departments',
+            'department_ids' => [$deptA->id],
+            'due_date' => now()->addDays(45)->toDateString(),
+            'reason' => 'Department wide compliance',
+        ]);
+        $respDept->assertRedirect();
+
+        $this->assertDatabaseHas('training_assignments', [
+            'training_id' => $training1->id,
+            'user_id' => $user1->id,
+            'due_date' => now()->addDays(45)->toDateString(),
+        ]);
+        $this->assertDatabaseHas('training_assignments', [
+            'training_id' => $training1->id,
+            'user_id' => $user2->id,
+        ]);
+        $this->assertDatabaseMissing('training_assignments', [
+            'training_id' => $training1->id,
+            'user_id' => $user3->id,
+        ]);
+
+        // 2. Assign by position (posA -> user1 and user3)
+        $training2 = Training::create([
+            'code' => 'CUSTOM-POS-' . uniqid(),
+            'title' => 'Custom Position Assign Training',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $respPos = $this->actingAs($user1)->post(route('training.trainings.assign', $training2), [
+            'target_type' => 'positions',
+            'office_position_ids' => [$posA->id],
+        ]);
+        $respPos->assertRedirect();
+
+        $this->assertDatabaseHas('training_assignments', [
+            'training_id' => $training2->id,
+            'user_id' => $user1->id,
+        ]);
+        $this->assertDatabaseHas('training_assignments', [
+            'training_id' => $training2->id,
+            'user_id' => $user3->id,
+        ]);
+        $this->assertDatabaseMissing('training_assignments', [
+            'training_id' => $training2->id,
+            'user_id' => $user2->id,
+        ]);
+
+        // 3. Assign to specific multi-select employees (only user2 and user3)
+        $training3 = Training::create([
+            'code' => 'CUSTOM-EMP-' . uniqid(),
+            'title' => 'Custom Specific Employees Training',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $respEmp = $this->actingAs($user1)->post(route('training.trainings.assign', $training3), [
+            'target_type' => 'employees',
+            'user_ids' => [$user2->id, $user3->id],
+            'due_date' => now()->addDays(14)->toDateString(),
+            'reason' => 'Direct assignment to specific staff',
+        ]);
+        $respEmp->assertRedirect();
+
+        $this->assertDatabaseMissing('training_assignments', [
+            'training_id' => $training3->id,
+            'user_id' => $user1->id,
+        ]);
+        $this->assertDatabaseHas('training_assignments', [
+            'training_id' => $training3->id,
+            'user_id' => $user2->id,
+            'due_date' => now()->addDays(14)->toDateString(),
+        ]);
+        $this->assertDatabaseHas('training_assignments', [
+            'training_id' => $training3->id,
+            'user_id' => $user3->id,
+            'due_date' => now()->addDays(14)->toDateString(),
+        ]);
+    }
+
+    public function test_trigger_question_test_only_without_training_session(): void
+    {
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+        $dept = Department::firstOrCreate(['name' => 'IT Department ' . uniqid()]);
+        $pos = OfficePosition::firstOrCreate(['name' => 'Developer ' . uniqid()]);
+
+        $user = User::create([
+            'name' => 'Test Retest User',
+            'email' => 'retest.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $training = Training::create([
+            'code' => 'TEST-ONLY-' . uniqid(),
+            'title' => 'Standalone Security Quiz',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 70.00,
+            'status' => 'active',
+        ]);
+
+        // Create a test attached to training
+        $test = \App\Models\Training\Test::create([
+            'training_id' => $training->id,
+            'title' => 'Security Knowledge Check',
+            'passing_score' => 70.00,
+            'time_limit_minutes' => 15,
+            'status' => 'active',
+        ]);
+
+        $q1 = \App\Models\Training\TestQuestion::create([
+            'test_id' => $test->id,
+            'question' => 'What is 2FA?',
+            'marks' => 10,
+            'sort_order' => 1,
+        ]);
+
+        $optCorrect = \App\Models\Training\TestOption::create([
+            'test_question_id' => $q1->id,
+            'answer' => 'Two-Factor Authentication',
+            'is_correct' => true,
+            'sort_order' => 1,
+        ]);
+
+        $optWrong = \App\Models\Training\TestOption::create([
+            'test_question_id' => $q1->id,
+            'answer' => 'Two Fast Animals',
+            'is_correct' => false,
+            'sort_order' => 2,
+        ]);
+
+        $user->givePermissionTo('training.catalog.update');
+
+        // 1. Trigger TEST_ONLY assignment
+        $resp = $this->actingAs($user)->post(route('training.trainings.assign', $training), [
+            'target_type' => 'employees',
+            'assignment_type' => 'TEST_ONLY',
+            'user_ids' => [$user->id],
+            'reason' => 'Annual re-exam knowledge check',
+        ]);
+        $resp->assertRedirect();
+
+        $assignment = \App\Models\Training\TrainingAssignment::where('training_id', $training->id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $this->assertEquals('TEST_ONLY', $assignment->assignment_type);
+        $this->assertEquals('PENDING', $assignment->status);
+
+        // Verify NO training sessions were provisioned
+        $this->assertDatabaseMissing('training_session_participants', [
+            'training_assignment_id' => $assignment->id,
+        ]);
+
+        // 2. Submit passing test answers -> Should complete immediately without session attendance
+        $evaluationService = app(\App\Services\Training\TestEvaluationService::class);
+        $attempt = $evaluationService->startAttempt($test, $user, $assignment);
+        $result = $evaluationService->submitAttempt($attempt, [
+            $q1->id => $optCorrect->id,
+        ]);
+
+        $this->assertTrue($result['passed']);
+        $this->assertTrue($result['requirement_completed']);
+        $this->assertEquals('COMPLETED', $assignment->fresh()->status);
+        $this->assertNotNull($assignment->fresh()->completed_at);
+    }
+
+    public function test_training_catalog_route_permissions_enforcement(): void
+    {
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+        $dept = Department::firstOrCreate(['name' => 'HR Dept ' . uniqid()]);
+        $pos = OfficePosition::firstOrCreate(['name' => 'HR Specialist ' . uniqid()]);
+
+        $unauthorizedUser = User::create([
+            'name' => 'Unauthorized Staff',
+            'email' => 'unauth.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $authorizedUser = User::create([
+            'name' => 'Catalog Manager',
+            'email' => 'manager.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $training = Training::create([
+            'code' => 'PERM-TEST-' . uniqid(),
+            'title' => 'Permission Protected Course',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        // 1. Unauthorized user cannot access catalog index (403)
+        $this->actingAs($unauthorizedUser)->get(route('training.trainings.index'))->assertStatus(403);
+
+        // 2. Unauthorized user cannot create training (403)
+        $this->actingAs($unauthorizedUser)->post(route('training.trainings.store'), [
+            'code' => 'FORBIDDEN-01',
+            'title' => 'Forbidden Course',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80,
+            'status' => 'active',
+        ])->assertStatus(403);
+
+        // 3. Unauthorized user cannot update or delete (403)
+        $this->actingAs($unauthorizedUser)->put(route('training.trainings.update', $training), [
+            'code' => $training->code,
+            'title' => 'Hacked Title',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80,
+            'status' => 'active',
+        ])->assertStatus(403);
+
+        $this->actingAs($unauthorizedUser)->delete(route('training.trainings.destroy', $training))->assertStatus(403);
+
+        // 4. Grant individual permissions to authorizedUser and verify success
+        $authorizedUser->givePermissionTo('training.catalog.view');
+        $this->actingAs($authorizedUser)->get(route('training.trainings.index'))->assertStatus(200);
+
+        $authorizedUser->givePermissionTo('training.catalog.create');
+        $newCode = 'PERM-CREATED-' . uniqid();
+        $this->actingAs($authorizedUser)->post(route('training.trainings.store'), [
+            'code' => $newCode,
+            'title' => 'Authorized New Course',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80,
+            'status' => 'active',
+        ])->assertRedirect();
+        $this->assertDatabaseHas('trainings', ['code' => $newCode]);
+
+        $createdTraining = Training::where('code', $newCode)->firstOrFail();
+
+        $authorizedUser->givePermissionTo('training.catalog.update');
+        $this->actingAs($authorizedUser)->put(route('training.trainings.update', $createdTraining), [
+            'code' => $newCode,
+            'title' => 'Updated Authorized Course',
+            'retrain_interval' => 6,
+            'retrain_unit' => 'month',
+            'passing_score' => 85,
+            'status' => 'active',
+        ])->assertRedirect();
+        $this->assertEquals('Updated Authorized Course', $createdTraining->fresh()->title);
+
+        $authorizedUser->givePermissionTo('training.catalog.delete');
+        $this->actingAs($authorizedUser)->delete(route('training.trainings.destroy', $createdTraining))->assertRedirect();
+        $this->assertDatabaseMissing('trainings', ['id' => $createdTraining->id]);
     }
 }

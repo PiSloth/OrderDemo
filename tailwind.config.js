@@ -20,7 +20,10 @@ export default {
         "./vendor/wireui/wireui/src/View/**/*.php",
         "./node_modules/flowbite/**/*.js",
         "./resources/**/*.js",
+        "./resources/**/*.{js,jsx,ts,tsx}",
         "./resources/**/*.vue",
+        "./app/Filament/**/*.php",
+        "./vendor/filament/**/*.blade.php",
     ],
 
     theme: {

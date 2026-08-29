@@ -93,27 +93,31 @@ class TestEvaluationService
                 'result' => $result,
             ]);
 
-            // Handle 3-Tier Completion Rule:
-            // 1. Session attendance verified?
+            // Handle Completion Rule:
+            // 1. Session attendance verified (if assignment requires session)?
             // 2. Test passed?
             // 3. Training requirement completed?
+            $isTestOnly = ($assignment->assignment_type === 'TEST_ONLY');
+
             $hasAttended = false;
-            if ($attempt->training_session_id) {
-                $participant = TrainingSessionParticipant::query()
-                    ->where('training_session_id', $attempt->training_session_id)
-                    ->where('user_id', $attempt->user_id)
-                    ->first();
-                $hasAttended = ($participant && $participant->attendance_status === 'ATTENDED');
-            } else {
-                // Check any attended session for this assignment
-                $hasAttended = TrainingSessionParticipant::query()
-                    ->where('training_assignment_id', $assignment->id)
-                    ->where('user_id', $attempt->user_id)
-                    ->where('attendance_status', 'ATTENDED')
-                    ->exists();
+            if (!$isTestOnly) {
+                if ($attempt->training_session_id) {
+                    $participant = TrainingSessionParticipant::query()
+                        ->where('training_session_id', $attempt->training_session_id)
+                        ->where('user_id', $attempt->user_id)
+                        ->first();
+                    $hasAttended = ($participant && $participant->attendance_status === 'ATTENDED');
+                } else {
+                    // Check any attended session for this assignment
+                    $hasAttended = TrainingSessionParticipant::query()
+                        ->where('training_assignment_id', $assignment->id)
+                        ->where('user_id', $attempt->user_id)
+                        ->where('attendance_status', 'ATTENDED')
+                        ->exists();
+                }
             }
 
-            if ($passed && $hasAttended) {
+            if ($passed && ($isTestOnly || $hasAttended)) {
                 $assignment->update([
                     'status' => 'COMPLETED',
                     'completed_at' => now(),
@@ -124,14 +128,16 @@ class TestEvaluationService
                     'status' => 'IN_PROGRESS',
                 ]);
             } else {
-                // FAILED test -> Session failed, create next session in PENDING state
+                // FAILED test
                 $assignment->update([
                     'status' => 'IN_PROGRESS',
                 ]);
 
-                // Next action: Provision next session
-                $nextSessionNum = $attempt->attempt_number + 1;
-                $this->assignmentService->provisionSessionForAssignment($assignment, $nextSessionNum);
+                // Next action: Provision next session only if full training requires session
+                if (!$isTestOnly) {
+                    $nextSessionNum = $attempt->attempt_number + 1;
+                    $this->assignmentService->provisionSessionForAssignment($assignment, $nextSessionNum);
+                }
             }
 
             return [
@@ -140,7 +146,7 @@ class TestEvaluationService
                 'max_score' => $maxScore,
                 'percentage' => $percentage,
                 'passed' => $passed,
-                'requirement_completed' => ($passed && $hasAttended),
+                'requirement_completed' => ($passed && ($isTestOnly || $hasAttended)),
             ];
         });
     }

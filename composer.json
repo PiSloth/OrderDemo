@@ -19,6 +19,9 @@
         "livewire/volt": "^1.0",
         "meilisearch/meilisearch-php": "^1.16",
         "pusher/pusher-php-server": "^7.2",
+        "bezhansalleh/filament-shield": "^3.2",
+        "filament/filament": "^3.2",
+        "spatie/laravel-permission": "^6.0",
         "spatie/simple-excel": "^3.7",
         "tightenco/ziggy": "^2.6",
         "wireui/wireui": "^1.18"
@@ -49,7 +52,8 @@
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

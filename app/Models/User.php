@@ -6,16 +6,37 @@ use App\Models\CalendarNotification;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
+use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        if ($this->suspended) {
+            return false;
+        }
+
+        if ($panel->getId() === 'admin') {
+            try {
+                return $this->hasRole(['super_admin', 'Super Admin'])
+                    || $this->can('admin.access');
+            } catch (\Throwable $e) {
+                return $this->hasRole(['super_admin', 'Super Admin']);
+            }
+        }
+
+        return true;
+    }
 
     /**
      * The attributes that are mass assignable.

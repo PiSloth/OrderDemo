@@ -81,9 +81,19 @@ export default function MyTrainings({ assignments = [] }) {
                   {/* Top info */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-xs font-mono font-bold text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
-                        {training.code}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-mono font-bold text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                          {training.code}
+                        </span>
+                        {assignment.assignment_type === 'TEST_ONLY' && (
+                          <Chip
+                            label="TEST ONLY"
+                            size="small"
+                            color="secondary"
+                            sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }}
+                          />
+                        )}
+                      </div>
                       <Typography variant="h6" className="font-extrabold text-slate-900 dark:text-slate-100 mt-1">
                         {training.title}
                       </Typography>
@@ -105,34 +115,49 @@ export default function MyTrainings({ assignments = [] }) {
 
                   <Divider />
 
-                  {/* 3-Tier Completion Progress Checklist */}
+                  {/* Completion Progress Checklist */}
                   <div className="space-y-2">
                     <Typography variant="caption" className="font-bold text-slate-500 uppercase tracking-wider block">
                       Requirement Completion Criteria
                     </Typography>
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      {/* 1. Attendance */}
-                      <Paper
-                        elevation={0}
-                        className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-                          isAttended
-                            ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200'
-                            : 'border-slate-200 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {isAttended ? (
-                          <CheckCircleIcon color="success" fontSize="small" />
-                        ) : (
-                          <PendingIcon color="action" fontSize="small" />
-                        )}
-                        <div>
-                          <div className="font-bold">1. Attendance</div>
-                          <div className="text-[10px]">
-                            {isAttended ? 'Verified Attended' : 'Pending Session'}
+                      {/* 1. Attendance (or Waived if TEST_ONLY) */}
+                      {assignment.assignment_type === 'TEST_ONLY' ? (
+                        <Paper
+                          elevation={0}
+                          className="p-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-900 dark:text-indigo-200 flex items-center gap-2"
+                        >
+                          <CheckCircleIcon color="secondary" fontSize="small" />
+                          <div>
+                            <div className="font-bold">1. Attendance</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                              Waived (Question Test Only)
+                            </div>
                           </div>
-                        </div>
-                      </Paper>
+                        </Paper>
+                      ) : (
+                        <Paper
+                          elevation={0}
+                          className={`p-2.5 rounded-xl border flex items-center gap-2 ${
+                            isAttended
+                              ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200'
+                              : 'border-slate-200 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          {isAttended ? (
+                            <CheckCircleIcon color="success" fontSize="small" />
+                          ) : (
+                            <PendingIcon color="action" fontSize="small" />
+                          )}
+                          <div>
+                            <div className="font-bold">1. Attendance</div>
+                            <div className="text-[10px]">
+                              {isAttended ? 'Verified Attended' : 'Pending Session'}
+                            </div>
+                          </div>
+                        </Paper>
+                      )}
 
                       {/* 2. Test Pass */}
                       <Paper

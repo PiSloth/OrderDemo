@@ -81,6 +81,12 @@ class TrainingController extends Controller
             'departments' => $departments,
             'officePositions' => $officePositions,
             'allDocuments' => $allDocuments,
+            'permissions' => [
+                'can_view' => $request->user()?->can('training.catalog.view') ?? false,
+                'can_create' => ($request->user()?->can('training.catalog.create') || $request->user()?->can('training.catalog.crate')) ?? false,
+                'can_update' => $request->user()?->can('training.catalog.update') ?? false,
+                'can_delete' => $request->user()?->can('training.catalog.delete') ?? false,
+            ],
             'filters' => [
                 'search' => $search,
                 'category_id' => $categoryId,
@@ -201,19 +207,54 @@ class TrainingController extends Controller
     public function triggerAssign(Request $request, Training $training, TrainingAssignmentService $assignmentService): RedirectResponse
     {
         $validated = $request->validate([
+            'target_type' => ['nullable', 'string', 'in:scopes,departments,positions,employees'],
+            'assignment_type' => ['nullable', 'string', 'in:FULL_TRAINING,TEST_ONLY'],
+            'department_ids' => ['nullable', 'array'],
+            'department_ids.*' => ['integer', 'exists:departments,id'],
+            'office_position_ids' => ['nullable', 'array'],
+            'office_position_ids.*' => ['integer', 'exists:office_positions,id'],
+            'user_ids' => ['nullable', 'array'],
+            'user_ids.*' => ['integer', 'exists:users,id'],
+            'due_date' => ['nullable', 'date'],
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $targetType = $validated['target_type'] ?? 'scopes';
+        $assignmentType = $validated['assignment_type'] ?? 'FULL_TRAINING';
+        $dueDate = !empty($validated['due_date']) ? \Carbon\Carbon::parse($validated['due_date']) : null;
+        $typePrefix = $assignmentType === 'TEST_ONLY' ? '[Question Test Only] ' : '';
+        $reason = !empty($validated['reason']) ? $typePrefix . $validated['reason'] : match ($targetType) {
+            'departments' => $typePrefix . 'Manual assignment to selected department(s)',
+            'positions' => $typePrefix . 'Manual assignment to selected office position(s)',
+            'employees' => $typePrefix . 'Manual assignment to specific employee(s)',
+            default => $typePrefix . 'Manual assignment triggered by administrator',
+        };
 
         $trigger = TrainingTrigger::create([
             'training_id' => $training->id,
             'trigger_type' => 'MANUAL',
-            'reason' => $validated['reason'] ?? 'Manual assignment triggered by administrator',
+            'reason' => $reason,
             'status' => 'ACTIVE',
             'created_by' => $request->user()->id,
         ]);
 
-        $count = $assignmentService->assignByScope($training, $trigger);
+        $targetIds = match ($targetType) {
+            'departments' => $validated['department_ids'] ?? [],
+            'positions' => $validated['office_position_ids'] ?? [],
+            'employees' => $validated['user_ids'] ?? [],
+            default => [],
+        };
 
-        return back()->with('message', "Training assigned to {$count} employee(s) in scope.");
+        $count = $assignmentService->assignCustom(
+            training: $training,
+            trigger: $trigger,
+            targetType: $targetType,
+            targetIds: $targetIds,
+            dueDate: $dueDate,
+            assignmentType: $assignmentType
+        );
+
+        $label = $assignmentType === 'TEST_ONLY' ? 'Question test assigned' : 'Training assigned';
+        return back()->with('message', "{$label} to {$count} employee(s).");
     }
 }

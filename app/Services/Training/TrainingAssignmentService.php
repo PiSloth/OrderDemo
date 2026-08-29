@@ -17,35 +17,58 @@ use Illuminate\Support\Str;
 class TrainingAssignmentService
 {
     /**
-     * Assign training to all users matching training scopes for a given trigger.
+     * Assign training to users based on custom target criteria (scopes, departments, positions, or specific employees).
      */
-    public function assignByScope(Training $training, TrainingTrigger $trigger): int
-    {
-        return DB::transaction(function () use ($training, $trigger) {
-            $scopes = $training->scopes;
-            if ($scopes->isEmpty()) {
-                return 0;
-            }
-
-            // Find all matching users with department_id (+ office_position_id if scoped to a position)
+    public function assignCustom(
+        Training $training,
+        TrainingTrigger $trigger,
+        string $targetType = 'scopes',
+        array $targetIds = [],
+        ?Carbon $dueDate = null,
+        string $assignmentType = 'FULL_TRAINING'
+    ): int {
+        return DB::transaction(function () use ($training, $trigger, $targetType, $targetIds, $dueDate, $assignmentType) {
             $query = User::query()->where('suspended', false);
 
-            $query->where(function ($q) use ($scopes) {
-                foreach ($scopes as $scope) {
-                    $q->orWhere(function ($sub) use ($scope) {
-                        $sub->where('department_id', $scope->department_id);
-                        if (!empty($scope->office_position_id)) {
-                            $sub->where('office_position_id', $scope->office_position_id);
-                        }
-                    });
+            if ($targetType === 'departments') {
+                if (empty($targetIds)) {
+                    return 0;
                 }
-            });
+                $query->whereIn('department_id', $targetIds);
+            } elseif ($targetType === 'positions') {
+                if (empty($targetIds)) {
+                    return 0;
+                }
+                $query->whereIn('office_position_id', $targetIds);
+            } elseif ($targetType === 'employees') {
+                if (empty($targetIds)) {
+                    return 0;
+                }
+                $query->whereIn('id', $targetIds);
+            } else {
+                // 'scopes' default
+                $scopes = $training->scopes;
+                if ($scopes->isEmpty()) {
+                    return 0;
+                }
+
+                $query->where(function ($q) use ($scopes) {
+                    foreach ($scopes as $scope) {
+                        $q->orWhere(function ($sub) use ($scope) {
+                            $sub->where('department_id', $scope->department_id);
+                            if (!empty($scope->office_position_id)) {
+                                $sub->where('office_position_id', $scope->office_position_id);
+                            }
+                        });
+                    }
+                });
+            }
 
             $users = $query->get();
             $assignedCount = 0;
 
             foreach ($users as $user) {
-                $assignment = $this->createAssignmentForUser($training, $user, $trigger);
+                $assignment = $this->createAssignmentForUser($training, $user, $trigger, $dueDate, $assignmentType);
                 if ($assignment) {
                     $assignedCount++;
                 }
@@ -53,6 +76,14 @@ class TrainingAssignmentService
 
             return $assignedCount;
         });
+    }
+
+    /**
+     * Assign training to all users matching training scopes for a given trigger.
+     */
+    public function assignByScope(Training $training, TrainingTrigger $trigger): int
+    {
+        return $this->assignCustom($training, $trigger, 'scopes');
     }
 
     /**
@@ -114,8 +145,13 @@ class TrainingAssignmentService
     /**
      * Create assignment and initial pending session for user.
      */
-    public function createAssignmentForUser(Training $training, User $user, ?TrainingTrigger $trigger = null, ?Carbon $dueDate = null): ?TrainingAssignment
-    {
+    public function createAssignmentForUser(
+        Training $training,
+        User $user,
+        ?TrainingTrigger $trigger = null,
+        ?Carbon $dueDate = null,
+        string $assignmentType = 'FULL_TRAINING'
+    ): ?TrainingAssignment {
         // Calculate default due date if not provided
         if (!$dueDate) {
             $dueDate = now()->addDays(30);
@@ -136,12 +172,15 @@ class TrainingAssignmentService
             'training_id' => $training->id,
             'user_id' => $user->id,
             'training_trigger_id' => $trigger?->id,
+            'assignment_type' => $assignmentType,
             'due_date' => $dueDate,
             'status' => 'PENDING',
         ]);
 
-        // Automatically provision Session #1 in PENDING state
-        $this->provisionSessionForAssignment($assignment, 1);
+        // Automatically provision Session #1 only if FULL_TRAINING
+        if ($assignmentType === 'FULL_TRAINING') {
+            $this->provisionSessionForAssignment($assignment, 1);
+        }
 
         return $assignment;
     }

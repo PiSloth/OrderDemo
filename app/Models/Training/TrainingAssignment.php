@@ -16,6 +16,7 @@ class TrainingAssignment extends Model
         'training_id',
         'user_id',
         'training_trigger_id',
+        'assignment_type', // FULL_TRAINING, TEST_ONLY
         'due_date',
         'status', // PENDING, IN_PROGRESS, COMPLETED, OVERDUE, EXPIRED
         'completed_at',

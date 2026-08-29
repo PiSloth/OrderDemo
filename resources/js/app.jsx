@@ -1,4 +1,3 @@
-import './bootstrap';
 import '../css/app.css';
 import 'tippy.js/dist/tippy.css';
 

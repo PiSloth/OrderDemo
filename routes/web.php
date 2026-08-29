@@ -456,11 +456,25 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     Route::post('/office-positions/{officePosition}/assign-users', [\App\Http\Controllers\Training\OfficePositionController::class, 'assignUsers'])->name('office-positions.assign-users');
 
     // Training Catalog & Scopes
-    Route::get('/trainings', [\App\Http\Controllers\Training\TrainingController::class, 'index'])->name('trainings.index');
-    Route::post('/trainings', [\App\Http\Controllers\Training\TrainingController::class, 'store'])->name('trainings.store');
-    Route::put('/trainings/{training}', [\App\Http\Controllers\Training\TrainingController::class, 'update'])->name('trainings.update');
-    Route::delete('/trainings/{training}', [\App\Http\Controllers\Training\TrainingController::class, 'destroy'])->name('trainings.destroy');
-    Route::post('/trainings/{training}/assign', [\App\Http\Controllers\Training\TrainingController::class, 'triggerAssign'])->name('trainings.assign');
+    Route::get('/trainings', [\App\Http\Controllers\Training\TrainingController::class, 'index'])
+        ->middleware('can:training.catalog.view')
+        ->name('trainings.index');
+
+    Route::post('/trainings', [\App\Http\Controllers\Training\TrainingController::class, 'store'])
+        ->middleware('can:training.catalog.create')
+        ->name('trainings.store');
+
+    Route::put('/trainings/{training}', [\App\Http\Controllers\Training\TrainingController::class, 'update'])
+        ->middleware('can:training.catalog.update')
+        ->name('trainings.update');
+
+    Route::delete('/trainings/{training}', [\App\Http\Controllers\Training\TrainingController::class, 'destroy'])
+        ->middleware('can:training.catalog.delete')
+        ->name('trainings.destroy');
+
+    Route::post('/trainings/{training}/assign', [\App\Http\Controllers\Training\TrainingController::class, 'triggerAssign'])
+        ->middleware('can:training.catalog.update')
+        ->name('trainings.assign');
 
     // Sessions & Attendance
     Route::get('/sessions', [\App\Http\Controllers\Training\TrainingSessionController::class, 'index'])->name('sessions.index');
