@@ -142,4 +142,53 @@ class FilamentRbacCrudTest extends TestCase
         $response = $this->actingAs($user)->get('/admin');
         $response->assertStatus(403);
     }
+
+    public function test_role_edit_page_renders_with_other_permissions(): void
+    {
+        $customPermission = Permission::firstOrCreate(['name' => 'custom.special.perm_' . uniqid(), 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'test_role_' . uniqid(), 'guard_name' => 'web']);
+        $role->givePermissionTo($customPermission);
+
+        $response = $this->actingAs($this->superAdmin)->get("/admin/shield/roles/{$role->id}/edit");
+        $response->assertStatus(200);
+        $response->assertSee('Other Permissions');
+    }
+
+    public function test_role_edit_saves_custom_permissions_via_livewire(): void
+    {
+        $customPermission = Permission::firstOrCreate(['name' => 'custom.perm_' . uniqid(), 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'manager_role_' . uniqid(), 'guard_name' => 'web']);
+
+        \Livewire\Livewire::actingAs($this->superAdmin)
+            ->test(\App\Filament\Resources\RoleResource\Pages\EditRole::class, [
+                'record' => $role->id,
+            ])
+            ->fillForm([
+                'custom_permissions' => [$customPermission->name],
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertTrue($role->fresh()->hasPermissionTo($customPermission->name));
+    }
+
+    public function test_role_create_saves_custom_permissions_via_livewire(): void
+    {
+        $customPermission = Permission::firstOrCreate(['name' => 'custom.create_perm_' . uniqid(), 'guard_name' => 'web']);
+        $roleName = 'new_role_' . uniqid();
+
+        \Livewire\Livewire::actingAs($this->superAdmin)
+            ->test(\App\Filament\Resources\RoleResource\Pages\CreateRole::class)
+            ->fillForm([
+                'name' => $roleName,
+                'guard_name' => 'web',
+                'custom_permissions' => [$customPermission->name],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $createdRole = Role::where('name', $roleName)->first();
+        $this->assertNotNull($createdRole);
+        $this->assertTrue($createdRole->hasPermissionTo($customPermission->name));
+    }
 }
