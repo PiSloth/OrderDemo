@@ -127,15 +127,25 @@ Route::middleware(['auth'])->prefix('document')->name('document.')->group(functi
     Route::get('email-list/export', EmailListExportController::class)->name('email-list.export');
 
     Route::get('library', [DocumentLibraryController::class, 'index'])->name('library.index');
-    Route::post('library', [DocumentLibraryController::class, 'store'])->name('library.store');
+    Route::post('library', [DocumentLibraryController::class, 'store'])
+        ->name('library.store')
+        ->middleware('can:document.create');
     Route::post('library/upload-image', [CompanyDocumentImageController::class, 'store'])->name('library.upload-image');
     Route::get('library/suggestions', [DocumentLibraryController::class, 'suggestions'])->name('library.suggestions');
     Route::get('library/search-api', [DocumentLibraryController::class, 'searchApi'])->name('library.search-api');
-    Route::get('library/create', [DocumentLibraryController::class, 'create'])->name('library.create');
+    Route::get('library/create', [DocumentLibraryController::class, 'create'])
+        ->name('library.create')
+        ->middleware('can:document.create');
     Route::get('library/{document}', [DocumentLibraryController::class, 'show'])->name('library.show');
-    Route::get('library/{document}/edit', [DocumentLibraryController::class, 'edit'])->name('library.edit');
-    Route::put('library/{document}', [DocumentLibraryController::class, 'update'])->name('library.update');
-    Route::delete('library/{document}', [DocumentLibraryController::class, 'destroy'])->name('library.destroy');
+    Route::get('library/{document}/edit', [DocumentLibraryController::class, 'edit'])
+        ->name('library.edit')
+        ->middleware('can:document.update');
+    Route::put('library/{document}', [DocumentLibraryController::class, 'update'])
+        ->name('library.update')
+        ->middleware('can:document.update');
+    Route::delete('library/{document}', [DocumentLibraryController::class, 'destroy'])
+        ->name('library.destroy')
+        ->middleware('can:document.delete');
 });
 
 

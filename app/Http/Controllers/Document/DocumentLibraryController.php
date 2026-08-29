@@ -99,6 +99,16 @@ class DocumentLibraryController extends Controller
             'searchMeta' => $searchPayload['meta'],
             'filterOptions' => $filterOptions,
             'suggestions' => $suggestions,
+            'can' => [
+                'create' => (bool) $user?->can('document.create'),
+                'update' => (bool) $user?->can('document.update'),
+                'delete' => (bool) $user?->can('document.delete'),
+            ],
+            'permissions' => [
+                'can_create' => (bool) $user?->can('document.create'),
+                'can_update' => (bool) $user?->can('document.update'),
+                'can_delete' => (bool) $user?->can('document.delete'),
+            ],
             'filters' => [
                 'mode' => $mode,
                 'doc' => $docId ? (string) $docId : ($selected ? (string) $selected->id : ''),
@@ -122,6 +132,8 @@ class DocumentLibraryController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', CompanyDocument::class);
+
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
         $documentTypes = CompanyDocumentType::query()->orderBy('name')->get(['id', 'name']);
         $trainings = \App\Models\Training\Training::query()
@@ -139,6 +151,8 @@ class DocumentLibraryController extends Controller
 
     public function store(Request $request, CompanyDocumentService $service, \App\Services\Training\TrainingAssignmentService $assignmentService): RedirectResponse
     {
+        $this->authorize('create', CompanyDocument::class);
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'company_document_type_id' => ['nullable', 'integer', 'exists:company_document_types,id', 'required_without:new_document_type'],
@@ -200,6 +214,8 @@ class DocumentLibraryController extends Controller
 
     public function edit(CompanyDocument $document): Response
     {
+        $this->authorize('update', $document);
+
         $document->load([
             'department',
             'type',
@@ -227,6 +243,8 @@ class DocumentLibraryController extends Controller
 
     public function update(Request $request, CompanyDocument $document, CompanyDocumentService $service, \App\Services\Training\TrainingAssignmentService $assignmentService): RedirectResponse
     {
+        $this->authorize('update', $document);
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'company_document_type_id' => ['nullable', 'integer', 'exists:company_document_types,id', 'required_without:new_document_type'],
@@ -296,6 +314,8 @@ class DocumentLibraryController extends Controller
 
     public function destroy(CompanyDocument $document): RedirectResponse
     {
+        $this->authorize('delete', $document);
+
         $document->delete();
 
         return redirect()

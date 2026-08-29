@@ -57,7 +57,13 @@ export default function Index({
   filterOptions = { departments: [], categories: [], creators: [] },
   suggestions = [],
   filters = {},
+  can = {},
+  permissions = {},
 }) {
+  const canCreate = Boolean(can?.create ?? permissions?.can_create);
+  const canUpdate = Boolean(can?.update ?? permissions?.can_update);
+  const canDelete = Boolean(can?.delete ?? permissions?.can_delete);
+
   const [mode, setMode] = useState(filters.mode || 'department');
   const [search, setSearch] = useState(filters.q || '');
   const [department, setDepartment] = useState(filters.department || '');
@@ -410,16 +416,18 @@ export default function Index({
             Search (Ctrl+K)
           </Button>
 
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            component={Link}
-            href="/document/library/create"
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
-            New Document
-          </Button>
+          {canCreate && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              component={Link}
+              href="/document/library/create"
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+            >
+              New Document
+            </Button>
+          )}
         </Stack>
       }
     >
@@ -688,27 +696,33 @@ export default function Index({
                   </Box>
 
                   {/* Actions */}
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<EditIcon />}
-                      component={Link}
-                      href={`/document/library/${selectedDocument.id}/edit`}
-                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                    >
-                      Delete
-                    </Button>
-                  </Stack>
+                  {(canUpdate || canDelete) && (
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      {canUpdate && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          startIcon={<EditIcon />}
+                          component={Link}
+                          href={`/document/library/${selectedDocument.id}/edit`}
+                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => setDeleteConfirmOpen(true)}
+                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </Stack>
+                  )}
                 </Box>
 
                 {/* Tabs: Content vs Revision History */}
