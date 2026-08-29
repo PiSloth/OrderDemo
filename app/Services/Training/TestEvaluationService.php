@@ -53,16 +53,51 @@ class TestEvaluationService
 
             foreach ($test->questions as $question) {
                 $maxScore += (float) $question->marks;
-                $selectedOptionId = $submittedAnswers[$question->id] ?? null;
+                $rawAnswer = $submittedAnswers[$question->id] ?? null;
 
                 $isCorrect = false;
                 $marksObtained = 0.0;
+                $selectedOptionId = null;
+                $selectedOptionIds = [];
 
-                if ($selectedOptionId) {
-                    $option = $question->options->firstWhere('id', (int) $selectedOptionId);
-                    if ($option && $option->is_correct) {
+                if ($question->question_type === 'MULTI_SELECT') {
+                    if (is_array($rawAnswer)) {
+                        $selectedOptionIds = array_values(array_filter(array_map('intval', $rawAnswer)));
+                    } elseif ($rawAnswer !== null && $rawAnswer !== '') {
+                        $selectedOptionIds = [(int) $rawAnswer];
+                    }
+
+                    $selectedOptionId = !empty($selectedOptionIds) ? $selectedOptionIds[0] : null;
+
+                    $correctOptionIds = $question->options
+                        ->where('is_correct', true)
+                        ->pluck('id')
+                        ->map(fn($id) => (int) $id)
+                        ->sort()
+                        ->values()
+                        ->all();
+
+                    $userChoiceIds = collect($selectedOptionIds)->sort()->values()->all();
+
+                    // Exact match rule: user must select ALL correct answers and NO incorrect answers
+                    if (!empty($correctOptionIds) && $userChoiceIds === $correctOptionIds) {
                         $isCorrect = true;
                         $marksObtained = (float) $question->marks;
+                    }
+                } else {
+                    if (is_array($rawAnswer)) {
+                        $selectedOptionId = !empty($rawAnswer) ? (int) reset($rawAnswer) : null;
+                    } else {
+                        $selectedOptionId = $rawAnswer ? (int) $rawAnswer : null;
+                    }
+
+                    if ($selectedOptionId) {
+                        $selectedOptionIds = [$selectedOptionId];
+                        $option = $question->options->firstWhere('id', $selectedOptionId);
+                        if ($option && $option->is_correct) {
+                            $isCorrect = true;
+                            $marksObtained = (float) $question->marks;
+                        }
                     }
                 }
 
@@ -75,6 +110,7 @@ class TestEvaluationService
                     ],
                     [
                         'selected_option_id' => $selectedOptionId,
+                        'selected_option_ids' => $selectedOptionIds,
                         'is_correct' => $isCorrect,
                         'marks_obtained' => $marksObtained,
                     ]

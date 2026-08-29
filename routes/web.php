@@ -491,6 +491,10 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     Route::get('/my-trainings', [\App\Http\Controllers\Training\TrainingEmployeeController::class, 'myTrainings'])->name('employee.my-trainings');
     Route::get('/assignments/{assignment}/tests/{test}/take', [\App\Http\Controllers\Training\TrainingEmployeeController::class, 'takeTest'])->name('employee.take-test');
     Route::post('/assignments/{assignment}/tests/{test}/submit', [\App\Http\Controllers\Training\TrainingEmployeeController::class, 'submitTest'])->name('employee.submit-test');
+
+    // Printable Training Scorecard & Certificate Template
+    Route::get('/scorecard', [\App\Http\Controllers\Training\TrainingScorecardController::class, 'show'])->name('scorecard');
+    Route::get('/assignments/{assignment}/scorecard', [\App\Http\Controllers\Training\TrainingScorecardController::class, 'show'])->name('employee.scorecard');
 });
 
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');

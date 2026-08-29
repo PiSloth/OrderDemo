@@ -53,13 +53,20 @@ class TestController extends Controller
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.id' => ['nullable'],
             'questions.*.question' => ['required', 'string'],
-            'questions.*.question_type' => ['required', 'string', 'in:MULTIPLE_CHOICE,TRUE_FALSE'],
+            'questions.*.question_type' => ['required', 'string', 'in:MULTIPLE_CHOICE,TRUE_FALSE,MULTI_SELECT'],
             'questions.*.marks' => ['required', 'numeric', 'min:0.1'],
             'questions.*.options' => ['required', 'array', 'min:2'],
             'questions.*.options.*.id' => ['nullable'],
             'questions.*.options.*.answer' => ['required', 'string'],
             'questions.*.options.*.is_correct' => ['required', 'boolean'],
         ]);
+
+        foreach ($validated['questions'] as $qData) {
+            $hasCorrect = collect($qData['options'])->contains(fn($opt) => !empty($opt['is_correct']));
+            if (!$hasCorrect) {
+                return back()->withErrors(['questions' => 'Every question must have at least one marked correct answer.']);
+            }
+        }
 
         DB::transaction(function () use ($test, $validated) {
             $test->update([

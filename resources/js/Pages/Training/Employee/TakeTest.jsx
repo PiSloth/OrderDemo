@@ -9,6 +9,7 @@ import {
   Button,
   Radio,
   RadioGroup,
+  Checkbox,
   FormControlLabel,
   Divider,
   Paper,
@@ -25,7 +26,9 @@ import {
   ArrowBack as ArrowBackIcon,
   EmojiEvents as TrophyIcon,
   Replay as ReplayIcon,
-  Send as SendIcon
+  Send as SendIcon,
+  CheckBox as CheckBoxIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 
 export default function TakeTest({
@@ -54,9 +57,33 @@ export default function TakeTest({
     });
   };
 
+  const handleToggleOption = (questionId, optionId) => {
+    const current = Array.isArray(data.answers[questionId])
+      ? [...data.answers[questionId]]
+      : [];
+    const index = current.indexOf(optionId);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(optionId);
+    }
+    setData('answers', {
+      ...data.answers,
+      [questionId]: current,
+    });
+  };
+
+  const answeredCount = questions.filter((q) => {
+    const ans = data.answers[q.id];
+    if (q.question_type === 'MULTI_SELECT') {
+      return Array.isArray(ans) && ans.length > 0;
+    }
+    return ans !== undefined && ans !== null && ans !== '';
+  }).length;
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (Object.keys(data.answers).length < questions.length) {
+    if (answeredCount < questions.length) {
       if (!confirm('You have unanswered questions. Are you sure you want to submit?')) {
         return;
       }
@@ -143,55 +170,112 @@ export default function TakeTest({
                       <span className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
                         {qIndex + 1}
                       </span>
-                      <Typography variant="subtitle1" className="font-bold text-slate-900 dark:text-slate-100">
-                        {q.question}
-                      </Typography>
+                      <div>
+                        <Typography variant="subtitle1" className="font-bold text-slate-900 dark:text-slate-100">
+                          {q.question}
+                        </Typography>
+                        {q.question_type === 'MULTI_SELECT' && (
+                          <Typography variant="caption" className="text-sky-600 dark:text-sky-400 font-semibold block mt-0.5">
+                            (Multiple Choice: Select all correct answers)
+                          </Typography>
+                        )}
+                      </div>
                     </div>
 
-                    <Chip
-                      label={`${q.marks} pt${q.marks > 1 ? 's' : ''}`}
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontWeight: 600 }}
-                    />
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {q.question_type === 'MULTI_SELECT' && (
+                        <Chip
+                          label="Multi-Select"
+                          size="small"
+                          color="info"
+                          variant="outlined"
+                          sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                        />
+                      )}
+                      <Chip
+                        label={`${q.marks} pt${q.marks > 1 ? 's' : ''}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </Stack>
                   </div>
 
                   <Divider />
 
-                  <RadioGroup
-                    value={data.answers[q.id] || ''}
-                    onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
-                    className="space-y-2 pl-2"
-                  >
-                    {(q.options || []).map((opt, oIndex) => {
-                      const letter = String.fromCharCode(65 + oIndex);
-                      const isSelected = data.answers[q.id] === opt.id;
-                      return (
-                        <Paper
-                          key={opt.id}
-                          elevation={0}
-                          onClick={() => handleSelectOption(q.id, opt.id)}
-                          className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700'
-                              : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                          }`}
-                        >
-                          <FormControlLabel
-                            value={opt.id}
-                            control={<Radio size="small" color="primary" />}
-                            label={
-                              <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                <span className="font-bold mr-2 text-slate-400">{letter}.</span>
-                                {opt.answer}
-                              </span>
-                            }
-                            className="w-full m-0"
-                          />
-                        </Paper>
-                      );
-                    })}
-                  </RadioGroup>
+                  {q.question_type === 'MULTI_SELECT' ? (
+                    <div className="space-y-2 pl-2">
+                      {(q.options || []).map((opt, oIndex) => {
+                        const letter = String.fromCharCode(65 + oIndex);
+                        const isSelected = Array.isArray(data.answers[q.id]) && data.answers[q.id].includes(opt.id);
+                        return (
+                          <Paper
+                            key={opt.id}
+                            elevation={0}
+                            onClick={() => handleToggleOption(q.id, opt.id)}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700'
+                                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                          >
+                            <FormControlLabel
+                              control={
+                                <Checkbox
+                                  checked={isSelected}
+                                  onChange={() => handleToggleOption(q.id, opt.id)}
+                                  size="small"
+                                  color="primary"
+                                />
+                              }
+                              label={
+                                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                  <span className="font-bold mr-2 text-slate-400">{letter}.</span>
+                                  {opt.answer}
+                                </span>
+                              }
+                              className="w-full m-0"
+                            />
+                          </Paper>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <RadioGroup
+                      value={data.answers[q.id] || ''}
+                      onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
+                      className="space-y-2 pl-2"
+                    >
+                      {(q.options || []).map((opt, oIndex) => {
+                        const letter = String.fromCharCode(65 + oIndex);
+                        const isSelected = data.answers[q.id] === opt.id;
+                        return (
+                          <Paper
+                            key={opt.id}
+                            elevation={0}
+                            onClick={() => handleSelectOption(q.id, opt.id)}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700'
+                                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                          >
+                            <FormControlLabel
+                              value={opt.id}
+                              control={<Radio size="small" color="primary" />}
+                              label={
+                                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                  <span className="font-bold mr-2 text-slate-400">{letter}.</span>
+                                  {opt.answer}
+                                </span>
+                              }
+                              className="w-full m-0"
+                            />
+                          </Paper>
+                        );
+                      })}
+                    </RadioGroup>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -205,7 +289,7 @@ export default function TakeTest({
             {questions.length > 0 && (
               <Box className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sticky bottom-4 shadow-lg">
                 <Typography variant="body2" className="text-slate-500">
-                  Answered: <b>{Object.keys(data.answers).length}</b> of <b>{questions.length}</b> questions
+                  Answered: <b>{answeredCount}</b> of <b>{questions.length}</b> questions
                 </Typography>
 
                 <Button
@@ -267,17 +351,30 @@ export default function TakeTest({
                   </div>
                 </div>
 
-                {latestAttempt.result === 'FAILED' && (
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                   <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<ReplayIcon />}
-                    onClick={() => setActiveTab('test')}
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
+                    variant="outlined"
+                    color="inherit"
+                    component={Link}
+                    href={`/training/assignments/${assignment.id}/scorecard`}
+                    startIcon={<PrintIcon />}
+                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
                   >
-                    Retake Assessment
+                    Print Scorecard
                   </Button>
-                )}
+
+                  {latestAttempt.result === 'FAILED' && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={<ReplayIcon />}
+                      onClick={() => setActiveTab('test')}
+                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                    >
+                      Retake Assessment
+                    </Button>
+                  )}
+                </Stack>
               </div>
             </Card>
 
@@ -292,38 +389,44 @@ export default function TakeTest({
                 </Typography>
 
                 <div className="space-y-4 pt-2">
-                  {(latestAttempt.answers || []).map((ans, idx) => (
-                    <Paper
-                      key={ans.id}
-                      elevation={0}
-                      className={`p-4 rounded-xl border ${
-                        ans.is_correct
-                          ? 'border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20'
-                          : 'border-rose-200 bg-rose-50/40 dark:bg-rose-950/20'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-slate-400">Q{idx + 1}.</span>
-                          <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-200">
-                            {ans.question?.question}
-                          </Typography>
-                        </div>
-                        <Chip
-                          label={ans.is_correct ? `+${ans.marks_obtained} pts` : '0 pts (Wrong)'}
-                          size="small"
-                          color={ans.is_correct ? 'success' : 'error'}
-                          sx={{ fontWeight: 700, fontSize: '0.7rem' }}
-                        />
-                      </div>
+                  {(latestAttempt.answers || []).map((ans, idx) => {
+                    const selectedAnswers = ans.selected_options && ans.selected_options.length > 0
+                      ? ans.selected_options.map((opt) => opt.answer).join(', ')
+                      : ans.selected_option?.answer || 'No answer selected';
 
-                      <div className="mt-2 text-xs space-y-1">
-                        <div className="text-slate-700 dark:text-slate-300">
-                          Selected Answer: <b>{ans.selected_option?.answer || 'No answer selected'}</b>
+                    return (
+                      <Paper
+                        key={ans.id}
+                        elevation={0}
+                        className={`p-4 rounded-xl border ${
+                          ans.is_correct
+                            ? 'border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20'
+                            : 'border-rose-200 bg-rose-50/40 dark:bg-rose-950/20'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-slate-400">Q{idx + 1}.</span>
+                            <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-200">
+                              {ans.question?.question}
+                            </Typography>
+                          </div>
+                          <Chip
+                            label={ans.is_correct ? `+${ans.marks_obtained} pts` : '0 pts (Wrong)'}
+                            size="small"
+                            color={ans.is_correct ? 'success' : 'error'}
+                            sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                          />
                         </div>
-                      </div>
-                    </Paper>
-                  ))}
+
+                        <div className="mt-2 text-xs space-y-1">
+                          <div className="text-slate-700 dark:text-slate-300">
+                            Selected Answer{ans.selected_options?.length > 1 ? 's' : ''}: <b>{selectedAnswers}</b>
+                          </div>
+                        </div>
+                      </Paper>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

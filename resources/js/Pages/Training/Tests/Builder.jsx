@@ -15,6 +15,7 @@ import {
   IconButton,
   Radio,
   RadioGroup,
+  Checkbox,
   FormControlLabel,
   Chip,
   Alert
@@ -58,6 +59,13 @@ export default function TestBuilder({
         ? [
             { id: null, answer: 'True', is_correct: true },
             { id: null, answer: 'False', is_correct: false },
+          ]
+        : type === 'MULTI_SELECT'
+        ? [
+            { id: null, answer: 'Option A', is_correct: true },
+            { id: null, answer: 'Option B', is_correct: true },
+            { id: null, answer: 'Option C', is_correct: false },
+            { id: null, answer: 'Option D', is_correct: false },
           ]
         : [
             { id: null, answer: 'Option A', is_correct: true },
@@ -104,11 +112,26 @@ export default function TestBuilder({
         { id: null, answer: 'True', is_correct: true },
         { id: null, answer: 'False', is_correct: false },
       ];
-    } else if (updated[qIndex].options.length < 2) {
-      updated[qIndex].options = [
-        { id: null, answer: 'Option A', is_correct: true },
-        { id: null, answer: 'Option B', is_correct: false },
-      ];
+    } else {
+      if (updated[qIndex].options.length < 2) {
+        updated[qIndex].options = [
+          { id: null, answer: 'Option A', is_correct: true },
+          { id: null, answer: 'Option B', is_correct: false },
+        ];
+      }
+      if (newType === 'MULTIPLE_CHOICE') {
+        let foundFirst = false;
+        updated[qIndex].options = updated[qIndex].options.map((opt) => {
+          if (opt.is_correct && !foundFirst) {
+            foundFirst = true;
+            return opt;
+          }
+          return { ...opt, is_correct: false };
+        });
+        if (!foundFirst && updated[qIndex].options.length > 0) {
+          updated[qIndex].options[0].is_correct = true;
+        }
+      }
     }
     setData('questions', updated);
   };
@@ -119,12 +142,17 @@ export default function TestBuilder({
     setData('questions', updated);
   };
 
-  const handleCorrectOptionSelect = (qIndex, oIndex) => {
+  const handleToggleCorrectOption = (qIndex, oIndex) => {
     const updated = [...data.questions];
-    updated[qIndex].options = updated[qIndex].options.map((opt, idx) => ({
-      ...opt,
-      is_correct: idx === oIndex,
-    }));
+    const q = updated[qIndex];
+    if (q.question_type === 'MULTI_SELECT') {
+      q.options[oIndex].is_correct = !q.options[oIndex].is_correct;
+    } else {
+      q.options = q.options.map((opt, idx) => ({
+        ...opt,
+        is_correct: idx === oIndex,
+      }));
+    }
     setData('questions', updated);
   };
 
@@ -267,7 +295,7 @@ export default function TestBuilder({
                 </Typography>
               </div>
 
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
                 <Button
                   size="small"
                   variant="outlined"
@@ -276,6 +304,16 @@ export default function TestBuilder({
                   sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
                   + Multiple Choice
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="info"
+                  startIcon={<AddIcon />}
+                  onClick={() => handleAddQuestion('MULTI_SELECT')}
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  + Multi-Select
                 </Button>
                 <Button
                   size="small"
@@ -303,9 +341,21 @@ export default function TestBuilder({
                         {qIndex + 1}
                       </span>
                       <Chip
-                        label={q.question_type.replace('_', ' ')}
+                        label={
+                          q.question_type === 'MULTI_SELECT'
+                            ? 'Multi-Select (Checkboxes)'
+                            : q.question_type === 'TRUE_FALSE'
+                            ? 'True / False'
+                            : 'Multiple Choice'
+                        }
                         size="small"
-                        color={q.question_type === 'TRUE_FALSE' ? 'secondary' : 'primary'}
+                        color={
+                          q.question_type === 'MULTI_SELECT'
+                            ? 'info'
+                            : q.question_type === 'TRUE_FALSE'
+                            ? 'secondary'
+                            : 'primary'
+                        }
                         sx={{ fontWeight: 700, fontSize: '0.7rem' }}
                       />
                     </div>
@@ -326,9 +376,10 @@ export default function TestBuilder({
                         label="Type"
                         value={q.question_type}
                         onChange={(e) => handleQuestionTypeChange(qIndex, e.target.value)}
-                        sx={{ width: 140 }}
+                        sx={{ width: 170 }}
                       >
-                        <MenuItem value="MULTIPLE_CHOICE">Multiple Choice</MenuItem>
+                        <MenuItem value="MULTIPLE_CHOICE">Multiple Choice (Single)</MenuItem>
+                        <MenuItem value="MULTI_SELECT">Multi-Select (Multiple)</MenuItem>
                         <MenuItem value="TRUE_FALSE">True / False</MenuItem>
                       </TextField>
 
@@ -358,18 +409,29 @@ export default function TestBuilder({
                   {/* Options List */}
                   <div className="space-y-2">
                     <Typography variant="caption" className="font-bold text-slate-500 uppercase tracking-wider block">
-                      Options & Correct Answer (Select the radio button for the correct answer)
+                      {q.question_type === 'MULTI_SELECT'
+                        ? 'Options & Correct Answers (Check all boxes that apply as correct answers)'
+                        : 'Options & Correct Answer (Select the radio button for the correct answer)'}
                     </Typography>
 
                     <div className="space-y-2 pl-2">
                       {q.options.map((opt, oIndex) => (
                         <div key={oIndex} className="flex items-center gap-2">
-                          <Radio
-                            checked={opt.is_correct}
-                            onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
-                            color="success"
-                            size="small"
-                          />
+                          {q.question_type === 'MULTI_SELECT' ? (
+                            <Checkbox
+                              checked={opt.is_correct}
+                              onChange={() => handleToggleCorrectOption(qIndex, oIndex)}
+                              color="success"
+                              size="small"
+                            />
+                          ) : (
+                            <Radio
+                              checked={opt.is_correct}
+                              onChange={() => handleToggleCorrectOption(qIndex, oIndex)}
+                              color="success"
+                              size="small"
+                            />
+                          )}
 
                           <TextField
                             fullWidth
@@ -391,7 +453,7 @@ export default function TestBuilder({
                             />
                           )}
 
-                          {q.question_type === 'MULTIPLE_CHOICE' && q.options.length > 2 && (
+                          {(q.question_type === 'MULTIPLE_CHOICE' || q.question_type === 'MULTI_SELECT') && q.options.length > 2 && (
                             <IconButton
                               size="small"
                               color="error"
@@ -404,7 +466,7 @@ export default function TestBuilder({
                       ))}
                     </div>
 
-                    {q.question_type === 'MULTIPLE_CHOICE' && q.options.length < 6 && (
+                    {(q.question_type === 'MULTIPLE_CHOICE' || q.question_type === 'MULTI_SELECT') && q.options.length < 6 && (
                       <Button
                         size="small"
                         startIcon={<AddIcon />}

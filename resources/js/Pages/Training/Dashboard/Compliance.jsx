@@ -38,7 +38,9 @@ import {
   School as SchoolIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
   Quiz as QuizIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  EmojiEvents as TrophyIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 
 export default function Compliance({
@@ -504,6 +506,7 @@ export default function Compliance({
                     <TableCell className="font-bold text-xs">Due Date</TableCell>
                     <TableCell className="font-bold text-xs">Latest Test</TableCell>
                     <TableCell className="font-bold text-xs text-center">Status</TableCell>
+                    <TableCell className="font-bold text-xs text-center">Scorecard</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -590,13 +593,27 @@ export default function Compliance({
                         <TableCell align="center">
                           {getStatusChip(row.status)}
                         </TableCell>
+
+                        {/* Scorecard Link */}
+                        <TableCell align="center">
+                          <Tooltip title="View International Scorecard & Print Certificate">
+                            <IconButton
+                              size="small"
+                              component={Link}
+                              href={`/training/assignments/${row.id}/scorecard`}
+                              sx={{ color: 'primary.main' }}
+                            >
+                              <TrophyIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
 
                   {(matrix.data || []).length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} align="center" className="text-slate-400 py-8">
+                      <TableCell colSpan={8} align="center" className="text-slate-400 py-8">
                         No compliance records found matching your filters.
                       </TableCell>
                     </TableRow>

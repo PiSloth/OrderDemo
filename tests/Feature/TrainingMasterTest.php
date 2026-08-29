@@ -754,4 +754,244 @@ class TrainingMasterTest extends TestCase
         $this->actingAs($authorizedUser)->delete(route('training.trainings.destroy', $createdTraining))->assertRedirect();
         $this->assertDatabaseMissing('trainings', ['id' => $createdTraining->id]);
     }
+
+    public function test_multi_select_question_builder_and_evaluation(): void
+    {
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+        $dept = Department::firstOrCreate(['name' => 'IT Dept ' . uniqid()]);
+        $pos = OfficePosition::firstOrCreate(['name' => 'Developer ' . uniqid()]);
+
+        $user = User::create([
+            'name' => 'Multi Select Tester',
+            'email' => 'multiselect.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $training = Training::create([
+            'code' => 'MULTI-Q-' . uniqid(),
+            'title' => 'Security Multi-Choice SOP',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $test = Test::create([
+            'training_id' => $training->id,
+            'title' => 'Security Multi-Choice Test',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $user->givePermissionTo('training.catalog.update');
+
+        // 1. Test saving builder with MULTI_SELECT question
+        $resp = $this->actingAs($user)->put(route('training.tests.save-builder', $test), [
+            'title' => 'Updated Multi-Choice Test',
+            'description' => 'Test with multi-select questions',
+            'passing_score' => 80,
+            'attempt_limit' => 3,
+            'status' => 'active',
+            'questions' => [
+                [
+                    'id' => null,
+                    'question' => 'Which of the following are valid security protocols? (Select all that apply)',
+                    'question_type' => 'MULTI_SELECT',
+                    'marks' => 100,
+                    'options' => [
+                        ['id' => null, 'answer' => 'HTTPS', 'is_correct' => true],
+                        ['id' => null, 'answer' => 'SSH', 'is_correct' => true],
+                        ['id' => null, 'answer' => 'Telnet in Plaintext', 'is_correct' => false],
+                        ['id' => null, 'answer' => 'HTTP without TLS', 'is_correct' => false],
+                    ],
+                ],
+            ],
+        ]);
+
+        $resp->assertRedirect();
+
+        $question = TestQuestion::where('test_id', $test->id)->firstOrFail();
+        $this->assertEquals('MULTI_SELECT', $question->question_type);
+        $this->assertCount(4, $question->options);
+
+        $optHttps = $question->options()->where('answer', 'HTTPS')->firstOrFail();
+        $optSsh = $question->options()->where('answer', 'SSH')->firstOrFail();
+        $optTelnet = $question->options()->where('answer', 'Telnet in Plaintext')->firstOrFail();
+        $optHttp = $question->options()->where('answer', 'HTTP without TLS')->firstOrFail();
+
+        $this->assertTrue((bool) $optHttps->is_correct);
+        $this->assertTrue((bool) $optSsh->is_correct);
+        $this->assertFalse((bool) $optTelnet->is_correct);
+        $this->assertFalse((bool) $optHttp->is_correct);
+
+        $assignment = TrainingAssignment::create([
+            'training_id' => $training->id,
+            'user_id' => $user->id,
+            'assignment_type' => 'TEST_ONLY',
+            'status' => 'PENDING',
+        ]);
+
+        $evalService = app(TestEvaluationService::class);
+
+        // Attempt 1: Partial selection (only HTTPS selected, SSH missed) -> Must FAIL (0 marks)
+        $attempt1 = $evalService->startAttempt($test, $user, $assignment);
+        $res1 = $evalService->submitAttempt($attempt1, [
+            $question->id => [$optHttps->id],
+        ]);
+        $this->assertEquals('FAILED', $res1['attempt']->result);
+        $this->assertEquals(0.0, (float) $res1['total_score']);
+        $this->assertFalse($res1['passed']);
+
+        // Attempt 2: Over-selection (HTTPS, SSH, plus wrong Telnet) -> Must FAIL (0 marks)
+        $attempt2 = $evalService->startAttempt($test, $user, $assignment);
+        $res2 = $evalService->submitAttempt($attempt2, [
+            $question->id => [$optHttps->id, $optSsh->id, $optTelnet->id],
+        ]);
+        $this->assertEquals('FAILED', $res2['attempt']->result);
+        $this->assertEquals(0.0, (float) $res2['total_score']);
+        $this->assertFalse($res2['passed']);
+
+        // Attempt 3: Exact match (both HTTPS and SSH, no wrong options) -> Must PASS (100 marks)
+        $attempt3 = $evalService->startAttempt($test, $user, $assignment);
+        $res3 = $evalService->submitAttempt($attempt3, [
+            $question->id => [$optHttps->id, $optSsh->id],
+        ]);
+        $this->assertEquals('PASSED', $res3['attempt']->result);
+        $this->assertEquals(100.0, (float) $res3['total_score']);
+        $this->assertEquals(100.0, (float) $res3['percentage']);
+        $this->assertTrue($res3['passed']);
+        $this->assertTrue($res3['requirement_completed']);
+
+        // Verify stored answer has selected_option_ids array and selected_options accessor
+        $savedAnswer = $attempt3->fresh(['answers'])->answers->first();
+        $this->assertTrue($savedAnswer->is_correct);
+        $this->assertEquals([$optHttps->id, $optSsh->id], $savedAnswer->selected_option_ids);
+        $this->assertCount(2, $savedAnswer->selected_options);
+    }
+
+    public function test_training_scorecard_view_and_international_grading(): void
+    {
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+        $dept = Department::firstOrCreate(['name' => 'IT Dept ' . uniqid()]);
+        $pos = OfficePosition::firstOrCreate(['name' => 'Engineer ' . uniqid()]);
+
+        $employee = User::create([
+            'name' => 'Scorecard Candidate',
+            'email' => 'candidate.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $otherUser = User::create([
+            'name' => 'Other Staff',
+            'email' => 'other.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $manager = User::create([
+            'name' => 'Training Manager',
+            'email' => 'manager.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+        $manager->givePermissionTo('training.catalog.view');
+
+        $training = Training::create([
+            'code' => 'ISO-SOP-' . uniqid(),
+            'title' => 'ISO Standard Operational Procedures',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $test = Test::create([
+            'training_id' => $training->id,
+            'title' => 'ISO SOP Knowledge Check',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $q1 = TestQuestion::create([
+            'test_id' => $test->id,
+            'question' => 'Is document control mandatory under ISO 29993?',
+            'question_type' => 'TRUE_FALSE',
+            'marks' => 50,
+            'sort_order' => 1,
+        ]);
+        $optTrue = TestOption::create(['test_question_id' => $q1->id, 'answer' => 'True', 'is_correct' => true]);
+        TestOption::create(['test_question_id' => $q1->id, 'answer' => 'False', 'is_correct' => false]);
+
+        $q2 = TestQuestion::create([
+            'test_id' => $test->id,
+            'question' => 'Which protocols ensure quality assurance? (Select all that apply)',
+            'question_type' => 'MULTI_SELECT',
+            'marks' => 50,
+            'sort_order' => 2,
+        ]);
+        $optQaA = TestOption::create(['test_question_id' => $q2->id, 'answer' => 'Peer Review', 'is_correct' => true]);
+        $optQaB = TestOption::create(['test_question_id' => $q2->id, 'answer' => 'Audit Checklist', 'is_correct' => true]);
+        TestOption::create(['test_question_id' => $q2->id, 'answer' => 'Skip Testing', 'is_correct' => false]);
+
+        $assignment = TrainingAssignment::create([
+            'training_id' => $training->id,
+            'user_id' => $employee->id,
+            'assignment_type' => 'TEST_ONLY',
+            'status' => 'PENDING',
+        ]);
+
+        $evalService = app(TestEvaluationService::class);
+        $attempt = $evalService->startAttempt($test, $employee, $assignment);
+        $evalService->submitAttempt($attempt, [
+            $q1->id => $optTrue->id,
+            $q2->id => [$optQaA->id, $optQaB->id],
+        ]);
+
+        // 1. Employee can view their own scorecard
+        $response = $this->actingAs($employee)->get(route('training.employee.scorecard', $assignment));
+        $response->assertStatus(200);
+        $response->assertInertia(fn($page) => $page
+            ->component('Training/Scorecard')
+            ->has('assignment')
+            ->has('latestAttempt')
+            ->where('grading.grade', 'A+')
+            ->where('grading.grade_title', 'Distinction (Mastery)')
+            ->where('grading.percentage', 100)
+            ->where('grading.passed', true)
+            ->has('grading.verification_code')
+            ->has('grading.competency_domains')
+            ->has('grading.type_breakdown')
+        );
+
+        // 2. Unauthorized other user cannot view employee's scorecard
+        $this->actingAs($otherUser)->get(route('training.employee.scorecard', $assignment))->assertStatus(403);
+
+        // 3. Manager with training.catalog.view permission can view employee's scorecard
+        $this->actingAs($manager)->get(route('training.employee.scorecard', $assignment))->assertStatus(200);
+
+        // 4. Scorecard route without parameters resolves appropriately
+        $this->actingAs($employee)->get(route('training.scorecard'))->assertStatus(200);
+    }
 }

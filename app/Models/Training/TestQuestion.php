@@ -14,7 +14,7 @@ class TestQuestion extends Model
     protected $fillable = [
         'test_id',
         'question',
-        'question_type', // MULTIPLE_CHOICE, TRUE_FALSE
+        'question_type', // MULTIPLE_CHOICE, TRUE_FALSE, MULTI_SELECT
         'marks',
         'sort_order',
     ];

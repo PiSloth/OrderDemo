@@ -213,36 +213,53 @@ export default function MyTrainings({ assignments = [] }) {
                   </div>
                 </CardContent>
 
-                {/* Footer Action */}
-                <Box className="p-4 pt-0 border-t border-slate-100 dark:border-slate-800 mt-2 flex items-center justify-between">
-                  {isCompleted ? (
-                    <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs">
-                      <TrophyIcon fontSize="small" />
-                      Requirement Satisfied & Compliant
-                    </div>
-                  ) : (
-                    <div className="text-xs text-amber-600 font-semibold">
-                      Action Required
-                    </div>
-                  )}
+                  {/* Footer Action */}
+                  <Box className="p-4 pt-0 border-t border-slate-100 dark:border-slate-800 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    {isCompleted ? (
+                      <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs">
+                        <TrophyIcon fontSize="small" />
+                        Requirement Satisfied & Compliant
+                      </div>
+                    ) : (
+                      <div className="text-xs text-amber-600 font-semibold">
+                        Action Required
+                      </div>
+                    )}
 
-                  {test ? (
-                    <Button
-                      variant={isCompleted ? 'outlined' : 'contained'}
-                      color={isCompleted ? 'secondary' : 'primary'}
-                      component={Link}
-                      href={`/training/assignments/${assignment.id}/tests/${test.id}/take`}
-                      startIcon={<QuizIcon />}
-                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-                    >
-                      {latestAttempt ? 'Retake / Review Test' : 'Take Online Test'}
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-slate-400">No test attached</span>
-                  )}
-                </Box>
-              </Card>
-            );
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {latestAttempt && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="info"
+                          component={Link}
+                          href={`/training/assignments/${assignment.id}/scorecard`}
+                          startIcon={<TrophyIcon fontSize="small" />}
+                          sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, fontSize: '0.75rem' }}
+                        >
+                          View Scorecard
+                        </Button>
+                      )}
+
+                      {test ? (
+                        <Button
+                          variant={isCompleted ? 'outlined' : 'contained'}
+                          size="small"
+                          color={isCompleted ? 'secondary' : 'primary'}
+                          component={Link}
+                          href={`/training/assignments/${assignment.id}/tests/${test.id}/take`}
+                          startIcon={<QuizIcon fontSize="small" />}
+                          sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, fontSize: '0.75rem' }}
+                        >
+                          {latestAttempt ? 'Retake / Review' : 'Take Test'}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-slate-400">No test attached</span>
+                      )}
+                    </Stack>
+                  </Box>
+                </Card>
+              );
           })}
 
           {assignments.length === 0 && (

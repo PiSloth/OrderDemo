@@ -53,7 +53,7 @@ class TrainingEmployeeController extends Controller
             ->where('training_assignment_id', $assignment->id)
             ->where('test_id', $test->id)
             ->where('user_id', $request->user()->id)
-            ->with(['answers.selectedOption', 'answers.question'])
+            ->with(['answers.selectedOption', 'answers.question.options'])
             ->latest()
             ->get();
 
