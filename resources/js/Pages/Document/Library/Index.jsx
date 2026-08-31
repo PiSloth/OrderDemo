@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
+import axios from 'axios';
 import AsideLayout from '../../../Layouts/AsideLayout';
 import DocumentSearchModal from '../../../components/Document/DocumentSearchModal';
+import DocumentPreviewModal from '../../../components/Document/DocumentPreviewModal';
+import TrainingScopeModal from '../../../components/Training/TrainingScopeModal';
 
 import {
   Box,
@@ -27,7 +30,10 @@ import {
   Pagination,
   Tooltip,
   Collapse,
-  Drawer
+  Drawer,
+  Skeleton,
+  Snackbar,
+  Alert
 } from '@mui/material';
 
 import AddIcon from '@mui/icons-material/Add';
@@ -46,6 +52,10 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import TuneIcon from '@mui/icons-material/Tune';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ShareIcon from '@mui/icons-material/Share';
+import CheckIcon from '@mui/icons-material/Check';
+import SchoolIcon from '@mui/icons-material/School';
 
 export default function Index({
   treeByDepartment = {},
@@ -75,6 +85,18 @@ export default function Index({
   const [publishedTo, setPublishedTo] = useState(filters.publishedTo || '');
   const [sort, setSort] = useState(filters.sort || 'relevance');
 
+  // Active right-panel document state
+  const [currentDoc, setCurrentDoc] = useState(selectedDocument);
+  const [loadingDoc, setLoadingDoc] = useState(false);
+
+  // In-context Document Preview Modal (triggered by clicking document links)
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewDocId, setPreviewDocId] = useState(null);
+  const [previewDocData, setPreviewDocData] = useState(null);
+
+  // Copy link toast
+  const [copyToastOpen, setCopyToastOpen] = useState(false);
+
   const [activeTab, setActiveTab] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -83,6 +105,17 @@ export default function Index({
   const [expandedFolders, setExpandedFolders] = useState({});
   const [selectedRevision, setSelectedRevision] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // Scope Modal State for clicked Training Catalog
+  const [scopeModalOpen, setScopeModalOpen] = useState(false);
+  const [selectedTrainingForScope, setSelectedTrainingForScope] = useState(null);
+
+  // Sync selectedDocument when props change
+  useEffect(() => {
+    if (selectedDocument) {
+      setCurrentDoc(selectedDocument);
+    }
+  }, [selectedDocument]);
 
   // Global keyboard shortcut: Ctrl+K / Cmd+K to open search modal
   useEffect(() => {
@@ -99,7 +132,7 @@ export default function Index({
   const executeSearch = (overrideParams = {}) => {
     const params = {
       mode,
-      doc: filters.doc || (selectedDocument ? selectedDocument.id : ''),
+      doc: filters.doc || (currentDoc ? currentDoc.id : ''),
       q: search,
       department,
       category,
@@ -137,14 +170,72 @@ export default function Index({
     setPublishedTo('');
     setSort('relevance');
 
-    router.get('/document/library', { mode, doc: selectedDocument?.id }, {
+    router.get('/document/library', { mode, doc: currentDoc?.id }, {
       preserveState: true,
       replace: true,
     });
   };
 
-  const handleOpenDoc = (id) => {
-    executeSearch({ doc: id });
+  // Dynamically load document for the right panel without reloading tree/page
+  const handleOpenDoc = async (id) => {
+    if (!id) return;
+    if (currentDoc && String(currentDoc.id) === String(id) && !loadingDoc) {
+      return;
+    }
+
+    setLoadingDoc(true);
+    try {
+      const res = await axios.get(`/document/library/api/${id}`);
+      if (res.data?.document) {
+        setCurrentDoc(res.data.document);
+        setActiveTab(0);
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('doc', id);
+        window.history.pushState({ docId: id }, '', currentUrl.toString());
+      }
+    } catch (err) {
+      console.error('Failed to load document dynamically, falling back to Inertia visit:', err);
+      executeSearch({ doc: id });
+    } finally {
+      setLoadingDoc(false);
+    }
+  };
+
+  const handleCopyCurrentDocLink = () => {
+    if (!currentDoc) return;
+    const url = `${window.location.origin}/document/library?doc=${currentDoc.id}`;
+    navigator.clipboard.writeText(url);
+    setCopyToastOpen(true);
+  };
+
+  const handleOpenTrainingScope = (training) => {
+    if (!training) return;
+    setSelectedTrainingForScope(training);
+    setScopeModalOpen(true);
+  };
+
+  // Intercept document links clicked inside document body/sheet to open in modal view
+  const handleDocumentContentClick = (e) => {
+    const link = e.target.closest('a');
+    if (!link) return;
+    const href = link.getAttribute('href') || '';
+    const docIdAttr = link.getAttribute('data-document-id');
+
+    let targetDocId = docIdAttr;
+    if (!targetDocId && href) {
+      const match = href.match(/\/document\/library(?:\?doc=|[\/?])(\d+)/i);
+      if (match) {
+        targetDocId = match[1];
+      }
+    }
+
+    if (targetDocId) {
+      e.preventDefault();
+      e.stopPropagation();
+      setPreviewDocId(targetDocId);
+      setPreviewDocData(null);
+      setPreviewModalOpen(true);
+    }
   };
 
   const handlePageChange = (event, page) => {
@@ -152,10 +243,11 @@ export default function Index({
   };
 
   const handleDelete = () => {
-    if (!selectedDocument) return;
-    router.delete(`/document/library/${selectedDocument.id}`, {
+    if (!currentDoc) return;
+    router.delete(`/document/library/${currentDoc.id}`, {
       onSuccess: () => {
         setDeleteConfirmOpen(false);
+        setCurrentDoc(null);
       },
     });
   };
@@ -336,7 +428,7 @@ export default function Index({
                           <Collapse in={isSubOpen}>
                             <Box className="pl-4 py-0.5 space-y-0.5">
                               {(docs || []).map((docItem) => {
-                                const isSelected = String(selectedDocument?.id) === String(docItem.id);
+                                const isSelected = String(currentDoc?.id) === String(docItem.id);
                                 return (
                                   <button
                                     key={docItem.id}
@@ -462,7 +554,7 @@ export default function Index({
             <div className="flex items-center gap-2 truncate">
               <FolderIcon fontSize="small" className="text-indigo-600 dark:text-indigo-400" />
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
-                {selectedDocument ? selectedDocument.title : 'Document Explorer'}
+                {currentDoc ? currentDoc.title : 'Document Explorer'}
               </span>
             </div>
             <Button
@@ -653,81 +745,156 @@ export default function Index({
             </Collapse>
           </Box>
 
-          {/* Selected Document Viewer */}
-          {selectedDocument ? (
+          {/* Right Panel: Selected Document Viewer / Skeleton Loading */}
+          {loadingDoc ? (
+            <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl p-6 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+              <Box className="space-y-2">
+                <Skeleton variant="text" width="60%" height={36} />
+                <Box className="flex items-center gap-2">
+                  <Skeleton variant="rounded" width={90} height={24} sx={{ borderRadius: 2 }} />
+                  <Skeleton variant="rounded" width={80} height={24} sx={{ borderRadius: 2 }} />
+                  <Skeleton variant="text" width={140} height={24} />
+                </Box>
+              </Box>
+              <Divider />
+              <Box className="space-y-3 pt-2">
+                <Skeleton variant="text" width="100%" height={22} />
+                <Skeleton variant="text" width="94%" height={22} />
+                <Skeleton variant="text" width="85%" height={22} />
+                <Skeleton variant="rectangular" width="100%" height={160} sx={{ borderRadius: 3 }} />
+                <Skeleton variant="text" width="98%" height={22} />
+                <Skeleton variant="text" width="70%" height={22} />
+              </Box>
+            </Card>
+          ) : currentDoc ? (
             <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden bg-white dark:bg-slate-900">
               {/* Document Header */}
               <Box className="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
                 <Box className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <Box className="space-y-1">
                     <Typography variant="h5" className="font-extrabold text-slate-900 dark:text-slate-50">
-                      {selectedDocument.title}
+                      {currentDoc.title}
                     </Typography>
                     <Box className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
                       <Chip
-                        label={selectedDocument.department?.name || 'No Dept'}
+                        label={currentDoc.department?.name || 'No Dept'}
                         size="small"
                         variant="outlined"
                         className="font-medium"
                       />
                       <Chip
-                        label={selectedDocument.type?.name || 'General'}
+                        label={currentDoc.type?.name || 'General'}
                         size="small"
                         color="primary"
                         variant="outlined"
                         className="font-medium"
                       />
-                      {selectedDocument.announced_at && (
+                      {currentDoc.announced_at && (
                         <Chip
                           icon={<CampaignIcon fontSize="small" />}
-                          label={`Announced: ${selectedDocument.announced_at}`}
+                          label={`Announced: ${currentDoc.announced_at}`}
                           size="small"
                           color="warning"
                         />
                       )}
-                      <span>By <b>{selectedDocument.author?.name || 'Unknown'}</b></span>
-                      {selectedDocument.last_editor && (
-                        <span>(Last edited by <b>{selectedDocument.last_editor?.name}</b>)</span>
+                      <span>By <b>{currentDoc.author?.name || 'Unknown'}</b></span>
+                      {currentDoc.last_editor && (
+                        <span>(Last edited by <b>{currentDoc.last_editor?.name}</b>)</span>
                       )}
                     </Box>
                   </Box>
 
-                  {/* Actions */}
-                  {(canUpdate || canDelete) && (
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      {canUpdate && (
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          startIcon={<EditIcon />}
-                          component={Link}
-                          href={`/document/library/${selectedDocument.id}/edit`}
-                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          startIcon={<DeleteIcon />}
-                          onClick={() => setDeleteConfirmOpen(true)}
-                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                        >
-                          Delete
-                        </Button>
-                      )}
-                    </Stack>
-                  )}
+                  {/* Header Actions: Copy Link, Edit, Delete */}
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Tooltip title="Copy direct link to this document">
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<ContentCopyIcon fontSize="small" />}
+                        onClick={handleCopyCurrentDocLink}
+                        sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600, px: 1.5 }}
+                      >
+                        Copy Link
+                      </Button>
+                    </Tooltip>
+
+                    {canUpdate && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        startIcon={<EditIcon />}
+                        component={Link}
+                        href={`/document/library/${currentDoc.id}/edit`}
+                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 2 }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+
+                    {canDelete && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<DeleteIcon />}
+                        onClick={() => setDeleteConfirmOpen(true)}
+                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </Stack>
                 </Box>
+
+                {/* Related Training Catalogs Section */}
+                {currentDoc.trainings && currentDoc.trainings.length > 0 && (
+                  <Box className="mt-4 p-3 rounded-xl border border-sky-200 dark:border-sky-800/80 bg-gradient-to-r from-sky-50/90 via-sky-50/50 to-indigo-50/40 dark:from-sky-950/40 dark:via-slate-900/60 dark:to-indigo-950/30">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <SchoolIcon fontSize="small" className="text-sky-600 dark:text-sky-400" />
+                        <Typography variant="caption" className="font-bold text-sky-900 dark:text-sky-200 uppercase tracking-wider text-[11px]">
+                          Related Training Catalog ({currentDoc.trainings.length})
+                        </Typography>
+                      </div>
+                      <Typography variant="caption" className="text-slate-500 dark:text-slate-400 text-[11px]">
+                        Click catalog to view target scopes & audience
+                      </Typography>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {currentDoc.trainings.map((t) => (
+                        <Tooltip key={t.id} title={`Click to view target audience scopes for ${t.title}`}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTrainingScope(t)}
+                            className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 hover:border-sky-500 dark:hover:border-sky-400 hover:bg-sky-50 dark:hover:bg-slate-700/80 shadow-xs hover:shadow transition-all text-xs font-semibold cursor-pointer"
+                          >
+                            <span className="font-mono text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-100/80 dark:bg-sky-950 px-1.5 py-0.5 rounded">
+                              {t.code}
+                            </span>
+                            <span className="font-medium truncate max-w-xs">{t.title}</span>
+                            {t.category?.name && (
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
+                                {t.category.name}
+                              </span>
+                            )}
+                            <span className="inline-flex items-center text-[11px] text-sky-600 dark:text-sky-400 font-bold group-hover:underline pl-0.5">
+                              Scopes ({t.scopes?.length || 0}) →
+                            </span>
+                          </button>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </Box>
+                )}
 
                 {/* Tabs: Content vs Revision History */}
                 <Box className="mt-4 border-t border-slate-200 dark:border-slate-800 pt-2">
                   <Tabs value={activeTab} onChange={(e, val) => setActiveTab(val)}>
                     <Tab label="Document Content" icon={<ArticleIcon fontSize="small" />} iconPosition="start" sx={{ textTransform: 'none', fontWeight: 600 }} />
                     <Tab
-                      label={`Revision History (${selectedDocument.revisions?.length || 0})`}
+                      label={`Revision History (${currentDoc.revisions?.length || 0})`}
                       icon={<HistoryIcon fontSize="small" />}
                       iconPosition="start"
                       sx={{ textTransform: 'none', fontWeight: 600 }}
@@ -736,12 +903,13 @@ export default function Index({
                 </Box>
               </Box>
 
-              {/* Tab 0: Document Content Body */}
+              {/* Tab 0: Document Content Body with Link Interceptor */}
               {activeTab === 0 && (
                 <CardContent className="p-8">
                   <Box
+                    onClick={handleDocumentContentClick}
                     className="prose prose-slate dark:prose-invert max-w-none leading-relaxed text-slate-800 dark:text-slate-200"
-                    dangerouslySetInnerHTML={{ __html: selectedDocument.body || '<p class="text-slate-400">Empty document content.</p>' }}
+                    dangerouslySetInnerHTML={{ __html: currentDoc.body || '<p class="text-slate-400">Empty document content.</p>' }}
                   />
                 </CardContent>
               )}
@@ -749,12 +917,12 @@ export default function Index({
               {/* Tab 1: Revision History */}
               {activeTab === 1 && (
                 <CardContent className="p-6 space-y-3">
-                  {selectedDocument.revisions?.length === 0 ? (
+                  {currentDoc.revisions?.length === 0 ? (
                     <Typography variant="body2" className="text-slate-400 py-4 text-center">
                       No revisions recorded yet.
                     </Typography>
                   ) : (
-                    selectedDocument.revisions?.map((rev) => (
+                    currentDoc.revisions?.map((rev) => (
                       <Paper
                         key={rev.id}
                         elevation={0}
@@ -822,6 +990,25 @@ export default function Index({
         initialQuery={search}
       />
 
+      {/* Document Link Modal View (In-context preview for document links) */}
+      <DocumentPreviewModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        documentId={previewDocId}
+        documentData={previewDocData}
+        onOpenInViewer={(doc) => handleOpenDoc(doc.id)}
+      />
+
+      {/* Related Training Scope Details Modal */}
+      <TrainingScopeModal
+        open={scopeModalOpen}
+        onClose={() => {
+          setScopeModalOpen(false);
+          setSelectedTrainingForScope(null);
+        }}
+        training={selectedTrainingForScope}
+      />
+
       {/* Revision Snapshot Modal */}
       <Dialog
         open={Boolean(selectedRevision)}
@@ -854,7 +1041,7 @@ export default function Index({
         <DialogTitle>Delete Document?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" className="text-slate-600 dark:text-slate-300">
-            Are you sure you want to delete <b>{selectedDocument?.title}</b>? This action will remove the document from active listings.
+            Are you sure you want to delete <b>{currentDoc?.title}</b>? This action will remove the document from active listings.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -864,6 +1051,23 @@ export default function Index({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Copy Link Toast Notification */}
+      <Snackbar
+        open={copyToastOpen}
+        autoHideDuration={3000}
+        onClose={() => setCopyToastOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setCopyToastOpen(false)}
+          severity="success"
+          variant="filled"
+          sx={{ width: '100%', borderRadius: 2 }}
+        >
+          Document link copied to clipboard!
+        </Alert>
+      </Snackbar>
     </AsideLayout>
   );
 }

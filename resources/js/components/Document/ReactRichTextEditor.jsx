@@ -33,7 +33,13 @@ import {
   Stack,
   Tabs,
   Tab,
-  Alert
+  Alert,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Chip
 } from '@mui/material';
 
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
@@ -58,6 +64,9 @@ import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
 import FormatColorTextIcon from '@mui/icons-material/FormatColorText';
 import ViewHeadlineIcon from '@mui/icons-material/ViewHeadline';
+import ArticleIcon from '@mui/icons-material/Article';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 
 const COLOR_PALETTE = [
   '#000000', '#475569', '#64748b', '#dc2626', '#ea580c', '#d97706',
@@ -82,6 +91,11 @@ export default function ReactRichTextEditor({
 
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+
+  const [docLinkDialogOpen, setDocLinkDialogOpen] = useState(false);
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+  const [docSearchResults, setDocSearchResults] = useState([]);
+  const [isSearchingDocs, setIsSearchingDocs] = useState(false);
   
   // Menus
   const [tableAnchorEl, setTableAnchorEl] = useState(null);
@@ -285,6 +299,41 @@ export default function ReactRichTextEditor({
     const previousUrl = editor.getAttributes('link').href || '';
     setLinkUrl(previousUrl);
     setLinkDialogOpen(true);
+  };
+
+  const searchLibraryDocs = useCallback(async (query) => {
+    setIsSearchingDocs(true);
+    try {
+      const res = await axios.get('/document/library/search-api', {
+        params: { q: query || '' },
+      });
+      setDocSearchResults(res.data?.results || []);
+    } catch (err) {
+      console.error('Failed to search library documents:', err);
+    } finally {
+      setIsSearchingDocs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (docLinkDialogOpen) {
+      searchLibraryDocs(docSearchQuery);
+    }
+  }, [docLinkDialogOpen, docSearchQuery, searchLibraryDocs]);
+
+  const handleInsertDocumentLink = (docItem) => {
+    if (!docItem || !editor) return;
+    const docUrl = `/document/library?doc=${docItem.id}`;
+    const { from, to } = editor.state.selection;
+    const hasSelection = from !== to;
+
+    if (hasSelection) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: docUrl }).run();
+    } else {
+      editor.chain().focus().insertContent(` <a href="${docUrl}" data-document-id="${docItem.id}" class="text-indigo-600 dark:text-indigo-400 underline font-medium">📄 ${docItem.title}</a> `).run();
+    }
+    setDocLinkDialogOpen(false);
+    setDocSearchQuery('');
   };
 
   const getCurrentHeadingLabel = () => {
@@ -635,6 +684,21 @@ export default function ReactRichTextEditor({
             </Tooltip>
           )}
 
+          {/* Document Link (Internal Document Library Picker) */}
+          <Tooltip title="Link to Library Document">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setDocSearchQuery('');
+                setDocLinkDialogOpen(true);
+              }}
+              color="default"
+              sx={{ p: 0.7 }}
+            >
+              <ArticleIcon fontSize="small" className="text-indigo-600 dark:text-indigo-400" />
+            </IconButton>
+          </Tooltip>
+
           {/* Image Upload / Insert Button */}
           <Tooltip title="Insert Image (Upload / Storage / URL)">
             <span>
@@ -970,6 +1034,103 @@ export default function ReactRichTextEditor({
         <DialogActions>
           <Button onClick={() => setLinkDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleSetLink}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Document Link Picker Dialog */}
+      <Dialog
+        open={docLinkDialogOpen}
+        onClose={() => setDocLinkDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle className="font-bold flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ArticleIcon className="text-indigo-600 dark:text-indigo-400" />
+            <span>Insert Link to Company Document</span>
+          </div>
+          <IconButton size="small" onClick={() => setDocLinkDialogOpen(false)}>
+            <ClearIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers className="space-y-3">
+          <Typography variant="caption" className="text-slate-500 block">
+            Search documents by title or keywords. Clicking a document will insert an interactive reference link.
+          </Typography>
+
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            placeholder="Search documents, policies, SOPs..."
+            value={docSearchQuery}
+            onChange={(e) => setDocSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" className="text-slate-400" />
+                </InputAdornment>
+              ),
+              endAdornment: docSearchQuery ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setDocSearchQuery('')}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
+
+          <Box className="max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+            {isSearchingDocs ? (
+              <Box className="py-8 flex flex-col items-center justify-center gap-2 text-slate-500">
+                <CircularProgress size={24} />
+                <Typography variant="caption">Searching library...</Typography>
+              </Box>
+            ) : docSearchResults.length === 0 ? (
+              <Box className="py-8 text-center text-slate-400 text-xs">
+                No matching documents found.
+              </Box>
+            ) : (
+              <List disablePadding>
+                {docSearchResults.map((item) => (
+                  <ListItem key={item.id} disablePadding divider>
+                    <ListItemButton
+                      onClick={() => handleInsertDocumentLink(item)}
+                      sx={{ py: 1.5, px: 2 }}
+                    >
+                      <ListItemText
+                        primary={
+                          <div className="flex items-center gap-2">
+                            <ArticleIcon fontSize="small" className="text-indigo-600 dark:text-indigo-400" />
+                            <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">
+                              {item.title}
+                            </span>
+                          </div>
+                        }
+                        secondary={
+                          <div className="flex items-center gap-2 mt-1">
+                            {item.department && (
+                              <Chip label={item.department.name || item.department} size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
+                            )}
+                            {item.type && (
+                              <Chip label={item.type.name || item.type} size="small" color="primary" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
+                            )}
+                            {item.author && (
+                              <span className="text-[11px] text-slate-400">By {item.author.name || item.author}</span>
+                            )}
+                          </div>
+                        }
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDocLinkDialogOpen(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>
     </Box>

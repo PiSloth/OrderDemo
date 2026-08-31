@@ -21,6 +21,9 @@ class Show extends Component
             'revisions.editor',
             'revisions.type',
             'revisions.department',
+            'trainings.category',
+            'trainings.scopes.department',
+            'trainings.scopes.officePosition',
         ]);
     }
 

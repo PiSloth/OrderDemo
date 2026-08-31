@@ -133,6 +133,7 @@ Route::middleware(['auth'])->prefix('document')->name('document.')->group(functi
     Route::post('library/upload-image', [CompanyDocumentImageController::class, 'store'])->name('library.upload-image');
     Route::get('library/suggestions', [DocumentLibraryController::class, 'suggestions'])->name('library.suggestions');
     Route::get('library/search-api', [DocumentLibraryController::class, 'searchApi'])->name('library.search-api');
+    Route::get('library/api/{document}', [DocumentLibraryController::class, 'showApi'])->name('library.show-api');
     Route::get('library/create', [DocumentLibraryController::class, 'create'])
         ->name('library.create')
         ->middleware('can:document.create');

@@ -206,6 +206,9 @@ class Browser extends Component
                     'revisions.editor',
                     'revisions.department',
                     'revisions.type',
+                    'trainings.category',
+                    'trainings.scopes.department',
+                    'trainings.scopes.officePosition',
                 ])
                 ->find((int) $this->doc);
         }

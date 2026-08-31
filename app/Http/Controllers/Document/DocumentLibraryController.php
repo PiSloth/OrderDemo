@@ -58,6 +58,11 @@ class DocumentLibraryController extends Controller
                     'author',
                     'lastEditor',
                     'revisions' => fn($q) => $q->with(['editor:id,name', 'department:id,name', 'type:id,name'])->orderByDesc('version'),
+                    'trainings' => fn($q) => $q->with([
+                        'category:id,name',
+                        'scopes.department:id,name',
+                        'scopes.officePosition:id,name',
+                    ]),
                 ])
                 ->find((int) $docId);
         }
@@ -357,6 +362,31 @@ class DocumentLibraryController extends Controller
         return response()->json([
             'results' => $searchPayload['results'],
             'meta' => $searchPayload['meta'],
+        ]);
+    }
+
+    public function showApi(CompanyDocument $document, Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$user->can('view', $document)) {
+            abort(403, 'Unauthorized access to document.');
+        }
+
+        $document->load([
+            'department:id,name',
+            'type:id,name',
+            'author:id,name',
+            'lastEditor:id,name',
+            'revisions' => fn($q) => $q->with(['editor:id,name', 'department:id,name', 'type:id,name'])->orderByDesc('version'),
+            'trainings' => fn($q) => $q->with([
+                'category:id,name',
+                'scopes.department:id,name',
+                'scopes.officePosition:id,name',
+            ]),
+        ]);
+
+        return response()->json([
+            'document' => $document,
         ]);
     }
 
