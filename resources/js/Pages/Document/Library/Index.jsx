@@ -206,7 +206,7 @@ export default function Index({
   const hasActiveFilters = search || department || category || creator || announcementOnly || version || publishedFrom || publishedTo || sort !== 'relevance';
 
   const renderExplorerTreeContent = (isMobile = false) => (
-    <Box className="flex flex-col h-full">
+    <Box className="flex flex-col h-full min-h-0">
       {/* Header & Mode Switcher */}
       <Box className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 flex-shrink-0">
         <Box className="flex items-center justify-between gap-2 mb-3">
@@ -273,7 +273,7 @@ export default function Index({
       </Box>
 
       {/* Tree Hierarchical List */}
-      <Box className="document-tree-scroll p-3 overflow-y-auto flex-1 space-y-1">
+      <Box className="document-tree-scroll p-3 overflow-y-auto flex-1 min-h-0 space-y-1">
         {Object.keys(filteredTree).length === 0 ? (
           <Box className="py-8 text-center text-sm text-slate-400">
             No documents found in explorer.
@@ -449,8 +449,8 @@ export default function Index({
 
       <Box className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Side: Tree Navigation Panel (Sticky on Desktop) */}
-        <Box className="hidden lg:flex lg:col-span-4 flex-col gap-4 lg:sticky lg:top-20 self-start max-h-[calc(100vh-6rem)]">
-          <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-6rem)]">
+        <Box className="hidden lg:flex lg:col-span-4 flex-col gap-4 lg:sticky lg:top-20 self-start max-h-[calc(100vh-6rem)] min-h-0">
+          <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-6rem)] h-[calc(100vh-6rem)] min-h-0">
             {renderExplorerTreeContent(false)}
           </Card>
         </Box>
