@@ -240,6 +240,8 @@ class TrainingMasterTest extends TestCase
             'department_id' => $dept->id,
             'office_position_id' => $pos->id,
         ]);
+        \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'document.update']);
+        $user->givePermissionTo('document.update');
 
         $type = \App\Models\CompanyDocumentType::firstOrCreate(['name' => 'Standard SOP']);
         $doc = \App\Models\CompanyDocument::create([

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import AsideLayout from '../../../Layouts/AsideLayout';
 import ReactRichTextEditor from '../../../components/Document/ReactRichTextEditor';
+import { useDocumentDraft } from '../../../Hooks/useDocumentDraft';
 
 import {
   Box,
@@ -40,6 +41,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import CloudDoneIcon from '@mui/icons-material/CloudDone';
+import RestoreIcon from '@mui/icons-material/Restore';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 export default function Create({ departments = [], documentTypes = [], trainings = [] }) {
   const [createNewType, setCreateNewType] = useState(false);
@@ -47,7 +51,7 @@ export default function Create({ departments = [], documentTypes = [], trainings
   const [trainingSearchQuery, setTrainingSearchQuery] = useState('');
   const [trainingCategoryFilter, setTrainingCategoryFilter] = useState('');
 
-  const { data, setData, post, processing, errors } = useForm({
+  const initialFormData = useMemo(() => ({
     title: '',
     company_document_type_id: '',
     new_document_type: '',
@@ -57,11 +61,33 @@ export default function Create({ departments = [], documentTypes = [], trainings
     training_ids: [],
     training_required: false,
     training_reason: '',
+  }), []);
+
+  const { data, setData, post, processing, errors } = useForm(initialFormData);
+
+  // Auto-save & draft recovery via localStorage
+  const {
+    draftDetected,
+    draftSavedAt,
+    lastSavedTime,
+    restoreDraft,
+    discardDraft,
+    clearDraft,
+  } = useDocumentDraft({
+    storageKey: 'stt_doc_draft_new',
+    data,
+    setData,
+    initialData: initialFormData,
+    isEdit: false,
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    post('/document/library');
+    post('/document/library', {
+      onSuccess: () => {
+        clearDraft();
+      },
+    });
   };
 
   const toggleTrainingSelection = (trainingId) => {
@@ -132,9 +158,49 @@ export default function Create({ departments = [], documentTypes = [], trainings
           </Alert>
         )}
 
+        {/* Unsaved Draft Recovery Alert */}
+        {draftDetected && (
+          <Alert
+            severity="info"
+            icon={<RestoreIcon />}
+            className="rounded-2xl border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40"
+            action={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  onClick={restoreDraft}
+                  startIcon={<RestoreIcon fontSize="small" />}
+                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  Restore Draft
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  onClick={discardDraft}
+                  startIcon={<DeleteIcon fontSize="small" />}
+                  sx={{ textTransform: 'none', borderRadius: 2 }}
+                >
+                  Discard
+                </Button>
+              </Stack>
+            }
+          >
+            <Typography variant="subtitle2" className="font-bold text-sky-900 dark:text-sky-200">
+              Unsaved draft detected in browser storage
+            </Typography>
+            <Typography variant="body2" className="text-xs text-sky-800 dark:text-sky-300 mt-0.5">
+              We recovered an unsaved draft from {draftSavedAt ? new Date(draftSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'a previous session'}. Click "Restore Draft" to continue where you left off.
+            </Typography>
+          </Alert>
+        )}
+
         {/* Main Form */}
-        <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900">
-          <CardContent className="p-6">
+        <Card elevation={0} sx={{ overflow: 'visible' }} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900">
+          <CardContent sx={{ overflow: 'visible' }} className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Title */}
@@ -334,9 +400,18 @@ export default function Create({ departments = [], documentTypes = [], trainings
 
               {/* Rich Text Editor */}
               <div className="space-y-2">
-                <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-200">
-                  Document Content <span className="text-red-500">*</span>
-                </Typography>
+                <div className="flex items-center justify-between">
+                  <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-200">
+                    Document Content <span className="text-red-500">*</span>
+                  </Typography>
+
+                  {lastSavedTime && (
+                    <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                      <CloudDoneIcon sx={{ fontSize: 13 }} />
+                      <span>Draft saved locally at {lastSavedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  )}
+                </div>
                 <ReactRichTextEditor
                   value={data.body}
                   onChange={(html) => setData('body', html)}

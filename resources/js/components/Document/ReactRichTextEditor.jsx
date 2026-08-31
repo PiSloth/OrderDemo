@@ -345,7 +345,10 @@ export default function ReactRichTextEditor({
   };
 
   return (
-    <Box className="w-full border rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm flex flex-col relative">
+    <Box
+      sx={{ overflow: 'visible' }}
+      className="w-full border rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm flex flex-col relative"
+    >
       {/* Hidden Global File Input */}
       <input
         type="file"
@@ -361,18 +364,20 @@ export default function ReactRichTextEditor({
           sx={{
             position: 'sticky',
             top: { xs: 56, sm: 64 },
-            zIndex: 20,
-            bgcolor: 'rgba(248, 250, 252, 0.97)',
+            zIndex: 25,
+            bgcolor: 'rgba(255, 255, 255, 0.98)',
             backdropFilter: 'blur(12px)',
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            boxShadow: '0 4px 12px -2px rgba(0,0,0,0.06)',
+            borderTopLeftRadius: '1rem',
+            borderTopRightRadius: '1rem',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 4px 14px -2px rgba(0,0,0,0.08)',
             '.dark &': {
-              bgcolor: 'rgba(30, 41, 59, 0.97)',
+              bgcolor: 'rgba(15, 23, 42, 0.98)',
               borderColor: 'rgba(255,255,255,0.08)',
             },
           }}
-          className="flex flex-wrap items-center gap-1 p-2 border-b border-slate-200 dark:border-slate-800 transition-all"
+          className="flex flex-wrap items-center gap-1 p-2 transition-all"
         >
           {/* History */}
           <Tooltip title="Undo (Ctrl+Z)">

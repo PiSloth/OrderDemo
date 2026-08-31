@@ -28,6 +28,22 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import SchoolIcon from '@mui/icons-material/School';
 import TrainingScopeModal from '../Training/TrainingScopeModal';
+import DocumentImageModal from './DocumentImageModal';
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+};
 
 export default function DocumentPreviewModal({
   open = false,
@@ -44,6 +60,8 @@ export default function DocumentPreviewModal({
   const [copied, setCopied] = useState(false);
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [selectedTrainingForScope, setSelectedTrainingForScope] = useState(null);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [previewImageData, setPreviewImageData] = useState({ src: '', alt: '', title: '' });
 
   useEffect(() => {
     if (!open) {
@@ -53,6 +71,7 @@ export default function DocumentPreviewModal({
       setActiveTab(0);
       setScopeModalOpen(false);
       setSelectedTrainingForScope(null);
+      setImageModalOpen(false);
       return;
     }
 
@@ -100,6 +119,41 @@ export default function DocumentPreviewModal({
     }
     if (onClose) {
       onClose();
+    }
+  };
+
+  const handleDocumentContentClick = (e) => {
+    const img = e.target.closest('img');
+    if (img) {
+      e.preventDefault();
+      e.stopPropagation();
+      const src = img.getAttribute('src');
+      const alt = img.getAttribute('alt') || '';
+      const title = img.getAttribute('title') || alt || '';
+      if (src) {
+        setPreviewImageData({ src, alt, title });
+        setImageModalOpen(true);
+      }
+      return;
+    }
+
+    const link = e.target.closest('a');
+    if (!link) return;
+    const href = link.getAttribute('href') || '';
+    const docIdAttr = link.getAttribute('data-document-id');
+
+    let targetDocId = docIdAttr;
+    if (!targetDocId && href) {
+      const match = href.match(/\/document\/library(?:\?doc=|[\/?])(\d+)/i);
+      if (match) {
+        targetDocId = match[1];
+      }
+    }
+
+    if (targetDocId && String(targetDocId) !== String(doc?.id)) {
+      e.preventDefault();
+      e.stopPropagation();
+      fetchDocument(targetDocId);
     }
   };
 
@@ -184,7 +238,7 @@ export default function DocumentPreviewModal({
             {doc.announced_at && (
               <Chip
                 icon={<CampaignIcon fontSize="small" />}
-                label={`Announced: ${doc.announced_at}`}
+                label={`Announced: ${formatDate(doc.announced_at)}`}
                 size="small"
                 color="warning"
                 sx={{ fontWeight: 600, fontSize: '0.7rem' }}
@@ -272,7 +326,8 @@ export default function DocumentPreviewModal({
           <>
             {activeTab === 0 && (
               <Box
-                className="prose prose-slate dark:prose-invert max-w-none leading-relaxed text-slate-800 dark:text-slate-200"
+                onClick={handleDocumentContentClick}
+                className="prose prose-slate dark:prose-invert max-w-none leading-relaxed text-slate-800 dark:text-slate-200 cursor-pointer"
                 dangerouslySetInnerHTML={{ __html: doc.body || '<p class="text-slate-400">Empty document content.</p>' }}
               />
             )}
@@ -344,7 +399,8 @@ export default function DocumentPreviewModal({
         </DialogTitle>
         <DialogContent dividers>
           <Box
-            className="prose prose-slate dark:prose-invert max-w-none p-4"
+            onClick={handleDocumentContentClick}
+            className="prose prose-slate dark:prose-invert max-w-none p-4 cursor-pointer"
             dangerouslySetInnerHTML={{ __html: selectedRevision?.body || '<p>No content in this revision.</p>' }}
           />
         </DialogContent>
@@ -361,6 +417,15 @@ export default function DocumentPreviewModal({
           setSelectedTrainingForScope(null);
         }}
         training={selectedTrainingForScope}
+      />
+
+      {/* Image Preview Lightbox Modal */}
+      <DocumentImageModal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        src={previewImageData.src}
+        alt={previewImageData.alt}
+        title={previewImageData.title}
       />
     </Dialog>
   );

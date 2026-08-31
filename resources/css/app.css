@@ -24,6 +24,19 @@
 	max-width: none;
 }
 
+.prose img,
+.prose-document img {
+	cursor: zoom-in;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+	border-radius: 0.5rem;
+}
+
+.prose img:hover,
+.prose-document img:hover {
+	opacity: 0.95;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
 .ql-container {
 	min-height: 260px;
 }

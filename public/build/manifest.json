@@ -292,7 +292,7 @@
     "src": "node_modules/@fontsource/roboto/files/roboto-vietnamese-700-normal.woff2"
   },
   "node_modules/canvg/lib/index.es.js": {
-    "file": "assets/index.es-66fc4e05.js",
+    "file": "assets/index.es-f1899688.js",
     "imports": [
       "_apexcharts.common-f24ffee8.js",
       "resources/js/app.jsx"
@@ -306,12 +306,12 @@
     "src": "node_modules/dompurify/dist/purify.es.mjs"
   },
   "resources/css/app.css": {
-    "file": "assets/app-5f4191c7.css",
+    "file": "assets/app-a7b3ca21.css",
     "isEntry": true,
     "src": "resources/css/app.css"
   },
   "resources/js/app.css": {
-    "file": "assets/app-8856c02c.css",
+    "file": "assets/app-b5fdcb10.css",
     "src": "resources/js/app.css"
   },
   "resources/js/app.js": {
@@ -401,7 +401,7 @@
       "assets/roboto-latin-700-normal-19e78b1c.woff"
     ],
     "css": [
-      "assets/app-8856c02c.css"
+      "assets/app-b5fdcb10.css"
     ],
     "dynamicImports": [
       "_apexcharts.common-f24ffee8.js",
@@ -409,7 +409,7 @@
       "node_modules/canvg/lib/index.es.js",
       "_apexcharts.common-f24ffee8.js"
     ],
-    "file": "assets/app-23c23211.js",
+    "file": "assets/app-55fe225c.js",
     "imports": [
       "_apexcharts.common-f24ffee8.js"
     ],

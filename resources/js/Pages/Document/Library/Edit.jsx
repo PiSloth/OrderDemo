@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import AsideLayout from '../../../Layouts/AsideLayout';
 import ReactRichTextEditor from '../../../components/Document/ReactRichTextEditor';
+import { useDocumentDraft } from '../../../Hooks/useDocumentDraft';
 
 import {
   Box,
@@ -42,6 +43,9 @@ import ClearIcon from '@mui/icons-material/Clear';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AddIcon from '@mui/icons-material/Add';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import CloudDoneIcon from '@mui/icons-material/CloudDone';
+import RestoreIcon from '@mui/icons-material/Restore';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 export default function Edit({
   document = {},
@@ -55,25 +59,54 @@ export default function Edit({
   const [trainingCategoryFilter, setTrainingCategoryFilter] = useState('');
 
   // Extract currently linked training IDs
-  const initialLinkedTrainingIds = (document.trainings || []).map((t) => t.id);
+  const initialLinkedTrainingIds = useMemo(
+    () => (document.trainings || []).map((t) => t.id),
+    [document.trainings]
+  );
 
-  const { data, setData, put, processing, errors } = useForm({
+  const initialFormData = useMemo(() => ({
     title: document.title || '',
     company_document_type_id: document.company_document_type_id ? String(document.company_document_type_id) : '',
     new_document_type: '',
     department_id: document.department_id ? String(document.department_id) : '',
-    announced_at: document.announced_at || '',
+    announced_at: document.announced_at
+      ? (document.announced_at.includes('T')
+          ? document.announced_at.split('T')[0]
+          : document.announced_at.split(' ')[0])
+      : '',
     body: document.body || '',
     training_required: false,
     training_ids: initialLinkedTrainingIds,
     training_id: initialLinkedTrainingIds[0] ? String(initialLinkedTrainingIds[0]) : '',
     training_reason: '',
     change_summary: '',
+  }), [document, initialLinkedTrainingIds]);
+
+  const { data, setData, put, processing, errors } = useForm(initialFormData);
+
+  // Auto-save & draft recovery via localStorage
+  const {
+    draftDetected,
+    draftSavedAt,
+    lastSavedTime,
+    restoreDraft,
+    discardDraft,
+    clearDraft,
+  } = useDocumentDraft({
+    storageKey: `stt_doc_draft_edit_${document.id}`,
+    data,
+    setData,
+    initialData: initialFormData,
+    isEdit: true,
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    put(`/document/library/${document.id}`);
+    put(`/document/library/${document.id}`, {
+      onSuccess: () => {
+        clearDraft();
+      },
+    });
   };
 
   const toggleTrainingSelection = (trainingId) => {
@@ -151,9 +184,49 @@ export default function Edit({
           </Alert>
         )}
 
+        {/* Unsaved Draft Recovery Alert */}
+        {draftDetected && (
+          <Alert
+            severity="info"
+            icon={<RestoreIcon />}
+            className="rounded-2xl border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40"
+            action={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  onClick={restoreDraft}
+                  startIcon={<RestoreIcon fontSize="small" />}
+                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  Restore Draft
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  onClick={discardDraft}
+                  startIcon={<DeleteIcon fontSize="small" />}
+                  sx={{ textTransform: 'none', borderRadius: 2 }}
+                >
+                  Discard
+                </Button>
+              </Stack>
+            }
+          >
+            <Typography variant="subtitle2" className="font-bold text-sky-900 dark:text-sky-200">
+              Unsaved draft detected for this document
+            </Typography>
+            <Typography variant="body2" className="text-xs text-sky-800 dark:text-sky-300 mt-0.5">
+              We recovered unsaved changes from {draftSavedAt ? new Date(draftSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'a previous session'}. Click "Restore Draft" to recover your edits.
+            </Typography>
+          </Alert>
+        )}
+
         {/* Main Form */}
-        <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900">
-          <CardContent className="p-6">
+        <Card elevation={0} sx={{ overflow: 'visible' }} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900">
+          <CardContent sx={{ overflow: 'visible' }} className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Title */}
@@ -365,9 +438,18 @@ export default function Edit({
 
               {/* Rich Text Editor */}
               <div className="space-y-2">
-                <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-200">
-                  Document Content <span className="text-red-500">*</span>
-                </Typography>
+                <div className="flex items-center justify-between">
+                  <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-200">
+                    Document Content <span className="text-red-500">*</span>
+                  </Typography>
+
+                  {lastSavedTime && (
+                    <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                      <CloudDoneIcon sx={{ fontSize: 13 }} />
+                      <span>Draft saved locally at {lastSavedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  )}
+                </div>
                 <ReactRichTextEditor
                   value={data.body}
                   onChange={(html) => setData('body', html)}

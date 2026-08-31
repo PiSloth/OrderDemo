@@ -5,6 +5,7 @@ import AsideLayout from '../../../Layouts/AsideLayout';
 import DocumentSearchModal from '../../../components/Document/DocumentSearchModal';
 import DocumentPreviewModal from '../../../components/Document/DocumentPreviewModal';
 import TrainingScopeModal from '../../../components/Training/TrainingScopeModal';
+import DocumentImageModal from '../../../components/Document/DocumentImageModal';
 
 import {
   Box,
@@ -54,8 +55,22 @@ import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ShareIcon from '@mui/icons-material/Share';
-import CheckIcon from '@mui/icons-material/Check';
 import SchoolIcon from '@mui/icons-material/School';
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+};
 
 export default function Index({
   treeByDepartment = {},
@@ -109,6 +124,10 @@ export default function Index({
   // Scope Modal State for clicked Training Catalog
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [selectedTrainingForScope, setSelectedTrainingForScope] = useState(null);
+
+  // Image Preview Modal State
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [previewImageData, setPreviewImageData] = useState({ src: '', alt: '', title: '' });
 
   // Sync selectedDocument when props change
   useEffect(() => {
@@ -214,8 +233,23 @@ export default function Index({
     setScopeModalOpen(true);
   };
 
-  // Intercept document links clicked inside document body/sheet to open in modal view
+  // Intercept document links & images clicked inside document body/sheet
   const handleDocumentContentClick = (e) => {
+    // Intercept image clicks to open image preview modal
+    const img = e.target.closest('img');
+    if (img) {
+      e.preventDefault();
+      e.stopPropagation();
+      const src = img.getAttribute('src');
+      const alt = img.getAttribute('alt') || '';
+      const title = img.getAttribute('title') || alt || '';
+      if (src) {
+        setPreviewImageData({ src, alt, title });
+        setImageModalOpen(true);
+      }
+      return;
+    }
+
     const link = e.target.closest('a');
     if (!link) return;
     const href = link.getAttribute('href') || '';
@@ -792,7 +826,7 @@ export default function Index({
                       {currentDoc.announced_at && (
                         <Chip
                           icon={<CampaignIcon fontSize="small" />}
-                          label={`Announced: ${currentDoc.announced_at}`}
+                          label={`Announced: ${formatDate(currentDoc.announced_at)}`}
                           size="small"
                           color="warning"
                         />
@@ -1022,7 +1056,8 @@ export default function Index({
         </DialogTitle>
         <DialogContent dividers>
           <Box
-            className="prose prose-slate dark:prose-invert max-w-none p-4"
+            onClick={handleDocumentContentClick}
+            className="prose prose-slate dark:prose-invert max-w-none p-4 cursor-pointer"
             dangerouslySetInnerHTML={{ __html: selectedRevision?.body || '<p>No content in this revision.</p>' }}
           />
         </DialogContent>
@@ -1030,6 +1065,15 @@ export default function Index({
           <Button onClick={() => setSelectedRevision(null)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Image Preview Lightbox Modal */}
+      <DocumentImageModal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        src={previewImageData.src}
+        alt={previewImageData.alt}
+        title={previewImageData.title}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog
