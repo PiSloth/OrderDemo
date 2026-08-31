@@ -54,7 +54,7 @@
         </div>
     </div>
 
-    <div class="p-2 flex-1 min-h-0 overflow-y-auto relative">
+    <div class="document-tree-scroll p-2 flex-1 min-h-0 overflow-y-auto relative">
 
         @php
             $tree = $mode === 'type' ? $treeByType : $treeByDepartment;

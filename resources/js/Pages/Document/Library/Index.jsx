@@ -223,11 +223,10 @@ export default function Index({
                   setMode('department');
                   executeSearch({ mode: 'department' });
                 }}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                  mode === 'department'
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${mode === 'department'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Dept
               </button>
@@ -237,11 +236,10 @@ export default function Index({
                   setMode('type');
                   executeSearch({ mode: 'type' });
                 }}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                  mode === 'type'
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${mode === 'type'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Type
               </button>
@@ -275,7 +273,7 @@ export default function Index({
       </Box>
 
       {/* Tree Hierarchical List */}
-      <Box className="p-3 overflow-y-auto flex-1 space-y-1">
+      <Box className="document-tree-scroll p-3 overflow-y-auto flex-1 space-y-1">
         {Object.keys(filteredTree).length === 0 ? (
           <Box className="py-8 text-center text-sm text-slate-400">
             No documents found in explorer.
@@ -347,11 +345,10 @@ export default function Index({
                                       handleOpenDoc(docItem.id);
                                       if (isMobile) setMobileExplorerOpen(false);
                                     }}
-                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs rounded-lg transition-all ${
-                                      isSelected
+                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs rounded-lg transition-all ${isSelected
                                         ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold border-l-4 border-indigo-600'
                                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
+                                      }`}
                                   >
                                     <ArticleIcon
                                       fontSize="inherit"
