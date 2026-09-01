@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import toast, { Toaster } from 'react-hot-toast';
+import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
 
 export default function TodoLayout({ children, title }) {
     const { auth = {}, flash = {} } = usePage().props;
@@ -246,6 +247,7 @@ export default function TodoLayout({ children, title }) {
                 )}
                 {children}
             </main>
+            <ItSatisfactionModal />
         </div>
     );
 }

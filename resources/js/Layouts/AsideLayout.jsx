@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
+import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
 
 // Material UI Imports
 import {
@@ -47,6 +48,7 @@ export default function AsideLayout({ children, title, headerActions }) {
     const { auth = {}, url = '' } = usePage().props;
     const currentUrl = usePage().url || window.location.pathname;
     const user = auth?.user;
+    const can = auth?.can || {};
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState({
@@ -400,6 +402,16 @@ export default function AsideLayout({ children, title, headerActions }) {
                                         >
                                             <ListItemText primary="SLA & Credit Reports" primaryTypographyProps={{ fontSize: '0.825rem' }} />
                                         </ListItemButton>
+                                        {can.itSatisfactionView && (
+                                            <ListItemButton 
+                                                component="a" 
+                                                href="/operations/it/satisfaction" 
+                                                selected={isCurrentUrl('/operations/it/satisfaction')}
+                                                sx={{ borderRadius: 2, my: 0.2 }}
+                                            >
+                                                <ListItemText primary="IT Satisfaction Surveys" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 600, color: 'primary.main' }} />
+                                            </ListItemButton>
+                                        )}
                                     </List>
                                 </Collapse>
                             </ListItem>
@@ -597,6 +609,7 @@ export default function AsideLayout({ children, title, headerActions }) {
             </Box>
 
             <CreatePromoteActionModal />
+            <ItSatisfactionModal />
         </Box>
     );
 }

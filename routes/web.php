@@ -11,6 +11,7 @@ use App\Livewire\Operation\IT\Issue\Create as ItIssueCreate;
 use App\Livewire\Operation\IT\Issue\Dashboard as ItIssueDashboard;
 use App\Livewire\Operation\IT\Issue\Index as ItIssueIndex;
 use App\Http\Controllers\Operation\IT\ItIssueController;
+use App\Http\Controllers\Operation\IT\ItSatisfactionController;
 use App\Livewire\Operation\Branch\BranchConfig;
 use App\Livewire\Operation\Branch\BranchChecklist\Operation as BranchChecklistOperation;
 use App\Livewire\Operation\Branch\BranchChecklist\Report as BranchChecklistReport;
@@ -349,7 +350,21 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
         Route::post('/issues/{issue}/override-sla', [ItIssueController::class, 'overrideSla'])->name('issues.override-sla');
         Route::patch('/issues/{issue}/assignment', [IssueAssignmentController::class, 'update'])->name('issues.assignment.update');
         Route::post('/issues/{issue}/messages', [ItIssueController::class, 'addMessage'])->name('issues.messages.store');
+
+        // IT Satisfaction Survey & Ratings Management
+        Route::get('/satisfaction', [ItSatisfactionController::class, 'index'])->name('satisfaction.index');
+        Route::post('/satisfaction/campaigns', [ItSatisfactionController::class, 'storeCampaign'])->name('satisfaction.campaigns.store');
+        Route::patch('/satisfaction/campaigns/{id}', [ItSatisfactionController::class, 'updateCampaign'])->name('satisfaction.campaigns.update');
+        Route::post('/satisfaction/campaigns/{id}/toggle', [ItSatisfactionController::class, 'toggleCampaignStatus'])->name('satisfaction.campaigns.toggle');
+        Route::delete('/satisfaction/campaigns/{id}', [ItSatisfactionController::class, 'destroyCampaign'])->name('satisfaction.campaigns.destroy');
+        Route::get('/satisfaction/export', [ItSatisfactionController::class, 'export'])->name('satisfaction.export');
+        Route::get('/satisfaction/report-data', [ItSatisfactionController::class, 'getReportData'])->name('satisfaction.report-data');
     });
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/it-satisfaction/rate', [ItSatisfactionController::class, 'storeRating'])->name('it.satisfaction.rate');
+    Route::get('/api/it-satisfaction/active-survey', [ItSatisfactionController::class, 'checkActiveSurvey'])->name('it.satisfaction.active');
 });
 
 Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function () {

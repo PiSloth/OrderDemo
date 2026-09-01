@@ -39,6 +39,28 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Check if the user belongs to the IT department or has an IT role/position.
+     */
+    public function isFromItDepartment(): bool
+    {
+        $deptName = $this->department?->name ?? '';
+        if (preg_match('/\bIT\b/i', $deptName) || stripos($deptName, 'Information Technology') !== false) {
+            return true;
+        }
+
+        $posName = ($this->officePosition?->name ?? '') . ' ' . ($this->position?->name ?? '');
+        if (preg_match('/\b(IT|Developer|DevOps|System Admin|IT Support)\b/i', $posName)) {
+            return true;
+        }
+
+        if (preg_match('/\b(IT|it_staff|it_admin)\b/i', $this->role ?? '')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
