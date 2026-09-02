@@ -553,7 +553,7 @@ export default function Audit({
                                         const groupColor = group?.id ? groupColorMap[group.id] : null;
 
                                         return (
-                                            <tr key={row.assignment.id || rIdx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                            <tr key={row.assignment?.id || row.assignment?.task_template_id || rIdx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                                                 {/* Task Name Column */}
                                                 <td
                                                     onClick={() => {
@@ -580,7 +580,7 @@ export default function Audit({
                                                             </svg>
                                                         )}
                                                     </div>
-                                                    <div className={`text-[10px] flex items-center gap-1.5 mt-1 ${groupColor ? groupColor.sub : 'text-slate-500 dark:text-slate-400'}`}>
+                                                    <div className={`text-[10px] flex items-center gap-1.5 mt-1 flex-wrap ${groupColor ? groupColor.sub : 'text-slate-500 dark:text-slate-400'}`}>
                                                         <span className="capitalize font-semibold">{row.assignment.template?.frequency}</span>
                                                         <span>•</span>
                                                         {row.assignment.template?.group?.name ? (
@@ -589,6 +589,11 @@ export default function Audit({
                                                             </span>
                                                         ) : (
                                                             <span className="italic opacity-60">No Group</span>
+                                                        )}
+                                                        {row.assignment.template && !row.assignment.template.is_active && (
+                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                                                Archived
+                                                            </span>
                                                         )}
                                                     </div>
                                                 </td>

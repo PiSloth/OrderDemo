@@ -64,8 +64,8 @@ class KpiAuditController extends Controller
         $days = collect(range(1, $monthEnd->day))
             ->map(fn(int $day) => $monthStart->copy()->day($day)->format('Y-m-d'));
 
-        $assignments = KpiTaskAssignment::query()
-            ->with(['template.group.department'])
+        $activeAssignments = KpiTaskAssignment::query()
+            ->with(['template.group.department', 'template.rule'])
             ->where('user_id', $selectedUserId)
             ->where('is_active', true)
             ->whereHas('template', fn(Builder $query) => $query->where('is_active', true))
@@ -77,32 +77,86 @@ class KpiAuditController extends Controller
                 $query->whereNull('ends_on')
                     ->orWhereDate('ends_on', '>=', $monthStart->toDateString());
             })
-            ->get()
-            ->sortBy(fn(KpiTaskAssignment $assignment) => sprintf(
-                '%s|%s',
-                (string) optional($assignment->template?->group)->name,
-                (string) optional($assignment->template)->title
-            ))
-            ->values();
+            ->get();
 
         $instances = KpiTaskInstance::query()
             ->with([
                 'latestSubmission.images',
                 'latestSubmission.submittedBy',
                 'latestSubmission.approvalSteps.approver',
-                'template.group',
-                'group',
+                'template.group.department',
+                'template.rule',
+                'group.department',
                 'todoList',
+                'assignment.template.group.department',
+                'assignment.template.rule',
             ])
             ->where('user_id', $selectedUserId)
-            ->whereDate('period_start', '<=', $monthEnd->toDateString())
-            ->whereDate('period_end', '>=', $monthStart->toDateString())
-            ->get()
-            ->groupBy('task_assignment_id');
+            ->where(function (Builder $q) use ($monthStart, $monthEnd) {
+                $q->where(function (Builder $sub) use ($monthStart, $monthEnd) {
+                    $sub->whereDate('period_start', '<=', $monthEnd->toDateString())
+                        ->whereDate('period_end', '>=', $monthStart->toDateString());
+                })->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
+                    $sub->whereDate('task_date', '>=', $monthStart->toDateString())
+                        ->whereDate('task_date', '<=', $monthEnd->toDateString());
+                });
+            })
+            ->get();
 
-        $assignments = $assignments
+        $activeTemplateIds = $activeAssignments->pluck('task_template_id')->filter()->all();
+        $missingTemplateIds = $instances->pluck('task_template_id')->filter()->diff($activeTemplateIds)->unique()->values();
+
+        $additionalAssignments = collect();
+        if ($missingTemplateIds->isNotEmpty()) {
+            $existingAssignments = KpiTaskAssignment::query()
+                ->with(['template.group.department', 'template.rule'])
+                ->where('user_id', $selectedUserId)
+                ->whereIn('task_template_id', $missingTemplateIds)
+                ->get()
+                ->keyBy('task_template_id');
+
+            foreach ($missingTemplateIds as $templateId) {
+                if ($existingAssignments->has($templateId)) {
+                    $additionalAssignments->push($existingAssignments->get($templateId));
+                } else {
+                    $sampleInstance = $instances->firstWhere('task_template_id', $templateId);
+                    $template = $sampleInstance?->template
+                        ?? \App\Models\Kpi\KpiTaskTemplate::with(['group.department', 'rule'])->find($templateId);
+
+                    if ($template) {
+                        $syntheticAssignment = new KpiTaskAssignment([
+                            'id' => $sampleInstance?->task_assignment_id,
+                            'task_template_id' => $template->id,
+                            'user_id' => $selectedUserId,
+                            'is_active' => false,
+                            'starts_on' => null,
+                            'ends_on' => null,
+                        ]);
+                        $syntheticAssignment->setRelation('template', $template);
+                        $additionalAssignments->push($syntheticAssignment);
+                    }
+                }
+            }
+        }
+
+        $knownAssignmentIds = $activeAssignments->pluck('id')->merge($additionalAssignments->pluck('id'))->filter()->all();
+        $missingAssignmentIds = $instances->pluck('task_assignment_id')->filter()->diff($knownAssignmentIds)->unique()->values();
+        if ($missingAssignmentIds->isNotEmpty()) {
+            $extraByAssignment = KpiTaskAssignment::query()
+                ->with(['template.group.department', 'template.rule'])
+                ->whereIn('id', $missingAssignmentIds)
+                ->get();
+            $additionalAssignments = $additionalAssignments->merge($extraByAssignment);
+        }
+
+        $assignments = $activeAssignments->concat($additionalAssignments)
+            ->unique(fn(KpiTaskAssignment $a) => $a->task_template_id ?: ('assign_' . $a->id))
             ->sortBy(function (KpiTaskAssignment $assignment) use ($instances) {
-                $assignmentInstances = $instances->get($assignment->id, collect());
+                $assignmentInstances = $instances->filter(function (KpiTaskInstance $inst) use ($assignment) {
+                    if ($assignment->id && $inst->task_assignment_id === $assignment->id) return true;
+                    if ($assignment->task_template_id && $inst->task_template_id === $assignment->task_template_id) return true;
+                    return false;
+                });
                 $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
                 $groupName = (string) optional($instanceGroup ?? $assignment->template?->group)->name;
                 return sprintf('%s|%s', $groupName, (string) optional($assignment->template)->title);
@@ -115,7 +169,12 @@ class KpiAuditController extends Controller
         $daysCarbon = collect(range(1, $monthEnd->day))->map(fn(int $day) => $monthStart->copy()->day($day));
 
         $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $daysCarbon, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator, $monthlySuccessService): array {
-            $assignmentInstances = $instances->get($assignment->id, collect());
+            $assignmentInstances = $instances->filter(function (KpiTaskInstance $inst) use ($assignment) {
+                if ($assignment->id && $inst->task_assignment_id === $assignment->id) return true;
+                if ($assignment->task_template_id && $inst->task_template_id === $assignment->task_template_id) return true;
+                return false;
+            })->values();
+
             $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
             $effectiveGroup = $instanceGroup ?? $assignment->template?->group;
 
@@ -636,6 +695,20 @@ class KpiAuditController extends Controller
     ): array {
         $dateKey = $day->toDateString();
 
+        $markers = $instances
+            ->map(fn(KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))
+            ->filter()
+            ->values();
+
+        if ($markers->isNotEmpty()) {
+            return [
+                'date' => $dateKey,
+                'markers' => $markers->all(),
+                'label' => null,
+                'classes' => $this->defaultCellClasses($assignment, $day, false),
+            ];
+        }
+
         if (!$this->assignmentIsActiveOnDate($assignment, $day)) {
             return [
                 'date' => $dateKey,
@@ -647,27 +720,22 @@ class KpiAuditController extends Controller
 
         $holiday = $holidayMap->get($dateKey);
         $dayRequest = $exclusionMaps['day'][$dateKey] ?? null;
-        $taskRequest = $exclusionMaps['task'][$assignment->id][$dateKey] ?? null;
-
-        $markers = $instances
-            ->map(fn(KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))
-            ->filter()
-            ->values();
+        $taskRequest = $assignment->id ? ($exclusionMaps['task'][$assignment->id][$dateKey] ?? null) : null;
 
         if ($holiday || $dayRequest || $taskRequest) {
             return [
                 'date' => $dateKey,
-                'markers' => $markers->all(),
-                'label' => $markers->isEmpty() ? ($holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion')) : null,
+                'markers' => [],
+                'label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
                 'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
             ];
         }
 
         return [
             'date' => $dateKey,
-            'markers' => $markers->all(),
-            'label' => $markers->isEmpty() ? $this->defaultCellLabel($assignment, $day) : null,
-            'classes' => $this->defaultCellClasses($assignment, $day, $markers->isEmpty()),
+            'markers' => [],
+            'label' => $this->defaultCellLabel($assignment, $day),
+            'classes' => $this->defaultCellClasses($assignment, $day, true),
         ];
     }
 
@@ -966,6 +1034,10 @@ class KpiAuditController extends Controller
 
     protected function assignmentIsActiveOnDate(KpiTaskAssignment $assignment, Carbon $day): bool
     {
+        if (!$assignment->is_active || ($assignment->template && !$assignment->template->is_active)) {
+            return false;
+        }
+
         if ($assignment->starts_on && $day->lt($assignment->starts_on)) {
             return false;
         }
