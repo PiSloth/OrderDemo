@@ -91,20 +91,42 @@ class KpiAuditController extends Controller
                 'assignment.template.group.department',
                 'assignment.template.rule',
             ])
-            ->where('user_id', $selectedUserId)
+            ->where(function (Builder $query) use ($selectedUserId) {
+                $query->where('user_id', $selectedUserId)
+                    ->orWhereHas('assignment', fn(Builder $q) => $q->where('user_id', $selectedUserId));
+            })
             ->where(function (Builder $q) use ($monthStart, $monthEnd) {
                 $q->where(function (Builder $sub) use ($monthStart, $monthEnd) {
                     $sub->whereDate('period_start', '<=', $monthEnd->toDateString())
                         ->whereDate('period_end', '>=', $monthStart->toDateString());
-                })->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
+                })
+                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
                     $sub->whereDate('task_date', '>=', $monthStart->toDateString())
                         ->whereDate('task_date', '<=', $monthEnd->toDateString());
+                })
+                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
+                    $sub->whereDate('due_at', '>=', $monthStart->toDateString())
+                        ->whereDate('due_at', '<=', $monthEnd->toDateString());
+                })
+                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
+                    $sub->whereDate('submitted_at', '>=', $monthStart->toDateString())
+                        ->whereDate('submitted_at', '<=', $monthEnd->toDateString());
                 });
             })
             ->get();
 
-        $activeTemplateIds = $activeAssignments->pluck('task_template_id')->filter()->all();
-        $missingTemplateIds = $instances->pluck('task_template_id')->filter()->diff($activeTemplateIds)->unique()->values();
+        // Extract all template IDs and assignment IDs from both active assignments and instances
+        $activeTemplateIds = $activeAssignments->map(fn($a) => $a->task_template_id ?? $a->template?->id)->filter()->unique()->all();
+
+        // Map instances to find any templates or assignments not covered in activeAssignments
+        $instanceTemplateIds = $instances->map(function (KpiTaskInstance $inst) {
+            return $inst->task_template_id
+                ?? $inst->template?->id
+                ?? $inst->assignment?->task_template_id
+                ?? $inst->assignment?->template?->id;
+        })->filter()->unique()->values();
+
+        $missingTemplateIds = $instanceTemplateIds->diff($activeTemplateIds)->values();
 
         $additionalAssignments = collect();
         if ($missingTemplateIds->isNotEmpty()) {
@@ -119,8 +141,14 @@ class KpiAuditController extends Controller
                 if ($existingAssignments->has($templateId)) {
                     $additionalAssignments->push($existingAssignments->get($templateId));
                 } else {
-                    $sampleInstance = $instances->firstWhere('task_template_id', $templateId);
+                    $sampleInstance = $instances->first(function ($inst) use ($templateId) {
+                        return ($inst->task_template_id == $templateId)
+                            || ($inst->template?->id == $templateId)
+                            || ($inst->assignment?->task_template_id == $templateId);
+                    });
+
                     $template = $sampleInstance?->template
+                        ?? $sampleInstance?->assignment?->template
                         ?? \App\Models\Kpi\KpiTaskTemplate::with(['group.department', 'rule'])->find($templateId);
 
                     if ($template) {
@@ -128,7 +156,7 @@ class KpiAuditController extends Controller
                             'id' => $sampleInstance?->task_assignment_id,
                             'task_template_id' => $template->id,
                             'user_id' => $selectedUserId,
-                            'is_active' => false,
+                            'is_active' => (bool) $template->is_active,
                             'starts_on' => null,
                             'ends_on' => null,
                         ]);
@@ -139,8 +167,9 @@ class KpiAuditController extends Controller
             }
         }
 
-        $knownAssignmentIds = $activeAssignments->pluck('id')->merge($additionalAssignments->pluck('id'))->filter()->all();
-        $missingAssignmentIds = $instances->pluck('task_assignment_id')->filter()->diff($knownAssignmentIds)->unique()->values();
+        // Also check if any instance has a task_assignment_id not yet captured
+        $capturedAssignmentIds = $activeAssignments->pluck('id')->merge($additionalAssignments->pluck('id'))->filter()->all();
+        $missingAssignmentIds = $instances->pluck('task_assignment_id')->filter()->diff($capturedAssignmentIds)->unique()->values();
         if ($missingAssignmentIds->isNotEmpty()) {
             $extraByAssignment = KpiTaskAssignment::query()
                 ->with(['template.group.department', 'template.rule'])
@@ -149,15 +178,23 @@ class KpiAuditController extends Controller
             $additionalAssignments = $additionalAssignments->merge($extraByAssignment);
         }
 
+        // Merge and unique by template ID (or assignment ID if template ID is missing)
         $assignments = $activeAssignments->concat($additionalAssignments)
-            ->unique(fn(KpiTaskAssignment $a) => $a->task_template_id ?: ('assign_' . $a->id))
+            ->unique(function (KpiTaskAssignment $a) {
+                $tId = $a->task_template_id ?? $a->template?->id;
+                return $tId ? ('template_' . $tId) : ('assign_' . $a->id);
+            })
             ->sortBy(function (KpiTaskAssignment $assignment) use ($instances) {
                 $assignmentInstances = $instances->filter(function (KpiTaskInstance $inst) use ($assignment) {
-                    if ($assignment->id && $inst->task_assignment_id === $assignment->id) return true;
-                    if ($assignment->task_template_id && $inst->task_template_id === $assignment->task_template_id) return true;
+                    $tId = $assignment->task_template_id ?? $assignment->template?->id;
+                    $instTId = $inst->task_template_id ?? $inst->template?->id ?? $inst->assignment?->task_template_id ?? $inst->assignment?->template?->id;
+                    if ($tId && $instTId && $tId == $instTId) return true;
+                    if ($assignment->id && $inst->task_assignment_id && $assignment->id == $inst->task_assignment_id) return true;
                     return false;
                 });
-                $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
+                $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group
+                    ?? $assignmentInstances->first(fn($inst) => !empty($inst->template?->group))?->template?->group
+                    ?? $assignmentInstances->first(fn($inst) => !empty($inst->assignment?->template?->group))?->assignment?->template?->group;
                 $groupName = (string) optional($instanceGroup ?? $assignment->template?->group)->name;
                 return sprintf('%s|%s', $groupName, (string) optional($assignment->template)->title);
             })
@@ -170,17 +207,25 @@ class KpiAuditController extends Controller
 
         $rows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instances, $daysCarbon, $holidayMap, $exclusionMaps, $evaluationEnd, $ruleEvaluator, $monthlySuccessService): array {
             $assignmentInstances = $instances->filter(function (KpiTaskInstance $inst) use ($assignment) {
-                if ($assignment->id && $inst->task_assignment_id === $assignment->id) return true;
-                if ($assignment->task_template_id && $inst->task_template_id === $assignment->task_template_id) return true;
+                $tId = $assignment->task_template_id ?? $assignment->template?->id;
+                $instTId = $inst->task_template_id ?? $inst->template?->id ?? $inst->assignment?->task_template_id ?? $inst->assignment?->template?->id;
+                if ($tId && $instTId && $tId == $instTId) return true;
+                if ($assignment->id && $inst->task_assignment_id && $assignment->id == $inst->task_assignment_id) return true;
                 return false;
             })->values();
 
-            $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group;
+            $instanceGroup = $assignmentInstances->first(fn($inst) => !empty($inst->kpi_group_id) && !empty($inst->group))?->group
+                ?? $assignmentInstances->first(fn($inst) => !empty($inst->template?->group))?->template?->group
+                ?? $assignmentInstances->first(fn($inst) => !empty($inst->assignment?->template?->group))?->assignment?->template?->group;
             $effectiveGroup = $instanceGroup ?? $assignment->template?->group;
+
+            $template = $assignment->template
+                ?? $assignmentInstances->first(fn($inst) => !empty($inst->template))?->template
+                ?? $assignmentInstances->first(fn($inst) => !empty($inst->assignment?->template))?->assignment?->template;
 
             $cells = $daysCarbon->map(fn(Carbon $day) => $this->buildCell($assignment, $assignmentInstances, $day, $holidayMap, $exclusionMaps));
             $summary = $this->buildSummary($assignment, $assignmentInstances, $cells, $evaluationEnd, $monthlySuccessService);
-            $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, [
+            $ruleEvaluation = $ruleEvaluator->evaluateTemplate($template?->rule, [
                 'pass_rate' => (float) ($summary['percentage'] ?? 0),
                 'failed_count' => (int) ($summary['failed'] ?? 0),
                 'total_spend_cost' => 0,
@@ -189,29 +234,29 @@ class KpiAuditController extends Controller
             return [
                 'assignment' => [
                     'id' => $assignment->id,
-                    'task_template_id' => $assignment->task_template_id,
+                    'task_template_id' => $assignment->task_template_id ?? $template?->id,
                     'starts_on' => $assignment->starts_on?->toDateString(),
                     'ends_on' => $assignment->ends_on?->toDateString(),
-                    'template' => $assignment->template ? [
-                        'id' => $assignment->template->id,
-                        'kpi_group_id' => $effectiveGroup?->id ?? $assignment->template->kpi_group_id,
-                        'title' => $assignment->template->title,
-                        'description' => $assignment->template->description,
-                        'guideline' => $assignment->template->guideline,
-                        'frequency' => $assignment->template->frequency,
-                        'monthly_required_count' => (int) $assignment->template->monthly_required_count,
-                        'cutoff_time' => $assignment->template->cutoff_time,
-                        'requires_images' => (bool) $assignment->template->requires_images,
-                        'requires_table' => (bool) $assignment->template->requires_table,
-                        'min_images' => (int) $assignment->template->min_images,
-                        'max_images' => $assignment->template->max_images,
-                        'image_remark_required' => (bool) $assignment->template->image_remark_required,
-                        'is_active' => (bool) $assignment->template->is_active,
-                        'rule' => $assignment->template->rule ? [
-                            'rule_type' => $assignment->template->rule->rule_type,
-                            'target_percentage' => $assignment->template->rule->target_percentage,
-                            'max_fail_count' => $assignment->template->rule->max_fail_count,
-                            'max_cost_amount' => $assignment->template->rule->max_cost_amount,
+                    'template' => $template ? [
+                        'id' => $template->id,
+                        'kpi_group_id' => $effectiveGroup?->id ?? $template->kpi_group_id,
+                        'title' => $template->title,
+                        'description' => $template->description,
+                        'guideline' => $template->guideline,
+                        'frequency' => $template->frequency,
+                        'monthly_required_count' => (int) $template->monthly_required_count,
+                        'cutoff_time' => $template->cutoff_time,
+                        'requires_images' => (bool) $template->requires_images,
+                        'requires_table' => (bool) $template->requires_table,
+                        'min_images' => (int) $template->min_images,
+                        'max_images' => $template->max_images,
+                        'image_remark_required' => (bool) $template->image_remark_required,
+                        'is_active' => (bool) $template->is_active,
+                        'rule' => $template->rule ? [
+                            'rule_type' => $template->rule->rule_type,
+                            'target_percentage' => $template->rule->target_percentage,
+                            'max_fail_count' => $template->rule->max_fail_count,
+                            'max_cost_amount' => $template->rule->max_cost_amount,
                         ] : null,
                         'group' => $effectiveGroup ? [
                             'id' => $effectiveGroup->id,
@@ -820,7 +865,8 @@ class KpiAuditController extends Controller
     protected function serializeInstance(KpiTaskInstance $instance): array
     {
         $latest = $instance->latestSubmission;
-        $template = $instance->template;
+        $template = $instance->template ?? $instance->assignment?->template;
+        $group = $instance->group ?? $template?->group ?? $instance->assignment?->template?->group;
 
         return [
             'id' => $instance->id,
@@ -836,9 +882,9 @@ class KpiAuditController extends Controller
                 'description' => $template->description,
                 'guideline' => $template->guideline,
                 'frequency' => $template->frequency,
-                'group' => $template->group ? [
-                    'id' => $template->group->id,
-                    'name' => $template->group->name,
+                'group' => $group ? [
+                    'id' => $group->id,
+                    'name' => $group->name,
                 ] : null,
             ] : null,
             'latest_submission' => $latest ? [
@@ -952,7 +998,7 @@ class KpiAuditController extends Controller
                         continue;
                     }
 
-                    if (in_array($marker['type'], ['pending', 'rejected'], true) && $date->lte($evaluationEnd)) {
+                    if (in_array($marker['type'], ['pending', 'rejected', 'overdue', 'upcoming'], true) && $date->lte($evaluationEnd)) {
                         $pending++;
                     }
                 }
