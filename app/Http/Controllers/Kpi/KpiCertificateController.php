@@ -7,9 +7,7 @@ use App\Models\Kpi\KpiTaskAssignment;
 use App\Models\Kpi\KpiTaskInstance;
 use App\Models\Kpi\KpiTaskSubmission;
 use App\Models\User;
-use App\Services\Kpi\KpiAvailabilityService;
-use App\Services\Kpi\KpiMonthlySuccessService;
-use App\Services\Kpi\KpiRuleEvaluationService;
+use App\Services\Kpi\KpiMonthlyAuditService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -23,9 +21,7 @@ class KpiCertificateController extends Controller
 {
     public function index(
         Request $request,
-        KpiRuleEvaluationService $ruleEvaluator,
-        KpiMonthlySuccessService $monthlySuccessService,
-        KpiAvailabilityService $availability
+        KpiMonthlyAuditService $auditService
     ): Response {
         $users = $this->accessibleUsersQuery()->orderBy('name')->get();
         Gate::authorize('kpiViewCertificateDepartment', [$this->resolveSelectedUser($users, (int) $request->query('user_id', Auth::id()))]);
@@ -36,7 +32,6 @@ class KpiCertificateController extends Controller
 
         $monthStart = $this->parseMonth($month);
         $monthEnd = $monthStart->copy()->endOfMonth();
-        $evaluationEnd = $this->evaluationEnd($monthStart, $monthEnd);
 
         $selectedUser = $this->resolveSelectedUser($users, $selectedUserId);
 
@@ -54,33 +49,9 @@ class KpiCertificateController extends Controller
             ]);
         }
 
-        $assignments = KpiTaskAssignment::query()
-            ->with(['template.group.department', 'template.rule'])
-            ->where('user_id', $selectedUser->id)
-            ->where('is_active', true)
-            ->whereHas('template', fn (Builder $q) => $q->where('is_active', true))
-            ->where(fn (Builder $q) => $q->whereNull('starts_on')->orWhereDate('starts_on', '<=', $monthEnd->toDateString()))
-            ->where(fn (Builder $q) => $q->whereNull('ends_on')->orWhereDate('ends_on', '>=', $monthStart->toDateString()))
-            ->get()
-            ->sortBy(fn (KpiTaskAssignment $a) => sprintf('%s|%s', optional($a->template?->group)->name, optional($a->template)->title))
-            ->values();
-
-        $instances = KpiTaskInstance::query()
-            ->with(['latestSubmission', 'template.group'])
-            ->where('user_id', $selectedUser->id)
-            ->whereDate('period_start', '<=', $monthEnd->toDateString())
-            ->whereDate('period_end', '>=', $monthStart->toDateString())
-            ->get()
-            ->groupBy('task_assignment_id');
-
-        $days = collect(range(1, $monthEnd->day))
-            ->map(fn (int $day) => $monthStart->copy()->day($day));
-
-        $holidayMap = $availability->holidayMapForUser($selectedUser->id, $monthStart, $monthEnd);
-        $exclusionMaps = $availability->exclusionMapsForUser($selectedUser->id, $monthStart, $monthEnd);
-
-        $groupedRows = $this->buildGroupedRows($assignments, $instances, $ruleEvaluator, $monthlySuccessService, $days, $holidayMap, $exclusionMaps, $evaluationEnd);
-        $overall = $this->buildOverallMetrics($groupedRows);
+        $auditData = $auditService->buildAuditMatrix($selectedUser->id, $monthStart, $monthEnd);
+        $certificateGroups = $auditService->buildCertificateGroups($auditData['rows']);
+        $overall = $auditData['overall'];
 
         $selectedSubmission = $selectedSubmissionId
             ? $this->findVisibleSubmission($selectedSubmissionId, false)
@@ -99,7 +70,7 @@ class KpiCertificateController extends Controller
                 'month' => $monthStart->format('F Y'),
                 'month_raw' => $month,
                 'overall' => $overall,
-                'groups' => $groupedRows->map(fn ($g) => $this->serializeGroup($g))->values(),
+                'groups' => $certificateGroups->map(fn ($g) => $this->serializeGroup($g))->values(),
             ],
             'appendixRows' => $this->buildAppendixRows($selectedUser->id, $monthStart, $monthEnd),
             'passedEvidenceRows' => $this->buildPassedEvidenceRows($selectedUser->id, $monthStart, $monthEnd),
@@ -201,213 +172,30 @@ class KpiCertificateController extends Controller
         return $today->lt($monthEnd) ? $today : $monthEnd->copy()->startOfDay();
     }
 
-    protected function buildGroupedRows(
-        Collection $assignments,
-        Collection $instancesByAssignment,
-        KpiRuleEvaluationService $ruleEvaluator,
-        KpiMonthlySuccessService $monthlySuccessService,
-        Collection $days,
-        Collection $holidayMap,
-        array $exclusionMaps,
-        Carbon $evaluationEnd
-    ): Collection {
-        $templateRows = $assignments->map(function (KpiTaskAssignment $assignment) use ($instancesByAssignment, $ruleEvaluator, $monthlySuccessService, $days, $holidayMap, $exclusionMaps, $evaluationEnd): array {
-            $instances = $instancesByAssignment->get($assignment->id, collect());
-            $cells = $days->map(fn (Carbon $day) => $this->buildCell($assignment, $instances, $day, $holidayMap, $exclusionMaps));
-            $summary = $this->buildSummary($assignment, $instances, $cells, $evaluationEnd, $monthlySuccessService);
-            $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, [
-                'pass_rate' => $summary['score'],
-                'failed_count' => $summary['late_count'] + $summary['absent_count'],
-                'total_spend_cost' => 0,
-            ]);
-
-            return [
-                'assignment' => $assignment,
-                'group_id' => (int) ($assignment->template?->group?->id ?? 0),
-                'title' => (string) ($assignment->template?->title ?? '-'),
-                'summary' => $summary,
-                'rule_evaluation' => $ruleEvaluation,
-                'result' => $ruleEvaluation['passes_rule'] ? 'Pass' : 'Fail',
-            ];
-        });
-
-        return $templateRows
-            ->groupBy('group_id')
-            ->values()
-            ->map(function (Collection $rows, int $index) use ($ruleEvaluator): array {
-                $first = $rows->first();
-                $group = $first['assignment']->template?->group;
-                $templateCount = $rows->count();
-                $passed = $rows->sum('summary.passed_count');
-                $mustDo = $rows->sum('summary.must_do_count');
-                $lateCount = $rows->sum('summary.late_count');
-                $absentCount = $rows->sum('summary.absent_count');
-                $score = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0;
-
-                $groupEvaluation = $group
-                    ? $ruleEvaluator->evaluateGroup($group, ['pass_rate' => $score, 'failed_count' => $lateCount + $absentCount, 'total_spend_cost' => 0])
-                    : $ruleEvaluator->evaluateRule(null, []);
-
-                $allTemplatePass = $rows->every(fn (array $row) => $row['rule_evaluation']['passes_rule'] === true);
-                $groupPass = $templateCount > 1
-                    ? (($groupEvaluation['passes_rule'] === true) && $allTemplatePass)
-                    : ($rows->first()['rule_evaluation']['passes_rule'] === true);
-
-                return [
-                    'no' => $index + 1,
-                    'group_name' => $group?->name ?? 'No KPI Group',
-                    'template_count' => $templateCount,
-                    'show_group_result' => $templateCount > 1,
-                    'group_rule' => $groupEvaluation,
-                    'group_result' => $groupPass ? 'Pass' : 'Fail',
-                    'summary' => ['passed_count' => $passed, 'must_do_count' => $mustDo, 'late_count' => $lateCount, 'absent_count' => $absentCount, 'score' => $score],
-                    'templates' => $rows->values()->all(),
-                ];
-            });
-    }
-
-    protected function buildSummary(KpiTaskAssignment $assignment, Collection $instances, Collection $cells, Carbon $evaluationEnd, KpiMonthlySuccessService $monthlySuccessService): array
-    {
-        if ($assignment->template?->frequency === 'daily') {
-            return $this->buildDailySummary($cells, $evaluationEnd);
-        }
-
-        $eligibleInstances = $instances->filter(function (KpiTaskInstance $instance) use ($evaluationEnd): bool {
-            $anchorDate = $instance->task_date ?? $instance->period_start ?? $instance->period_end ?? $instance->due_at ?? $instance->submitted_at;
-            return $anchorDate ? $anchorDate->copy()->startOfDay()->lte($evaluationEnd) : false;
-        })->values();
-
-        $summary = $monthlySuccessService->summarize($eligibleInstances);
-        return [
-            'passed_count' => $summary['passed_count'],
-            'late_count' => $summary['late_count'],
-            'absent_count' => $summary['absent_count'],
-            'excluded_count' => $summary['excluded_count'],
-            'pending_count' => $summary['pending_count'],
-            'must_do_count' => $summary['must_do_count'],
-            'score' => $summary['score'],
-        ];
-    }
-
-    protected function buildDailySummary(Collection $cells, Carbon $evaluationEnd): array
-    {
-        $passed = 0; $failed = 0; $excluded = 0; $pending = 0;
-        $today = now()->startOfDay();
-
-        foreach ($cells as $cell) {
-            $date = Carbon::parse($cell['date'])->startOfDay();
-            if ($cell['label'] === '--') continue;
-            if (str_contains((string) $cell['classes'], 'bg-slate-200')) { $excluded++; continue; }
-            if ($date->gt($today) && empty($cell['markers'])) { $passed++; continue; }
-
-            if (!empty($cell['markers'])) {
-                foreach ($cell['markers'] as $marker) {
-                    if ($marker['type'] === 'approved') { $passed++; }
-                    elseif ($marker['type'] === 'failed') { $failed++; }
-                    elseif (in_array($marker['type'], ['pending', 'rejected'], true) && $date->lte($evaluationEnd)) { $pending++; }
-                }
-                continue;
-            }
-
-            if ($cell['label'] === 'X') { $failed++; }
-            elseif ($cell['label'] === '.' && $date->lte($evaluationEnd)) { $pending++; }
-        }
-
-        $mustDo = $passed + $failed + $pending;
-        return ['passed_count' => $passed, 'late_count' => $failed, 'absent_count' => 0, 'excluded_count' => $excluded, 'pending_count' => $pending, 'must_do_count' => $mustDo, 'score' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0];
-    }
-
-    protected function buildCell(KpiTaskAssignment $assignment, Collection $instances, Carbon $day, Collection $holidayMap, array $exclusionMaps): array
-    {
-        $dateKey = $day->toDateString();
-
-        if (!$this->assignmentIsActiveOnDate($assignment, $day)) {
-            return ['date' => $dateKey, 'markers' => [], 'label' => '--', 'classes' => 'bg-slate-100'];
-        }
-
-        $holiday = $holidayMap->get($dateKey);
-        $dayRequest = $exclusionMaps['day'][$dateKey] ?? null;
-        $taskRequest = $exclusionMaps['task'][$assignment->id][$dateKey] ?? null;
-
-        $markers = $instances->map(fn (KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))->filter()->values();
-
-        if ($holiday || $dayRequest || $taskRequest) {
-            return ['date' => $dateKey, 'markers' => $markers->all(), 'label' => $markers->isEmpty() ? ($holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion')) : null, 'classes' => 'bg-slate-200'];
-        }
-
-        return ['date' => $dateKey, 'markers' => $markers->all(), 'label' => $markers->isEmpty() ? $this->defaultCellLabel($assignment, $day) : null, 'classes' => $this->defaultCellClasses($assignment, $day, $markers->isEmpty())];
-    }
-
-    protected function markerForInstanceOnDate(KpiTaskInstance $instance, string $dateKey): ?array
-    {
-        $status = (string) $instance->status;
-        $latestSubmissionDate = $instance->latestSubmission?->submitted_at?->toDateString() ?? $instance->submitted_at?->toDateString();
-        $anchorDate = $instance->due_at?->toDateString() ?? $instance->task_date?->toDateString() ?? $instance->period_end?->toDateString() ?? $latestSubmissionDate;
-
-        if ($instance->due_at && Carbon::parse($instance->due_at)->lt(now()) && in_array($status, ['pending', 'rejected'], true)) {
-            return Carbon::parse($instance->due_at)->toDateString() === $dateKey ? ['type' => 'overdue'] : null;
-        }
-
-        $markDate = match ($status) {
-            'passed' => $latestSubmissionDate ?? $anchorDate,
-            'failed_late' => $latestSubmissionDate ?? $anchorDate,
-            'failed_missed' => $anchorDate,
-            'waiting_first_approval', 'waiting_final_approval' => $latestSubmissionDate,
-            'rejected' => $latestSubmissionDate ?? $anchorDate,
-            default => null,
-        };
-
-        if ($markDate !== $dateKey) return null;
-
-        return match ($status) {
-            'passed' => ['type' => 'approved'],
-            'failed_late', 'failed_missed' => ['type' => 'failed'],
-            'waiting_first_approval', 'waiting_final_approval' => ['type' => 'pending'],
-            'rejected' => ['type' => 'rejected'],
-            'pending' => ['type' => 'pending'],
-            default => null,
-        };
-    }
-
-    protected function assignmentIsActiveOnDate(KpiTaskAssignment $assignment, Carbon $day): bool
-    {
-        if ($assignment->starts_on && $day->lt($assignment->starts_on)) return false;
-        if ($assignment->ends_on && $day->gt($assignment->ends_on)) return false;
-        return true;
-    }
-
-    protected function defaultCellLabel(KpiTaskAssignment $assignment, Carbon $day): ?string
-    {
-        if ($assignment->template?->frequency !== 'daily') return null;
-        return $day->lt(now()->startOfDay()) ? 'X' : '.';
-    }
-
-    protected function defaultCellClasses(KpiTaskAssignment $assignment, Carbon $day, bool $isEmpty): string
-    {
-        if (!$isEmpty || $assignment->template?->frequency !== 'daily') return 'bg-white';
-        return $day->lt(now()->startOfDay()) ? 'bg-rose-50' : 'bg-amber-50';
-    }
-
-    protected function buildOverallMetrics(Collection $groups): array
-    {
-        $mustDo = $groups->sum('summary.must_do_count');
-        $passed = $groups->sum('summary.passed_count');
-        $percentage = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0;
-        return ['must_do_count' => $mustDo, 'passed_count' => $passed, 'percentage' => $percentage, 'kpi_score' => $percentage];
-    }
-
     protected function buildAppendixRows(int $userId, Carbon $monthStart, Carbon $monthEnd): array
     {
         $submissions = KpiTaskSubmission::query()
-            ->with(['instance.template.group', 'approvalSteps.approver'])
-            ->whereHas('instance', fn (Builder $q) => $q->where('user_id', $userId)->whereDate('period_start', '<=', $monthEnd->toDateString())->whereDate('period_end', '>=', $monthStart->toDateString()))
+            ->with(['instance.template.group', 'instance.assignment.template.group', 'approvalSteps.approver'])
+            ->whereHas('instance', fn (Builder $q) => $q->where(function (Builder $userQ) use ($userId) {
+                $userQ->where('user_id', $userId)
+                    ->orWhereHas('assignment', fn (Builder $aQ) => $aQ->where('user_id', $userId));
+            })->where(function (Builder $subQ) use ($monthStart, $monthEnd) {
+                $subQ->where(function (Builder $sub) use ($monthStart, $monthEnd) {
+                    $sub->whereDate('period_start', '<=', $monthEnd->toDateString())
+                        ->whereDate('period_end', '>=', $monthStart->toDateString());
+                })
+                ->orWhereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()])
+                ->orWhereBetween('submitted_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()]);
+            }))
             ->get();
 
         return $submissions
             ->flatMap(function (KpiTaskSubmission $submission) {
+                $template = $submission->instance?->template ?? $submission->instance?->assignment?->template;
                 return $submission->approvalSteps->filter(fn ($step) => filled($step->remark))->map(fn ($step) => [
                     'submission_id' => $submission->id,
-                    'template_title' => (string) ($submission->instance?->template?->title ?? '-'),
+                    'template_title' => (string) ($template?->title ?? '-'),
                     'remark' => (string) $step->remark,
                     'remark_by' => (string) ($step->approver?->name ?? 'Approver'),
                     'submission_status' => (string) $submission->status,
@@ -424,17 +212,29 @@ class KpiCertificateController extends Controller
     protected function buildPassedEvidenceRows(int $userId, Carbon $monthStart, Carbon $monthEnd): array
     {
         $submissions = KpiTaskSubmission::query()
-            ->with(['images', 'instance.template.group', 'approvalSteps.approver'])
-            ->whereHas('instance', fn (Builder $q) => $q->where('user_id', $userId)->where('status', 'passed')->whereDate('period_start', '<=', $monthEnd->toDateString())->whereDate('period_end', '>=', $monthStart->toDateString()))
+            ->with(['images', 'instance.template.group', 'instance.assignment.template.group', 'approvalSteps.approver'])
+            ->whereHas('instance', fn (Builder $q) => $q->where(function (Builder $userQ) use ($userId) {
+                $userQ->where('user_id', $userId)
+                    ->orWhereHas('assignment', fn (Builder $aQ) => $aQ->where('user_id', $userId));
+            })->where('status', 'passed')->where(function (Builder $subQ) use ($monthStart, $monthEnd) {
+                $subQ->where(function (Builder $sub) use ($monthStart, $monthEnd) {
+                    $sub->whereDate('period_start', '<=', $monthEnd->toDateString())
+                        ->whereDate('period_end', '>=', $monthStart->toDateString());
+                })
+                ->orWhereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()])
+                ->orWhereBetween('submitted_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()]);
+            }))
             ->orderByDesc('submitted_at')
             ->get();
 
         return $submissions
             ->map(function (KpiTaskSubmission $submission) {
-                $template = $submission->instance?->template;
+                $template = $submission->instance?->template ?? $submission->instance?->assignment?->template;
+                $group = $submission->instance?->group ?? $template?->group ?? $submission->instance?->assignment?->template?->group;
                 $remarks = $submission->approvalSteps->filter(fn ($step) => filled($step->remark))->map(fn ($step) => trim((string) $step->remark) . ' (' . ($step->approver?->name ?? 'Approver') . ')')->values();
                 return [
-                    'group_name' => (string) ($template?->group?->name ?? 'No KPI Group'),
+                    'group_name' => (string) ($group?->name ?? 'No KPI Group'),
                     'template_title' => (string) ($template?->title ?? '-'),
                     'frequency' => (string) ($template?->frequency ?? '-'),
                     'requested_date' => ($submission->submitted_at ?? $submission->created_at)?->toDateString(),
