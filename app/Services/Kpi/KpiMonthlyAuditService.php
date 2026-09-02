@@ -442,12 +442,55 @@ class KpiMonthlyAuditService
     ): array {
         $dateKey = $day->toDateString();
 
+        $holiday = $holidayMap->get($dateKey);
+        $dayRequest = $exclusionMaps['day'][$dateKey] ?? null;
+        $taskRequest = $assignment->id ? ($exclusionMaps['task'][$assignment->id][$dateKey] ?? null) : null;
+        if (!$taskRequest && $assignment->task_template_id) {
+            foreach ($exclusionMaps['requests'] ?? [] as $req) {
+                if ($req->request_type === 'task' && $req->requested_date?->toDateString() === $dateKey && $req->assignment?->task_template_id == $assignment->task_template_id) {
+                    $taskRequest = $req;
+                    break;
+                }
+            }
+        }
+
+        $isExclusion = (bool) ($holiday || $dayRequest || $taskRequest);
+
         $markers = $instances
             ->map(fn (KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))
             ->filter()
             ->values();
 
+        if ($isExclusion) {
+            $approvedMarker = $markers->first(fn ($m) => $m['type'] === 'approved');
+            if ($approvedMarker) {
+                return [
+                    'date' => $dateKey,
+                    'markers' => [$approvedMarker],
+                    'label' => null,
+                    'classes' => $this->defaultCellClasses($assignment, $day, false),
+                ];
+            }
+
+            return [
+                'date' => $dateKey,
+                'markers' => [],
+                'label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
+                'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+            ];
+        }
+
         if ($markers->isNotEmpty()) {
+            $hasExcludedOnly = $markers->every(fn ($m) => $m['type'] === 'excluded');
+            if ($hasExcludedOnly) {
+                return [
+                    'date' => $dateKey,
+                    'markers' => [],
+                    'label' => 'Exclusion',
+                    'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+                ];
+            }
+
             return [
                 'date' => $dateKey,
                 'markers' => $markers->all(),
@@ -462,19 +505,6 @@ class KpiMonthlyAuditService
                 'markers' => [],
                 'label' => '--',
                 'classes' => 'bg-slate-100 text-slate-400 dark:bg-slate-950 dark:text-slate-600',
-            ];
-        }
-
-        $holiday = $holidayMap->get($dateKey);
-        $dayRequest = $exclusionMaps['day'][$dateKey] ?? null;
-        $taskRequest = $assignment->id ? ($exclusionMaps['task'][$assignment->id][$dateKey] ?? null) : null;
-
-        if ($holiday || $dayRequest || $taskRequest) {
-            return [
-                'date' => $dateKey,
-                'markers' => [],
-                'label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
-                'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
             ];
         }
 
@@ -525,6 +555,15 @@ class KpiMonthlyAuditService
 
         if ($markDate !== $dateKey) {
             return null;
+        }
+
+        if ($status === 'excluded') {
+            return [
+                'type' => 'excluded',
+                'label' => 'Excluded',
+                'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+                'instance' => $this->serializeInstance($instance),
+            ];
         }
 
         return match ($status) {
@@ -680,7 +719,7 @@ class KpiMonthlyAuditService
                 continue;
             }
 
-            if (str_contains((string) $cell['classes'], 'bg-slate-200')) {
+            if (str_contains((string) $cell['classes'], 'bg-slate-200') || in_array((string) $cell['label'], ['Day exclusion', 'Task exclusion', 'Exclusion'], true)) {
                 $excluded++;
                 continue;
             }
@@ -691,20 +730,33 @@ class KpiMonthlyAuditService
             }
 
             if (!empty($cell['markers'])) {
+                $hasApproved = false;
+                $hasFailed = false;
+                $hasPending = false;
+                $hasExcluded = false;
+
                 foreach ($cell['markers'] as $marker) {
                     if ($marker['type'] === 'approved') {
-                        $passed++;
-                        continue;
+                        $hasApproved = true;
+                    } elseif ($marker['type'] === 'excluded') {
+                        $hasExcluded = true;
+                    } elseif ($marker['type'] === 'failed') {
+                        $hasFailed = true;
+                    } elseif (in_array($marker['type'], ['pending', 'rejected', 'overdue', 'upcoming'], true)) {
+                        if ($date->lte($evaluationEnd)) {
+                            $hasPending = true;
+                        }
                     }
+                }
 
-                    if ($marker['type'] === 'failed') {
-                        $failed++;
-                        continue;
-                    }
-
-                    if (in_array($marker['type'], ['pending', 'rejected', 'overdue', 'upcoming'], true) && $date->lte($evaluationEnd)) {
-                        $pending++;
-                    }
+                if ($hasApproved) {
+                    $passed++;
+                } elseif ($hasExcluded) {
+                    $excluded++;
+                } elseif ($hasFailed) {
+                    $failed++;
+                } elseif ($hasPending) {
+                    $pending++;
                 }
 
                 continue;
