@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { router, usePage } from '@inertiajs/react';
+import html2canvas from 'html2canvas';
 import KpiLayout from '@/Layouts/KpiLayout';
 import SubmissionDetailModal from './Components/SubmissionDetailModal';
 import PhotoCarouselModal from './Components/PhotoCarouselModal';
@@ -12,10 +13,24 @@ export default function Certificate({ month, users, selectedUser, certificate, a
     const [copied, setCopied] = useState(false);
     const copyTimeoutRef = useRef(null);
 
+    const summaryCardRef = useRef(null);
+    const [isCopyingImage, setIsCopyingImage] = useState(false);
+    const [isDownloadingImage, setIsDownloadingImage] = useState(false);
+    const [imageCopied, setImageCopied] = useState(false);
+    const imageCopyTimeoutRef = useRef(null);
+
     // Sync submission from Inertia reload
     useEffect(() => {
         setSelectedSubmission(initialSubmission || null);
     }, [initialSubmission]);
+
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+            if (imageCopyTimeoutRef.current) clearTimeout(imageCopyTimeoutRef.current);
+        };
+    }, []);
 
     // Body scroll lock when submission detail is open
     useEffect(() => {
@@ -52,6 +67,98 @@ export default function Certificate({ month, users, selectedUser, certificate, a
             clearTimeout(copyTimeoutRef.current);
             copyTimeoutRef.current = setTimeout(() => setCopied(false), 1500);
         });
+    };
+
+    const captureSummaryCanvas = async () => {
+        if (!summaryCardRef.current) return null;
+        return await html2canvas(summaryCardRef.current, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            ignoreElements: (el) => {
+                return (
+                    el.getAttribute('data-html2canvas-ignore') === 'true' ||
+                    el.classList.contains('no-export')
+                );
+            },
+        });
+    };
+
+    const handleCopyImage = async () => {
+        if (isCopyingImage || !summaryCardRef.current) return;
+        setIsCopyingImage(true);
+        try {
+            const canvas = await captureSummaryCanvas();
+            if (!canvas) {
+                setIsCopyingImage(false);
+                return;
+            }
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    setIsCopyingImage(false);
+                    return;
+                }
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob }),
+                        ]);
+                        setImageCopied(true);
+                        clearTimeout(imageCopyTimeoutRef.current);
+                        imageCopyTimeoutRef.current = setTimeout(() => setImageCopied(false), 2000);
+                    } else {
+                        // Fallback download if ClipboardItem API is not supported
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        const safeUserName = selectedUser?.name ? selectedUser.name.replace(/\s+/g, '_') : 'Employee';
+                        link.download = `KPI_Summary_${safeUserName}_${month || 'result'}.png`;
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                    }
+                } catch (err) {
+                    console.error('Failed to copy image to clipboard:', err);
+                    // Fallback to downloading image if clipboard write fails
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    const safeUserName = selectedUser?.name ? selectedUser.name.replace(/\s+/g, '_') : 'Employee';
+                    link.download = `KPI_Summary_${safeUserName}_${month || 'result'}.png`;
+                    link.href = url;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                } finally {
+                    setIsCopyingImage(false);
+                }
+            }, 'image/png');
+        } catch (err) {
+            console.error('Canvas capture failed:', err);
+            setIsCopyingImage(false);
+        }
+    };
+
+    const handleDownloadImage = async () => {
+        if (isDownloadingImage || !summaryCardRef.current) return;
+        setIsDownloadingImage(true);
+        try {
+            const canvas = await captureSummaryCanvas();
+            if (canvas) {
+                const dataUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                const safeUserName = selectedUser?.name ? selectedUser.name.replace(/\s+/g, '_') : 'Employee';
+                link.download = `KPI_Summary_${safeUserName}_${month || 'result'}.png`;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        } catch (err) {
+            console.error('Failed to download summary image:', err);
+        } finally {
+            setIsDownloadingImage(false);
+        }
     };
 
     const overall = certificate?.overall || {};
@@ -134,14 +241,76 @@ export default function Certificate({ month, users, selectedUser, certificate, a
 
                 {selectedUser && certificate && (
                     <div id="kpi-certificate-print" className="max-w-[210mm] mx-auto space-y-4">
-                        {/* Certificate Card */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-                            {/* Direct Report Link */}
-                            <div className="no-print flex items-center justify-between gap-4 px-6 py-3 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-900/50">
-                                <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Direct Report Link</span>
-                                <span className="text-xs text-indigo-500 dark:text-indigo-400 font-mono truncate">
-                                    {`${window.location.origin}/kpi/certificate?month=${month}&user_id=${selectedUser.id}`}
-                                </span>
+                        {/* Certificate Card / Summary Result Box */}
+                        <div ref={summaryCardRef} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+                            {/* Direct Report Link & Action Buttons */}
+                            <div
+                                data-html2canvas-ignore="true"
+                                className="no-print no-export flex flex-wrap items-center justify-between gap-3 px-6 py-3 bg-indigo-50/90 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50"
+                            >
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 shrink-0">Direct Report Link</span>
+                                    <span className="text-xs text-indigo-500 dark:text-indigo-400 font-mono truncate">
+                                        {`${window.location.origin}/kpi/certificate?month=${month}&user_id=${selectedUser.id}`}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyImage}
+                                        disabled={isCopyingImage || isDownloadingImage}
+                                        title="Copy Summary Box as Image to Clipboard"
+                                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 text-xs font-medium hover:bg-indigo-50 dark:hover:bg-indigo-900/50 transition cursor-pointer shadow-xs disabled:opacity-50"
+                                    >
+                                        {imageCopied ? (
+                                            <>
+                                                <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                <span className="text-emerald-600 dark:text-emerald-400 font-medium">Copied Image!</span>
+                                            </>
+                                        ) : isCopyingImage ? (
+                                            <>
+                                                <svg className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                                </svg>
+                                                <span>Copying...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                <span>Copy as Image</span>
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadImage}
+                                        disabled={isCopyingImage || isDownloadingImage}
+                                        title="Download Summary Box as PNG Image"
+                                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-xs font-medium transition cursor-pointer shadow-xs disabled:opacity-50"
+                                    >
+                                        {isDownloadingImage ? (
+                                            <>
+                                                <svg className="w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                                </svg>
+                                                <span>Downloading...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                </svg>
+                                                <span>Download as Image</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Header: Employee Info */}
