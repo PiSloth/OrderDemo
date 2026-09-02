@@ -79,21 +79,34 @@ class KpiMonthlyAuditService
                     ->orWhereHas('assignment', fn (Builder $q) => $q->where('user_id', $userId));
             })
             ->where(function (Builder $q) use ($monthStart, $monthEnd) {
+                // Monthly tasks: period overlaps month
                 $q->where(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->whereDate('period_start', '<=', $monthEnd->toDateString())
+                    $sub->where('period_type', 'monthly')
+                        ->whereDate('period_start', '<=', $monthEnd->toDateString())
                         ->whereDate('period_end', '>=', $monthStart->toDateString());
                 })
+                // Weekly tasks: attributed by Sunday trigger / due_at / period_end in the month
                 ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->whereDate('task_date', '>=', $monthStart->toDateString())
+                    $sub->where('period_type', 'weekly')
+                        ->where(function (Builder $w) use ($monthStart, $monthEnd) {
+                            $w->whereBetween('period_end', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()]);
+                        });
+                })
+                // Daily tasks: task_date within the month
+                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
+                    $sub->where('period_type', 'daily')
+                        ->whereDate('task_date', '>=', $monthStart->toDateString())
                         ->whereDate('task_date', '<=', $monthEnd->toDateString());
                 })
+                // Fallback for untyped instances
                 ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->whereDate('due_at', '>=', $monthStart->toDateString())
-                        ->whereDate('due_at', '<=', $monthEnd->toDateString());
-                })
-                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->whereDate('submitted_at', '>=', $monthStart->toDateString())
-                        ->whereDate('submitted_at', '<=', $monthEnd->toDateString());
+                    $sub->whereNull('period_type')
+                        ->where(function (Builder $f) use ($monthStart, $monthEnd) {
+                            $f->whereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()])
+                                ->orWhereBetween('period_end', [$monthStart->toDateString(), $monthEnd->toDateString()]);
+                        });
                 });
             })
             ->get();
@@ -463,7 +476,11 @@ class KpiMonthlyAuditService
         $status = (string) $instance->status;
         $latestSubmissionDate = $instance->latestSubmission?->submitted_at?->toDateString()
             ?? $instance->submitted_at?->toDateString();
-        $anchorDate = $instance->due_at?->toDateString()
+        $weeklySunday = $instance->period_type === 'weekly'
+            ? ($instance->due_at?->toDateString() ?? $instance->period_end?->toDateString() ?? $instance->task_date?->toDateString())
+            : null;
+        $anchorDate = $weeklySunday
+            ?? $instance->due_at?->toDateString()
             ?? $instance->task_date?->toDateString()
             ?? $instance->period_end?->toDateString()
             ?? $latestSubmissionDate;
@@ -612,7 +629,8 @@ class KpiMonthlyAuditService
 
         $eligibleInstances = $instances
             ->filter(function (KpiTaskInstance $instance) use ($evaluationEnd): bool {
-                $anchorDate = $instance->task_date
+                $anchorDate = ($instance->period_type === 'weekly' ? ($instance->due_at ?? $instance->period_end) : null)
+                    ?? $instance->task_date
                     ?? $instance->period_start
                     ?? $instance->period_end
                     ?? $instance->due_at

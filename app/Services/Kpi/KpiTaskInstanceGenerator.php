@@ -108,7 +108,7 @@ class KpiTaskInstanceGenerator
             $periodStart,
             $periodEnd,
             1,
-            $periodStart
+            $periodEnd
         ) ? 1 : 0;
     }
 
