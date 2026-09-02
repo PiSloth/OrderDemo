@@ -270,6 +270,29 @@ class KpiAuditController extends Controller
             ];
         });
 
+        // Filter out template rows where user was not assigned with any generated instances in that month
+        $rows = $rows->filter(function (array $row) use ($monthStart): bool {
+            $cells = collect($row['cells'] ?? []);
+            $hasInstances = $cells->contains(fn($c) => !empty($c['markers']));
+
+            // Always keep any row that has generated instances in this month
+            if ($hasInstances) {
+                return true;
+            }
+
+            $mustDo = (int) ($row['summary']['must_do'] ?? 0);
+            $hasActiveDailySchedule = $cells->contains(fn($c) => in_array($c['label'], ['.', 'X'], true));
+
+            // If it's a past month and there are no generated instances, do not show unassigned/empty template rows
+            $isPastMonth = now()->startOfMonth()->gt($monthStart);
+            if ($isPastMonth) {
+                return false;
+            }
+
+            // For current or future months, only keep if there are active scheduled daily cells or must_do > 0
+            return ($mustDo > 0 && $cells->contains(fn($c) => $c['label'] !== '--')) || $hasActiveDailySchedule;
+        })->values();
+
         $groupSummaries = $this->buildGroupSummaries($rows, $ruleEvaluator);
         $groupCards = [
             'passed' => $groupSummaries->where('passes_rule', true)->count(),
