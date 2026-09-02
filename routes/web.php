@@ -266,6 +266,7 @@ Route::middleware(['auth'])->prefix('kpi')->name('kpi.')->group(function () {
     Route::post('/assignments', [KpiAssignmentController::class, 'store'])->middleware('can:kpiManageAssignments')->name('assignments.store');
     Route::put('/assignments/{assignment}', [KpiAssignmentController::class, 'update'])->middleware('can:kpiManageAssignments')->name('assignments.update');
     Route::delete('/assignments/{assignment}', [KpiAssignmentController::class, 'destroy'])->middleware('can:kpiManageAssignments')->name('assignments.destroy');
+    Route::post('/assignments/instances', [KpiAssignmentController::class, 'storeInstance'])->middleware('can:kpiManageAssignments')->name('assignments.instances.store');
     Route::post('/assignments/instances/{instance}', [KpiAssignmentController::class, 'updateInstance'])->middleware('can:isSuperAdmin')->name('assignments.instances.update');
     Route::delete('/assignments/instances/{instance}', [KpiAssignmentController::class, 'destroyInstance'])->middleware('can:isSuperAdmin')->name('assignments.instances.destroy');
     Route::get('/import-export', KpiImportExport::class)->middleware('can:kpiManageImports')->name('import-export');

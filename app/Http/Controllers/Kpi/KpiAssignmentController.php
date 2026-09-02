@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Kpi;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\PushGoogleCalendarEvent;
 use App\Models\Department;
 use App\Models\Kpi\KpiTaskAssignment;
 use App\Models\Kpi\KpiTaskCalendarControl;
@@ -11,6 +12,7 @@ use App\Models\Kpi\KpiTaskSubmission;
 use App\Models\Kpi\KpiTaskSubmissionImage;
 use App\Models\Kpi\KpiTaskTemplate;
 use App\Models\User;
+use App\Services\Kpi\KpiAvailabilityService;
 use App\Services\Kpi\KpiSubmissionImageResizer;
 use App\Services\Kpi\KpiTaskInstanceGenerator;
 use Carbon\Carbon;
@@ -289,6 +291,141 @@ class KpiAssignmentController extends Controller
         $assignment->delete();
 
         return redirect()->back()->with('message', 'Employee task assignment deleted.');
+    }
+
+    public function storeInstance(Request $request, KpiAvailabilityService $availability): RedirectResponse
+    {
+        Gate::authorize('kpiManageAssignments');
+
+        $validated = $request->validate([
+            'task_template_id' => ['required', 'exists:kpi_task_templates,id'],
+            'user_id' => ['required', 'exists:users,id'],
+            'due_at' => ['required', 'date'],
+            'task_date' => ['nullable', 'date'],
+            'period_type' => ['nullable', 'string', 'in:daily,weekly,monthly,on_demand'],
+            'period_start' => ['nullable', 'date'],
+            'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
+            'status' => ['nullable', 'string', 'in:pending,rejected,waiting_first_approval,waiting_final_approval,passed,failed_late,failed_missed,excluded'],
+        ], [], [
+            'task_template_id' => 'task template',
+            'user_id' => 'employee',
+            'due_at' => 'target due date',
+            'task_date' => 'task date',
+            'period_start' => 'period start',
+            'period_end' => 'period end',
+        ]);
+
+        $template = KpiTaskTemplate::query()->with('group')->findOrFail($validated['task_template_id']);
+        $dueAt = Carbon::parse($validated['due_at']);
+        $taskDate = !empty($validated['task_date']) ? Carbon::parse($validated['task_date'])->startOfDay() : $dueAt->copy()->startOfDay();
+        $periodType = !empty($validated['period_type']) ? $validated['period_type'] : ($template->frequency ?: 'daily');
+
+        if (!empty($validated['period_start']) && !empty($validated['period_end'])) {
+            $periodStart = Carbon::parse($validated['period_start'])->startOfDay();
+            $periodEnd = Carbon::parse($validated['period_end'])->endOfDay();
+        } else {
+            switch ($periodType) {
+                case 'weekly':
+                    $periodStart = $taskDate->copy()->startOfWeek();
+                    $periodEnd = $taskDate->copy()->endOfWeek();
+                    break;
+                case 'monthly':
+                    $periodStart = $taskDate->copy()->startOfMonth();
+                    $periodEnd = $taskDate->copy()->endOfMonth();
+                    break;
+                case 'daily':
+                case 'on_demand':
+                default:
+                    $periodStart = $taskDate->copy()->startOfDay();
+                    $periodEnd = $taskDate->copy()->endOfDay();
+                    break;
+            }
+        }
+
+        $assignment = KpiTaskAssignment::query()
+            ->with(['template.group', 'firstApprover', 'finalApprover'])
+            ->where('task_template_id', $template->id)
+            ->where('user_id', $validated['user_id'])
+            ->where('is_active', true)
+            ->first();
+
+        $assignmentId = $assignment?->id;
+
+        $maxIndex = KpiTaskInstance::query()
+            ->where('task_template_id', $template->id)
+            ->where('user_id', $validated['user_id'])
+            ->where('period_type', $periodType)
+            ->where('period_start', $periodStart->toDateString())
+            ->where('period_end', $periodEnd->toDateString())
+            ->max('period_index');
+        $periodIndex = $maxIndex ? ($maxIndex + 1) : 1;
+
+        $instance = KpiTaskInstance::create([
+            'task_assignment_id' => $assignmentId,
+            'task_template_id' => $template->id,
+            'kpi_group_id' => $template->kpi_group_id,
+            'user_id' => (int) $validated['user_id'],
+            'period_type' => $periodType,
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
+            'period_index' => $periodIndex,
+            'task_date' => $taskDate->toDateString(),
+            'due_at' => $dueAt,
+            'status' => $validated['status'] ?? 'pending',
+            'final_outcome' => null,
+            'is_on_time' => null,
+            'failure_reason' => null,
+        ]);
+
+        $availability->syncDailyInstance($instance);
+
+        if ($assignment && $assignment->calendar_push_enabled) {
+            $title = (string) ($template->title ?? 'KPI Task');
+            $groupName = (string) ($template->group?->name ?? '');
+            $frequency = strtoupper($periodType);
+            $summary = trim($frequency . ' KPI: ' . $title);
+
+            if ($groupName !== '') {
+                $summary .= " ({$groupName})";
+            }
+
+            $descriptionParts = [
+                'Task: ' . $title,
+                'Frequency: ' . $frequency,
+                'Due: ' . $dueAt->format('Y-m-d H:i'),
+            ];
+
+            if ($template->description) {
+                $descriptionParts[] = 'Description: ' . $template->description;
+            }
+
+            $description = implode("\n", $descriptionParts);
+
+            $startsAt = match ($periodType) {
+                'daily' => $taskDate->copy()->startOfDay(),
+                default => $periodStart->copy()->startOfDay(),
+            };
+
+            $endsAt = $dueAt->copy();
+
+            $attendeeEmails = array_values(array_filter([
+                $assignment->firstApprover?->email,
+                $assignment->finalApprover?->email,
+            ]));
+
+            PushGoogleCalendarEvent::dispatch(
+                userId: (int) $assignment->user_id,
+                title: $summary,
+                description: $description,
+                location: null,
+                startsAtRfc3339: $startsAt->toRfc3339String(),
+                endsAtRfc3339: $endsAt->toRfc3339String(),
+                attendeeEmails: $attendeeEmails,
+                sendUpdates: true
+            );
+        }
+
+        return redirect()->back()->with('message', 'Task instance created successfully.');
     }
 
     public function updateInstance(Request $request, KpiTaskInstance $instance, KpiSubmissionImageResizer $resizer): RedirectResponse

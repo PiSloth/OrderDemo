@@ -3,6 +3,7 @@ import { Head, usePage, router } from '@inertiajs/react';
 import KpiLayout from '../../Layouts/KpiLayout';
 import AssignmentModal from './Components/AssignmentModal';
 import InstanceEditModal from './Components/InstanceEditModal';
+import CreateTaskInstanceModal from './Components/CreateTaskInstanceModal';
 import SearchableEmployeeSelect from './Components/SearchableEmployeeSelect';
 
 export default function Assignments({
@@ -21,9 +22,10 @@ export default function Assignments({
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState(null);
 
-    // Instance Modal state
+    // Instance Modal states
     const [isInstanceModalOpen, setIsInstanceModalOpen] = useState(false);
     const [editingInstance, setEditingInstance] = useState(null);
+    const [isCreateInstanceModalOpen, setIsCreateInstanceModalOpen] = useState(false);
 
     // Client-side search filters
     const [clientSearch, setClientSearch] = useState('');
@@ -197,16 +199,28 @@ export default function Assignments({
                             </p>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleOpenCreateAssignment}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
-                        >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            New Assignment
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setIsCreateInstanceModalOpen(true)}
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+                            >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Manual Instance
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleOpenCreateAssignment}
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                            >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                New Assignment
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -433,7 +447,7 @@ export default function Assignments({
                 {/* Super Admin: Created Task Instances Section */}
                 {canManageInstances && (
                     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                                     Super Admin Control
@@ -445,6 +459,17 @@ export default function Assignments({
                                     Review, adjust status, edit submission images, and manage generated KPI instances per employee.
                                 </p>
                             </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setIsCreateInstanceModalOpen(true)}
+                                className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                            >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Create Instance
+                            </button>
                         </div>
 
                         {/* Instance Filters */}
@@ -611,6 +636,15 @@ export default function Assignments({
                 onClose={() => setIsInstanceModalOpen(false)}
                 instance={editingInstance}
                 statusOptions={instanceStatusOptions}
+            />
+
+            {/* Manual Task Instance Creation Modal */}
+            <CreateTaskInstanceModal
+                isOpen={isCreateInstanceModalOpen}
+                onClose={() => setIsCreateInstanceModalOpen(false)}
+                templates={templates}
+                users={users}
+                departments={departments}
             />
         </KpiLayout>
     );
