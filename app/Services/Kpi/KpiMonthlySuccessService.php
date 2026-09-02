@@ -73,17 +73,10 @@ class KpiMonthlySuccessService
 
     protected function anchorDate(KpiTaskInstance $instance): ?Carbon
     {
-        if ($instance->period_type === 'weekly') {
-            return $instance->due_at
-                ?? $instance->period_end
-                ?? $instance->task_date
-                ?? $instance->submitted_at;
-        }
-
         return $instance->task_date
-            ?? $instance->due_at
-            ?? $instance->period_end
             ?? $instance->period_start
+            ?? $instance->period_end
+            ?? $instance->due_at
             ?? $instance->submitted_at;
     }
 

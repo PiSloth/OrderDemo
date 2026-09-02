@@ -181,30 +181,12 @@ class KpiCertificateController extends Controller
                     ->orWhereHas('assignment', fn (Builder $aQ) => $aQ->where('user_id', $userId));
             })->where(function (Builder $subQ) use ($monthStart, $monthEnd) {
                 $subQ->where(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->where('period_type', 'monthly')
-                        ->whereDate('period_start', '<=', $monthEnd->toDateString())
+                    $sub->whereDate('period_start', '<=', $monthEnd->toDateString())
                         ->whereDate('period_end', '>=', $monthStart->toDateString());
                 })
-                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->where('period_type', 'weekly')
-                        ->where(function (Builder $w) use ($monthStart, $monthEnd) {
-                            $w->whereBetween('period_end', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()]);
-                        });
-                })
-                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->where('period_type', 'daily')
-                        ->whereDate('task_date', '>=', $monthStart->toDateString())
-                        ->whereDate('task_date', '<=', $monthEnd->toDateString());
-                })
-                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->whereNull('period_type')
-                        ->where(function (Builder $f) use ($monthStart, $monthEnd) {
-                            $f->whereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()])
-                                ->orWhereBetween('period_end', [$monthStart->toDateString(), $monthEnd->toDateString()]);
-                        });
-                });
+                ->orWhereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()])
+                ->orWhereBetween('submitted_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()]);
             }))
             ->get();
 
@@ -236,30 +218,12 @@ class KpiCertificateController extends Controller
                     ->orWhereHas('assignment', fn (Builder $aQ) => $aQ->where('user_id', $userId));
             })->where('status', 'passed')->where(function (Builder $subQ) use ($monthStart, $monthEnd) {
                 $subQ->where(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->where('period_type', 'monthly')
-                        ->whereDate('period_start', '<=', $monthEnd->toDateString())
+                    $sub->whereDate('period_start', '<=', $monthEnd->toDateString())
                         ->whereDate('period_end', '>=', $monthStart->toDateString());
                 })
-                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->where('period_type', 'weekly')
-                        ->where(function (Builder $w) use ($monthStart, $monthEnd) {
-                            $w->whereBetween('period_end', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()]);
-                        });
-                })
-                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->where('period_type', 'daily')
-                        ->whereDate('task_date', '>=', $monthStart->toDateString())
-                        ->whereDate('task_date', '<=', $monthEnd->toDateString());
-                })
-                ->orWhere(function (Builder $sub) use ($monthStart, $monthEnd) {
-                    $sub->whereNull('period_type')
-                        ->where(function (Builder $f) use ($monthStart, $monthEnd) {
-                            $f->whereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()])
-                                ->orWhereBetween('period_end', [$monthStart->toDateString(), $monthEnd->toDateString()]);
-                        });
-                });
+                ->orWhereBetween('task_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->orWhereBetween('due_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()])
+                ->orWhereBetween('submitted_at', [$monthStart->startOfDay(), $monthEnd->endOfDay()]);
             }))
             ->orderByDesc('submitted_at')
             ->get();
