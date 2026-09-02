@@ -176,6 +176,29 @@ class KpiMonthlyAuditService
             $additionalAssignments = $additionalAssignments->merge($extraByAssignment);
         }
 
+        // Guarantee all remaining instances have an assignment entry
+        $resolvedTemplateIds = $activeAssignments->concat($additionalAssignments)->map(fn ($a) => $a->task_template_id ?? $a->template?->id)->filter()->all();
+        $unhandledInstances = $instances->filter(function ($inst) use ($resolvedTemplateIds) {
+            $tId = $inst->task_template_id ?? $inst->template?->id ?? $inst->assignment?->task_template_id ?? $inst->assignment?->template?->id;
+            return !$tId || !in_array($tId, $resolvedTemplateIds);
+        });
+
+        foreach ($unhandledInstances as $inst) {
+            $template = $inst->template ?? $inst->assignment?->template;
+            $syntheticAssignment = new KpiTaskAssignment([
+                'id' => $inst->task_assignment_id,
+                'task_template_id' => $inst->task_template_id ?? $template?->id,
+                'user_id' => $userId,
+                'is_active' => true,
+                'starts_on' => null,
+                'ends_on' => null,
+            ]);
+            if ($template) {
+                $syntheticAssignment->setRelation('template', $template);
+            }
+            $additionalAssignments->push($syntheticAssignment);
+        }
+
         return $activeAssignments->concat($additionalAssignments)
             ->unique(function (KpiTaskAssignment $a) {
                 $tId = $a->task_template_id ?? $a->template?->id;
@@ -220,6 +243,7 @@ class KpiMonthlyAuditService
             ]);
 
             return [
+                'has_instances' => $assignmentInstances->isNotEmpty() || $cells->contains(fn ($c) => !empty($c['markers'])),
                 'assignment' => [
                     'id' => $assignment->id,
                     'task_template_id' => $assignment->task_template_id ?? $template?->id,
@@ -260,6 +284,10 @@ class KpiMonthlyAuditService
 
         // Filter out template rows where user was not assigned with any generated instances in that month
         return $rows->filter(function (array $row) use ($monthStart): bool {
+            if (!empty($row['has_instances'])) {
+                return true;
+            }
+
             $cells = collect($row['cells'] ?? []);
             $hasInstances = $cells->contains(fn ($c) => !empty($c['markers']));
 
@@ -463,10 +491,12 @@ class KpiMonthlyAuditService
         $status = (string) $instance->status;
         $latestSubmissionDate = $instance->latestSubmission?->submitted_at?->toDateString()
             ?? $instance->submitted_at?->toDateString();
-        $anchorDate = $instance->due_at?->toDateString()
+        $anchorDate = $latestSubmissionDate
             ?? $instance->task_date?->toDateString()
+            ?? $instance->due_at?->toDateString()
             ?? $instance->period_end?->toDateString()
-            ?? $latestSubmissionDate;
+            ?? $instance->period_start?->toDateString()
+            ?? $instance->created_at?->toDateString();
 
         if (
             $instance->due_at
@@ -475,26 +505,22 @@ class KpiMonthlyAuditService
         ) {
             $overdueDate = Carbon::parse($instance->due_at)->toDateString();
 
-            if ($overdueDate !== $dateKey) {
-                return null;
+            if ($overdueDate === $dateKey) {
+                return [
+                    'type' => 'overdue',
+                    'label' => 'Overdue',
+                    'classes' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+                    'instance' => $this->serializeInstance($instance),
+                ];
             }
-
-            return [
-                'type' => 'overdue',
-                'label' => 'Overdue',
-                'classes' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-                'instance' => $this->serializeInstance($instance),
-            ];
         }
 
         $markDate = match ($status) {
-            'passed' => $latestSubmissionDate ?? $anchorDate,
-            'failed_late' => $latestSubmissionDate ?? $anchorDate,
-            'failed_missed' => $anchorDate,
-            'waiting_first_approval', 'waiting_final_approval' => $latestSubmissionDate,
-            'rejected' => $latestSubmissionDate ?? $anchorDate,
+            'passed', 'failed_late', 'rejected' => $latestSubmissionDate ?? $anchorDate,
+            'failed_missed' => $instance->due_at?->toDateString() ?? $instance->task_date?->toDateString() ?? $anchorDate,
+            'waiting_first_approval', 'waiting_final_approval', 'first_approval', 'final_approval', 'waiting_approval', 'submitted', 'pending_approval' => $latestSubmissionDate ?? $anchorDate,
             'pending' => $anchorDate,
-            default => null,
+            default => $latestSubmissionDate ?? $anchorDate,
         };
 
         if ($markDate !== $dateKey) {
@@ -514,7 +540,7 @@ class KpiMonthlyAuditService
                 'classes' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
                 'instance' => $this->serializeInstance($instance),
             ],
-            'waiting_first_approval', 'waiting_final_approval' => [
+            'waiting_first_approval', 'waiting_final_approval', 'first_approval', 'final_approval', 'waiting_approval', 'submitted', 'pending_approval' => [
                 'type' => 'pending',
                 'label' => 'Pending Approval',
                 'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
@@ -532,7 +558,12 @@ class KpiMonthlyAuditService
                 'classes' => 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
                 'instance' => $this->serializeInstance($instance),
             ],
-            default => null,
+            default => [
+                'type' => 'pending',
+                'label' => ucfirst(str_replace('_', ' ', $status ?: 'Pending')),
+                'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                'instance' => $this->serializeInstance($instance),
+            ],
         };
     }
 
