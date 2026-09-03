@@ -107,35 +107,73 @@ export const exportTodoReportPDF = async ({
                 const isSuccess = stName.includes('complete') || stName.includes('success') || stName.includes('done');
                 const isLate = !isSuccess && t.due_date && new Date(t.due_date) < new Date();
 
-                let slaBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #fef3c7; color: #b45309;">⏳ In Progress</span>`;
+                // SLA Badge with perfectly centered icon and text
+                let slaBadge = `
+                    <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
+                        <span style="font-size: 10px; line-height: 1;">⏳</span>
+                        <span style="line-height: 1;">In Progress</span>
+                    </span>
+                `;
                 if (isSuccess) {
-                    slaBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #d1fae5; color: #047857;">✅ Success</span>`;
+                    slaBadge = `
+                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #d1fae5; color: #047857; border: 1px solid #86efac; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
+                            <span style="font-size: 10px; line-height: 1;">✅</span>
+                            <span style="line-height: 1;">Success</span>
+                        </span>
+                    `;
                 } else if (isLate) {
-                    slaBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #fee2e2; color: #b91c1c;">🚨 Overdue</span>`;
+                    slaBadge = `
+                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
+                            <span style="font-size: 10px; line-height: 1;">🚨</span>
+                            <span style="line-height: 1;">Overdue</span>
+                        </span>
+                    `;
                 }
+
+                // Status Badge with status-specific colors and centered text
+                let stBg = '#f1f5f9';
+                let stColor = '#334155';
+                let stBorder = '#cbd5e1';
+                if (isSuccess) {
+                    stBg = '#ecfdf5';
+                    stColor = '#047857';
+                    stBorder = '#a7f3d0';
+                } else if (stName.includes('fail') || stName.includes('reject')) {
+                    stBg = '#fef2f2';
+                    stColor = '#b91c1c';
+                    stBorder = '#fecaca';
+                } else if (stName.includes('process') || stName.includes('progress')) {
+                    stBg = '#eff6ff';
+                    stColor = '#1d4ed8';
+                    stBorder = '#bfdbfe';
+                }
+
+                const statusBadge = `
+                    <span style="display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: ${stBg}; color: ${stColor}; border: 1px solid ${stBorder}; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
+                        <span style="line-height: 1;">${cleanText(t.status?.status || 'Open')}</span>
+                    </span>
+                `;
 
                 const deptName = t.assigned_user?.department?.name || t.department?.name || 'N/A';
                 const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
                 return `
                     <tr style="background-color: ${rowBg}; border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 7px 8px; text-align: center; font-size: 10.5px; font-weight: 600; color: #64748b; width: 35px; border-right: 1px solid #f1f5f9;">${idx + 1}</td>
-                        <td style="padding: 7px 12px; font-size: 11px; font-weight: 600; color: #0f172a; word-break: break-word; line-height: 1.4; border-right: 1px solid #f1f5f9;">
+                        <td style="padding: 8px 8px; text-align: center; font-size: 10.5px; font-weight: 600; color: #64748b; width: 35px; vertical-align: middle; border-right: 1px solid #f1f5f9;">${idx + 1}</td>
+                        <td style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #0f172a; word-break: break-word; line-height: 1.45; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif; vertical-align: middle; border-right: 1px solid #f1f5f9;">
                             ${cleanText(t.task)}
                         </td>
-                        <td style="padding: 7px 10px; font-size: 10.5px; color: #334155; width: 180px; border-right: 1px solid #f1f5f9;">
+                        <td style="padding: 8px 10px; font-size: 10.5px; color: #334155; width: 180px; vertical-align: middle; border-right: 1px solid #f1f5f9;">
                             <div style="font-weight: 600; color: #1e293b;">${cleanText(t.assigned_user?.name || 'Unassigned')}</div>
-                            <div style="font-size: 9.5px; color: #64748b; margin-top: 1px;">🏢 ${cleanText(deptName)}</div>
+                            <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">🏢 ${cleanText(deptName)}</div>
                         </td>
-                        <td style="padding: 7px 10px; text-align: center; font-size: 10px; color: #475569; width: 140px; white-space: nowrap; border-right: 1px solid #f1f5f9;">
+                        <td style="padding: 8px 10px; text-align: center; font-size: 10px; color: #475569; width: 140px; white-space: nowrap; vertical-align: middle; border-right: 1px solid #f1f5f9;">
                             ${formatDateTime(t.due_date)}
                         </td>
-                        <td style="padding: 7px 10px; text-align: center; font-size: 10px; width: 110px; border-right: 1px solid #f1f5f9;">
-                            <span style="display:inline-block; padding: 2px 7px; border-radius: 6px; font-weight: 600; background-color: #f1f5f9; color: #334155;">
-                                ${cleanText(t.status?.status || 'Open')}
-                            </span>
+                        <td style="padding: 8px 10px; text-align: center; width: 110px; vertical-align: middle; border-right: 1px solid #f1f5f9;">
+                            ${statusBadge}
                         </td>
-                        <td style="padding: 7px 10px; text-align: center; width: 110px;">
+                        <td style="padding: 8px 10px; text-align: center; width: 110px; vertical-align: middle;">
                             ${slaBadge}
                         </td>
                     </tr>
@@ -170,11 +208,16 @@ export const exportTodoReportPDF = async ({
                     <td style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #0f172a; border-right: 1px solid #f1f5f9;">
                         ${cleanText(g.categoryName || g.title)}
                     </td>
-                    <td style="padding: 6px 10px; text-align: center; font-size: 10px; border-right: 1px solid #f1f5f9;">
-                        <span style="font-weight: 700; color: ${g.color || '#4f46e5'};">🔥 ${cleanText(g.priorityLevel || 'Normal')}</span>
+                    <td style="padding: 6px 10px; text-align: center; vertical-align: middle; border-right: 1px solid #f1f5f9;">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; color: ${g.color || '#4f46e5'}; background-color: #ffffff; border: 1px solid ${g.color || '#cbd5e1'}; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif;">
+                            <span style="font-size: 10px; line-height: 1;">🔥</span>
+                            <span style="line-height: 1;">${cleanText(g.priorityLevel || 'Normal')}</span>
+                        </span>
                     </td>
-                    <td style="padding: 6px 10px; text-align: center; font-size: 10px; color: #475569; border-right: 1px solid #f1f5f9;">
-                        ${g.duration ? g.duration + ' Hours' : 'Standard'}
+                    <td style="padding: 6px 10px; text-align: center; vertical-align: middle; border-right: 1px solid #f1f5f9;">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 3px 8px; border-radius: 9999px; font-size: 9.5px; font-weight: 700; background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
+                            <span style="line-height: 1;">${g.duration ? g.duration + ' Hours' : 'Standard'}</span>
+                        </span>
                     </td>
                     <td style="padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b; border-right: 1px solid #f1f5f9;">${g.total}</td>
                     <td style="padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 700; color: #047857; border-right: 1px solid #f1f5f9;">${g.completed}</td>
@@ -289,21 +332,33 @@ export const exportTodoReportPDF = async ({
             const rateColor = rateNum >= 80 ? '#047857' : (rateNum >= 50 ? '#d97706' : '#b91c1c');
 
             groupDiv.innerHTML = `
-                <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 6px 6px 0 0; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 6px 6px 0 0; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 12px; font-weight: 800; color: #0f172a;">⏱️ ${cleanText(g.categoryName || g.title)}</span>
-                        <span style="display: inline-block; padding: 1px 6px; border-radius: 9999px; font-size: 9.5px; font-weight: 700; background-color: #e0e7ff; color: #3730a3;">
-                            ${g.duration ? g.duration + ' Hours' : 'Standard'}
+                        <span style="font-size: 12.5px; font-weight: 800; color: #0f172a; display: inline-flex; align-items: center; gap: 4px; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif;">
+                            <span>⏱️</span>
+                            <span>${cleanText(g.categoryName || g.title)}</span>
                         </span>
-                        <span style="display: inline-block; padding: 1px 6px; border-radius: 9999px; font-size: 9.5px; font-weight: 700; color: ${g.color}; background-color: #ffffff; border: 1px solid #cbd5e1;">
-                            🔥 ${cleanText(g.priorityLevel || 'Normal')}
+                        <span style="display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
+                            <span style="line-height: 1;">${g.duration ? g.duration + ' Hours' : 'Standard'}</span>
+                        </span>
+                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; color: ${g.color || '#4f46e5'}; background-color: #ffffff; border: 1px solid ${g.color || '#cbd5e1'}; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif;">
+                            <span style="font-size: 10px; line-height: 1;">🔥</span>
+                            <span style="line-height: 1;">${cleanText(g.priorityLevel || 'Normal')}</span>
                         </span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 12px; font-size: 10px;">
-                        <span>Total: <strong style="color: #0f172a;">${g.total}</strong></span>
-                        <span style="color: #047857;">Success: <strong>${g.completed}</strong></span>
-                        <span style="color: #b91c1c;">Overdue: <strong>${g.overdue}</strong></span>
-                        <span>Success Rate: <strong style="color: ${rateColor}; font-weight: 800;">${g.successRate}%</strong></span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-size: 10px; font-weight: 600; line-height: 1;">
+                            Total: <strong style="color: #0f172a; margin-left: 3px;">${g.total}</strong>
+                        </span>
+                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 10px; font-weight: 600; line-height: 1;">
+                            Success: <strong style="margin-left: 3px;">${g.completed}</strong>
+                        </span>
+                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 10px; font-weight: 600; line-height: 1;">
+                            Overdue: <strong style="margin-left: 3px;">${g.overdue}</strong>
+                        </span>
+                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #ffffff; border: 1px solid #cbd5e1; font-size: 10px; font-weight: 700; line-height: 1;">
+                            Success Rate: <strong style="color: ${rateColor}; margin-left: 3px;">${g.successRate}%</strong>
+                        </span>
                     </div>
                 </div>
 

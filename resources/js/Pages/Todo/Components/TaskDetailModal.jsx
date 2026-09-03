@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { router } from '@inertiajs/react';
+import RepairRequestModal from './RepairRequestModal';
 
 export default function TaskDetailModal({
     task,
@@ -10,6 +11,9 @@ export default function TaskDetailModal({
     currentUser = null,
 }) {
     if (!isOpen || !task) return null;
+
+    // A5 Repair Request Modal state
+    const [showRepairModal, setShowRepairModal] = useState(false);
 
     // States for comments and action step requests
     const [commentText, setCommentText] = useState('');
@@ -379,14 +383,24 @@ export default function TaskDetailModal({
                             </h1>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                            title="Press ESC to exit"
-                        >
-                            <kbd className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-mono dark:bg-slate-700">ESC</kbd> Exit Fullscreen
-                        </button>
+                        <div className="flex items-center gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setShowRepairModal(true)}
+                                className="inline-flex items-center gap-1.5 rounded-2xl border border-indigo-200 bg-indigo-50/90 px-3.5 py-2 text-xs font-black text-indigo-700 shadow-xs hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 dark:hover:bg-indigo-900/70 transition"
+                                title="Open formatted A5 Repair Request Form (Download PDF / Copy as Image)"
+                            >
+                                <span>📄</span> Repair Form (A5)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                title="Press ESC to exit"
+                            >
+                                <kbd className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-mono dark:bg-slate-700">ESC</kbd> Exit Fullscreen
+                            </button>
+                        </div>
                     </div>
 
                     {/* Timeline Progress Bar */}
@@ -805,6 +819,14 @@ export default function TaskDetailModal({
                     <div className="flex flex-wrap items-center gap-3">
                         <button
                             type="button"
+                            onClick={() => setShowRepairModal(true)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 transition"
+                            title="Export or copy A5 formatted repair request voucher"
+                        >
+                            <span>📄</span> Repair Form (A5)
+                        </button>
+                        <button
+                            type="button"
                             onClick={onClose}
                             className="rounded-xl border border-slate-300 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                         >
@@ -1132,6 +1154,14 @@ export default function TaskDetailModal({
                     </div>
                 </div>
             )}
+
+            {/* A5 Repair Request Form Modal */}
+            <RepairRequestModal
+                isOpen={showRepairModal}
+                onClose={() => setShowRepairModal(false)}
+                task={task}
+                currentUser={currentUser}
+            />
         </div>
     );
 }

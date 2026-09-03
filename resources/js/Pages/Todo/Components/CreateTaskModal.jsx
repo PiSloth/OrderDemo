@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { Snackbar, Alert } from '@mui/material';
 import SearchableUserSelect from '../../../Components/SearchableUserSelect';
+import RepairRequestModal from './RepairRequestModal';
 
 export default function CreateTaskModal({
     isOpen: propIsOpen = false,
@@ -16,9 +17,14 @@ export default function CreateTaskModal({
     userBranchId = null,
     dueTimes = [],
 }) {
+    const { auth } = usePage().props;
+    const currentUser = auth?.user;
+
     const [isOpen, setIsOpen] = useState(propIsOpen);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
+    const [voucherTask, setVoucherTask] = useState(null);
+    const [isVoucherOpen, setIsVoucherOpen] = useState(false);
 
     const { data: formData, setData: setFormData, post: postTask, processing: taskProcessing, reset: resetTaskForm, errors: formErrors } = useForm({
         selectedDueTimeId: '',
@@ -304,39 +310,63 @@ export default function CreateTaskModal({
 
         if (taskProcessing) return;
 
-        postTask('/todo/tasks', {
-            preserveScroll: true,
-            onSuccess: () => {
-                const taskInfo = {
-                    task: formData.task,
-                    status: 'In Progress',
-                    formData
-                };
-                if (propOnSuccessTask) {
-                    propOnSuccessTask(taskInfo);
+            postTask('/todo/tasks', {
+                preserveScroll: true,
+                onSuccess: () => {
+                    const selectedDueTimeObj = allNormalizedDueTimes.find((dt) => String(dt.id) === String(formData.selectedDueTimeId));
+                    const selectedCategoryObj = departmentCategories.find((c) => String(c.id) === String(selectedCategoryId));
+                    const selectedDept = departments.find((d) => String(d.id) === String(selectedDepartmentId)) ||
+                                         departmentOptions.find((d) => String(d.id) === String(selectedDepartmentId));
+                    const assignedUserObj = users.find((u) => String(u.id) === String(formData.assignedUserId));
+
+                    const taskInfo = {
+                        task: formData.task,
+                        status: { status: 'In Progress' },
+                        formData,
+                        created_at: new Date().toISOString(),
+                        due_date: formData.dueDate,
+                        due_time: selectedDueTimeObj?.raw || {
+                            name: selectedDueTimeObj?.name,
+                            category: { name: selectedCategoryObj?.name || selectedDueTimeObj?.categoryName },
+                            priority: { level: selectedDueTimeObj?.priorityLevel }
+                        },
+                        created_by_user: currentUser,
+                        assigned_user: assignedUserObj,
+                        department: selectedDept || currentUser?.department,
+                        requested_by_department: selectedDept,
+                    };
+
+                    if (propOnSuccessTask) {
+                        propOnSuccessTask(taskInfo);
+                    }
+                    window.dispatchEvent(new CustomEvent('todo-task-created', { detail: taskInfo }));
+
+                    // Trigger A5 Repair Request Form Modal for created task
+                    setVoucherTask(taskInfo);
+                    setIsVoucherOpen(true);
+
+                    resetTaskForm();
+                    setSelectedDepartmentId('');
+                    setSelectedCategoryId('');
+                    setIsOpen(false);
+                },
+                onError: (errors) => {
+                    const errMsgs = Object.values(errors).flat().join(' | ');
+                    setValidationSnackbar({
+                        open: true,
+                        message: `⚠️ Validation error: ${errMsgs || 'Failed to save task.'}`,
+                        severity: 'error'
+                    });
                 }
-                window.dispatchEvent(new CustomEvent('todo-task-created', { detail: taskInfo }));
+            });
+        };
 
-                resetTaskForm();
-                setSelectedDepartmentId('');
-                setSelectedCategoryId('');
-                handleClose();
-            },
-            onError: (errors) => {
-                const errMsgs = Object.values(errors).flat().join(' | ');
-                setValidationSnackbar({
-                    open: true,
-                    message: `⚠️ Validation error: ${errMsgs || 'Failed to save task.'}`,
-                    severity: 'error'
-                });
-            }
-        });
-    };
-
-    if (!isOpen) return null;
+        if (!isOpen && !isVoucherOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+        <>
+            {isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
             <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-6 my-auto">
                 {/* Modal Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -704,6 +734,20 @@ export default function CreateTaskModal({
                     {validationSnackbar.message}
                 </Alert>
             </Snackbar>
-        </div>
+                </div>
+            )}
+
+            {/* A5 Repair Request Form Modal */}
+            <RepairRequestModal
+                isOpen={isVoucherOpen}
+                onClose={() => {
+                    setIsVoucherOpen(false);
+                    setVoucherTask(null);
+                    if (propOnClose) propOnClose();
+                }}
+                task={voucherTask}
+                currentUser={currentUser}
+            />
+        </>
     );
 }

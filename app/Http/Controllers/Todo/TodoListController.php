@@ -10,6 +10,7 @@ use App\Models\TaskComment;
 use App\Models\TodoCategory;
 use App\Models\TodoDueTime;
 use App\Models\TodoList;
+use App\Models\TodoPriority;
 use App\Models\TodoStatus;
 use App\Models\User;
 use Carbon\Carbon;
@@ -143,6 +144,7 @@ class TodoListController extends Controller
             'branches' => $branches,
             'departments' => $departments,
             'categories' => TodoCategory::orderBy('name')->get(),
+            'priorities' => TodoPriority::orderBy('rank')->get(),
             'itAdminDepartments' => $itAdminDepartments,
             'users' => $users,
             'userBranchId' => $user->branch_id ?? null,
