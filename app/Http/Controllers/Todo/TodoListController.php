@@ -107,6 +107,33 @@ class TodoListController extends Controller
         $topPerformers = array_values($performersMap);
         usort($topPerformers, fn($a, $b) => $b['completed_count'] - $a['completed_count']);
 
+        $filterMonth = $request->query('filterMonth', '');
+        $filterDepartmentId = $request->query('filterDepartmentId', '');
+
+        // Extract available months with tasks for month filtering
+        $monthCounts = [];
+        foreach ($todoLists as $task) {
+            $dateVal = $task->due_date ?? $task->created_at;
+            if ($dateVal) {
+                $mKey = Carbon::parse($dateVal)->format('Y-m');
+                $monthCounts[$mKey] = ($monthCounts[$mKey] ?? 0) + 1;
+            }
+        }
+        krsort($monthCounts);
+        $monthsWithTasks = [];
+        foreach ($monthCounts as $mKey => $count) {
+            try {
+                $mDate = Carbon::createFromFormat('Y-m', $mKey)->startOfMonth();
+                $monthsWithTasks[] = [
+                    'value' => $mKey,
+                    'label' => $mDate->format('F Y'),
+                    'count' => $count,
+                ];
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
+
         return Inertia::render('Todo/Dashboard', [
             'todoLists' => $todoLists,
             'archivedTasks' => $archivedTasks,
@@ -120,6 +147,11 @@ class TodoListController extends Controller
             'users' => $users,
             'userBranchId' => $user->branch_id ?? null,
             'topPerformers' => $topPerformers,
+            'monthsWithTasks' => $monthsWithTasks,
+            'filters' => [
+                'filterMonth' => $filterMonth,
+                'filterDepartmentId' => $filterDepartmentId,
+            ],
         ]);
     }
 
