@@ -58,6 +58,9 @@ const formatDateTime = (dateStr) => {
 export const exportTodoReportPDF = async ({
     tasks = [],
     groups = [],
+    categories = [],
+    priorities = [],
+    categoryMatrix = null,
     metrics = {},
     filters = {},
     authUser = {},
@@ -107,52 +110,25 @@ export const exportTodoReportPDF = async ({
                 const isSuccess = stName.includes('complete') || stName.includes('success') || stName.includes('done');
                 const isLate = !isSuccess && t.due_date && new Date(t.due_date) < new Date();
 
-                // SLA Badge with perfectly centered icon and text
-                let slaBadge = `
-                    <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
-                        <span style="font-size: 10px; line-height: 1;">⏳</span>
-                        <span style="line-height: 1;">In Progress</span>
-                    </span>
-                `;
+                // SLA Badge - clean colored text
+                let slaBadge = `<strong style="color: #d97706; font-size: 11px; font-family: 'Segoe UI', Arial, sans-serif; white-space: nowrap;">⏳ In Progress</strong>`;
                 if (isSuccess) {
-                    slaBadge = `
-                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #d1fae5; color: #047857; border: 1px solid #86efac; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
-                            <span style="font-size: 10px; line-height: 1;">✅</span>
-                            <span style="line-height: 1;">Success</span>
-                        </span>
-                    `;
+                    slaBadge = `<strong style="color: #047857; font-size: 11px; font-family: 'Segoe UI', Arial, sans-serif; white-space: nowrap;">✅ Success</strong>`;
                 } else if (isLate) {
-                    slaBadge = `
-                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
-                            <span style="font-size: 10px; line-height: 1;">🚨</span>
-                            <span style="line-height: 1;">Overdue</span>
-                        </span>
-                    `;
+                    slaBadge = `<strong style="color: #dc2626; font-size: 11px; font-family: 'Segoe UI', Arial, sans-serif; white-space: nowrap;">🚨 Overdue</strong>`;
                 }
 
-                // Status Badge with status-specific colors and centered text
-                let stBg = '#f1f5f9';
+                // Status Badge - clean colored text
                 let stColor = '#334155';
-                let stBorder = '#cbd5e1';
                 if (isSuccess) {
-                    stBg = '#ecfdf5';
                     stColor = '#047857';
-                    stBorder = '#a7f3d0';
                 } else if (stName.includes('fail') || stName.includes('reject')) {
-                    stBg = '#fef2f2';
-                    stColor = '#b91c1c';
-                    stBorder = '#fecaca';
+                    stColor = '#dc2626';
                 } else if (stName.includes('process') || stName.includes('progress')) {
-                    stBg = '#eff6ff';
-                    stColor = '#1d4ed8';
-                    stBorder = '#bfdbfe';
+                    stColor = '#2563eb';
                 }
 
-                const statusBadge = `
-                    <span style="display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: ${stBg}; color: ${stColor}; border: 1px solid ${stBorder}; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
-                        <span style="line-height: 1;">${cleanText(t.status?.status || 'Open')}</span>
-                    </span>
-                `;
+                const statusBadge = `<strong style="color: ${stColor}; font-size: 11px; font-family: 'Pyidaungsu', 'Segoe UI', Arial, sans-serif; white-space: nowrap;">${cleanText(t.status?.status || 'Open')}</strong>`;
 
                 const deptName = t.assigned_user?.department?.name || t.department?.name || 'N/A';
                 const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
@@ -196,33 +172,106 @@ export const exportTodoReportPDF = async ({
             };
         });
 
-        // Summary Table of all Due Time Types
-        const summaryRowsHtml = groups.map((g, idx) => {
+        // Prepare Category by Priority & Success Rate Matrix Data
+        let matrixData = categoryMatrix;
+        let priorityCols = priorities && priorities.length > 0 ? priorities : [];
+
+        if (!matrixData) {
+            // Fallback computation from tasks & categories if not passed
+            const catMap = {};
+            (categories || []).forEach((c) => {
+                catMap[String(c.id)] = {
+                    id: c.id,
+                    name: c.name,
+                    totalTasks: 0,
+                    completedTasks: 0,
+                    priorityCounts: {},
+                };
+            });
+            const uncategorized = {
+                id: 'uncategorized',
+                name: 'General / Uncategorized',
+                totalTasks: 0,
+                completedTasks: 0,
+                priorityCounts: {},
+            };
+
+            tasks.forEach((t) => {
+                const catId = t.due_time?.todo_category_id || t.todo_category_id;
+                const targetCat = (catId && catMap[String(catId)]) ? catMap[String(catId)] : uncategorized;
+                const prioId = t.due_time?.todo_priority_id || t.todo_priority_id || 'unknown';
+                const stName = (t.status?.status || '').toLowerCase();
+                const isCompleted = stName.includes('complete') || stName.includes('success') || stName.includes('done');
+
+                if (!targetCat.priorityCounts[String(prioId)]) {
+                    targetCat.priorityCounts[String(prioId)] = { total: 0, completed: 0 };
+                }
+                targetCat.priorityCounts[String(prioId)].total += 1;
+                if (isCompleted) {
+                    targetCat.priorityCounts[String(prioId)].completed += 1;
+                    targetCat.completedTasks += 1;
+                }
+                targetCat.totalTasks += 1;
+            });
+
+            const list = Object.values(catMap);
+            if (uncategorized.totalTasks > 0) list.push(uncategorized);
+            const activeRows = list.filter((r) => r.totalTasks > 0);
+            activeRows.sort((a, b) => b.totalTasks - a.totalTasks || a.name.localeCompare(b.name));
+
+            const columnTotals = {};
+            priorityCols.forEach((p) => { columnTotals[String(p.id)] = 0; });
+            let grandTotal = 0;
+            let grandCompleted = 0;
+            activeRows.forEach((row) => {
+                grandTotal += row.totalTasks;
+                grandCompleted += row.completedTasks;
+                priorityCols.forEach((p) => {
+                    const c = row.priorityCounts[String(p.id)]?.total || 0;
+                    columnTotals[String(p.id)] = (columnTotals[String(p.id)] || 0) + c;
+                });
+            });
+            const overallRate = grandTotal > 0 ? ((grandCompleted / grandTotal) * 100).toFixed(1) : '0.0';
+            matrixData = {
+                rows: activeRows,
+                columnTotals,
+                grandTotal,
+                grandCompleted,
+                overallSuccessRate: overallRate,
+            };
+        }
+
+        // Build HTML for Category by Priority Matrix Rows (only active categories with tasks > 0)
+        const matrixRowsHtml = (matrixData.rows || []).map((row, idx) => {
             const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-            const rateNum = parseFloat(g.successRate || 0);
-            const rateColor = rateNum >= 80 ? '#047857' : (rateNum >= 50 ? '#d97706' : '#b91c1c');
+            const rateNum = row.totalTasks > 0 ? ((row.completedTasks / row.totalTasks) * 100).toFixed(1) : '0.0';
+            const num = parseFloat(rateNum);
+            const rateBg = num >= 80 ? '#ecfdf5' : (num >= 50 ? '#fffbeb' : '#fef2f2');
+            const rateColor = num >= 80 ? '#047857' : (num >= 50 ? '#b45309' : '#b91c1c');
+            const rateBorder = num >= 80 ? '#a7f3d0' : (num >= 50 ? '#fde68a' : '#fecaca');
 
             return `
                 <tr style="background-color: ${rowBg}; border-bottom: 1px solid #e2e8f0;">
-                    <td style="padding: 6px 8px; text-align: center; font-size: 10.5px; font-weight: 600; color: #64748b; border-right: 1px solid #f1f5f9;">${idx + 1}</td>
-                    <td style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #0f172a; border-right: 1px solid #f1f5f9;">
-                        ${cleanText(g.categoryName || g.title)}
+                    <td style="padding: 7px 10px; font-size: 11px; font-weight: 700; color: #0f172a; border-right: 1px solid #f1f5f9; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif;">
+                        ${cleanText(row.name)}
                     </td>
-                    <td style="padding: 6px 10px; text-align: center; vertical-align: middle; border-right: 1px solid #f1f5f9;">
-                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; color: ${g.color || '#4f46e5'}; background-color: #ffffff; border: 1px solid ${g.color || '#cbd5e1'}; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif;">
-                            <span style="font-size: 10px; line-height: 1;">🔥</span>
-                            <span style="line-height: 1;">${cleanText(g.priorityLevel || 'Normal')}</span>
-                        </span>
+                    ${priorityCols.map((prio) => {
+                        const count = row.priorityCounts[String(prio.id)]?.total || 0;
+                        return `
+                            <td style="padding: 7px 8px; text-align: center; border-right: 1px solid #f1f5f9; vertical-align: middle;">
+                                ${count > 0 ? `
+                                    <strong style="color: ${prio.color_code || '#0f172a'}; font-size: 12px; font-family: 'Segoe UI', Arial, sans-serif;">
+                                        ${count}
+                                    </strong>
+                                ` : `<span style="color: #cbd5e1; font-size: 11px;">-</span>`}
+                            </td>
+                        `;
+                    }).join('')}
+                    <td style="padding: 7px 10px; text-align: center; vertical-align: middle;">
+                        <strong style="color: ${rateColor}; font-size: 11px; font-family: 'Segoe UI', Arial, sans-serif; white-space: nowrap;">
+                            ${row.completedTasks}/${row.totalTasks} (${rateNum} %)
+                        </strong>
                     </td>
-                    <td style="padding: 6px 10px; text-align: center; vertical-align: middle; border-right: 1px solid #f1f5f9;">
-                        <span style="display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 3px 8px; border-radius: 9999px; font-size: 9.5px; font-weight: 700; background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
-                            <span style="line-height: 1;">${g.duration ? g.duration + ' Hours' : 'Standard'}</span>
-                        </span>
-                    </td>
-                    <td style="padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b; border-right: 1px solid #f1f5f9;">${g.total}</td>
-                    <td style="padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 700; color: #047857; border-right: 1px solid #f1f5f9;">${g.completed}</td>
-                    <td style="padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 700; color: #b91c1c; border-right: 1px solid #f1f5f9;">${g.overdue}</td>
-                    <td style="padding: 6px 10px; text-align: center; font-size: 11.5px; font-weight: 800; color: ${rateColor};">${g.successRate}%</td>
                 </tr>
             `;
         }).join('');
@@ -292,29 +341,50 @@ export const exportTodoReportPDF = async ({
                 </div>
             </div>
 
-            <!-- Due Time Types Summary Table Header -->
+            <!-- Category by Priority & Success Rate Table Header (Replaced Due Time Summary Div per user request) -->
             <div style="margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
-                <span style="font-size: 13px; font-weight: 800; color: #0f172a;">Due Time Types Performance Summary</span>
-                <span style="font-size: 10px; color: #64748b;">Summary of compliance and success rates across all due time categories</span>
+                <span style="font-size: 13px; font-weight: 800; color: #0f172a;">Category by Priority & Success Rate</span>
+                <span style="font-size: 10px; color: #64748b;">Performance cross-tabulation across priority levels and completion success rate</span>
             </div>
 
-            <!-- Due Time Types Summary Table -->
+            <!-- Category by Priority & Success Rate Table -->
             <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 12px;">
                 <thead>
-                    <tr style="background-color: #312e81; color: #ffffff; font-size: 10.5px;">
-                        <th style="padding: 7px 6px; width: 35px; text-align: center; border-right: 1px solid #4338ca;">#</th>
-                        <th style="padding: 7px 10px; text-align: left; border-right: 1px solid #4338ca;">Due Time Type / Category</th>
-                        <th style="padding: 7px 10px; width: 110px; text-align: center; border-right: 1px solid #4338ca;">Priority</th>
-                        <th style="padding: 7px 10px; width: 90px; text-align: center; border-right: 1px solid #4338ca;">Duration</th>
-                        <th style="padding: 7px 8px; width: 75px; text-align: center; border-right: 1px solid #4338ca;">Total</th>
-                        <th style="padding: 7px 8px; width: 85px; text-align: center; border-right: 1px solid #4338ca;">Success ✔</th>
-                        <th style="padding: 7px 8px; width: 85px; text-align: center; border-right: 1px solid #4338ca;">Overdue 🚨</th>
-                        <th style="padding: 7px 10px; width: 105px; text-align: center;">Success Rate</th>
+                    <tr style="background-color: #1e1b4b; color: #ffffff; font-size: 10.5px;">
+                        <th style="padding: 7px 10px; text-align: left; border-right: 1px solid #312e81; min-width: 180px; vertical-align: middle;">Category</th>
+                        ${priorityCols.map((prio) => `
+                            <th style="padding: 8px 8px; text-align: center; border-right: 1px solid #312e81; min-width: 90px; vertical-align: middle;">
+                                <span style="color: #ffffff; font-size: 11px; font-weight: 700; font-family: 'Segoe UI', Arial, sans-serif;">
+                                    ${cleanText(prio.level)}
+                                </span>
+                            </th>
+                        `).join('')}
+                        <th style="padding: 8px 10px; width: 140px; text-align: center; vertical-align: middle; color: #ffffff; font-size: 11px; font-weight: 700;">Success Rate</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${summaryRowsHtml || '<tr><td colspan="8" style="padding: 12px; text-align: center; color: #94a3b8; font-style: italic;">No due time groups found.</td></tr>'}
+                    ${matrixRowsHtml || '<tr><td colspan="6" style="padding: 14px; text-align: center; color: #94a3b8; font-style: italic;">No active categorized tasks found.</td></tr>'}
                 </tbody>
+                <tfoot>
+                    <tr style="background-color: #f1f5f9; font-size: 11px; font-weight: 800; border-top: 2px solid #cbd5e1;">
+                        <td style="padding: 8px 10px; color: #0f172a; border-right: 1px solid #e2e8f0; font-weight: 800; text-transform: uppercase; vertical-align: middle;">Total</td>
+                        ${priorityCols.map((prio) => {
+                            const count = matrixData.columnTotals[String(prio.id)] || 0;
+                            return `
+                                <td style="padding: 8px 8px; text-align: center; color: #0f172a; border-right: 1px solid #e2e8f0; vertical-align: middle;">
+                                    <strong style="color: #0f172a; font-size: 12px; font-family: 'Segoe UI', Arial, sans-serif;">
+                                        ${count > 0 ? count : '0'}
+                                    </strong>
+                                </td>
+                            `;
+                        }).join('')}
+                        <td style="padding: 8px 10px; text-align: center; vertical-align: middle;">
+                            <strong style="color: #047857; font-size: 12px; font-family: 'Segoe UI', Arial, sans-serif; white-space: nowrap;">
+                                ${matrixData.grandCompleted}/${matrixData.grandTotal} (${matrixData.overallSuccessRate} %)
+                            </strong>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         `;
 
@@ -332,33 +402,27 @@ export const exportTodoReportPDF = async ({
             const rateColor = rateNum >= 80 ? '#047857' : (rateNum >= 50 ? '#d97706' : '#b91c1c');
 
             groupDiv.innerHTML = `
-                <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 6px 6px 0 0; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 6px 6px 0 0; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 12.5px; font-weight: 800; color: #0f172a; display: inline-flex; align-items: center; gap: 4px; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif;">
                             <span>⏱️</span>
                             <span>${cleanText(g.categoryName || g.title)}</span>
                         </span>
-                        <span style="display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap;">
-                            <span style="line-height: 1;">${g.duration ? g.duration + ' Hours' : 'Standard'}</span>
+                        <span style="color: #4338ca; font-weight: 700; font-size: 11px; font-family: 'Segoe UI', Arial, sans-serif;">
+                            • &nbsp;${g.duration ? g.duration + ' Hours' : 'Standard'}
                         </span>
-                        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; vertical-align: middle; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; color: ${g.color || '#4f46e5'}; background-color: #ffffff; border: 1px solid ${g.color || '#cbd5e1'}; box-sizing: border-box; line-height: 1; text-align: center; white-space: nowrap; font-family: 'Pyidaungsu', 'Segoe UI', sans-serif;">
-                            <span style="font-size: 10px; line-height: 1;">🔥</span>
-                            <span style="line-height: 1;">${cleanText(g.priorityLevel || 'Normal')}</span>
+                        <span style="color: ${g.color || '#e11d48'}; font-weight: 700; font-size: 11px; font-family: 'Pyidaungsu', 'Segoe UI', Arial, sans-serif;">
+                            • &nbsp;🔥 ${cleanText(g.priorityLevel || 'Normal')}
                         </span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-size: 10px; font-weight: 600; line-height: 1;">
-                            Total: <strong style="color: #0f172a; margin-left: 3px;">${g.total}</strong>
-                        </span>
-                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 10px; font-weight: 600; line-height: 1;">
-                            Success: <strong style="margin-left: 3px;">${g.completed}</strong>
-                        </span>
-                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 10px; font-weight: 600; line-height: 1;">
-                            Overdue: <strong style="margin-left: 3px;">${g.overdue}</strong>
-                        </span>
-                        <span style="display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 6px; background-color: #ffffff; border: 1px solid #cbd5e1; font-size: 10px; font-weight: 700; line-height: 1;">
-                            Success Rate: <strong style="color: ${rateColor}; margin-left: 3px;">${g.successRate}%</strong>
-                        </span>
+                    <div style="display: flex; align-items: center; gap: 10px; font-size: 11px; font-family: 'Segoe UI', Arial, sans-serif;">
+                        <span style="color: #64748b;">Total: <strong style="color: #0f172a;">${g.total}</strong></span>
+                        <span style="color: #cbd5e1;">|</span>
+                        <span style="color: #64748b;">Success: <strong style="color: #047857;">${g.completed}</strong></span>
+                        <span style="color: #cbd5e1;">|</span>
+                        <span style="color: #64748b;">Overdue: <strong style="color: #dc2626;">${g.overdue}</strong></span>
+                        <span style="color: #cbd5e1;">|</span>
+                        <span style="color: #64748b;">Success Rate: <strong style="color: ${rateColor}; font-weight: 800;">${g.successRate}%</strong></span>
                     </div>
                 </div>
 

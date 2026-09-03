@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import html2canvas from 'html2canvas';
 import TodoLayout from '../../Layouts/TodoLayout';
 import CreateTaskModal from './Components/CreateTaskModal';
 import TaskDetailModal from './Components/TaskDetailModal';
@@ -37,6 +38,80 @@ export default function Dashboard({
     const [selectedTaskDetail, setSelectedTaskDetail] = useState(null);
     const [commentInput, setCommentInput] = useState('');
     const [copiedTaskId, setCopiedTaskId] = useState(null);
+
+    // Category Matrix Table Image Export
+    const matrixTableRef = useRef(null);
+    const [isCopyingMatrix, setIsCopyingMatrix] = useState(false);
+    const [isDownloadingMatrix, setIsDownloadingMatrix] = useState(false);
+    const [matrixNotification, setMatrixNotification] = useState(null);
+
+    const handleCopyMatrixImage = async () => {
+        if (!matrixTableRef.current) return;
+        setIsCopyingMatrix(true);
+        try {
+            const canvas = await html2canvas(matrixTableRef.current, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                logging: false,
+            });
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    setIsCopyingMatrix(false);
+                    return;
+                }
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob }),
+                        ]);
+                        setMatrixNotification('Copied table to clipboard!');
+                    } else {
+                        const link = document.createElement('a');
+                        link.download = 'Category_Priority_Matrix.png';
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        setMatrixNotification('Downloaded table image');
+                    }
+                } catch (err) {
+                    const link = document.createElement('a');
+                    link.download = 'Category_Priority_Matrix.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    setMatrixNotification('Downloaded table image');
+                } finally {
+                    setIsCopyingMatrix(false);
+                    setTimeout(() => setMatrixNotification(null), 3000);
+                }
+            }, 'image/png');
+        } catch (e) {
+            console.error(e);
+            setIsCopyingMatrix(false);
+        }
+    };
+
+    const handleDownloadMatrixImage = async () => {
+        if (!matrixTableRef.current) return;
+        setIsDownloadingMatrix(true);
+        try {
+            const canvas = await html2canvas(matrixTableRef.current, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                logging: false,
+            });
+            const link = document.createElement('a');
+            link.download = 'Category_Priority_Matrix.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            setMatrixNotification('Downloaded table image');
+            setTimeout(() => setMatrixNotification(null), 3000);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsDownloadingMatrix(false);
+        }
+    };
 
     // Escape listener for Task Detail Modal
     useEffect(() => {
@@ -321,8 +396,11 @@ export default function Dashboard({
             list.push(uncategorized);
         }
 
+        // Filter out count 0 categories (per user request: "don't show count 0 category")
+        const activeRows = list.filter((r) => r.totalTasks > 0);
+
         // Sort: categories with tasks first (descending by total tasks), then alphabetically
-        list.sort((a, b) => {
+        activeRows.sort((a, b) => {
             if (b.totalTasks !== a.totalTasks) return b.totalTasks - a.totalTasks;
             return a.name.localeCompare(b.name);
         });
@@ -335,7 +413,7 @@ export default function Dashboard({
         let grandTotal = 0;
         let grandCompleted = 0;
 
-        list.forEach((row) => {
+        activeRows.forEach((row) => {
             grandTotal += row.totalTasks;
             grandCompleted += row.completedTasks;
             priorityColumns.forEach((p) => {
@@ -347,7 +425,7 @@ export default function Dashboard({
         const overallRate = grandTotal > 0 ? ((grandCompleted / grandTotal) * 100).toFixed(1) : '0.0';
 
         return {
-            rows: list,
+            rows: activeRows,
             columnTotals,
             grandTotal,
             grandCompleted,
@@ -572,6 +650,9 @@ export default function Dashboard({
             await exportTodoReportPDF({
                 tasks: filteredTasks,
                 groups: dueTimeTypeGroups,
+                categories,
+                priorities: priorityColumns,
+                categoryMatrix: categoryPriorityMatrix,
                 metrics: {
                     totalTasks,
                     completedTasks,
@@ -886,166 +967,187 @@ export default function Dashboard({
                     </div>
                 </div>
 
-                {/* CATEGORY & PRIORITY MATRIX TABLE */}
-                <div className="rounded-3xl border border-slate-200 bg-white shadow-xs overflow-hidden dark:border-slate-800 dark:bg-slate-900 transition-all">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-5 border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-800/50 gap-3">
-                        <div>
-                            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400 mb-1">
-                                Category Cross-Tabulation Matrix
-                            </span>
-                            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                                <span>📊</span> Category by Priority & Success Rate
-                            </h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                Task distribution across priority levels and completion success rate grouped by category.
-                            </p>
-                        </div>
+                {/* CATEGORY & PRIORITY MATRIX TABLE (COMPACT VIEW) */}
+                <div
+                    ref={matrixTableRef}
+                    className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden dark:border-slate-800 dark:bg-slate-900 transition-all"
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 border-b border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-800/60 gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex items-center justify-center rounded-xl bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-2xs border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
-                                Categories: <strong className="ml-1">{categoryPriorityMatrix.rows.length}</strong>
+                            <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
+                                Category by Priority & Success Rate
+                            </h3>
+                            <span className="rounded-md bg-slate-200/70 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                {categoryPriorityMatrix.rows.length} Categories
                             </span>
-                            <span className="inline-flex items-center justify-center rounded-xl bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:border-emerald-800 dark:text-emerald-300">
-                                Overall: <strong className="ml-1">{categoryPriorityMatrix.grandCompleted}/{categoryPriorityMatrix.grandTotal} ({categoryPriorityMatrix.overallSuccessRate} %)</strong>
-                            </span>
+                            {matrixNotification && (
+                                <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10.5px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 transition-all">
+                                    ✓ {matrixNotification}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {/* Copy as Image Button - Monochrome text + SVG icon, no colorful icons */}
+                            <button
+                                type="button"
+                                onClick={handleCopyMatrixImage}
+                                disabled={isCopyingMatrix}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition shadow-2xs"
+                                title="Copy table as image to clipboard"
+                            >
+                                <svg className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                                </svg>
+                                <span>{isCopyingMatrix ? 'Copying...' : 'Copy Image'}</span>
+                            </button>
+
+                            {/* Download as Image Button - Monochrome text + SVG icon, no colorful icons */}
+                            <button
+                                type="button"
+                                onClick={handleDownloadMatrixImage}
+                                disabled={isDownloadingMatrix}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition shadow-2xs"
+                                title="Download table as PNG image"
+                            >
+                                <svg className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>{isDownloadingMatrix ? 'Saving...' : 'Download Image'}</span>
+                            </button>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-                            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-300">
-                                <tr>
-                                    <th className="px-5 py-3.5 text-left min-w-[220px]">Category</th>
-                                    {priorityColumns.map((prio) => (
-                                        <th key={prio.id} className="px-5 py-3.5 text-center min-w-[110px]">
-                                            <span
-                                                className="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1 text-xs font-extrabold border"
-                                                style={{
-                                                    backgroundColor: prio.color_code ? `${prio.color_code}15` : '#f1f5f9',
-                                                    color: prio.color_code || '#475569',
-                                                    borderColor: prio.color_code ? `${prio.color_code}30` : '#cbd5e1',
-                                                }}
-                                            >
-                                                {prio.level}
-                                            </span>
+                    {categoryPriorityMatrix.rows.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300 border-collapse">
+                                <thead className="bg-slate-50 text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                                    <tr>
+                                        <th className="px-3.5 py-2 text-left min-w-[180px]">Category</th>
+                                        {priorityColumns.map((prio) => (
+                                            <th key={prio.id} className="px-3 py-2 text-center min-w-[95px]">
+                                                <span
+                                                    className="inline-flex items-center justify-center rounded px-2 py-0.5 text-[10.5px] font-bold border"
+                                                    style={{
+                                                        backgroundColor: prio.color_code ? `${prio.color_code}15` : '#f1f5f9',
+                                                        color: prio.color_code || '#475569',
+                                                        borderColor: prio.color_code ? `${prio.color_code}30` : '#cbd5e1',
+                                                    }}
+                                                >
+                                                    {prio.level}
+                                                </span>
+                                            </th>
+                                        ))}
+                                        <th className="px-3.5 py-2 text-center min-w-[130px]">
+                                            Success Rate
                                         </th>
-                                    ))}
-                                    <th className="px-5 py-3.5 text-center min-w-[160px]">
-                                        Success Rate
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {categoryPriorityMatrix.rows.map((row) => {
-                                    const rateNum = row.totalTasks > 0 ? ((row.completedTasks / row.totalTasks) * 100).toFixed(1) : '0.0';
-                                    const hasTasks = row.totalTasks > 0;
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[11px]">
+                                    {categoryPriorityMatrix.rows.map((row) => {
+                                        const rateNum = row.totalTasks > 0 ? ((row.completedTasks / row.totalTasks) * 100).toFixed(1) : '0.0';
 
-                                    return (
-                                        <tr
-                                            key={row.id}
-                                            className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition ${
-                                                !hasTasks ? 'opacity-60' : ''
-                                            }`}
-                                        >
-                                            <td className="px-5 py-3.5 font-bold text-slate-900 dark:text-white">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm">📁</span>
-                                                    <span>{row.name}</span>
-                                                </div>
-                                            </td>
+                                        return (
+                                            <tr key={row.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                                <td className="px-3.5 py-2 font-bold text-slate-800 dark:text-slate-200">
+                                                    {row.name}
+                                                </td>
 
-                                            {priorityColumns.map((prio) => {
-                                                const pData = row.priorityCounts[String(prio.id)];
-                                                const count = pData?.total || 0;
-                                                const completed = pData?.completed || 0;
+                                                {priorityColumns.map((prio) => {
+                                                    const pData = row.priorityCounts[String(prio.id)];
+                                                    const count = pData?.total || 0;
+                                                    const completed = pData?.completed || 0;
 
-                                                return (
-                                                    <td key={prio.id} className="px-5 py-3.5 text-center">
-                                                        {count > 0 ? (
-                                                            <span
-                                                                className="inline-flex items-center justify-center min-w-[32px] h-7 px-2.5 rounded-xl font-bold text-xs shadow-2xs border"
-                                                                style={{
-                                                                    backgroundColor: prio.color_code ? `${prio.color_code}15` : '#f8fafc',
-                                                                    color: prio.color_code || '#334155',
-                                                                    borderColor: prio.color_code ? `${prio.color_code}40` : '#cbd5e1',
-                                                                }}
-                                                                title={`${count} total tasks (${completed} completed)`}
-                                                            >
-                                                                {count}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-slate-300 dark:text-slate-600 font-medium">-</span>
-                                                        )}
-                                                    </td>
-                                                );
-                                            })}
+                                                    return (
+                                                        <td key={prio.id} className="px-3 py-2 text-center">
+                                                            {count > 0 ? (
+                                                                <span
+                                                                    className="inline-flex items-center justify-center min-w-[26px] h-6 px-1.5 rounded font-bold text-[11px] border shadow-2xs"
+                                                                    style={{
+                                                                        backgroundColor: prio.color_code ? `${prio.color_code}15` : '#f8fafc',
+                                                                        color: prio.color_code || '#334155',
+                                                                        borderColor: prio.color_code ? `${prio.color_code}35` : '#cbd5e1',
+                                                                    }}
+                                                                    title={`${count} total tasks (${completed} completed)`}
+                                                                >
+                                                                    {count}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-300 dark:text-slate-600 font-normal">-</span>
+                                                            )}
+                                                        </td>
+                                                    );
+                                                })}
 
-                                            <td className="px-5 py-3.5 text-center">
-                                                {hasTasks ? (
-                                                    <div className="inline-flex items-center justify-center gap-2">
-                                                        <span className="font-extrabold text-slate-900 dark:text-white text-xs">
+                                                <td className="px-3.5 py-2 text-center">
+                                                    <div className="inline-flex items-center justify-center gap-1.5">
+                                                        <span className="font-bold text-slate-800 dark:text-slate-200">
                                                             {row.completedTasks}/{row.totalTasks}
                                                         </span>
                                                         <span
-                                                            className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-black leading-none ${
+                                                            className={`inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-bold ${
                                                                 parseFloat(rateNum) >= 80
-                                                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                                                                     : parseFloat(rateNum) >= 50
-                                                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                                                                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                                                                    : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
                                                             }`}
                                                         >
                                                             ({rateNum} %)
                                                         </span>
                                                     </div>
-                                                ) : (
-                                                    <span className="text-slate-400 font-normal">0/0 (0 %)</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                            <tfoot className="bg-slate-50/90 font-bold text-xs text-slate-800 dark:bg-slate-800/90 dark:text-slate-200 border-t-2 border-slate-200 dark:border-slate-700">
-                                <tr>
-                                    <td className="px-5 py-3.5 font-extrabold uppercase tracking-wide">
-                                        Total
-                                    </td>
-                                    {priorityColumns.map((prio) => {
-                                        const colCount = categoryPriorityMatrix.columnTotals[String(prio.id)] || 0;
-                                        return (
-                                            <td key={prio.id} className="px-5 py-3.5 text-center font-extrabold">
-                                                {colCount > 0 ? (
-                                                    <span className="font-extrabold text-slate-900 dark:text-white">
-                                                        {colCount}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-400 font-normal">0</span>
-                                                )}
-                                            </td>
+                                                </td>
+                                            </tr>
                                         );
                                     })}
-                                    <td className="px-5 py-3.5 text-center font-black">
-                                        <div className="inline-flex items-center justify-center gap-2">
-                                            <span className="font-black text-slate-900 dark:text-white text-xs">
-                                                {categoryPriorityMatrix.grandCompleted}/{categoryPriorityMatrix.grandTotal}
-                                            </span>
-                                            <span
-                                                className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-black leading-none ${
-                                                    parseFloat(categoryPriorityMatrix.overallSuccessRate) >= 80
-                                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                                        : parseFloat(categoryPriorityMatrix.overallSuccessRate) >= 50
-                                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                                                        : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                                                }`}
-                                            >
-                                                ({categoryPriorityMatrix.overallSuccessRate} %)
-                                            </span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+                                </tbody>
+                                <tfoot className="bg-slate-50/90 font-bold text-[11px] text-slate-800 dark:bg-slate-800/90 dark:text-slate-200 border-t border-slate-200 dark:border-slate-700">
+                                    <tr>
+                                        <td className="px-3.5 py-2 font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                            Total
+                                        </td>
+                                        {priorityColumns.map((prio) => {
+                                            const colCount = categoryPriorityMatrix.columnTotals[String(prio.id)] || 0;
+                                            return (
+                                                <td key={prio.id} className="px-3 py-2 text-center font-extrabold">
+                                                    {colCount > 0 ? (
+                                                        <span className="font-extrabold text-slate-900 dark:text-white">
+                                                            {colCount}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-400 font-normal">0</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                        <td className="px-3.5 py-2 text-center font-black">
+                                            <div className="inline-flex items-center justify-center gap-1.5">
+                                                <span className="font-black text-slate-900 dark:text-white">
+                                                    {categoryPriorityMatrix.grandCompleted}/{categoryPriorityMatrix.grandTotal}
+                                                </span>
+                                                <span
+                                                    className={`inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-black ${
+                                                        parseFloat(categoryPriorityMatrix.overallSuccessRate) >= 80
+                                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                                                            : parseFloat(categoryPriorityMatrix.overallSuccessRate) >= 50
+                                                            ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                                                            : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                                                    }`}
+                                                >
+                                                    ({categoryPriorityMatrix.overallSuccessRate} %)
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="p-4 text-center text-xs text-slate-400 italic">
+                            No categorized tasks match the current filters.
+                        </div>
+                    )}
                 </div>
 
                 {/* TASK DETAILS GROUPED BY DUE TIME TYPES */}
