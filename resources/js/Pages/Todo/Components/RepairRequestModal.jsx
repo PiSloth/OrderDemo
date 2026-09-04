@@ -21,27 +21,72 @@ const ensureFontLoaded = async () => {
 };
 
 /**
+ * Reform department name into reference code:
+ * - The department must be from createdby department.
+ * - If the department name is 2 words like "Internal Audit", reform to "IA".
+ * - If ending with "Department" / "Dept", treat the base words (e.g. "Internal Audit Department" -> "IA", "Sales Department" -> "Sales").
+ * - Special acronyms: "Information Technology" / "IT" -> "IT", "Human Resources" / "HR" -> "HR".
+ * - Single word -> word itself (e.g. "Finance", "Audit", "Management").
+ */
+export const getDepartmentCode = (rawDept) => {
+    if (!rawDept || typeof rawDept !== 'string') return 'GEN';
+    const trimmed = rawDept.trim();
+    if (!trimmed) return 'GEN';
+
+    // Standard IT / HR check
+    if (/^\s*(it|information\s+technology)(\s+department|\s+dept)?\s*$/i.test(trimmed)) return 'IT';
+    if (/^\s*(hr|human\s+resources)(\s+department|\s+dept)?\s*$/i.test(trimmed)) return 'HR';
+
+    // Split words by whitespace, hyphen, underscore, slash, and ignore '&'
+    let words = trimmed.split(/[\s\-_\/]+/).filter((w) => w.length > 0 && w !== '&');
+
+    // If starts with "IT" or "HR"
+    if (words[0]?.toLowerCase() === 'it') return 'IT';
+    if (words[0]?.toLowerCase() === 'hr') return 'HR';
+
+    // Strip trailing 'Department' / 'Dept' if present
+    if (words.length > 1) {
+        const lastWord = words[words.length - 1].toLowerCase();
+        if (lastWord === 'department' || lastWord === 'dept') {
+            words = words.slice(0, -1);
+        }
+    }
+
+    // If 2 words like "Internal Audit" -> "IA"
+    if (words.length === 2) {
+        return (words[0][0] + words[1][0]).toUpperCase();
+    }
+
+    // If 1 word -> keep the word
+    if (words.length === 1) {
+        return words[0];
+    }
+
+    // If more than 2 words -> take first letter of each word (up to 4 chars)
+    if (words.length > 2) {
+        return words.map((w) => w[0]).join('').toUpperCase().slice(0, 4);
+    }
+
+    return trimmed;
+};
+
+/**
  * Generate Reference No: Re-[Department Name]/Concat(Date,Month,Yr(eg-26))
+ * In တောင်းခံလွှာအမှတ်, the department must be from createdby department.
+ * If the department name is 2 words like Internal Audit reform to IA.
  */
 export const generateRepairRequestRefNo = (task, currentUser) => {
+    const createdByUser = task?.created_by_user || task?.createdByUser;
     const rawDept =
+        createdByUser?.department?.name ||
+        (typeof createdByUser?.department === 'string' ? createdByUser.department : null) ||
+        currentUser?.department?.name ||
+        (typeof currentUser?.department === 'string' ? currentUser.department : null) ||
         task?.department?.name ||
         task?.requested_by_department?.name ||
-        task?.assigned_user?.department?.name ||
-        task?.created_by_user?.department?.name ||
-        currentUser?.department?.name ||
         'GEN';
 
-    let deptCode = rawDept.trim();
-    if (deptCode.toLowerCase().includes('information technology')) deptCode = 'IT';
-    else if (deptCode.toLowerCase().includes('human resources')) deptCode = 'HR';
-    else if (deptCode.toLowerCase().includes('audit')) deptCode = 'Audit';
-    else if (deptCode.toLowerCase().includes('finance')) deptCode = 'Finance';
-    else if (deptCode.toLowerCase().includes('operation')) deptCode = 'Ops';
-    else if (deptCode.toLowerCase().includes('admin')) deptCode = 'Admin';
-    else {
-        deptCode = deptCode.split(' ')[0] || deptCode;
-    }
+    const deptCode = getDepartmentCode(rawDept);
 
     const taskDate = task?.created_at ? new Date(task.created_at) : new Date();
     const day = String(taskDate.getDate()).padStart(2, '0');
@@ -74,12 +119,18 @@ export default function RepairRequestModal({
         year: 'numeric',
     });
 
-    const userDepartment =
-        task.department?.name ||
-        task.requested_by_department?.name ||
-        task.created_by_user?.department?.name ||
-        currentUser?.department?.name ||
-        'N/A';
+    // Branch name for Form row 'ဌာန' (The ဌာန row must be branch name)
+    const branchName =
+        task.requested_by_branch?.name ||
+        task.requestedByBranch?.name ||
+        (typeof task.requested_by_branch === 'string' ? task.requested_by_branch : null) ||
+        task.created_by_user?.branch?.name ||
+        task.createdByUser?.branch?.name ||
+        (typeof task.created_by_user?.branch === 'string' ? task.created_by_user.branch : null) ||
+        currentUser?.branch?.name ||
+        (typeof currentUser?.branch === 'string' ? currentUser.branch : null) ||
+        task.branch?.name ||
+        '-';
 
     // Due time type (not show due date or duration hours)
     const dueTimeType =
@@ -100,7 +151,7 @@ export default function RepairRequestModal({
         'Normal';
 
     // Requester info
-    const requesterUser = task.created_by_user || currentUser;
+    const requesterUser = task.created_by_user || task.createdByUser || currentUser;
     const requesterName = requesterUser?.name || 'Authorized Requester';
     const requesterPosition =
         requesterUser?.office_position?.name ||
@@ -108,7 +159,12 @@ export default function RepairRequestModal({
         requesterUser?.officePosition?.name ||
         requesterUser?.role ||
         'Staff';
-    const requesterDept = requesterUser?.department?.name || userDepartment;
+    const requesterDept =
+        requesterUser?.department?.name ||
+        (typeof requesterUser?.department === 'string' ? requesterUser.department : null) ||
+        task?.department?.name ||
+        task?.requested_by_department?.name ||
+        '-';
 
     // Assigned info
     const assignedUser = task.assigned_user;
@@ -443,7 +499,7 @@ export default function RepairRequestModal({
                                 }}
                             >
                                 <tbody>
-                                    {/* Row 1: ဌာန */}
+                                    {/* Row 1: ဌာန (Branch Name) */}
                                     <tr>
                                         <td
                                             style={{
@@ -464,7 +520,7 @@ export default function RepairRequestModal({
                                                 fontWeight: 'normal',
                                             }}
                                         >
-                                            {userDepartment}
+                                            {branchName}
                                         </td>
                                     </tr>
 

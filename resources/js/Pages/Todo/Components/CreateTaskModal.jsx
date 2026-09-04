@@ -317,6 +317,7 @@ export default function CreateTaskModal({
                     const selectedCategoryObj = departmentCategories.find((c) => String(c.id) === String(selectedCategoryId));
                     const selectedDept = departments.find((d) => String(d.id) === String(selectedDepartmentId)) ||
                                          departmentOptions.find((d) => String(d.id) === String(selectedDepartmentId));
+                    const selectedBranch = branches.find((b) => String(b.id) === String(formData.requestedByBranchId));
                     const assignedUserObj = users.find((u) => String(u.id) === String(formData.assignedUserId));
 
                     const taskInfo = {
@@ -334,6 +335,7 @@ export default function CreateTaskModal({
                         assigned_user: assignedUserObj,
                         department: selectedDept || currentUser?.department,
                         requested_by_department: selectedDept,
+                        requested_by_branch: selectedBranch,
                     };
 
                     if (propOnSuccessTask) {

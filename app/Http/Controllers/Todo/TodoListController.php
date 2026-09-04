@@ -30,6 +30,7 @@ class TodoListController extends Controller
         $withRelations = [
             'assignedUser.department',
             'createdByUser.department',
+            'createdByUser.branch',
             'requestedByBranch',
             'status',
             'dueTime.category',
@@ -205,6 +206,7 @@ class TodoListController extends Controller
                 'status',
                 'assignedUser.department',
                 'createdByUser.department',
+                'createdByUser.branch',
                 'department',
                 'requestedByBranch',
                 'comments.user',
