@@ -281,13 +281,23 @@ export default function SessionsIndex({
 
   const handleUpdateSlot = (idx, field, value) => {
     const slots = [...(data.schedule_slots || [])];
-    slots[idx] = { ...slots[idx], [field]: value };
-    setData((prev) => ({
-      ...prev,
-      schedule_slots: slots,
-      start_date: slots[0]?.date || prev.start_date,
-      end_date: slots[slots.length - 1]?.date || prev.end_date,
-    }));
+    const updatedSlots = slots;
+    setData((prev) => {
+      const nextData = {
+        ...prev,
+        schedule_slots: updatedSlots,
+        start_date: updatedSlots[0]?.date || prev.start_date,
+        end_date: updatedSlots[updatedSlots.length - 1]?.date || prev.end_date,
+      };
+      // Keep session-level trainer in sync with first slot's trainer if not explicitly set differently
+      if (field === 'trainer_id' && idx === 0) {
+        nextData.trainer_id = String(value || '');
+      }
+      if (field === 'trainer_name' && idx === 0) {
+        nextData.trainer_name = String(value || '');
+      }
+      return nextData;
+    });
   };
 
   // Open Trainer Select Modal
@@ -305,8 +315,27 @@ export default function SessionsIndex({
         trainer_name: user.name,
       }));
     } else if (typeof trainerSelectTarget === 'number') {
-      handleUpdateSlot(trainerSelectTarget, 'trainer_id', user.id);
-      handleUpdateSlot(trainerSelectTarget, 'trainer_name', user.name);
+      const targetIdx = trainerSelectTarget;
+      setData((prev) => {
+        const slots = [...(prev.schedule_slots || [])];
+        if (slots[targetIdx]) {
+          slots[targetIdx] = {
+            ...slots[targetIdx],
+            trainer_id: user.id,
+            trainer_name: user.name,
+          };
+        }
+        const next = {
+          ...prev,
+          schedule_slots: slots,
+        };
+        // If updating slot 0 or session trainer is empty, also update session trainer
+        if (targetIdx === 0 || !prev.trainer_id) {
+          next.trainer_id = String(user.id);
+          next.trainer_name = user.name;
+        }
+        return next;
+      });
     }
     setTrainerSelectOpen(false);
   };
@@ -788,14 +817,26 @@ export default function SessionsIndex({
 
                 {/* Secondary Meta: Trainer & Venue */}
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Avatar sx={{ width: 18, height: 18, fontSize: '0.65rem', bgcolor: '#38bdf8' }}>
-                      {s.trainer?.name ? s.trainer.name.charAt(0).toUpperCase() : 'T'}
-                    </Avatar>
-                    <span className="truncate">
-                      Trainer: <b className="text-slate-800 dark:text-slate-100">{s.trainer?.name || 'Unassigned Trainer'}</b>
-                    </span>
-                  </div>
+                  {(() => {
+                    const slotTrainers = Array.isArray(s.schedule_slots)
+                      ? [...new Set(s.schedule_slots.map((sl) => sl.trainer_name).filter(Boolean))]
+                      : [];
+                    const displayTrainer = slotTrainers.length > 0
+                      ? slotTrainers.join(', ')
+                      : (s.trainer?.name || 'Unassigned Trainer');
+                    const initialLetter = displayTrainer.charAt(0).toUpperCase();
+
+                    return (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Avatar sx={{ width: 18, height: 18, fontSize: '0.65rem', bgcolor: '#38bdf8' }}>
+                          {initialLetter}
+                        </Avatar>
+                        <span className="truncate">
+                          Trainer: <b className="text-slate-800 dark:text-slate-100">{displayTrainer}</b>
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   {s.venue && (
                     <div className="flex items-center gap-1.5 truncate">
@@ -841,8 +882,14 @@ export default function SessionsIndex({
                                 • {slot.trainer_name}
                               </span>
                             )}
-                            <span className="text-[9px] ml-0.5">
-                              {isDone ? '✅' : '⏳'}
+                            <span
+                              className={`text-[8px] font-bold px-1 py-0.2 rounded ml-0.5 uppercase ${
+                                isDone
+                                  ? 'bg-emerald-200/80 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200'
+                                  : 'bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200'
+                              }`}
+                            >
+                              {isDone ? 'DONE' : 'PENDING'}
                             </span>
                           </div>
                         );
@@ -1055,26 +1102,25 @@ export default function SessionsIndex({
                           )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-center">
-                          {/* Slot Date */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                          {/* Combined Date & Time input */}
                           <TextField
-                            type="date"
+                            type="datetime-local"
                             size="small"
-                            label="Date"
+                            label="Schedule Date & Time"
                             InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } }}
-                            value={slot.date || ''}
-                            onChange={(e) => handleUpdateSlot(sIdx, 'date', e.target.value)}
-                            required
-                          />
-
-                          {/* Slot Time */}
-                          <TextField
-                            type="time"
-                            size="small"
-                            label="Start Time"
-                            InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } }}
-                            value={slot.time || '13:00'}
-                            onChange={(e) => handleUpdateSlot(sIdx, 'time', e.target.value)}
+                            value={slot.date && slot.time ? `${slot.date}T${slot.time}` : (slot.date ? `${slot.date}T13:00` : '')}
+                            onChange={(e) => {
+                              const val = e.target.value; // "YYYY-MM-DDTHH:mm"
+                              if (val) {
+                                const [dPart, tPart] = val.split('T');
+                                handleUpdateSlot(sIdx, 'date', dPart);
+                                handleUpdateSlot(sIdx, 'time', tPart || '13:00');
+                              } else {
+                                handleUpdateSlot(sIdx, 'date', '');
+                                handleUpdateSlot(sIdx, 'time', '');
+                              }
+                            }}
                             required
                           />
 
@@ -1087,7 +1133,7 @@ export default function SessionsIndex({
                               size="small"
                               onClick={() => handleOpenTrainerSelect(sIdx)}
                               startIcon={
-                                <Avatar sx={{ width: 20, height: 20, fontSize: '0.65rem', bgcolor: '#0284c7' }}>
+                                <Avatar sx={{ width: 22, height: 22, fontSize: '0.7rem', bgcolor: '#0284c7' }}>
                                   {displayName.charAt(0).toUpperCase()}
                                 </Avatar>
                               }
@@ -1098,14 +1144,14 @@ export default function SessionsIndex({
                                 borderColor: slot.trainer_id ? '#38bdf8' : '#cbd5e1',
                                 color: slot.trainer_id ? '#0284c7' : '#64748b',
                                 fontWeight: 600,
-                                fontSize: '0.75rem',
+                                fontSize: '0.8rem',
                               }}
                             >
                               <span className="truncate">{displayName}</span>
                             </Button>
                           </div>
 
-                          {/* Manual Status (Pending / Completed) */}
+                          {/* Manual Status (Pending / Completed) - Text only, no icon */}
                           <TextField
                             select
                             size="small"
@@ -1114,10 +1160,10 @@ export default function SessionsIndex({
                             onChange={(e) => handleUpdateSlot(sIdx, 'status', e.target.value)}
                           >
                             <MenuItem value="PENDING">
-                              <span className="text-amber-600 font-semibold">⏳ Pending</span>
+                              <span className="text-amber-700 font-bold">Pending</span>
                             </MenuItem>
                             <MenuItem value="COMPLETED">
-                              <span className="text-emerald-600 font-semibold">✅ Completed</span>
+                              <span className="text-emerald-700 font-bold">Completed</span>
                             </MenuItem>
                           </TextField>
                         </div>
@@ -1248,7 +1294,7 @@ export default function SessionsIndex({
                                         : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 hover:bg-amber-200'
                                     }`}
                                   >
-                                    {isSlotCompleted ? '✅ DONE' : '⏳ PENDING'}
+                                    {isSlotCompleted ? 'DONE' : 'PENDING'}
                                   </button>
                                 </Tooltip>
                               )}

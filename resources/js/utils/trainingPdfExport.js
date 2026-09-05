@@ -321,20 +321,40 @@ export async function exportSessionAnnouncementPdf(session) {
   currentY += 6;
 
   // 2. Training Session Summary Box
-  doc.setFillColor(...lightBg);
-  doc.setDrawColor(186, 230, 253);
-  doc.roundedRect(margin, currentY, pageWidth - margin * 2, 28, 2, 2, 'FD');
-
   const trainingTitle = session.training?.title || session.title || 'Training Program';
   const trainingCode = session.training?.code || '';
-  const trainerName = session.trainer?.name || 'To Be Assigned';
   const venue = session.venue || 'Training Room / Meeting Hall';
   const meetingLink = session.meeting_link ? `Online: ${session.meeting_link}` : '';
 
-  const durationDays = session.duration_days || session.training?.duration_days || 1;
+  // Extract trainer(s) from schedule_slots or session.trainer
+  const slotTrainers = Array.isArray(session.schedule_slots)
+    ? [...new Set(session.schedule_slots.map((sl) => sl.trainer_name).filter(Boolean))]
+    : [];
+  const trainerName = slotTrainers.length > 0
+    ? slotTrainers.join(', ')
+    : (session.trainer?.name || 'To Be Assigned');
+
+  const durationDays = session.duration_days || session.training?.duration_days || (session.schedule_slots?.length || 1);
   const startDate = session.start_date || (session.scheduled_at ? session.scheduled_at.substring(0, 10) : 'TBD');
   const endDate = session.end_date || startDate;
-  const scheduleText = `${startDate} ${durationDays > 1 ? `to ${endDate} (${durationDays} Days Duration)` : '(1 Day)'}`;
+
+  // Build schedule text with slots details if available
+  let scheduleText = `${startDate} ${durationDays > 1 ? `to ${endDate} (${durationDays} Days Duration)` : '(1 Day)'}`;
+  if (Array.isArray(session.schedule_slots) && session.schedule_slots.length > 0) {
+    const slotSummaries = session.schedule_slots.map((sl, i) => {
+      const timeStr = sl.time ? ` @ ${sl.time}` : '';
+      const trainerStr = sl.trainer_name ? ` (${sl.trainer_name})` : '';
+      const statusStr = sl.status ? ` [${sl.status}]` : '';
+      return `Day ${i + 1}: ${sl.date}${timeStr}${trainerStr}${statusStr}`;
+    });
+    scheduleText = slotSummaries.join('   |   ');
+  }
+
+  const boxHeight = Array.isArray(session.schedule_slots) && session.schedule_slots.length > 1 ? 36 : 30;
+
+  doc.setFillColor(...lightBg);
+  doc.setDrawColor(186, 230, 253);
+  doc.roundedRect(margin, currentY, pageWidth - margin * 2, boxHeight, 2, 2, 'FD');
 
   try {
     doc.setFont(fontName, 'bold');
@@ -350,14 +370,18 @@ export async function exportSessionAnnouncementPdf(session) {
   } catch (e) {
     doc.setFont('helvetica', 'normal');
   }
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(...secondaryColor);
 
-  doc.text(`• Schedule: ${scheduleText}`, margin + 4, currentY + 13);
-  doc.text(`• Trainer / Instructor: ${trainerName}`, margin + 4, currentY + 18);
-  doc.text(`• Location / Venue: ${venue} ${meetingLink ? `| ${meetingLink}` : ''}`, margin + 4, currentY + 23);
+  doc.text(`• Trainer / Instructor(s): ${trainerName}`, margin + 4, currentY + 13);
+  doc.text(`• Location / Venue: ${venue} ${meetingLink ? `| ${meetingLink}` : ''}`, margin + 4, currentY + 18);
+  doc.text(`• Schedule & Timetable:`, margin + 4, currentY + 23);
 
-  currentY += 34;
+  // Wrap scheduleText in case there are multiple slots
+  const wrappedSchedule = doc.splitTextToSize(scheduleText, pageWidth - margin * 2 - 8);
+  doc.text(wrappedSchedule, margin + 8, currentY + 27);
+
+  currentY += boxHeight + 6;
 
   // 3. Group Participants by Department
   const participants = session.participants || [];
@@ -422,7 +446,15 @@ export async function exportSessionAnnouncementPdf(session) {
   ];
 
   for (let d = 0; d < Math.min(sessionDates.length, 3); d++) {
-    dynamicHeaders.push(`Day ${d + 1}\n(${sessionDates[d]})`);
+    const slot = (session.schedule_slots || [])[d];
+    let headerText = `Day ${d + 1}\n${sessionDates[d]}`;
+    if (slot?.time) {
+      headerText += `\n@ ${slot.time}`;
+    }
+    if (slot?.trainer_name) {
+      headerText += `\n(${slot.trainer_name})`;
+    }
+    dynamicHeaders.push(headerText);
   }
 
   const autoTableConfig = {

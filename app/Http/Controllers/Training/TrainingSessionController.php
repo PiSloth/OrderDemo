@@ -169,6 +169,13 @@ class TrainingSessionController extends Controller
                 $validated['end_date'] = $slotDates->last();
                 $validated['duration_days'] = count($validated['schedule_slots']);
             }
+            // If main trainer_id is not provided, take it from first slot with a trainer
+            if (empty($validated['trainer_id'])) {
+                $firstSlotTrainer = collect($validated['schedule_slots'])->firstWhere('trainer_id', '!=', null);
+                if ($firstSlotTrainer && !empty($firstSlotTrainer['trainer_id'])) {
+                    $validated['trainer_id'] = $firstSlotTrainer['trainer_id'];
+                }
+            }
         }
 
         if (empty($validated['duration_days'])) {
@@ -221,6 +228,12 @@ class TrainingSessionController extends Controller
                 $validated['start_date'] = $slotDates->first();
                 $validated['end_date'] = $slotDates->last();
                 $validated['duration_days'] = count($validated['schedule_slots']);
+            }
+            if (empty($validated['trainer_id'])) {
+                $firstSlotTrainer = collect($validated['schedule_slots'])->firstWhere('trainer_id', '!=', null);
+                if ($firstSlotTrainer && !empty($firstSlotTrainer['trainer_id'])) {
+                    $validated['trainer_id'] = $firstSlotTrainer['trainer_id'];
+                }
             }
         } elseif (!empty($validated['start_date']) && !empty($validated['duration_days'])) {
             $validated['end_date'] = \Carbon\Carbon::parse($validated['start_date'])
