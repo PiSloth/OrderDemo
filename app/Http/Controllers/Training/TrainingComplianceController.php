@@ -9,6 +9,7 @@ use App\Models\Training\Test;
 use App\Models\Training\TestAttempt;
 use App\Models\Training\Training;
 use App\Models\Training\TrainingAssignment;
+use App\Models\Training\TrainingSessionParticipant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,22 +50,57 @@ class TrainingComplianceController extends Controller
             ? round(($completedAssignments / $totalAssignments) * 100, 1)
             : 0;
 
-        // Department breakdown: Pass / Completion %
+        // Department breakdown: Attendance Complete Rate based on Approved Training Sessions
+        // Exclude departments without any assigned approved training session participants
         $departments = Department::query()->orderBy('name')->get();
         $departmentStats = $departments->map(function ($dept) {
-            $userIds = User::query()->where('department_id', $dept->id)->where('suspended', false)->pluck('id');
-            $deptTotal = TrainingAssignment::query()->whereIn('user_id', $userIds)->count();
-            $deptCompleted = TrainingAssignment::query()->whereIn('user_id', $userIds)->where('status', 'COMPLETED')->count();
-            $rate = $deptTotal > 0 ? round(($deptCompleted / $deptTotal) * 100, 1) : 100;
+            // Find participants in approved training sessions for this department's active users
+            $participants = TrainingSessionParticipant::query()
+                ->whereHas('session', fn($q) => $q->whereNotNull('approved_at'))
+                ->whereHas('user', fn($q) => $q->where('department_id', $dept->id)->where('suspended', false))
+                ->with('session:id,duration_days')
+                ->get();
+
+            if ($participants->isEmpty()) {
+                return null;
+            }
+
+            $totalRequiredDays = 0;
+            $totalAttendedDays = 0;
+
+            foreach ($participants as $participant) {
+                $sessionDays = max(1, (int) ($participant->session->duration_days ?: 1));
+                $totalRequiredDays += $sessionDays;
+
+                $daily = $participant->daily_attendance;
+                if (is_array($daily) && !empty($daily)) {
+                    $attendedCount = 0;
+                    foreach ($daily as $dayRecord) {
+                        $st = is_array($dayRecord) ? ($dayRecord['status'] ?? '') : '';
+                        if (in_array(strtoupper($st), ['ATTENDED', 'PRESENT'], true)) {
+                            $attendedCount++;
+                        }
+                    }
+                    // Cap attended count to session duration days
+                    $totalAttendedDays += min($sessionDays, $attendedCount);
+                } else {
+                    if ($participant->attendance_status === 'ATTENDED') {
+                        $totalAttendedDays += $sessionDays;
+                    }
+                }
+            }
+
+            $rate = $totalRequiredDays > 0 ? round(($totalAttendedDays / $totalRequiredDays) * 100, 1) : 0;
 
             return [
                 'id' => $dept->id,
                 'name' => $dept->name,
-                'total_assignments' => $deptTotal,
-                'completed' => $deptCompleted,
+                'total_attendance_days' => $totalRequiredDays,
+                'attended_days' => $totalAttendedDays,
                 'completion_rate' => $rate,
+                'total_participants' => $participants->count(),
             ];
-        });
+        })->filter()->values();
 
         // Test Performance: Pass rate per training
         $trainings = Training::query()->where('status', 'active')->orderBy('title')->get();

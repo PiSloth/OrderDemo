@@ -106,3 +106,19 @@
     background-color: #a16207;
 }
 
+/* Material-UI notched outline legend fix (prevents label overlapping date placeholder / border) */
+.MuiInputLabel-shrink ~ .MuiOutlinedInput-notchedOutline legend,
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline legend {
+    max-width: 100% !important;
+}
+
+.MuiInputLabel-shrink {
+    background-color: #ffffff;
+    padding: 0 4px;
+    z-index: 1;
+}
+
+.dark .MuiInputLabel-shrink {
+    background-color: #0f172a;
+}
+

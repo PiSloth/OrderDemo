@@ -784,7 +784,7 @@ export default function SessionsIndex({
                   required
                   fullWidth
                   label="Start Date"
-                  InputLabelProps={{ shrink: true }}
+                  InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5, borderRadius: 0.5 } }}
                   value={data.start_date}
                   onChange={(e) => {
                     const st = e.target.value;
@@ -819,7 +819,7 @@ export default function SessionsIndex({
                   type="date"
                   fullWidth
                   label="End Date"
-                  InputLabelProps={{ shrink: true }}
+                  InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5, borderRadius: 0.5 } }}
                   value={data.end_date}
                   onChange={(e) => setData('end_date', e.target.value)}
                 />
@@ -845,7 +845,7 @@ export default function SessionsIndex({
                   type="datetime-local"
                   fullWidth
                   label="Time & Schedule"
-                  InputLabelProps={{ shrink: true }}
+                  InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5, borderRadius: 0.5 } }}
                   value={data.scheduled_at}
                   onChange={(e) => setData('scheduled_at', e.target.value)}
                 />

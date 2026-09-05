@@ -339,10 +339,15 @@ export default function Compliance({
           {/* Department Breakdown */}
           <Card elevation={0} className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900">
             <CardContent className="p-5">
-              <Typography variant="subtitle1" className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                <AssignmentTurnedInIcon color="primary" fontSize="small" />
-                Department Compliance Rates
-              </Typography>
+              <div className="flex items-center justify-between mb-4">
+                <Typography variant="subtitle1" className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                  <AssignmentTurnedInIcon color="primary" fontSize="small" />
+                  Department Compliance Rates
+                </Typography>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  Attendance Complete Rate
+                </span>
+              </div>
 
               <div className="space-y-4">
                 {departmentStats.map((dept) => (
@@ -350,7 +355,7 @@ export default function Compliance({
                     <div className="flex justify-between text-xs font-semibold">
                       <span className="text-slate-700 dark:text-slate-300">{dept.name}</span>
                       <span className="text-slate-900 dark:text-slate-100 font-bold">
-                        {dept.completion_rate}% ({dept.completed}/{dept.total_assignments})
+                        {dept.completion_rate}% ({dept.attended_days}/{dept.total_attendance_days} days)
                       </span>
                     </div>
                     <LinearProgress
@@ -365,11 +370,15 @@ export default function Compliance({
                       }
                       sx={{ height: 8, borderRadius: 4 }}
                     />
+                    <div className="flex justify-between text-[11px] text-slate-400">
+                      <span>{dept.total_participants} participant(s)</span>
+                      <span>{dept.attended_days} of {dept.total_attendance_days} attended</span>
+                    </div>
                   </div>
                 ))}
                 {departmentStats.length === 0 && (
                   <Typography variant="body2" className="text-slate-400 py-4 text-center">
-                    No department data available.
+                    No approved training session attendance data available.
                   </Typography>
                 )}
               </div>
@@ -642,7 +651,7 @@ export default function Compliance({
                   fullWidth
                   size="small"
                   label="Due Date From"
-                  InputLabelProps={{ shrink: true }}
+                  InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5, borderRadius: 0.5 } }}
                   value={filterValues.due_from}
                   onChange={(e) => handleFilterChange('due_from', e.target.value)}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: 'background.paper' } }}
@@ -654,7 +663,7 @@ export default function Compliance({
                   fullWidth
                   size="small"
                   label="Due Date To"
-                  InputLabelProps={{ shrink: true }}
+                  InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5, borderRadius: 0.5 } }}
                   value={filterValues.due_to}
                   onChange={(e) => handleFilterChange('due_to', e.target.value)}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: 'background.paper' } }}
