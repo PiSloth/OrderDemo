@@ -424,4 +424,41 @@ class TrainingSharedSessionAndApprovalTest extends TestCase
         $this->assertDatabaseMissing('training_sessions', ['id' => $cleanSession->id]);
         $this->assertDatabaseMissing('training_session_participants', ['training_session_id' => $cleanSession->id]);
     }
+
+    public function test_compliance_matrix_assignment_deletion_and_orphaned_cleanup(): void
+    {
+        $this->admin->givePermissionTo('training-session.delete');
+
+        // Create an orphaned pending assignment with no session participants and no test attempts
+        $orphanAssignment = TrainingAssignment::create([
+            'training_id' => $this->training->id,
+            'user_id' => $this->user2->id,
+            'status' => 'PENDING',
+        ]);
+
+        $this->assertDatabaseHas('training_assignments', ['id' => $orphanAssignment->id]);
+
+        // 1. Delete single assignment via DELETE /training/assignments/{assignment}
+        $resp = $this->actingAs($this->admin)->delete("/training/assignments/{$orphanAssignment->id}");
+        $resp->assertRedirect();
+        $this->assertDatabaseMissing('training_assignments', ['id' => $orphanAssignment->id]);
+
+        // 2. Test bulk cleanup of orphaned assignments
+        $orphan1 = TrainingAssignment::create([
+            'training_id' => $this->training->id,
+            'user_id' => $this->user1->id,
+            'status' => 'PENDING',
+        ]);
+        $orphan2 = TrainingAssignment::create([
+            'training_id' => $this->training->id,
+            'user_id' => $this->user2->id,
+            'status' => 'IN_PROGRESS',
+        ]);
+
+        $cleanupResp = $this->actingAs($this->admin)->post('/training/assignments/cleanup-orphaned');
+        $cleanupResp->assertRedirect();
+        $this->assertDatabaseMissing('training_assignments', ['id' => $orphan1->id]);
+        $this->assertDatabaseMissing('training_assignments', ['id' => $orphan2->id]);
+    }
 }
+

@@ -58,7 +58,9 @@ import {
   CalendarMonth as CalendarIcon,
   History as HistoryIcon,
   Check as CheckIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Delete as DeleteIcon,
+  DeleteSweep as DeleteSweepIcon
 } from '@mui/icons-material';
 
 export default function Compliance({
@@ -89,6 +91,25 @@ export default function Compliance({
     setSelectedAssignmentForAttempts(row);
     setSelectedAttemptIdx(0);
     setAttemptHistoryModalOpen(true);
+  };
+
+  const handleDeleteAssignment = (assignment) => {
+    const hasResults = (assignment.test_attempts || []).some(
+      (a) => a.submitted_at || a.result === 'PASSED' || a.result === 'FAILED'
+    );
+    if (hasResults) {
+      alert(`Cannot delete assignment for ${assignment.user?.name} because submitted assessment results exist.`);
+      return;
+    }
+    if (confirm(`Are you sure you want to delete the assignment of "${assignment.training?.title}" for ${assignment.user?.name}?`)) {
+      router.delete(`/training/assignments/${assignment.id}`);
+    }
+  };
+
+  const handleCleanupOrphaned = () => {
+    if (confirm('Are you sure you want to remove all pending assignments that have no active training sessions and no test attempts?')) {
+      router.post('/training/assignments/cleanup-orphaned');
+    }
   };
 
   // Keep state synced with server filters
@@ -428,6 +449,25 @@ export default function Compliance({
               </div>
 
               <div className="flex items-center gap-2">
+                {permissions.can_delete && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteSweepIcon fontSize="small" />}
+                    onClick={handleCleanupOrphaned}
+                    sx={{
+                      textTransform: 'none',
+                      borderRadius: 2,
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      py: 0.5,
+                      px: 1.5,
+                    }}
+                  >
+                    Purge Orphaned Pending
+                  </Button>
+                )}
                 <Chip
                   label={`${matrix.total ?? 0} total records`}
                   size="small"
@@ -897,6 +937,32 @@ export default function Compliance({
                                 <TrophyIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
+
+                            {permissions?.can_delete && (
+                              <Tooltip
+                                title={
+                                  (row.test_attempts || []).some(
+                                    (a) => a.submitted_at || a.result === 'PASSED' || a.result === 'FAILED'
+                                  )
+                                    ? 'Cannot delete: Employee submitted assessment results'
+                                    : 'Delete Assignment'
+                                }
+                              >
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    disabled={(row.test_attempts || []).some(
+                                      (a) => a.submitted_at || a.result === 'PASSED' || a.result === 'FAILED'
+                                    )}
+                                    onClick={() => handleDeleteAssignment(row)}
+                                    sx={{ '&:hover': { bgcolor: 'rose.50' } }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            )}
                           </Stack>
                         </TableCell>
                       </TableRow>

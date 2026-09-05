@@ -35,6 +35,7 @@ class TrainingSessionController extends Controller
                 'participants.user.department',
                 'participants.user.officePosition',
                 'participants.assignment.latestAttempt',
+                'participants.assignment.testAttempts',
             ])
             ->withCount([
                 'participants',
@@ -369,16 +370,32 @@ class TrainingSessionController extends Controller
                 }
             }
 
-            // 2. Delete all participants
+            // 2. Collect assignment IDs associated with this session's participants
+            $assignmentIds = TrainingSessionParticipant::whereIn('training_session_id', $sessionIds)
+                ->pluck('training_assignment_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            // 3. Delete all participants
             TrainingSessionParticipant::whereIn('training_session_id', $sessionIds)->delete();
 
-            // 3. Delete any child remedial sessions
+            // 4. Delete any orphaned assignments that now have no sessions and no test attempts
+            if (!empty($assignmentIds)) {
+                TrainingAssignment::whereIn('id', $assignmentIds)
+                    ->whereDoesntHave('sessionParticipants')
+                    ->whereDoesntHave('testAttempts')
+                    ->delete();
+            }
+
+            // 5. Delete any child remedial sessions
             TrainingSession::where('parent_session_id', $session->id)->delete();
 
-            // 4. Delete the session itself
+            // 6. Delete the session itself
             $session->delete();
         });
 
-        return back()->with('message', 'Training session and related assessment test attempts deleted successfully.');
+        return back()->with('message', 'Training session and related assessment data cleaned up successfully.');
     }
 }

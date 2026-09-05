@@ -11,6 +11,7 @@ use App\Models\Training\Training;
 use App\Models\Training\TrainingAssignment;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -184,6 +185,7 @@ class TrainingComplianceController extends Controller
             ],
             'permissions' => [
                 'can_view_attempts' => $canViewAttempts,
+                'can_delete' => $request->user()?->can('training.catalog.delete') || $request->user()?->can('training-session.delete') || $request->user()?->can('training.session.delete') ?? false,
             ],
         ]);
     }
@@ -216,5 +218,75 @@ class TrainingComplianceController extends Controller
             'assignment' => $assignment,
             'attempts' => $assignment->testAttempts,
         ]);
+    }
+
+    /**
+     * Delete an individual training assignment (if no submitted attempt results exist).
+     */
+    public function deleteAssignment(Request $request, TrainingAssignment $assignment)
+    {
+        $canDelete = $request->user()?->can('training.catalog.delete') || $request->user()?->can('training-session.delete') || $request->user()?->can('training.session.delete');
+        abort_if(!$canDelete, 403, 'Unauthorized to delete training assignment.');
+
+        // Protect if assessment attempts with results exist
+        $hasResults = $assignment->testAttempts()
+            ->where(function ($q) {
+                $q->whereNotNull('submitted_at')->orWhereIn('result', ['PASSED', 'FAILED']);
+            })
+            ->exists();
+
+        if ($hasResults) {
+            return back()->withErrors([
+                'message' => 'Cannot delete assignment because employee has already submitted assessment attempt results.',
+            ]);
+        }
+
+        DB::transaction(function () use ($assignment) {
+            // Delete any unattempted / draft attempts
+            foreach ($assignment->testAttempts as $att) {
+                $att->answers()->delete();
+                $att->delete();
+            }
+
+            // Remove from session participants
+            $assignment->sessionParticipants()->delete();
+
+            // Delete the assignment
+            $assignment->delete();
+        });
+
+        return back()->with('message', 'Training assignment deleted successfully.');
+    }
+
+    /**
+     * One-click cleanup for all pending assignments that have no active sessions and no submitted test attempts.
+     */
+    public function cleanupOrphaned(Request $request)
+    {
+        $canDelete = $request->user()?->can('training.catalog.delete') || $request->user()?->can('training-session.delete') || $request->user()?->can('training.session.delete');
+        abort_if(!$canDelete, 403, 'Unauthorized to cleanup orphaned assignments.');
+
+        $deletedCount = 0;
+
+        DB::transaction(function () use (&$deletedCount) {
+            $orphans = TrainingAssignment::query()
+                ->whereIn('status', ['PENDING', 'IN_PROGRESS', 'OVERDUE'])
+                ->whereDoesntHave('sessionParticipants')
+                ->whereDoesntHave('testAttempts', function ($q) {
+                    $q->whereNotNull('submitted_at')->orWhereIn('result', ['PASSED', 'FAILED']);
+                })
+                ->get();
+
+            foreach ($orphans as $orphan) {
+                foreach ($orphan->testAttempts as $att) {
+                    $att->answers()->delete();
+                    $att->delete();
+                }
+                $orphan->delete();
+                $deletedCount++;
+            }
+        });
+
+        return back()->with('message', "Successfully purged {$deletedCount} unlinked/orphaned assignment record(s).");
     }
 }

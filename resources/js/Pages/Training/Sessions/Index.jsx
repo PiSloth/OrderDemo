@@ -52,7 +52,8 @@ import {
   Delete as DeleteIcon,
   History as HistoryIcon,
   Search as SearchIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Quiz as QuizIcon
 } from '@mui/icons-material';
 
 import { exportSessionAnnouncementPdf } from '../../../utils/trainingPdfExport';
@@ -98,6 +99,10 @@ export default function SessionsIndex({
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [sessionToApprove, setSessionToApprove] = useState(null);
   const [approvalNotes, setApprovalNotes] = useState('');
+
+  // Test template / answering status modal state
+  const [testStatusModalOpen, setTestStatusModalOpen] = useState(false);
+  const [selectedSessionForTestStatus, setSelectedSessionForTestStatus] = useState(null);
 
   // Filter states
   const [timeFilter, setTimeFilter] = useState(filters.time_filter || 'all');
@@ -645,6 +650,21 @@ export default function SessionsIndex({
                       Attendance ({s.participants_count ?? 0})
                     </Button>
 
+                    {/* Test Template / Answering Status Button */}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="info"
+                      startIcon={<QuizIcon />}
+                      onClick={() => {
+                        setSelectedSessionForTestStatus(s);
+                        setTestStatusModalOpen(true);
+                      }}
+                      sx={{ textTransform: 'none', fontSize: '0.72rem', fontWeight: 700 }}
+                    >
+                      Test Status
+                    </Button>
+
                     {/* PDF Announcement Button */}
                     <Button
                       size="small"
@@ -1132,6 +1152,192 @@ export default function SessionsIndex({
             <Button variant="contained" color="success" onClick={handleConfirmApprove} sx={{ fontWeight: 700 }}>
               Approve & Unlock Tests
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Test Template & Answering Status Modal */}
+        <Dialog
+          open={testStatusModalOpen}
+          onClose={() => setTestStatusModalOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle className="font-bold flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2 text-sky-700 dark:text-sky-400">
+              <QuizIcon />
+              <span>Assessment Test Status: {selectedSessionForTestStatus?.title}</span>
+            </div>
+            <Chip
+              label={selectedSessionForTestStatus?.session_code}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 700 }}
+            />
+          </DialogTitle>
+          <DialogContent className="space-y-4 pt-4">
+            {/* Header info banner */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
+              <div>
+                <div className="text-xs text-slate-500">Training Module</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {selectedSessionForTestStatus?.training?.title} ({selectedSessionForTestStatus?.training?.code})
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs text-slate-500">Test Template Access</div>
+                {selectedSessionForTestStatus?.approved_at ? (
+                  <Chip
+                    size="small"
+                    color="success"
+                    label="Unlocked (Session Approved)"
+                    sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+                  />
+                ) : (
+                  <Chip
+                    size="small"
+                    color="warning"
+                    label="Locked (Awaiting Trainer Approval)"
+                    sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+                  />
+                )}
+              </div>
+
+              <div>
+                <div className="text-xs text-slate-500">Passing Threshold</div>
+                <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {selectedSessionForTestStatus?.training?.passing_score ?? 80}%
+                </div>
+              </div>
+            </div>
+
+            {/* Participants Test Status Table */}
+            <TableContainer className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
+              <Table size="small">
+                <TableHead className="bg-slate-100 dark:bg-slate-800/80">
+                  <TableRow>
+                    <TableCell className="font-bold text-xs py-2.5">Participant</TableCell>
+                    <TableCell className="font-bold text-xs py-2.5">Department</TableCell>
+                    <TableCell className="font-bold text-xs py-2.5 text-center">Attendance</TableCell>
+                    <TableCell className="font-bold text-xs py-2.5 text-center">Test Status</TableCell>
+                    <TableCell className="font-bold text-xs py-2.5 text-center">Score / Result</TableCell>
+                    <TableCell className="font-bold text-xs py-2.5 text-center">Attempts</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(selectedSessionForTestStatus?.participants || []).map((p) => {
+                    const attempts = p.assignment?.testAttempts || [];
+                    const latestAttempt = p.assignment?.latestAttempt || attempts[0];
+                    const hasSubmitted = latestAttempt && latestAttempt.submitted_at;
+                    const isPending = !hasSubmitted;
+
+                    return (
+                      <TableRow key={p.id} hover>
+                        <TableCell className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'primary.main', fontWeight: 700 }}>
+                              {p.user?.name?.charAt(0) || 'U'}
+                            </Avatar>
+                            <div>
+                              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                                {p.user?.name}
+                              </div>
+                              <div className="text-[11px] text-slate-400">{p.user?.email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-xs py-2.5">
+                          <div className="text-slate-700 dark:text-slate-300 font-medium">
+                            {p.user?.department?.name || 'Unassigned'}
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            {p.user?.office_position?.name || 'Unassigned'}
+                          </div>
+                        </TableCell>
+
+                        <TableCell align="center" className="py-2.5">
+                          <Chip
+                            size="small"
+                            label={p.attendance_status}
+                            color={
+                              p.attendance_status === 'ATTENDED'
+                                ? 'success'
+                                : p.attendance_status === 'ABSENT'
+                                ? 'error'
+                                : 'default'
+                            }
+                            sx={{ fontSize: '0.7rem', fontWeight: 700 }}
+                          />
+                        </TableCell>
+
+                        <TableCell align="center" className="py-2.5">
+                          {isPending ? (
+                            <Chip
+                              size="small"
+                              label="PENDING TEST"
+                              color="warning"
+                              variant="outlined"
+                              sx={{ fontSize: '0.7rem', fontWeight: 700 }}
+                            />
+                          ) : latestAttempt?.result === 'PASSED' ? (
+                            <Chip
+                              size="small"
+                              label="PASSED"
+                              color="success"
+                              sx={{ fontSize: '0.7rem', fontWeight: 700 }}
+                            />
+                          ) : (
+                            <Chip
+                              size="small"
+                              label="FAILED"
+                              color="error"
+                              sx={{ fontSize: '0.7rem', fontWeight: 700 }}
+                            />
+                          )}
+                        </TableCell>
+
+                        <TableCell align="center" className="py-2.5">
+                          {hasSubmitted ? (
+                            <div>
+                              <span
+                                className={`text-xs font-bold ${
+                                  latestAttempt.result === 'PASSED' ? 'text-emerald-600' : 'text-rose-600'
+                                }`}
+                              >
+                                {latestAttempt.percentage}%
+                              </span>
+                              <div className="text-[10px] text-slate-400">
+                                {latestAttempt.score} / {latestAttempt.max_score} pts
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Not taken yet</span>
+                          )}
+                        </TableCell>
+
+                        <TableCell align="center" className="py-2.5">
+                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                            {attempts.length}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+
+                  {(selectedSessionForTestStatus?.participants || []).length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" className="py-8 text-slate-400 text-xs">
+                        No participants registered in this session.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DialogContent>
+          <DialogActions className="p-3 border-t border-slate-100 dark:border-slate-800">
+            <Button onClick={() => setTestStatusModalOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
       </Box>

@@ -545,6 +545,8 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     Route::get('/scorecard', [\App\Http\Controllers\Training\TrainingScorecardController::class, 'show'])->name('scorecard');
     Route::get('/assignments/{assignment}/scorecard', [\App\Http\Controllers\Training\TrainingScorecardController::class, 'show'])->name('employee.scorecard');
     Route::get('/assignments/{assignment}/attempt-history', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'attemptHistory'])->name('assignments.attempt-history');
+    Route::delete('/assignments/{assignment}', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'deleteAssignment'])->name('assignments.destroy');
+    Route::post('/assignments/cleanup-orphaned', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'cleanupOrphaned'])->name('assignments.cleanup-orphaned');
 });
 
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');
