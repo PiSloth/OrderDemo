@@ -67,8 +67,37 @@ class TrainingAssignmentService
             $users = $query->get();
             $assignedCount = 0;
 
+            // In FULL_TRAINING mode, provision ONE shared session for all assigned users
+            $sharedSession = null;
+            if ($assignmentType === 'FULL_TRAINING' && $users->isNotEmpty()) {
+                $sessionNum = TrainingSession::where('training_id', $training->id)->whereNull('parent_session_id')->count() + 1;
+                $durationDays = max(1, (int) ($training->duration_days ?: 1));
+                $startDate = now()->addDays(7)->toDateString();
+                $endDate = now()->addDays(7 + $durationDays - 1)->toDateString();
+
+                $sharedSession = TrainingSession::create([
+                    'training_id' => $training->id,
+                    'trainer_id' => null,
+                    'session_code' => $training->code . '-S' . str_pad((string) $sessionNum, 3, '0', STR_PAD_LEFT) . '-' . strtoupper(Str::random(4)),
+                    'title' => $training->title . ' - Session #' . $sessionNum,
+                    'scheduled_at' => now()->addDays(7)->setHour(9)->setMinute(0),
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'duration_days' => $durationDays,
+                    'status' => 'PENDING',
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
             foreach ($users as $user) {
-                $assignment = $this->createAssignmentForUser($training, $user, $trigger, $dueDate, $assignmentType);
+                $assignment = $this->createAssignmentForUser(
+                    training: $training,
+                    user: $user,
+                    trigger: $trigger,
+                    dueDate: $dueDate,
+                    assignmentType: $assignmentType,
+                    existingSession: $sharedSession
+                );
                 if ($assignment) {
                     $assignedCount++;
                 }
@@ -119,6 +148,13 @@ class TrainingAssignmentService
 
             $count = 0;
             foreach ($trainings as $training) {
+                // Check if an open/pending session already exists for this training to join
+                $existingOpenSession = TrainingSession::query()
+                    ->where('training_id', $training->id)
+                    ->whereNull('parent_session_id')
+                    ->whereIn('status', ['PENDING', 'OPEN'])
+                    ->first();
+
                 // Create a NEW_USER trigger if not exists recently
                 $positionLabel = $user->officePosition?->name ?? 'All Positions';
                 $deptLabel = $user->department?->name ?? 'Department';
@@ -132,7 +168,12 @@ class TrainingAssignmentService
                     'created_by' => auth()->id() ?? $user->id,
                 ]);
 
-                $assignment = $this->createAssignmentForUser($training, $user, $trigger);
+                $assignment = $this->createAssignmentForUser(
+                    training: $training,
+                    user: $user,
+                    trigger: $trigger,
+                    existingSession: $existingOpenSession
+                );
                 if ($assignment) {
                     $count++;
                 }
@@ -150,7 +191,8 @@ class TrainingAssignmentService
         User $user,
         ?TrainingTrigger $trigger = null,
         ?Carbon $dueDate = null,
-        string $assignmentType = 'FULL_TRAINING'
+        string $assignmentType = 'FULL_TRAINING',
+        ?TrainingSession $existingSession = null
     ): ?TrainingAssignment {
         // Calculate default due date if not provided
         if (!$dueDate) {
@@ -165,6 +207,18 @@ class TrainingAssignmentService
             ->first();
 
         if ($existing) {
+            if ($existingSession && $assignmentType === 'FULL_TRAINING') {
+                TrainingSessionParticipant::firstOrCreate(
+                    [
+                        'training_session_id' => $existingSession->id,
+                        'user_id' => $user->id,
+                    ],
+                    [
+                        'training_assignment_id' => $existing->id,
+                        'attendance_status' => 'REGISTERED',
+                    ]
+                );
+            }
             return $existing;
         }
 
@@ -177,9 +231,22 @@ class TrainingAssignmentService
             'status' => 'PENDING',
         ]);
 
-        // Automatically provision Session #1 only if FULL_TRAINING
+        // Automatically provision or link Session #1 only if FULL_TRAINING
         if ($assignmentType === 'FULL_TRAINING') {
-            $this->provisionSessionForAssignment($assignment, 1);
+            if ($existingSession) {
+                TrainingSessionParticipant::firstOrCreate(
+                    [
+                        'training_session_id' => $existingSession->id,
+                        'user_id' => $user->id,
+                    ],
+                    [
+                        'training_assignment_id' => $assignment->id,
+                        'attendance_status' => 'REGISTERED',
+                    ]
+                );
+            } else {
+                $this->provisionSessionForAssignment($assignment, 1);
+            }
         }
 
         return $assignment;
@@ -206,13 +273,20 @@ class TrainingAssignmentService
             }
         }
 
+        $durationDays = max(1, (int) ($training->duration_days ?: 1));
+        $startDate = now()->addDays(7)->toDateString();
+        $endDate = now()->addDays(7 + $durationDays - 1)->toDateString();
+
         // Create a new session in PENDING state (waiting trainer approval/scheduling)
         $session = TrainingSession::create([
             'training_id' => $training->id,
             'trainer_id' => null,
             'session_code' => $training->code . '-S' . str_pad((string) $sessionNumber, 3, '0', STR_PAD_LEFT) . '-' . strtoupper(Str::random(4)),
             'title' => $training->title . ' - Session #' . $sessionNumber,
-            'scheduled_at' => now()->addDays(7),
+            'scheduled_at' => now()->addDays(7)->setHour(9)->setMinute(0),
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'duration_days' => $durationDays,
             'status' => 'PENDING',
             'created_by' => auth()->id(),
         ]);
@@ -223,6 +297,63 @@ class TrainingAssignmentService
             'user_id' => $assignment->user_id,
             'attendance_status' => 'REGISTERED',
         ]);
+    }
+
+    /**
+     * Attach a failed trainee to a shared remedial session referencing the parent session.
+     */
+    public function attachToRemedialSession(TrainingAssignment $assignment, ?int $parentSessionId = null): TrainingSessionParticipant
+    {
+        $training = $assignment->training;
+        $parentSession = $parentSessionId ? TrainingSession::find($parentSessionId) : null;
+
+        // Look for an existing pending/open remedial session linked to this parent session
+        $remedialSession = null;
+        if ($parentSession) {
+            $remedialSession = TrainingSession::query()
+                ->where('training_id', $training->id)
+                ->where('parent_session_id', $parentSession->id)
+                ->whereIn('status', ['PENDING', 'OPEN', 'IN_PROGRESS'])
+                ->first();
+        }
+
+        if (!$remedialSession) {
+            $parentCode = $parentSession?->session_code ?? ($training->code . '-S001');
+            $remCount = TrainingSession::where('training_id', $training->id)
+                ->where('parent_session_id', $parentSession?->id)
+                ->count() + 1;
+
+            $durationDays = max(1, (int) ($training->duration_days ?: 1));
+            $startDate = now()->addDays(3)->toDateString();
+            $endDate = now()->addDays(3 + $durationDays - 1)->toDateString();
+
+            $remedialSession = TrainingSession::create([
+                'training_id' => $training->id,
+                'parent_session_id' => $parentSession?->id,
+                'trainer_id' => $parentSession?->trainer_id,
+                'session_code' => $parentCode . '-REM-' . str_pad((string) $remCount, 2, '0', STR_PAD_LEFT),
+                'title' => $training->title . ' - Remedial Session (Ref: ' . $parentCode . ')',
+                'scheduled_at' => now()->addDays(3)->setHour(9)->setMinute(0),
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'duration_days' => $durationDays,
+                'venue' => $parentSession?->venue,
+                'meeting_link' => $parentSession?->meeting_link,
+                'status' => 'PENDING',
+                'created_by' => auth()->id(),
+            ]);
+        }
+
+        return TrainingSessionParticipant::firstOrCreate(
+            [
+                'training_session_id' => $remedialSession->id,
+                'user_id' => $assignment->user_id,
+            ],
+            [
+                'training_assignment_id' => $assignment->id,
+                'attendance_status' => 'REGISTERED',
+            ]
+        );
     }
 
     /**

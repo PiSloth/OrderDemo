@@ -22,6 +22,7 @@ class Training extends Model
         'training_category_id',
         'retrain_interval',
         'retrain_unit',
+        'duration_days',
         'passing_score',
         'status',
         'created_by',
@@ -29,6 +30,7 @@ class Training extends Model
     ];
 
     protected $casts = [
+        'duration_days' => 'integer',
         'retrain_interval' => 'float',
         'passing_score' => 'float',
     ];

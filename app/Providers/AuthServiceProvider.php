@@ -47,5 +47,31 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('training.catalog.crate', function (User $user) {
             return $user->hasPermissionTo('training.catalog.create') || $user->hasPermissionTo('training.catalog.crate');
         });
+
+        Gate::define('training-session.read', function (User $user) {
+            return $user->hasPermissionTo('training-session.read')
+                || $user->hasPermissionTo('training.session.read')
+                || $user->hasPermissionTo('training.session.view')
+                || $user->hasPermissionTo('training.catalog.view');
+        });
+
+        Gate::define('training-session.create', function (User $user) {
+            return $user->hasPermissionTo('training-session.create')
+                || $user->hasPermissionTo('training.session.create')
+                || $user->hasPermissionTo('training.catalog.create')
+                || $user->hasPermissionTo('training.catalog.crate');
+        });
+
+        Gate::define('training-session.update', function (User $user) {
+            return $user->hasPermissionTo('training-session.update')
+                || $user->hasPermissionTo('training.session.update')
+                || $user->hasPermissionTo('training.catalog.update');
+        });
+
+        Gate::define('training-session.delete', function (User $user) {
+            return $user->hasPermissionTo('training-session.delete')
+                || $user->hasPermissionTo('training.session.delete')
+                || $user->hasPermissionTo('training.catalog.delete');
+        });
     }
 }

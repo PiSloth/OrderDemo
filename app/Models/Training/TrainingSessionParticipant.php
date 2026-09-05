@@ -16,12 +16,14 @@ class TrainingSessionParticipant extends Model
         'training_assignment_id',
         'user_id',
         'attendance_status', // REGISTERED, ATTENDED, ABSENT, EXCUSED
+        'daily_attendance',
         'attended_at',
         'notes',
     ];
 
     protected $casts = [
         'attended_at' => 'datetime',
+        'daily_attendance' => 'array',
     ];
 
     public function session(): BelongsTo

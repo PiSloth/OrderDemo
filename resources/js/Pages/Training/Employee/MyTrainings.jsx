@@ -63,13 +63,18 @@ export default function MyTrainings({ assignments = [] }) {
           {assignments.map((assignment) => {
             const training = assignment.training;
             const test = training?.test;
-            const activeSessionParticipant = assignment.session_participants?.[0];
+            const activeSessionParticipant = assignment.session_participants?.[0] || assignment.sessionParticipants?.[0];
             const session = activeSessionParticipant?.session;
-            const latestAttempt = assignment.test_attempts?.[0];
+            const latestAttempt = assignment.test_attempts?.[0] || assignment.testAttempts?.[0];
 
-            const isAttended = assignment.session_participants?.some((p) => p.attendance_status === 'ATTENDED');
+            const isAttended = (assignment.session_participants || assignment.sessionParticipants)?.some((p) => p.attendance_status === 'ATTENDED');
             const isTestPassed = latestAttempt?.result === 'PASSED';
             const isCompleted = assignment.status === 'COMPLETED';
+
+            const isTestOnly = assignment.assignment_type === 'TEST_ONLY';
+            const isSessionApproved = Boolean(session?.approved_at || session?.status === 'APPROVED' || session?.status === 'COMPLETED');
+            const isAbsent = activeSessionParticipant?.attendance_status === 'ABSENT';
+            const isTestUnlocked = isTestOnly || (isSessionApproved && !isAbsent);
 
             return (
               <Card
@@ -153,7 +158,7 @@ export default function MyTrainings({ assignments = [] }) {
                           <div>
                             <div className="font-bold">1. Attendance</div>
                             <div className="text-[10px]">
-                              {isAttended ? 'Verified Attended' : 'Pending Session'}
+                              {isAttended ? 'Verified Attended' : (activeSessionParticipant?.attendance_status === 'ABSENT' ? 'Marked Absent' : 'Pending Session')}
                             </div>
                           </div>
                         </Paper>
@@ -194,9 +199,9 @@ export default function MyTrainings({ assignments = [] }) {
                         <EventIcon fontSize="inherit" />
                         Next Session: {session.title}
                       </div>
-                      <div>Status: <b>{session.status}</b></div>
+                      <div>Status: <b>{session.status}</b> {isSessionApproved && <span className="text-emerald-600 font-bold ml-1">✓ (Approved by Trainer)</span>}</div>
                       {session.scheduled_at && (
-                        <div>Time: {new Date(session.scheduled_at).toLocaleString()}</div>
+                        <div>Schedule: {new Date(session.scheduled_at).toLocaleString()}</div>
                       )}
                       {session.trainer && <div>Trainer: {session.trainer.name}</div>}
                     </div>
@@ -242,17 +247,33 @@ export default function MyTrainings({ assignments = [] }) {
                       )}
 
                       {test ? (
-                        <Button
-                          variant={isCompleted ? 'outlined' : 'contained'}
-                          size="small"
-                          color={isCompleted ? 'secondary' : 'primary'}
-                          component={Link}
-                          href={`/training/assignments/${assignment.id}/tests/${test.id}/take`}
-                          startIcon={<QuizIcon fontSize="small" />}
-                          sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, fontSize: '0.75rem' }}
-                        >
-                          {latestAttempt ? 'Retake / Review' : 'Take Test'}
-                        </Button>
+                        isTestUnlocked ? (
+                          <Button
+                            variant={isCompleted ? 'outlined' : 'contained'}
+                            size="small"
+                            color={isCompleted ? 'secondary' : 'primary'}
+                            component={Link}
+                            href={`/training/assignments/${assignment.id}/tests/${test.id}/take`}
+                            startIcon={<QuizIcon fontSize="small" />}
+                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, fontSize: '0.75rem' }}
+                          >
+                            {latestAttempt ? 'Retake / Review' : 'Take Test'}
+                          </Button>
+                        ) : (
+                          <Tooltip title={isAbsent ? 'You were marked absent. Please attend the rescheduled session before taking the test.' : 'Awaiting trainer to approve the training session before unlocking the test.'}>
+                            <span>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                disabled
+                                startIcon={<QuizIcon fontSize="small" />}
+                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, fontSize: '0.75rem' }}
+                              >
+                                {isAbsent ? 'Test Locked (Absent)' : 'Test Locked (Awaiting Approval)'}
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        )
                       ) : (
                         <span className="text-xs text-slate-400">No test attached</span>
                       )}

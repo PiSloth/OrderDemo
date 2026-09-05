@@ -504,11 +504,33 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
         ->name('trainings.assign');
 
     // Sessions & Attendance
-    Route::get('/sessions', [\App\Http\Controllers\Training\TrainingSessionController::class, 'index'])->name('sessions.index');
-    Route::post('/sessions', [\App\Http\Controllers\Training\TrainingSessionController::class, 'store'])->name('sessions.store');
-    Route::put('/sessions/{session}', [\App\Http\Controllers\Training\TrainingSessionController::class, 'update'])->name('sessions.update');
-    Route::put('/sessions/{session}/status', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateStatus'])->name('sessions.update-status');
-    Route::put('/sessions/{session}/attendance', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateAttendance'])->name('sessions.update-attendance');
+    Route::get('/sessions', [\App\Http\Controllers\Training\TrainingSessionController::class, 'index'])
+        ->middleware('can:training-session.read')
+        ->name('sessions.index');
+    Route::post('/sessions', [\App\Http\Controllers\Training\TrainingSessionController::class, 'store'])
+        ->middleware('can:training-session.create')
+        ->name('sessions.store');
+    Route::put('/sessions/{session}', [\App\Http\Controllers\Training\TrainingSessionController::class, 'update'])
+        ->middleware('can:training-session.update')
+        ->name('sessions.update');
+    Route::delete('/sessions/{session}', [\App\Http\Controllers\Training\TrainingSessionController::class, 'destroy'])
+        ->middleware('can:training-session.delete')
+        ->name('sessions.destroy');
+    Route::put('/sessions/{session}/status', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateStatus'])
+        ->middleware('can:training-session.update')
+        ->name('sessions.update-status');
+    Route::post('/sessions/{session}/approve', [\App\Http\Controllers\Training\TrainingSessionController::class, 'approveSession'])
+        ->middleware('can:training-session.update')
+        ->name('sessions.approve');
+    Route::post('/sessions/{session}/participants', [\App\Http\Controllers\Training\TrainingSessionController::class, 'addParticipant'])
+        ->middleware('can:training-session.update')
+        ->name('sessions.add-participant');
+    Route::delete('/sessions/{session}/participants/{participant}', [\App\Http\Controllers\Training\TrainingSessionController::class, 'removeParticipant'])
+        ->middleware('can:training-session.update')
+        ->name('sessions.remove-participant');
+    Route::put('/sessions/{session}/attendance', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateAttendance'])
+        ->middleware('can:training-session.update')
+        ->name('sessions.update-attendance');
 
     // Tests & Question Builder
     Route::get('/trainings/{training}/test-builder', [\App\Http\Controllers\Training\TestController::class, 'builder'])->name('tests.builder');

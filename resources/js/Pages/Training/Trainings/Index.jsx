@@ -100,6 +100,7 @@ export default function TrainingsIndex({
     new_category_name: '',
     retrain_interval: 12,
     retrain_unit: 'month',
+    duration_days: 1,
     passing_score: 80,
     status: 'active',
     scopes: [],
@@ -127,6 +128,7 @@ export default function TrainingsIndex({
       new_category_name: '',
       retrain_interval: 12,
       retrain_unit: 'month',
+      duration_days: 1,
       passing_score: 80,
       status: 'active',
       scopes: [],
@@ -146,6 +148,7 @@ export default function TrainingsIndex({
       new_category_name: '',
       retrain_interval: t.retrain_interval,
       retrain_unit: t.retrain_unit,
+      duration_days: t.duration_days || 1,
       passing_score: t.passing_score,
       status: t.status,
       scopes: (t.scopes || []).map((s) => ({
@@ -689,16 +692,30 @@ export default function TrainingsIndex({
                   </TextField>
                 </div>
 
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Passing Score (%)"
-                  value={data.passing_score}
-                  onChange={(e) => setData('passing_score', e.target.value)}
-                  error={!!errors.passing_score}
-                  helperText={errors.passing_score}
-                  required
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Session Duration (Days)"
+                    inputProps={{ min: 1, max: 30 }}
+                    value={data.duration_days}
+                    onChange={(e) => setData('duration_days', parseInt(e.target.value || 1, 10))}
+                    error={!!errors.duration_days}
+                    helperText={errors.duration_days || 'Default training days'}
+                    required
+                  />
+
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Passing Score (%)"
+                    value={data.passing_score}
+                    onChange={(e) => setData('passing_score', e.target.value)}
+                    error={!!errors.passing_score}
+                    helperText={errors.passing_score}
+                    required
+                  />
+                </div>
 
                 <TextField
                   select

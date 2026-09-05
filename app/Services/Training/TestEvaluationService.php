@@ -173,10 +173,9 @@ class TestEvaluationService
                     'status' => 'IN_PROGRESS',
                 ]);
 
-                // Next action: Provision next session only if full training requires session
+                // Next action: Attach to shared remedial session referencing the parent session
                 if (!$isTestOnly) {
-                    $nextSessionNum = $attempt->attempt_number + 1;
-                    $this->assignmentService->provisionSessionForAssignment($assignment, $nextSessionNum);
+                    $this->assignmentService->attachToRemedialSession($assignment, $attempt->training_session_id);
                 }
             }
 

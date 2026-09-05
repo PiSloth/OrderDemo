@@ -25,6 +25,7 @@ class TrainingEmployeeController extends Controller
                 'training.test.questions',
                 'trigger',
                 'sessionParticipants.session.trainer',
+                'sessionParticipants.session.approver',
                 'testAttempts' => fn($q) => $q->with('answers')->latest(),
             ])
             ->orderByRaw("FIELD(status, 'PENDING', 'IN_PROGRESS', 'OVERDUE', 'COMPLETED', 'EXPIRED')")
@@ -40,6 +41,21 @@ class TrainingEmployeeController extends Controller
     {
         $canViewAnyAttempt = $request->user()->can('training.attempt.view') || $request->user()->can('training.catalog.view');
         abort_if($assignment->user_id !== $request->user()->id && !$canViewAnyAttempt, 403, 'Unauthorized');
+
+        // Check if session is approved before unlocking test for FULL_TRAINING
+        if ($assignment->assignment_type === 'FULL_TRAINING' && !$canViewAnyAttempt) {
+            $latestParticipant = $assignment->sessionParticipants()->latest('id')->with('session')->first();
+            if ($latestParticipant) {
+                if ($latestParticipant->attendance_status === 'ABSENT') {
+                    abort(403, 'You were marked absent for this training session. Please attend the rescheduled session before taking the assessment.');
+                }
+                $session = $latestParticipant->session;
+                $isApproved = ($session && ($session->approved_at !== null || in_array($session->status, ['APPROVED', 'COMPLETED'])));
+                if (!$isApproved) {
+                    abort(403, 'This assessment is locked until the trainer finishes and approves the training session.');
+                }
+            }
+        }
 
         $assignment->load(['training.category', 'sessionParticipants.session', 'user.department', 'user.officePosition']);
 
@@ -79,6 +95,21 @@ class TrainingEmployeeController extends Controller
         TestEvaluationService $evaluationService
     ): RedirectResponse {
         abort_if($assignment->user_id !== $request->user()->id, 403, 'Unauthorized');
+
+        // Gate test submission behind session approval
+        if ($assignment->assignment_type === 'FULL_TRAINING') {
+            $latestParticipant = $assignment->sessionParticipants()->latest('id')->with('session')->first();
+            if ($latestParticipant) {
+                if ($latestParticipant->attendance_status === 'ABSENT') {
+                    abort(403, 'You were marked absent for this training session. Please attend the rescheduled session before taking the assessment.');
+                }
+                $session = $latestParticipant->session;
+                $isApproved = ($session && ($session->approved_at !== null || in_array($session->status, ['APPROVED', 'COMPLETED'])));
+                if (!$isApproved) {
+                    abort(403, 'This assessment is locked until the trainer finishes and approves the training session.');
+                }
+            }
+        }
 
         $validated = $request->validate([
             'answers' => ['required', 'array'],
