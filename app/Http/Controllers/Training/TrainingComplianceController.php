@@ -58,7 +58,7 @@ class TrainingComplianceController extends Controller
             $participants = TrainingSessionParticipant::query()
                 ->whereHas('session', fn($q) => $q->whereNotNull('approved_at'))
                 ->whereHas('user', fn($q) => $q->where('department_id', $dept->id)->where('suspended', false))
-                ->with('session:id,duration_days')
+                ->with('session:id,duration_days,schedule_slots')
                 ->get();
 
             if ($participants->isEmpty()) {
@@ -69,7 +69,12 @@ class TrainingComplianceController extends Controller
             $totalAttendedDays = 0;
 
             foreach ($participants as $participant) {
-                $sessionDays = max(1, (int) ($participant->session->duration_days ?: 1));
+                $session = $participant->session;
+                // If schedule_slots are configured, count the slots; otherwise fallback to duration_days
+                $sessionDays = (is_array($session->schedule_slots) && !empty($session->schedule_slots))
+                    ? count($session->schedule_slots)
+                    : max(1, (int) ($session->duration_days ?: 1));
+
                 $totalRequiredDays += $sessionDays;
 
                 $daily = $participant->daily_attendance;
@@ -81,7 +86,7 @@ class TrainingComplianceController extends Controller
                             $attendedCount++;
                         }
                     }
-                    // Cap attended count to session duration days
+                    // Cap attended count to total session slots/days
                     $totalAttendedDays += min($sessionDays, $attendedCount);
                 } else {
                     if ($participant->attendance_status === 'ATTENDED') {
