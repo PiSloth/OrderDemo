@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Training;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Training\TestAttempt;
 use App\Models\Training\Training;
 use App\Models\Training\TrainingAssignment;
@@ -102,15 +103,22 @@ class TrainingSessionController extends Controller
         $trainers = User::query()->where('suspended', false)->orderBy('name')->get(['id', 'name', 'email']);
         $allActiveUsers = User::query()
             ->where('suspended', false)
-            ->with(['department:id,name', 'officePosition:id,name'])
+            ->with(['department:id,name', 'officePosition:id,name', 'branch:id,name'])
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'department_id', 'office_position_id']);
+            ->get(['id', 'name', 'email', 'department_id', 'office_position_id', 'branch_id']);
+
+        $departments = Department::orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('Training/Sessions/Index', [
             'sessions' => $sessions,
             'trainings' => $trainings,
             'trainers' => $trainers,
             'allActiveUsers' => $allActiveUsers,
+            'departments' => $departments,
+            'auth_user' => [
+                'id' => $request->user()?->id,
+                'name' => $request->user()?->name,
+            ],
             'statuses' => ['PENDING', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
             'permissions' => [
                 'can_read' => $request->user()?->can('training-session.read') ?? false,

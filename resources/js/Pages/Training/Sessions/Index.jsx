@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AsideLayout from '../../../Layouts/AsideLayout';
+import UserSelectModal from '@/Components/IT/UserSelectModal';
 import {
   Box,
   Card,
@@ -31,7 +32,10 @@ import {
   FormControl,
   InputLabel,
   Select,
-  InputAdornment
+  InputAdornment,
+  Menu,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 
 import {
@@ -53,7 +57,10 @@ import {
   History as HistoryIcon,
   Search as SearchIcon,
   Warning as WarningIcon,
-  Quiz as QuizIcon
+  Quiz as QuizIcon,
+  MoreVert as MoreVertIcon,
+  EventNote as EventNoteIcon,
+  HourglassEmpty as HourglassEmptyIcon
 } from '@mui/icons-material';
 
 import { exportSessionAnnouncementPdf } from '../../../utils/trainingPdfExport';
@@ -63,12 +70,29 @@ export default function SessionsIndex({
   trainings = [],
   trainers = [],
   allActiveUsers = [],
+  departments = [],
+  auth_user = {},
   statuses = [],
   permissions = {},
   filters = {}
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState(null);
+
+  // Card More Actions Menu State
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [activeMenuSession, setActiveMenuSession] = useState(null);
+
+  const handleOpenMenu = (event, session) => {
+    event.stopPropagation();
+    setMenuAnchorEl(event.currentTarget);
+    setActiveMenuSession(session);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchorEl(null);
+    setActiveMenuSession(null);
+  };
 
   const handleDeleteSession = (session) => {
     if (session.attempt_results_count > 0) {
@@ -310,16 +334,15 @@ export default function SessionsIndex({
     });
   };
 
-  // Add Participant
-  const handleAddParticipant = () => {
-    if (!selectedSessionForAttendance || !selectedUserIdToAdd) return;
+  // Add Participant via UserSelectModal
+  const handleSelectUserToAdd = (selectedUser) => {
+    if (!selectedSessionForAttendance || !selectedUser || !selectedUser.id) return;
     post(`/training/sessions/${selectedSessionForAttendance.id}/participants`, {
-      user_id: selectedUserIdToAdd,
+      user_id: selectedUser.id,
     }, {
+      preserveScroll: true,
       onSuccess: () => {
         setAddParticipantOpen(false);
-        setSelectedUserIdToAdd('');
-        setAttendanceModalOpen(false);
       },
     });
   };
@@ -531,178 +554,171 @@ export default function SessionsIndex({
             <Card
               key={s.id}
               elevation={0}
-              className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-900 flex flex-col justify-between"
+              className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 bg-white dark:bg-slate-900 flex flex-col justify-between overflow-hidden group"
             >
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-mono font-bold text-slate-500">
-                        {s.session_code}
-                      </span>
-                      {getScheduleStateChip(s.schedule_state)}
-                      {s.parent_session && (
-                        <Chip
-                          icon={<HistoryIcon fontSize="small" />}
-                          label={`Ref: ${s.parent_session.session_code}`}
-                          size="small"
-                          color="secondary"
-                          sx={{ fontSize: '0.65rem', height: 20, fontWeight: 700 }}
-                        />
-                      )}
-                    </div>
-                    <Typography variant="h6" className="font-extrabold text-slate-900 dark:text-slate-100 leading-snug mt-1">
-                      {s.title}
-                    </Typography>
+              {/* Card Header & Main Info */}
+              <CardContent className="p-5 space-y-3.5">
+                {/* Top Row: Code, Badge & More Actions Menu Button */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                      {s.session_code}
+                    </span>
+                    {getScheduleStateChip(s.schedule_state)}
+                    {s.parent_session && (
+                      <Chip
+                        icon={<HistoryIcon fontSize="small" />}
+                        label={`Ref: ${s.parent_session.session_code}`}
+                        size="small"
+                        color="secondary"
+                        sx={{ fontSize: '0.65rem', height: 20, fontWeight: 700 }}
+                      />
+                    )}
                   </div>
-                  {getStatusBadge(s.status)}
+
+                  <div className="flex items-center gap-1">
+                    {getStatusBadge(s.status)}
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleOpenMenu(e, s)}
+                      aria-label="session actions"
+                      className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  </div>
                 </div>
 
-                <div className="text-xs text-sky-600 dark:text-sky-400 font-bold">
-                  {s.training?.title} ({s.training?.code})
+                {/* Session Title & Linked Training Catalog */}
+                <div>
+                  <Typography
+                    variant="h6"
+                    className="font-extrabold text-slate-900 dark:text-slate-100 leading-snug cursor-pointer hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
+                    onClick={() => handleOpenAttendance(s)}
+                  >
+                    {s.title}
+                  </Typography>
+                  <div className="text-xs text-sky-600 dark:text-sky-400 font-semibold mt-0.5">
+                    {s.training?.title} ({s.training?.code})
+                  </div>
                 </div>
 
-                <Divider />
+                {/* Key Metrics Strip (Schedule, Trainer, Trainees Count) */}
+                <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">
+                      Schedule & Duration
+                    </span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1 mt-0.5">
+                      <ScheduleIcon sx={{ fontSize: 13 }} className="text-slate-400" />
+                      {s.duration_days || 1} Day(s) {s.start_date ? `• ${s.start_date}` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">
+                      Trainees
+                    </span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1 mt-0.5">
+                      <PeopleIcon sx={{ fontSize: 13 }} className="text-emerald-500" />
+                      {s.participants_count ?? 0} Trainee(s)
+                    </span>
+                  </div>
+                </div>
 
-                {/* Session Details */}
-                <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1.5">
-                    <ScheduleIcon fontSize="inherit" className="text-slate-400" />
-                    <span>
-                      <b>{s.duration_days || 1} Day(s)</b> • {s.start_date ? `${s.start_date} to ${s.end_date || s.start_date}` : (s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : 'Not Scheduled')}
+                {/* Secondary Meta: Trainer & Venue */}
+                <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Avatar sx={{ width: 18, height: 18, fontSize: '0.65rem', bgcolor: '#38bdf8' }}>
+                      {s.trainer?.name ? s.trainer.name.charAt(0).toUpperCase() : 'T'}
+                    </Avatar>
+                    <span className="truncate">
+                      Trainer: <b className="text-slate-800 dark:text-slate-100">{s.trainer?.name || 'Unassigned Trainer'}</b>
                     </span>
                   </div>
 
                   {s.venue && (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 truncate">
                       <LocationIcon fontSize="inherit" className="text-slate-400" />
-                      <span>{s.venue}</span>
+                      <span className="truncate">{s.venue}</span>
                     </div>
                   )}
 
                   {s.meeting_link && (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 truncate">
                       <LinkIcon fontSize="inherit" className="text-slate-400" />
-                      <a href={s.meeting_link} target="_blank" rel="noreferrer" className="text-sky-600 underline truncate max-w-[200px]">
+                      <a href={s.meeting_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline truncate">
                         {s.meeting_link}
                       </a>
                     </div>
                   )}
-
-                  <div className="flex items-center gap-1.5">
-                    <PeopleIcon fontSize="inherit" className="text-slate-400" />
-                    <span>
-                      Trainer: <b>{s.trainer?.name || 'Unassigned Trainer'}</b>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <AttendanceIcon fontSize="inherit" className="text-emerald-500" />
-                    <span>
-                      Shared Trainees: <b>{s.participants_count ?? 0} employee(s)</b>
-                    </span>
-                  </div>
-
-                  {/* Approval State Box */}
-                  {s.approved_at ? (
-                    <div className="bg-emerald-50 dark:bg-emerald-950/30 p-2 rounded-xl border border-emerald-200 dark:border-emerald-900/40 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                      <VerifiedIcon fontSize="inherit" color="success" />
-                      <span>
-                        Approved by <b>{s.approver?.name || 'Approver'}</b> on {s.approved_at.substring(0, 10)} (Tests Unlocked)
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="bg-amber-50 dark:bg-amber-950/30 p-2 rounded-xl border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                      <WarningIcon fontSize="inherit" color="warning" />
-                      <span>Awaiting Trainer Approval (Tests Locked for trainees)</span>
-                    </div>
-                  )}
                 </div>
-              </CardContent>
 
-              {/* Status Action Buttons & Attendance */}
-              <Box className="p-4 pt-0 space-y-2 border-t border-slate-100 dark:border-slate-800 mt-2">
-                <div className="flex items-center justify-between gap-1 pt-2 flex-wrap">
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                    {/* Approve Button */}
-                    {!s.approved_at && (
+                {/* Approval & Test Release Status Banner */}
+                {s.approved_at ? (
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <VerifiedIcon sx={{ fontSize: 15 }} color="success" />
+                      Approved (Tests Unlocked)
+                    </span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                      {s.approved_at.substring(0, 10)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <HourglassEmptyIcon sx={{ fontSize: 14 }} color="warning" />
+                      Pending Approval (Tests Locked)
+                    </span>
+                    {!s.approved_at && permissions.can_update !== false && (
                       <Button
                         size="small"
-                        variant="contained"
+                        variant="text"
                         color="success"
-                        startIcon={<VerifiedIcon />}
                         onClick={() => handleOpenApprove(s)}
-                        sx={{ textTransform: 'none', fontSize: '0.72rem', fontWeight: 700 }}
+                        sx={{ fontSize: '10px', p: 0, minHeight: 18, textTransform: 'none', fontWeight: 800 }}
                       >
-                        Approve Session
+                        Approve Now
                       </Button>
                     )}
+                  </div>
+                )}
+              </CardContent>
 
-                    {/* Attendance Button */}
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<AttendanceIcon />}
-                      onClick={() => handleOpenAttendance(s)}
-                      sx={{ textTransform: 'none', fontSize: '0.72rem', fontWeight: 700 }}
-                    >
-                      Attendance ({s.participants_count ?? 0})
-                    </Button>
+              {/* Minimal Card Footer: Primary Attendance Action + Quick Test Status Badge */}
+              <Box className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between gap-2">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<AttendanceIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => handleOpenAttendance(s)}
+                  sx={{
+                    textTransform: 'none',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    borderColor: '#93c5fd',
+                    color: '#0284c7',
+                    '&:hover': { borderColor: '#0284c7', backgroundColor: '#f0f9ff' }
+                  }}
+                >
+                  Manage Attendance ({s.participants_count ?? 0})
+                </Button>
 
-                    {/* Test Template / Answering Status Button */}
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="info"
-                      startIcon={<QuizIcon />}
-                      onClick={() => {
-                        setSelectedSessionForTestStatus(s);
-                        setTestStatusModalOpen(true);
-                      }}
-                      sx={{ textTransform: 'none', fontSize: '0.72rem', fontWeight: 700 }}
-                    >
-                      Test Status
-                    </Button>
-
-                    {/* PDF Announcement Button */}
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="secondary"
-                      startIcon={<PdfIcon />}
-                      onClick={() => exportSessionAnnouncementPdf(s)}
-                      sx={{ textTransform: 'none', fontSize: '0.72rem', fontWeight: 600 }}
-                    >
-                      Announcement PDF
-                    </Button>
-                  </Stack>
-
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    {permissions.can_update !== false && (
-                      <Tooltip title="Edit Session">
-                        <IconButton size="small" onClick={() => handleOpenEdit(s)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-
-                    {permissions.can_delete !== false && (
-                      <Tooltip title={s.attempt_results_count > 0 ? "Cannot delete: Assessment attempt results exist" : "Delete Session & Related Data"}>
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            disabled={s.attempt_results_count > 0}
-                            onClick={() => handleDeleteSession(s)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    )}
-                  </Stack>
-                </div>
+                <Button
+                  size="small"
+                  variant="text"
+                  color="info"
+                  startIcon={<QuizIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => {
+                    setSelectedSessionForTestStatus(s);
+                    setTestStatusModalOpen(true);
+                  }}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700 }}
+                >
+                  Test Status
+                </Button>
               </Box>
             </Card>
           ))}
@@ -1081,46 +1097,113 @@ export default function SessionsIndex({
           </DialogActions>
         </Dialog>
 
-        {/* Add Participant Dialog */}
-        <Dialog open={addParticipantOpen} onClose={() => setAddParticipantOpen(false)} maxWidth="xs" fullWidth>
-          <DialogTitle className="font-bold flex items-center gap-2">
-            <PersonAddIcon color="primary" />
-            Add Participant to Session
-          </DialogTitle>
-          <DialogContent className="space-y-4 pt-2">
-            <Typography variant="body2" className="text-slate-500">
-              Select an employee to assign to this session. They will be linked to this session's multi-day attendance sheet.
-            </Typography>
+        {/* Employee Select Modal for Adding Participant to Session (Reused from IT Issues) */}
+        <UserSelectModal
+          open={addParticipantOpen}
+          onClose={() => setAddParticipantOpen(false)}
+          onSelect={handleSelectUserToAdd}
+          title="Add Participant to Session"
+          subtitle={`Search and select an employee to register for session: ${selectedSessionForAttendance?.session_code || ''}`}
+          users={allActiveUsers}
+          departments={departments}
+          currentUserName={auth_user?.name || ''}
+        />
 
-            <TextField
-              select
-              fullWidth
-              required
-              label="Select Employee"
-              value={selectedUserIdToAdd}
-              onChange={(e) => setSelectedUserIdToAdd(e.target.value)}
+        {/* Card Actions Overflow Menu */}
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleCloseMenu}
+          PaperProps={{
+            elevation: 3,
+            sx: {
+              borderRadius: '12px',
+              minWidth: 190,
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+              border: '1px solid #e2e8f0',
+              mt: 0.5,
+            },
+          }}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        >
+          {/* Approve Session (if pending approval) */}
+          {activeMenuSession && !activeMenuSession.approved_at && (
+            <MenuItem
+              onClick={() => {
+                const s = activeMenuSession;
+                handleCloseMenu();
+                handleOpenApprove(s);
+              }}
+              sx={{ py: 1, fontSize: '0.82rem', fontWeight: 600, color: '#15803d' }}
             >
-              <MenuItem value="">-- Choose Employee --</MenuItem>
-              {allActiveUsers.map((u) => (
-                <MenuItem key={u.id} value={String(u.id)}>
-                  {u.name} ({u.department?.name || 'No Dept'} • {u.office_position?.name || 'Staff'})
-                </MenuItem>
-              ))}
-            </TextField>
-          </DialogContent>
-          <DialogActions className="p-3">
-            <Button onClick={() => setAddParticipantOpen(false)}>Cancel</Button>
-            <Button
-              variant="contained"
-              color="primary"
-              disabled={!selectedUserIdToAdd}
-              onClick={handleAddParticipant}
-              sx={{ fontWeight: 700 }}
+              <ListItemIcon sx={{ minWidth: 30, color: '#16a34a' }}>
+                <VerifiedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Approve Session" primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 600 }} />
+            </MenuItem>
+          )}
+
+          {/* Announcement PDF */}
+          <MenuItem
+            onClick={() => {
+              const s = activeMenuSession;
+              handleCloseMenu();
+              exportSessionAnnouncementPdf(s);
+            }}
+            sx={{ py: 1, fontSize: '0.82rem', fontWeight: 500 }}
+          >
+            <ListItemIcon sx={{ minWidth: 30, color: '#9333ea' }}>
+              <PdfIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Announcement PDF" primaryTypographyProps={{ fontSize: '0.82rem' }} />
+          </MenuItem>
+
+          {/* Edit Session */}
+          {permissions.can_update !== false && (
+            <MenuItem
+              onClick={() => {
+                const s = activeMenuSession;
+                handleCloseMenu();
+                handleOpenEdit(s);
+              }}
+              sx={{ py: 1, fontSize: '0.82rem', fontWeight: 500 }}
             >
-              Add to Session
-            </Button>
-          </DialogActions>
-        </Dialog>
+              <ListItemIcon sx={{ minWidth: 30, color: '#0284c7' }}>
+                <EditIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Edit Details" primaryTypographyProps={{ fontSize: '0.82rem' }} />
+            </MenuItem>
+          )}
+
+          <Divider sx={{ my: 0.5 }} />
+
+          {/* Delete Session */}
+          {permissions.can_delete !== false && (
+            <MenuItem
+              disabled={activeMenuSession?.attempt_results_count > 0}
+              onClick={() => {
+                const s = activeMenuSession;
+                handleCloseMenu();
+                handleDeleteSession(s);
+              }}
+              sx={{
+                py: 1,
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: activeMenuSession?.attempt_results_count > 0 ? '#94a3b8' : '#e11d48',
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 30, color: activeMenuSession?.attempt_results_count > 0 ? '#cbd5e1' : '#e11d48' }}>
+                <DeleteIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText
+                primary={activeMenuSession?.attempt_results_count > 0 ? "Cannot Delete (Has Results)" : "Delete Session"}
+                primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 600 }}
+              />
+            </MenuItem>
+          )}
+        </Menu>
 
         {/* Approve Session Dialog */}
         <Dialog open={approveModalOpen} onClose={() => setApproveModalOpen(false)} maxWidth="sm" fullWidth>

@@ -34,6 +34,7 @@ import {
     CheckCircle as CheckCircleIcon,
     Apartment as ApartmentIcon,
     Store as StoreIcon,
+    Badge as BadgeIcon,
 } from '@mui/icons-material';
 
 const ITEM_HEIGHT = 48;
@@ -142,7 +143,9 @@ export default function UserSelectModal({
                 const emailMatch = u.email && String(u.email).toLowerCase().includes(q);
                 const deptMatch = u.department?.name && String(u.department.name).toLowerCase().includes(q);
                 const branchMatch = u.branch?.name && String(u.branch.name).toLowerCase().includes(q);
-                if (!nameMatch && !emailMatch && !deptMatch && !branchMatch) {
+                const posMatch = (u.office_position?.name && String(u.office_position.name).toLowerCase().includes(q)) ||
+                                 (u.position?.name && String(u.position.name).toLowerCase().includes(q));
+                if (!nameMatch && !emailMatch && !deptMatch && !branchMatch && !posMatch) {
                     return false;
                 }
             }
@@ -343,7 +346,7 @@ export default function UserSelectModal({
                             <TableRow sx={{ '& th': { backgroundColor: '#f1f5f9', fontWeight: 'bold', color: '#334155' } }}>
                                 <TableCell sx={{ minWidth: 200 }}>Employee Name</TableCell>
                                 <TableCell sx={{ minWidth: 150 }}>Department</TableCell>
-                                <TableCell sx={{ minWidth: 140 }}>Branch</TableCell>
+                                <TableCell sx={{ minWidth: 140 }}>Branch / Position</TableCell>
                                 <TableCell align="center" sx={{ width: 110 }}>Action</TableCell>
                             </TableRow>
                         </TableHead>
@@ -436,7 +439,7 @@ export default function UserSelectModal({
                                                 )}
                                             </TableCell>
 
-                                            {/* Branch */}
+                                            {/* Branch / Position */}
                                             <TableCell>
                                                 {u.branch?.name ? (
                                                     <Chip
@@ -445,6 +448,14 @@ export default function UserSelectModal({
                                                         variant="outlined"
                                                         icon={<StoreIcon sx={{ fontSize: '14px !important' }} />}
                                                         sx={{ fontSize: '0.75rem', height: 22, borderColor: '#cbd5e1' }}
+                                                    />
+                                                ) : (u.office_position?.name || u.position?.name) ? (
+                                                    <Chip
+                                                        label={u.office_position?.name || u.position?.name}
+                                                        size="small"
+                                                        variant="outlined"
+                                                        icon={<BadgeIcon sx={{ fontSize: '14px !important' }} />}
+                                                        sx={{ fontSize: '0.75rem', height: 22, borderColor: '#cbd5e1', color: '#475569' }}
                                                     />
                                                 ) : (
                                                     <Typography variant="caption" color="text.secondary">—</Typography>
