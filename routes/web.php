@@ -519,6 +519,9 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     Route::put('/sessions/{session}/status', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateStatus'])
         ->middleware('can:training-session.update')
         ->name('sessions.update-status');
+    Route::put('/sessions/{session}/slots/status', [\App\Http\Controllers\Training\TrainingSessionController::class, 'updateSlotStatus'])
+        ->middleware('can:training-session.update')
+        ->name('sessions.update-slot-status');
     Route::post('/sessions/{session}/approve', [\App\Http\Controllers\Training\TrainingSessionController::class, 'approveSession'])
         ->middleware('can:training-session.update')
         ->name('sessions.approve');

@@ -460,5 +460,77 @@ class TrainingSharedSessionAndApprovalTest extends TestCase
         $this->assertDatabaseMissing('training_assignments', ['id' => $orphan1->id]);
         $this->assertDatabaseMissing('training_assignments', ['id' => $orphan2->id]);
     }
+
+    public function test_schedule_slots_json_format_and_slot_status_update(): void
+    {
+        $this->admin->givePermissionTo('training-session.create');
+        $this->admin->givePermissionTo('training-session.update');
+
+        $slotsData = [
+            [
+                'id' => 'slot_1',
+                'date' => '2026-09-06',
+                'time' => '13:00',
+                'trainer_id' => $this->user1->id,
+                'trainer_name' => $this->user1->name,
+                'status' => 'COMPLETED',
+                'notes' => 'Day 1 - Introduction',
+            ],
+            [
+                'id' => 'slot_2',
+                'date' => '2026-09-09',
+                'time' => '14:00',
+                'trainer_id' => $this->user2->id,
+                'trainer_name' => $this->user2->name,
+                'status' => 'PENDING',
+                'notes' => 'Day 2 - Hands-on practice',
+            ],
+            [
+                'id' => 'slot_3',
+                'date' => '2026-09-11',
+                'time' => '15:00',
+                'trainer_id' => $this->user3->id,
+                'trainer_name' => $this->user3->name,
+                'status' => 'PENDING',
+                'notes' => 'Day 3 - Evaluation',
+            ],
+        ];
+
+        // 1. Create session with JSON schedule_slots
+        $createResp = $this->actingAs($this->admin)->post('/training/sessions', [
+            'training_id' => $this->training->id,
+            'title' => 'Cashier Multi-Day Flexible Training',
+            'session_code' => 'SESS-CASHIER-MULTI',
+            'schedule_slots' => $slotsData,
+            'status' => 'OPEN',
+        ]);
+        $createResp->assertRedirect();
+
+        $session = TrainingSession::where('session_code', 'SESS-CASHIER-MULTI')->first();
+        $this->assertNotNull($session);
+        $this->assertEquals('2026-09-06', $session->start_date->format('Y-m-d'));
+        $this->assertEquals('2026-09-11', $session->end_date->format('Y-m-d'));
+        $this->assertEquals(3, $session->duration_days);
+
+        // Verify session_dates attribute uses slots
+        $this->assertEquals(['2026-09-06', '2026-09-09', '2026-09-11'], $session->session_dates);
+
+        // Verify JSON storage in database
+        $this->assertIsArray($session->schedule_slots);
+        $this->assertCount(3, $session->schedule_slots);
+        $this->assertEquals($this->user2->id, $session->schedule_slots[1]['trainer_id']);
+        $this->assertEquals('14:00', $session->schedule_slots[1]['time']);
+        $this->assertEquals('PENDING', $session->schedule_slots[1]['status']);
+
+        // 2. Toggle slot 2 status to COMPLETED
+        $slotResp = $this->actingAs($this->admin)->put("/training/sessions/{$session->id}/slots/status", [
+            'slot_index' => 1,
+            'status' => 'COMPLETED',
+        ]);
+        $slotResp->assertRedirect();
+
+        $session->refresh();
+        $this->assertEquals('COMPLETED', $session->schedule_slots[1]['status']);
+    }
 }
 

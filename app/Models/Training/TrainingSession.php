@@ -24,6 +24,7 @@ class TrainingSession extends Model
         'duration_days',
         'venue',
         'meeting_link',
+        'schedule_slots',
         'status', // PENDING, OPEN, IN_PROGRESS, COMPLETED, CANCELLED
         'created_by',
         'approved_by',
@@ -36,6 +37,7 @@ class TrainingSession extends Model
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
         'duration_days' => 'integer',
+        'schedule_slots' => 'array',
         'approved_at' => 'datetime',
     ];
 
@@ -85,10 +87,22 @@ class TrainingSession extends Model
     }
 
     /**
-     * Compute array of session dates based on start_date (or scheduled_at) and duration_days.
+     * Compute array of session dates based on schedule_slots or start_date and duration_days.
      */
     public function getSessionDatesAttribute(): array
     {
+        if (is_array($this->schedule_slots) && !empty($this->schedule_slots)) {
+            $dates = [];
+            foreach ($this->schedule_slots as $slot) {
+                if (!empty($slot['date'])) {
+                    $dates[] = $slot['date'];
+                }
+            }
+            if (!empty($dates)) {
+                return array_values(array_unique($dates));
+            }
+        }
+
         $baseDate = $this->start_date ?? ($this->scheduled_at ? $this->scheduled_at->copy()->startOfDay() : now()->startOfDay());
         $days = max(1, (int) ($this->duration_days ?: 1));
 

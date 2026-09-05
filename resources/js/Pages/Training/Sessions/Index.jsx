@@ -135,15 +135,21 @@ export default function SessionsIndex({
   const [trainingFilter, setTrainingFilter] = useState(filters.training_id || '');
   const [trainerFilter, setTrainerFilter] = useState(filters.trainer_id || '');
 
+  // Trainer selection via UserSelectModal state
+  const [trainerSelectOpen, setTrainerSelectOpen] = useState(false);
+  const [trainerSelectTarget, setTrainerSelectTarget] = useState('main'); // 'main' or slot index number
+
   const { data, setData, post, put, processing, errors, reset } = useForm({
     training_id: '',
     trainer_id: '',
+    trainer_name: '',
     title: '',
     session_code: '',
     scheduled_at: '',
     start_date: '',
     end_date: '',
     duration_days: 1,
+    schedule_slots: [],
     venue: '',
     meeting_link: '',
     status: 'PENDING',
@@ -168,15 +174,32 @@ export default function SessionsIndex({
     const defaultStart = new Date(Date.now() + 7 * 86400000).toISOString().substring(0, 10);
     const defaultEnd = new Date(Date.now() + (7 + dur - 1) * 86400000).toISOString().substring(0, 10);
 
+    // Build initial schedule slots
+    const initialSlots = [];
+    for (let i = 0; i < dur; i++) {
+      const slotDate = new Date(Date.now() + (7 + i) * 86400000).toISOString().substring(0, 10);
+      initialSlots.push({
+        id: `slot_${Date.now()}_${i + 1}`,
+        date: slotDate,
+        time: '13:00',
+        trainer_id: '',
+        trainer_name: '',
+        status: 'PENDING',
+        notes: `Day ${i + 1}`,
+      });
+    }
+
     setData({
       training_id: defaultTraining?.id ? String(defaultTraining.id) : '',
       trainer_id: '',
+      trainer_name: '',
       title: defaultTraining ? `${defaultTraining.title} - Shared Session` : '',
       session_code: '',
-      scheduled_at: `${defaultStart}T09:00`,
+      scheduled_at: `${defaultStart}T13:00`,
       start_date: defaultStart,
       end_date: defaultEnd,
       duration_days: dur,
+      schedule_slots: initialSlots,
       venue: '',
       meeting_link: '',
       status: 'OPEN',
@@ -186,20 +209,106 @@ export default function SessionsIndex({
 
   const handleOpenEdit = (session) => {
     setEditingSession(session);
+    const existingSlots = Array.isArray(session.schedule_slots) && session.schedule_slots.length > 0
+      ? session.schedule_slots
+      : (session.session_dates || [session.start_date || '']).map((dStr, idx) => ({
+          id: `slot_${session.id}_${idx + 1}`,
+          date: dStr,
+          time: session.scheduled_at ? session.scheduled_at.substring(11, 16) : '13:00',
+          trainer_id: session.trainer_id ? String(session.trainer_id) : '',
+          trainer_name: session.trainer?.name || '',
+          status: session.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING',
+          notes: `Day ${idx + 1}`,
+        }));
+
     setData({
       training_id: String(session.training_id),
       trainer_id: session.trainer_id ? String(session.trainer_id) : '',
+      trainer_name: session.trainer?.name || '',
       title: session.title || '',
       session_code: session.session_code || '',
       scheduled_at: session.scheduled_at ? session.scheduled_at.substring(0, 16) : '',
       start_date: session.start_date ? session.start_date.substring(0, 10) : '',
       end_date: session.end_date ? session.end_date.substring(0, 10) : '',
-      duration_days: session.duration_days || 1,
+      duration_days: existingSlots.length || session.duration_days || 1,
+      schedule_slots: existingSlots,
       venue: session.venue || '',
       meeting_link: session.meeting_link || '',
       status: session.status,
     });
     setModalOpen(true);
+  };
+
+  // Schedule slot operations
+  const handleAddSlot = () => {
+    const slots = [...(data.schedule_slots || [])];
+    const lastSlot = slots[slots.length - 1];
+    let nextDate = new Date().toISOString().substring(0, 10);
+    if (lastSlot?.date) {
+      const d = new Date(lastSlot.date);
+      d.setDate(d.getDate() + 1);
+      nextDate = d.toISOString().substring(0, 10);
+    }
+    slots.push({
+      id: `slot_${Date.now()}_${slots.length + 1}`,
+      date: nextDate,
+      time: lastSlot?.time || '13:00',
+      trainer_id: lastSlot?.trainer_id || data.trainer_id || '',
+      trainer_name: lastSlot?.trainer_name || data.trainer_name || '',
+      status: 'PENDING',
+      notes: `Day ${slots.length + 1}`,
+    });
+    setData((prev) => ({
+      ...prev,
+      schedule_slots: slots,
+      duration_days: slots.length,
+      start_date: slots[0]?.date || prev.start_date,
+      end_date: slots[slots.length - 1]?.date || prev.end_date,
+    }));
+  };
+
+  const handleRemoveSlot = (idx) => {
+    const slots = [...(data.schedule_slots || [])];
+    slots.splice(idx, 1);
+    setData((prev) => ({
+      ...prev,
+      schedule_slots: slots,
+      duration_days: Math.max(1, slots.length),
+      start_date: slots[0]?.date || prev.start_date,
+      end_date: slots[slots.length - 1]?.date || prev.end_date,
+    }));
+  };
+
+  const handleUpdateSlot = (idx, field, value) => {
+    const slots = [...(data.schedule_slots || [])];
+    slots[idx] = { ...slots[idx], [field]: value };
+    setData((prev) => ({
+      ...prev,
+      schedule_slots: slots,
+      start_date: slots[0]?.date || prev.start_date,
+      end_date: slots[slots.length - 1]?.date || prev.end_date,
+    }));
+  };
+
+  // Open Trainer Select Modal
+  const handleOpenTrainerSelect = (target = 'main') => {
+    setTrainerSelectTarget(target);
+    setTrainerSelectOpen(true);
+  };
+
+  const handleTrainerSelected = (user) => {
+    if (!user) return;
+    if (trainerSelectTarget === 'main') {
+      setData((prev) => ({
+        ...prev,
+        trainer_id: String(user.id),
+        trainer_name: user.name,
+      }));
+    } else if (typeof trainerSelectTarget === 'number') {
+      handleUpdateSlot(trainerSelectTarget, 'trainer_id', user.id);
+      handleUpdateSlot(trainerSelectTarget, 'trainer_name', user.name);
+    }
+    setTrainerSelectOpen(false);
   };
 
   const handleClose = () => {
@@ -317,16 +426,42 @@ export default function SessionsIndex({
     setParticipantAttendance(updated);
   };
 
+  // Toggle schedule slot status directly (Pending / Completed)
+  const handleSlotStatusToggle = (slotIndex, currentStatus) => {
+    if (!selectedSessionForAttendance) return;
+    const nextStatus = currentStatus === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    router.put(`/training/sessions/${selectedSessionForAttendance.id}/slots/status`, {
+      slot_index: slotIndex,
+      status: nextStatus,
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => {
+        // Update local selected session slots
+        setSelectedSessionForAttendance((prev) => {
+          if (!prev || !Array.isArray(prev.schedule_slots)) return prev;
+          const updatedSlots = [...prev.schedule_slots];
+          if (updatedSlots[slotIndex]) {
+            updatedSlots[slotIndex] = { ...updatedSlots[slotIndex], status: nextStatus };
+          }
+          return { ...prev, schedule_slots: updatedSlots };
+        });
+      },
+    });
+  };
+
   const handleSaveAttendance = (e) => {
     e.preventDefault();
     if (!selectedSessionForAttendance) return;
-    put(`/training/sessions/${selectedSessionForAttendance.id}/attendance`, {
+    router.put(`/training/sessions/${selectedSessionForAttendance.id}/attendance`, {
       participants: participantAttendance.map((p) => ({
         id: p.id,
         attendance_status: p.attendance_status,
         daily_attendance: p.daily_attendance,
         notes: p.notes,
       })),
+    }, {
+      preserveScroll: true,
       onSuccess: () => {
         setAttendanceModalOpen(false);
         setSelectedSessionForAttendance(null);
@@ -334,13 +469,36 @@ export default function SessionsIndex({
     });
   };
 
+  // Sync selected session and participant attendance when sessions prop updates (e.g. after adding/removing participant)
+  React.useEffect(() => {
+    if (selectedSessionForAttendance && sessions?.data) {
+      const freshSession = sessions.data.find((s) => s.id === selectedSessionForAttendance.id);
+      if (freshSession) {
+        setSelectedSessionForAttendance(freshSession);
+        setParticipantAttendance(
+          (freshSession.participants || []).map((p) => ({
+            id: p.id,
+            user_id: p.user_id,
+            user_name: p.user?.name,
+            department: p.user?.department?.name,
+            office_position: p.user?.office_position?.name,
+            attendance_status: p.attendance_status || 'REGISTERED',
+            daily_attendance: p.daily_attendance || {},
+            notes: p.notes || '',
+          }))
+        );
+      }
+    }
+  }, [sessions]);
+
   // Add Participant via UserSelectModal
   const handleSelectUserToAdd = (selectedUser) => {
     if (!selectedSessionForAttendance || !selectedUser || !selectedUser.id) return;
-    post(`/training/sessions/${selectedSessionForAttendance.id}/participants`, {
+    router.post(`/training/sessions/${selectedSessionForAttendance.id}/participants`, {
       user_id: selectedUser.id,
     }, {
       preserveScroll: true,
+      preserveState: true,
       onSuccess: () => {
         setAddParticipantOpen(false);
       },
@@ -352,8 +510,10 @@ export default function SessionsIndex({
     if (!selectedSessionForAttendance) return;
     if (confirm(`Are you sure you want to remove "${participantName}" from this session?`)) {
       router.delete(`/training/sessions/${selectedSessionForAttendance.id}/participants/${participantId}`, {
+        preserveScroll: true,
+        preserveState: true,
         onSuccess: () => {
-          setAttendanceModalOpen(false);
+          // Attendance modal stays open and updates smoothly via useEffect
         },
       });
     }
@@ -368,9 +528,10 @@ export default function SessionsIndex({
 
   const handleConfirmApprove = () => {
     if (!sessionToApprove) return;
-    post(`/training/sessions/${sessionToApprove.id}/approve`, {
+    router.post(`/training/sessions/${sessionToApprove.id}/approve`, {
       notes: approvalNotes,
     }, {
+      preserveScroll: true,
       onSuccess: () => {
         setApproveModalOpen(false);
         setSessionToApprove(null);
@@ -653,6 +814,43 @@ export default function SessionsIndex({
                   )}
                 </div>
 
+                {/* Multi-Slot Schedule Timetable Badges (if configured) */}
+                {Array.isArray(s.schedule_slots) && s.schedule_slots.length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                      <span>Schedule Timetable ({s.schedule_slots.filter(sl => sl.status === 'COMPLETED').length}/{s.schedule_slots.length} Done)</span>
+                      <span className="text-[9px] text-sky-600 font-mono font-semibold">{s.schedule_slots.length} Slots</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-0.5">
+                      {s.schedule_slots.map((slot, sIdx) => {
+                        const isDone = slot.status === 'COMPLETED';
+                        return (
+                          <div
+                            key={slot.id || sIdx}
+                            className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border font-medium ${
+                              isDone
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
+                                : 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/80 dark:border-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span className="font-bold">D{sIdx + 1}:</span>
+                            <span>{slot.date}</span>
+                            {slot.time && <span className="font-mono text-[9px] opacity-80">@{slot.time}</span>}
+                            {slot.trainer_name && (
+                              <span className="text-sky-600 dark:text-sky-400 font-semibold truncate max-w-[70px]">
+                                • {slot.trainer_name}
+                              </span>
+                            )}
+                            <span className="text-[9px] ml-0.5">
+                              {isDone ? '✅' : '⏳'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Approval & Test Release Status Banner */}
                 {s.approved_at ? (
                   <div className="bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
@@ -778,7 +976,7 @@ export default function SessionsIndex({
                 helperText={errors.title}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <TextField
                   type="date"
                   required
@@ -798,24 +996,6 @@ export default function SessionsIndex({
                 />
 
                 <TextField
-                  type="number"
-                  required
-                  fullWidth
-                  label="Duration (Days)"
-                  inputProps={{ min: 1, max: 30 }}
-                  value={data.duration_days}
-                  onChange={(e) => {
-                    const dur = parseInt(e.target.value || 1, 10);
-                    setData('duration_days', dur);
-                    if (data.start_date) {
-                      const d = new Date(data.start_date);
-                      d.setDate(d.getDate() + dur - 1);
-                      setData('end_date', d.toISOString().substring(0, 10));
-                    }
-                  }}
-                />
-
-                <TextField
                   type="date"
                   fullWidth
                   label="End Date"
@@ -825,30 +1005,126 @@ export default function SessionsIndex({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField
-                  select
-                  fullWidth
-                  label="Trainer / Instructor"
-                  value={data.trainer_id}
-                  onChange={(e) => setData('trainer_id', e.target.value)}
-                >
-                  <MenuItem value="">-- Unassigned --</MenuItem>
-                  {trainers.map((tr) => (
-                    <MenuItem key={tr.id} value={String(tr.id)}>
-                      {tr.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+              {/* ── Schedule Slots Builder (JSON Format) ── */}
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Typography variant="subtitle2" className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                      <ScheduleIcon fontSize="small" className="text-sky-600" />
+                      Session Schedule & Trainers ({data.schedule_slots?.length || 0} Slots)
+                    </Typography>
+                    <Typography variant="caption" className="text-slate-500">
+                      Configure custom dates, times, individual trainers, and completion status for each day.
+                    </Typography>
+                  </div>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AddIcon fontSize="small" />}
+                    onClick={handleAddSlot}
+                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                  >
+                    Add Day Slot
+                  </Button>
+                </div>
 
-                <TextField
-                  type="datetime-local"
-                  fullWidth
-                  label="Time & Schedule"
-                  InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5, borderRadius: 0.5 } }}
-                  value={data.scheduled_at}
-                  onChange={(e) => setData('scheduled_at', e.target.value)}
-                />
+                <div className="space-y-2.5">
+                  {(data.schedule_slots || []).map((slot, sIdx) => {
+                    const trainerObj = trainers.find((t) => String(t.id) === String(slot.trainer_id));
+                    const displayName = slot.trainer_name || trainerObj?.name || 'Select Trainer';
+
+                    return (
+                      <Paper
+                        key={slot.id || sIdx}
+                        elevation={0}
+                        className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-sky-700 dark:text-sky-300">
+                            Slot #{sIdx + 1}
+                          </span>
+                          {data.schedule_slots.length > 1 && (
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleRemoveSlot(sIdx)}
+                              sx={{ p: 0.5 }}
+                            >
+                              <DeleteIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-center">
+                          {/* Slot Date */}
+                          <TextField
+                            type="date"
+                            size="small"
+                            label="Date"
+                            InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } }}
+                            value={slot.date || ''}
+                            onChange={(e) => handleUpdateSlot(sIdx, 'date', e.target.value)}
+                            required
+                          />
+
+                          {/* Slot Time */}
+                          <TextField
+                            type="time"
+                            size="small"
+                            label="Start Time"
+                            InputLabelProps={{ shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } }}
+                            value={slot.time || '13:00'}
+                            onChange={(e) => handleUpdateSlot(sIdx, 'time', e.target.value)}
+                            required
+                          />
+
+                          {/* Per-Slot Trainer Selector via UserSelectModal */}
+                          <div>
+                            <Button
+                              type="button"
+                              fullWidth
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleOpenTrainerSelect(sIdx)}
+                              startIcon={
+                                <Avatar sx={{ width: 20, height: 20, fontSize: '0.65rem', bgcolor: '#0284c7' }}>
+                                  {displayName.charAt(0).toUpperCase()}
+                                </Avatar>
+                              }
+                              sx={{
+                                height: 40,
+                                textTransform: 'none',
+                                justifyContent: 'flex-start',
+                                borderColor: slot.trainer_id ? '#38bdf8' : '#cbd5e1',
+                                color: slot.trainer_id ? '#0284c7' : '#64748b',
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              <span className="truncate">{displayName}</span>
+                            </Button>
+                          </div>
+
+                          {/* Manual Status (Pending / Completed) */}
+                          <TextField
+                            select
+                            size="small"
+                            label="Slot Status"
+                            value={slot.status || 'PENDING'}
+                            onChange={(e) => handleUpdateSlot(sIdx, 'status', e.target.value)}
+                          >
+                            <MenuItem value="PENDING">
+                              <span className="text-amber-600 font-semibold">⏳ Pending</span>
+                            </MenuItem>
+                            <MenuItem value="COMPLETED">
+                              <span className="text-emerald-600 font-semibold">✅ Completed</span>
+                            </MenuItem>
+                          </TextField>
+                        </div>
+                      </Paper>
+                    );
+                  })}
+                </div>
               </div>
 
               <TextField
@@ -949,25 +1225,56 @@ export default function SessionsIndex({
                       <TableCell className="font-bold text-xs" sx={{ width: 40 }}>#</TableCell>
                       <TableCell className="font-bold text-xs">Employee & Position</TableCell>
 
-                      {/* Dynamic Date Columns */}
-                      {(selectedSessionForAttendance?.session_dates || []).map((dateStr, dIdx) => (
-                        <TableCell key={dateStr} align="center" className="font-bold text-xs min-w-[130px]">
-                          <div className="font-bold text-sky-700 dark:text-sky-300">
-                            Day {dIdx + 1}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-mono">
-                            {dateStr}
-                          </div>
-                          <Button
-                            size="small"
-                            variant="text"
-                            onClick={() => handleMarkAllAttendedForDay(dateStr)}
-                            sx={{ fontSize: '9px', p: 0, minHeight: 18, textTransform: 'none' }}
-                          >
-                            Mark All Present
-                          </Button>
-                        </TableCell>
-                      ))}
+                      {/* Dynamic Date & Slot Columns */}
+                      {(selectedSessionForAttendance?.session_dates || []).map((dateStr, dIdx) => {
+                        const slot = (selectedSessionForAttendance?.schedule_slots || [])[dIdx];
+                        const slotTrainer = slot?.trainer_name || (dIdx === 0 ? selectedSessionForAttendance?.trainer?.name : null);
+                        const isSlotCompleted = slot?.status === 'COMPLETED';
+
+                        return (
+                          <TableCell key={dateStr || dIdx} align="center" className="font-bold text-xs min-w-[150px]">
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="font-bold text-sky-700 dark:text-sky-300">
+                                Day {dIdx + 1}
+                              </span>
+                              {slot && (
+                                <Tooltip title={`Click to mark slot as ${isSlotCompleted ? 'Pending' : 'Completed'}`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSlotStatusToggle(dIdx, slot.status)}
+                                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                                      isSlotCompleted
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 hover:bg-emerald-200'
+                                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 hover:bg-amber-200'
+                                    }`}
+                                  >
+                                    {isSlotCompleted ? '✅ DONE' : '⏳ PENDING'}
+                                  </button>
+                                </Tooltip>
+                              )}
+                            </div>
+
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                              {dateStr} {slot?.time && `• ${slot.time}`}
+                            </div>
+
+                            {slotTrainer && (
+                              <div className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold truncate max-w-[140px] mx-auto mt-0.5">
+                                👤 {slotTrainer}
+                              </div>
+                            )}
+
+                            <Button
+                              size="small"
+                              variant="text"
+                              onClick={() => handleMarkAllAttendedForDay(dateStr)}
+                              sx={{ fontSize: '9px', p: 0, minHeight: 18, textTransform: 'none', mt: 0.5 }}
+                            >
+                              Mark All Present
+                            </Button>
+                          </TableCell>
+                        );
+                      })}
 
                       <TableCell className="font-bold text-xs" align="center">Overall Status</TableCell>
                       {!selectedSessionForAttendance?.approved_at && (
@@ -1104,6 +1411,22 @@ export default function SessionsIndex({
           onSelect={handleSelectUserToAdd}
           title="Add Participant to Session"
           subtitle={`Search and select an employee to register for session: ${selectedSessionForAttendance?.session_code || ''}`}
+          users={allActiveUsers}
+          departments={departments}
+          currentUserName={auth_user?.name || ''}
+        />
+
+        {/* Trainer Select Modal for Session Schedule Slots */}
+        <UserSelectModal
+          open={trainerSelectOpen}
+          onClose={() => setTrainerSelectOpen(false)}
+          onSelect={handleTrainerSelected}
+          title="Select Trainer / Instructor"
+          subtitle={
+            typeof trainerSelectTarget === 'number'
+              ? `Select trainer for schedule slot Day ${trainerSelectTarget + 1}`
+              : 'Select primary trainer for this session'
+          }
           users={allActiveUsers}
           departments={departments}
           currentUserName={auth_user?.name || ''}

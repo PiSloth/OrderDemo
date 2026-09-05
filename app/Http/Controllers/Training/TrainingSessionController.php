@@ -149,10 +149,27 @@ class TrainingSessionController extends Controller
             'duration_days' => ['nullable', 'integer', 'min:1'],
             'venue' => ['nullable', 'string', 'max:255'],
             'meeting_link' => ['nullable', 'string', 'max:500'],
+            'schedule_slots' => ['nullable', 'array'],
+            'schedule_slots.*.id' => ['nullable', 'string'],
+            'schedule_slots.*.date' => ['nullable', 'date'],
+            'schedule_slots.*.time' => ['nullable', 'string'],
+            'schedule_slots.*.trainer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'schedule_slots.*.trainer_name' => ['nullable', 'string'],
+            'schedule_slots.*.status' => ['nullable', 'string', 'in:PENDING,COMPLETED'],
+            'schedule_slots.*.notes' => ['nullable', 'string'],
             'status' => ['required', 'string', 'in:PENDING,OPEN,IN_PROGRESS,COMPLETED,CANCELLED'],
         ]);
 
         $training = Training::findOrFail($validated['training_id']);
+
+        if (!empty($validated['schedule_slots'])) {
+            $slotDates = collect($validated['schedule_slots'])->pluck('date')->filter()->sort()->values();
+            if ($slotDates->isNotEmpty()) {
+                $validated['start_date'] = $slotDates->first();
+                $validated['end_date'] = $slotDates->last();
+                $validated['duration_days'] = count($validated['schedule_slots']);
+            }
+        }
 
         if (empty($validated['duration_days'])) {
             $validated['duration_days'] = max(1, (int) ($training->duration_days ?: 1));
@@ -187,10 +204,25 @@ class TrainingSessionController extends Controller
             'duration_days' => ['nullable', 'integer', 'min:1'],
             'venue' => ['nullable', 'string', 'max:255'],
             'meeting_link' => ['nullable', 'string', 'max:500'],
+            'schedule_slots' => ['nullable', 'array'],
+            'schedule_slots.*.id' => ['nullable', 'string'],
+            'schedule_slots.*.date' => ['nullable', 'date'],
+            'schedule_slots.*.time' => ['nullable', 'string'],
+            'schedule_slots.*.trainer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'schedule_slots.*.trainer_name' => ['nullable', 'string'],
+            'schedule_slots.*.status' => ['nullable', 'string', 'in:PENDING,COMPLETED'],
+            'schedule_slots.*.notes' => ['nullable', 'string'],
             'status' => ['required', 'string', 'in:PENDING,OPEN,IN_PROGRESS,COMPLETED,CANCELLED'],
         ]);
 
-        if (!empty($validated['start_date']) && !empty($validated['duration_days'])) {
+        if (!empty($validated['schedule_slots'])) {
+            $slotDates = collect($validated['schedule_slots'])->pluck('date')->filter()->sort()->values();
+            if ($slotDates->isNotEmpty()) {
+                $validated['start_date'] = $slotDates->first();
+                $validated['end_date'] = $slotDates->last();
+                $validated['duration_days'] = count($validated['schedule_slots']);
+            }
+        } elseif (!empty($validated['start_date']) && !empty($validated['duration_days'])) {
             $validated['end_date'] = \Carbon\Carbon::parse($validated['start_date'])
                 ->addDays($validated['duration_days'] - 1)
                 ->toDateString();
@@ -199,6 +231,24 @@ class TrainingSessionController extends Controller
         $session->update($validated);
 
         return back()->with('message', 'Training session updated.');
+    }
+
+    public function updateSlotStatus(Request $request, TrainingSession $session): RedirectResponse
+    {
+        $validated = $request->validate([
+            'slot_index' => ['required', 'integer', 'min:0'],
+            'status' => ['required', 'string', 'in:PENDING,COMPLETED'],
+        ]);
+
+        $slots = $session->schedule_slots ?: [];
+        $idx = $validated['slot_index'];
+
+        if (isset($slots[$idx])) {
+            $slots[$idx]['status'] = $validated['status'];
+            $session->update(['schedule_slots' => $slots]);
+        }
+
+        return back()->with('message', 'Schedule slot status updated.');
     }
 
     public function updateStatus(Request $request, TrainingSession $session): RedirectResponse
