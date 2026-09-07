@@ -377,11 +377,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 background: 'transparent'
             },
             colors: ['#FACC15', '#94A3B8'],
+            stroke: {
+                show: true,
+                width: 3,
+                colors: ['transparent']
+            },
             plotOptions: {
                 bar: {
                     horizontal: false,
-                    columnWidth: '60%',
-                    borderRadius: 0,
+                    columnWidth: '55%',
+                    borderRadius: 2,
                     dataLabels: {
                         position: 'top'
                     }
@@ -405,9 +410,9 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             },
             dataLabels: {
                 enabled: true,
-                offsetY: -18,
+                offsetY: -16,
                 style: {
-                    fontSize: '10px',
+                    fontSize: '8.5px',
                     fontWeight: 600,
                     colors: [isDark ? '#CBD5E1' : '#475569']
                 },
@@ -452,11 +457,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 background: 'transparent'
             },
             colors: ['#2DD4BF', '#94A3B8'],
+            stroke: {
+                show: true,
+                width: 3,
+                colors: ['transparent']
+            },
             plotOptions: {
                 bar: {
                     horizontal: false,
-                    columnWidth: '60%',
-                    borderRadius: 0,
+                    columnWidth: '55%',
+                    borderRadius: 2,
                     dataLabels: {
                         position: 'top'
                     }
@@ -480,9 +490,9 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             },
             dataLabels: {
                 enabled: true,
-                offsetY: -18,
+                offsetY: -16,
                 style: {
-                    fontSize: '10px',
+                    fontSize: '8.5px',
                     fontWeight: 600,
                     colors: [isDark ? '#CBD5E1' : '#475569']
                 },
