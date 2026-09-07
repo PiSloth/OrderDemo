@@ -538,12 +538,10 @@ export default function SessionsIndex({
   const handleRemoveParticipant = (participantId, participantName) => {
     if (!selectedSessionForAttendance) return;
     if (confirm(`Are you sure you want to remove "${participantName}" from this session?`)) {
+      setParticipantAttendance((prev) => prev.filter((p) => p.id !== participantId && p.user_id !== participantId));
       router.delete(`/training/sessions/${selectedSessionForAttendance.id}/participants/${participantId}`, {
         preserveScroll: true,
         preserveState: true,
-        onSuccess: () => {
-          // Attendance modal stays open and updates smoothly via useEffect
-        },
       });
     }
   };

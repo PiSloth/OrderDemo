@@ -22,6 +22,9 @@ class TrainingSessionParticipant extends Model
     ];
 
     protected $casts = [
+        'training_session_id' => 'integer',
+        'training_assignment_id' => 'integer',
+        'user_id' => 'integer',
         'attended_at' => 'datetime',
         'daily_attendance' => 'array',
     ];

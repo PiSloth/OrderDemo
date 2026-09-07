@@ -877,7 +877,7 @@ export default function Compliance({
                         {/* Due Date */}
                         <TableCell className="text-xs py-2.5">
                           <div className="font-medium text-slate-700 dark:text-slate-300">
-                            {row.due_date || '—'}
+                            {row.due_date ? String(row.due_date).substring(0, 10) : '—'}
                           </div>
                           {row.completed_at && (
                             <div className="text-[11px] text-emerald-600 font-medium">
@@ -908,7 +908,28 @@ export default function Compliance({
 
                         {/* Status */}
                         <TableCell align="center" className="py-2.5">
-                          {getStatusChip(row.status)}
+                          <div className="flex flex-col items-center gap-1">
+                            {getStatusChip(row.status)}
+                            {(() => {
+                              const sessionParticipant = row.session_participants?.[0];
+                              const session = sessionParticipant?.session;
+                              if (!session) return null;
+                              if (session.approved_at) {
+                                return (
+                                  <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-1 py-0.2 rounded">
+                                    Approved
+                                  </span>
+                                );
+                              }
+                              return (
+                                <Tooltip title="Session training is not approved yet. Tests remain locked.">
+                                  <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-1 py-0.2 rounded cursor-help">
+                                    Session Pending
+                                  </span>
+                                </Tooltip>
+                              );
+                            })()}
+                          </div>
                         </TableCell>
 
                         {/* Scorecard & Attempt History Links */}

@@ -532,5 +532,40 @@ class TrainingSharedSessionAndApprovalTest extends TestCase
         $session->refresh();
         $this->assertEquals('COMPLETED', $session->schedule_slots[1]['status']);
     }
+
+    public function test_remove_participant_and_associated_assignment(): void
+    {
+        $session = TrainingSession::create([
+            'training_id' => $this->training->id,
+            'title' => 'Test Session For Removal',
+            'session_code' => 'SESS-REM-' . uniqid(),
+            'scheduled_at' => now()->addDays(1),
+            'status' => 'OPEN',
+            'created_by' => $this->admin->id,
+        ]);
+
+        // Add user1 to session
+        $this->actingAs($this->admin)->post("/training/sessions/{$session->id}/participants", [
+            'user_id' => $this->user1->id,
+        ]);
+
+        $participant = TrainingSessionParticipant::where('training_session_id', $session->id)
+            ->where('user_id', $this->user1->id)
+            ->first();
+        $this->assertNotNull($participant);
+
+        $assignment = TrainingAssignment::where('training_id', $this->training->id)
+            ->where('user_id', $this->user1->id)
+            ->first();
+        $this->assertNotNull($assignment);
+
+        // Try to delete participant
+        $delResp = $this->actingAs($this->admin)->delete("/training/sessions/{$session->id}/participants/{$participant->id}");
+        $delResp->assertRedirect();
+
+        $this->assertDatabaseMissing('training_session_participants', ['id' => $participant->id]);
+        $this->assertDatabaseMissing('training_assignments', ['id' => $assignment->id]);
+    }
 }
+
 

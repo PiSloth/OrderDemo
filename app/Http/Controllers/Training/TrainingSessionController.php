@@ -335,19 +335,79 @@ class TrainingSessionController extends Controller
         return back()->with('message', "Added {$user->name} to session participants.");
     }
 
-    public function removeParticipant(TrainingSession $session, TrainingSessionParticipant $participant): RedirectResponse
+    public function removeParticipant(TrainingSession $session, $participantId): RedirectResponse
     {
         if ($session->approved_at !== null && !in_array($session->status, ['PENDING', 'OPEN'])) {
             return back()->withErrors(['message' => 'Cannot modify participants of an approved or finished session.']);
         }
 
-        if ($participant->training_session_id !== $session->id) {
-            abort(404);
+        $participant = null;
+        if ($participantId instanceof TrainingSessionParticipant) {
+            $participant = $participantId;
+        } else {
+            $participant = TrainingSessionParticipant::where('training_session_id', $session->id)
+                ->where(function ($q) use ($participantId) {
+                    $q->where('id', $participantId)
+                      ->orWhere('user_id', $participantId);
+                })
+                ->first();
+
+            if (!$participant) {
+                $participant = TrainingSessionParticipant::find($participantId);
+            }
         }
 
-        $participant->delete();
+        if (!$participant || (int) $participant->training_session_id !== (int) $session->id) {
+            return back()->withErrors(['message' => 'Participant not found in this training session.']);
+        }
 
-        return back()->with('message', 'Participant removed from session.');
+        $assignmentId = $participant->training_assignment_id;
+        $userId = $participant->user_id;
+
+        DB::transaction(function () use ($session, $participant, $assignmentId, $userId) {
+            // Delete draft/unsubmitted test attempts for this participant in this session
+            $draftAttempts = TestAttempt::where('training_session_id', $session->id)
+                ->where('user_id', $userId)
+                ->whereNull('submitted_at')
+                ->whereNotIn('result', ['PASSED', 'FAILED'])
+                ->get();
+
+            foreach ($draftAttempts as $att) {
+                $att->answers()->delete();
+                $att->delete();
+            }
+
+            // Remove participant record from session
+            $participant->delete();
+
+            // Also remove the associated TrainingAssignment if it has no submitted test attempts and no other active sessions
+            $assignment = $assignmentId ? TrainingAssignment::find($assignmentId) : null;
+            if (!$assignment) {
+                $assignment = TrainingAssignment::where('training_id', $session->training_id)
+                    ->where('user_id', $userId)
+                    ->first();
+            }
+
+            if ($assignment) {
+                $hasResults = $assignment->testAttempts()
+                    ->where(function ($q) {
+                        $q->whereNotNull('submitted_at')->orWhereIn('result', ['PASSED', 'FAILED']);
+                    })
+                    ->exists();
+
+                $hasOtherSessions = TrainingSessionParticipant::where('training_assignment_id', $assignment->id)->exists();
+
+                if (!$hasResults && !$hasOtherSessions) {
+                    foreach ($assignment->testAttempts as $att) {
+                        $att->answers()->delete();
+                        $att->delete();
+                    }
+                    $assignment->delete();
+                }
+            }
+        });
+
+        return back()->with('message', 'Participant and associated assignment removed from session.');
     }
 
     public function updateAttendance(Request $request, TrainingSession $session): RedirectResponse

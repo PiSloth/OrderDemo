@@ -362,6 +362,8 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
     useEffect(() => {
         if (!dashboardData || loading) return;
 
+        const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
         // 1. Gram Column Chart
         const gramData = dashboardData.gram_chart || [];
         const gramOptions = {
@@ -379,7 +381,15 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 bar: {
                     horizontal: false,
                     columnWidth: '45%',
-                    borderRadius: 0
+                    borderRadius: 0,
+                    dataLabels: {
+                        position: 'top'
+                    }
+                }
+            },
+            grid: {
+                padding: {
+                    top: 15
                 }
             },
             fill: {
@@ -393,7 +403,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     stops: [0, 100]
                 }
             },
-            dataLabels: { enabled: false },
+            dataLabels: {
+                enabled: true,
+                offsetY: -20,
+                style: {
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    colors: [isDark ? '#CBD5E1' : '#475569']
+                },
+                formatter: (val) => (val ? Number(val).toLocaleString() : '')
+            },
             series: [
                 { name: 'Actual Sale (g)', data: gramData.map(d => d.actual) },
                 { name: 'Target (g)', data: gramData.map(d => d.target) }
@@ -410,7 +429,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     formatter: (val) => `${val} g`
                 }
             },
-            theme: { mode: document.documentElement.classList.contains('dark') ? 'dark' : 'light' }
+            theme: { mode: isDark ? 'dark' : 'light' }
         };
 
         if (gramChartRef.current) {
@@ -437,7 +456,15 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 bar: {
                     horizontal: false,
                     columnWidth: '45%',
-                    borderRadius: 0
+                    borderRadius: 0,
+                    dataLabels: {
+                        position: 'top'
+                    }
+                }
+            },
+            grid: {
+                padding: {
+                    top: 15
                 }
             },
             fill: {
@@ -451,7 +478,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     stops: [0, 100]
                 }
             },
-            dataLabels: { enabled: false },
+            dataLabels: {
+                enabled: true,
+                offsetY: -20,
+                style: {
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    colors: [isDark ? '#CBD5E1' : '#475569']
+                },
+                formatter: (val) => (val ? Number(val).toLocaleString() : '')
+            },
             series: [
                 { name: 'Actual Sale (pcs)', data: pcsData.map(d => d.actual) },
                 { name: 'Target (pcs)', data: pcsData.map(d => d.target) }
@@ -468,7 +504,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     formatter: (val) => `${val} pcs`
                 }
             },
-            theme: { mode: document.documentElement.classList.contains('dark') ? 'dark' : 'light' }
+            theme: { mode: isDark ? 'dark' : 'light' }
         };
 
         if (pcsChartRef.current) {
