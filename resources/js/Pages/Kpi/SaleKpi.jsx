@@ -383,13 +383,14 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     columnWidth: '45%',
                     borderRadius: 0,
                     dataLabels: {
-                        position: 'top'
+                        position: 'top',
+                        orientation: 'vertical'
                     }
                 }
             },
             grid: {
                 padding: {
-                    top: 15
+                    top: 25
                 }
             },
             fill: {
@@ -407,7 +408,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 enabled: true,
                 offsetY: -20,
                 style: {
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 600,
                     colors: [isDark ? '#CBD5E1' : '#475569']
                 },
@@ -458,13 +459,14 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     columnWidth: '45%',
                     borderRadius: 0,
                     dataLabels: {
-                        position: 'top'
+                        position: 'top',
+                        orientation: 'vertical'
                     }
                 }
             },
             grid: {
                 padding: {
-                    top: 15
+                    top: 25
                 }
             },
             fill: {
@@ -482,7 +484,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                 enabled: true,
                 offsetY: -20,
                 style: {
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 600,
                     colors: [isDark ? '#CBD5E1' : '#475569']
                 },
