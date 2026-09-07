@@ -380,17 +380,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             plotOptions: {
                 bar: {
                     horizontal: false,
-                    columnWidth: '45%',
+                    columnWidth: '60%',
                     borderRadius: 0,
                     dataLabels: {
-                        position: 'top',
-                        orientation: 'vertical'
+                        position: 'top'
                     }
                 }
             },
             grid: {
                 padding: {
-                    top: 25
+                    top: 20
                 }
             },
             fill: {
@@ -406,13 +405,13 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             },
             dataLabels: {
                 enabled: true,
-                offsetY: -20,
+                offsetY: -18,
                 style: {
                     fontSize: '10px',
                     fontWeight: 600,
                     colors: [isDark ? '#CBD5E1' : '#475569']
                 },
-                formatter: (val) => (val ? Number(val).toLocaleString() : '')
+                formatter: (val) => (val ? Number(Number(val).toFixed(val >= 100 || val % 1 === 0 ? 0 : 1)).toLocaleString() : '')
             },
             series: [
                 { name: 'Actual Sale (g)', data: gramData.map(d => d.actual) },
@@ -456,17 +455,16 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             plotOptions: {
                 bar: {
                     horizontal: false,
-                    columnWidth: '45%',
+                    columnWidth: '60%',
                     borderRadius: 0,
                     dataLabels: {
-                        position: 'top',
-                        orientation: 'vertical'
+                        position: 'top'
                     }
                 }
             },
             grid: {
                 padding: {
-                    top: 25
+                    top: 20
                 }
             },
             fill: {
@@ -482,7 +480,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             },
             dataLabels: {
                 enabled: true,
-                offsetY: -20,
+                offsetY: -18,
                 style: {
                     fontSize: '10px',
                     fontWeight: 600,
