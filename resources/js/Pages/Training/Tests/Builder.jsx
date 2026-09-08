@@ -18,7 +18,11 @@ import {
   Checkbox,
   FormControlLabel,
   Chip,
-  Alert
+  Alert,
+  Tooltip,
+  SpeedDial,
+  SpeedDialIcon,
+  SpeedDialAction
 } from '@mui/material';
 
 import {
@@ -27,7 +31,12 @@ import {
   Delete as DeleteIcon,
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon,
+  RadioButtonChecked as RadioButtonCheckedIcon,
+  CheckBox as CheckBoxIcon,
+  ToggleOn as ToggleOnIcon
 } from '@mui/icons-material';
 
 export default function TestBuilder({
@@ -40,7 +49,8 @@ export default function TestBuilder({
     passing_score: test.passing_score ?? training.passing_score ?? 80,
     attempt_limit: test.attempt_limit ?? 3,
     status: test.status || 'active',
-    questions: (test.questions || []).map((q) => ({
+    questions: (test.questions || []).map((q, idx) => ({
+      _uid: q.id ? `q-${q.id}` : `q-init-${idx}-${Date.now()}`,
       id: q.id,
       question: q.question,
       question_type: q.question_type,
@@ -77,6 +87,7 @@ export default function TestBuilder({
     setData('questions', [
       ...data.questions,
       {
+        _uid: `q-new-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         id: null,
         question: '',
         question_type: type,
@@ -84,6 +95,25 @@ export default function TestBuilder({
         options: defaultOptions,
       },
     ]);
+
+    // Smoothly scroll down so the newly added question is in view
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth',
+      });
+    }, 120);
+  };
+
+  const handleMoveQuestion = (qIndex, direction) => {
+    const targetIndex = direction === 'up' ? qIndex - 1 : qIndex + 1;
+    if (targetIndex < 0 || targetIndex >= data.questions.length) return;
+
+    const updated = [...data.questions];
+    const itemToMove = updated[qIndex];
+    updated[qIndex] = updated[targetIndex];
+    updated[targetIndex] = itemToMove;
+    setData('questions', updated);
   };
 
   const handleRemoveQuestion = (qIndex) => {
@@ -303,7 +333,7 @@ export default function TestBuilder({
                   onClick={() => handleAddQuestion('MULTIPLE_CHOICE')}
                   sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
-                  + Multiple Choice
+                  Multiple Choice
                 </Button>
                 <Button
                   size="small"
@@ -313,7 +343,7 @@ export default function TestBuilder({
                   onClick={() => handleAddQuestion('MULTI_SELECT')}
                   sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
-                  + Multi-Select
+                  Multi-Select
                 </Button>
                 <Button
                   size="small"
@@ -322,7 +352,7 @@ export default function TestBuilder({
                   onClick={() => handleAddQuestion('TRUE_FALSE')}
                   sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
-                  + True / False
+                  True / False
                 </Button>
               </Stack>
             </div>
@@ -330,7 +360,7 @@ export default function TestBuilder({
             {/* Questions List */}
             {data.questions.map((q, qIndex) => (
               <Card
-                key={qIndex}
+                key={q._uid || q.id || qIndex}
                 elevation={0}
                 className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900"
               >
@@ -358,6 +388,51 @@ export default function TestBuilder({
                         }
                         sx={{ fontWeight: 700, fontSize: '0.7rem' }}
                       />
+
+                      {/* Question Sequence Up / Down Controls */}
+                      <Stack direction="row" spacing={0.5} className="ml-1">
+                        <Tooltip title={qIndex === 0 ? "First question (cannot move up)" : "Move question up"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              disabled={qIndex === 0}
+                              onClick={() => handleMoveQuestion(qIndex, 'up')}
+                              aria-label="Move question up"
+                              sx={{
+                                p: 0.5,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1.5,
+                                color: qIndex === 0 ? 'text.disabled' : 'text.secondary',
+                                '&:hover': { bgcolor: 'action.hover', color: 'primary.main' },
+                              }}
+                            >
+                              <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+
+                        <Tooltip title={qIndex === data.questions.length - 1 ? "Last question (cannot move down)" : "Move question down"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              disabled={qIndex === data.questions.length - 1}
+                              onClick={() => handleMoveQuestion(qIndex, 'down')}
+                              aria-label="Move question down"
+                              sx={{
+                                p: 0.5,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1.5,
+                                color: qIndex === data.questions.length - 1 ? 'text.disabled' : 'text.secondary',
+                                '&:hover': { bgcolor: 'action.hover', color: 'primary.main' },
+                              }}
+                            >
+                              <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Stack>
                     </div>
 
                     <Stack direction="row" spacing={1.5} alignItems="center">
@@ -483,7 +558,7 @@ export default function TestBuilder({
 
             {data.questions.length === 0 && (
               <Alert severity="warning" className="rounded-2xl py-6">
-                No questions added yet. Click <b>+ Multiple Choice</b> or <b>+ True / False</b> above to add questions to this test.
+                No questions added yet. Click <b>Multiple Choice</b>, <b>Multi-Select</b>, or <b>True / False</b> above, or use the floating (+) button at the bottom-right to add questions to this test.
               </Alert>
             )}
           </div>
@@ -507,6 +582,47 @@ export default function TestBuilder({
           </Box>
         </form>
       </Box>
+
+      {/* Floating Action Button (SpeedDial) to add new questions from anywhere */}
+      <SpeedDial
+        ariaLabel="Add Question Quick Action"
+        sx={{
+          position: 'fixed',
+          bottom: { xs: 84, sm: 88 },
+          right: { xs: 20, sm: 36 },
+          zIndex: 1100,
+        }}
+        icon={<SpeedDialIcon />}
+        FabProps={{
+          color: 'primary',
+          sx: {
+            boxShadow: '0 8px 24px -4px rgba(2, 132, 199, 0.5)',
+            bgcolor: '#0284c7',
+            '&:hover': {
+              bgcolor: '#0369a1',
+            },
+          },
+        }}
+      >
+        <SpeedDialAction
+          icon={<RadioButtonCheckedIcon sx={{ color: '#0284c7' }} />}
+          tooltipTitle="Multiple Choice"
+          tooltipOpen
+          onClick={() => handleAddQuestion('MULTIPLE_CHOICE')}
+        />
+        <SpeedDialAction
+          icon={<CheckBoxIcon sx={{ color: '#0284c7' }} />}
+          tooltipTitle="Multi-Select"
+          tooltipOpen
+          onClick={() => handleAddQuestion('MULTI_SELECT')}
+        />
+        <SpeedDialAction
+          icon={<ToggleOnIcon sx={{ color: '#0d9488', fontSize: 26 }} />}
+          tooltipTitle="True / False"
+          tooltipOpen
+          onClick={() => handleAddQuestion('TRUE_FALSE')}
+        />
+      </SpeedDial>
     </AsideLayout>
   );
 }
