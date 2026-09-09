@@ -47,12 +47,18 @@ class TestController extends Controller
             ->orderBy('sort_order')
             ->get();
 
+        $allDocuments = \App\Models\CompanyDocument::query()
+            ->select(['id', 'title', 'company_document_type_id'])
+            ->orderBy('title')
+            ->get();
+
         $user = $request->user();
 
         return Inertia::render('Training/Tests/Builder', [
             'training' => $training,
             'test' => $test,
             'globalQuestions' => $globalQuestions,
+            'allDocuments' => $allDocuments,
             'can' => [
                 'test_question_create' => (bool) $user?->can('test-question.create'),
                 'test_question_update' => (bool) $user?->can('test-question.update'),
@@ -118,6 +124,13 @@ class TestController extends Controller
                             'scope' => $scope,
                             'created_by' => $request->user()->id,
                         ]);
+                    } else {
+                        // Convert question to document or global scope
+                        $question->scope = $scope;
+                        $question->company_document_id = ($scope === 'document') ? ($qData['company_document_id'] ?? $question->company_document_id) : null;
+                        if ($scope === 'document') {
+                            $question->test_id = null; // Unbind from single test
+                        }
                     }
                     $question->question = $qData['question'];
                     $question->question_type = $qData['question_type'];
@@ -125,15 +138,25 @@ class TestController extends Controller
                     $question->document_section_reference = $qData['document_section_reference'] ?? null;
                     $question->updated_by = $request->user()->id;
                     $question->save();
+
+                    // If document question, ensure the training references this document
+                    if ($scope === 'document' && !empty($question->company_document_id)) {
+                        $test->training->companyDocuments()->syncWithoutDetaching([$question->company_document_id]);
+                    }
                 } else {
                     // Catalog-owned question
-                    if (!$question || $question->scope !== 'catalog' || $question->training_id !== $test->training_id) {
+                    if (!$question) {
                         $question = new TestQuestion([
                             'test_id' => $test->id,
                             'training_id' => $test->training_id,
                             'scope' => 'catalog',
                             'created_by' => $request->user()->id,
                         ]);
+                    } else {
+                        $question->scope = 'catalog';
+                        $question->training_id = $test->training_id;
+                        $question->test_id = $test->id;
+                        $question->company_document_id = null;
                     }
 
                     $question->question = $qData['question'];

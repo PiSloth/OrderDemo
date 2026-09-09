@@ -56,9 +56,11 @@ export default function TestBuilder({
   training = {},
   test = {},
   globalQuestions = [],
+  allDocuments = [],
   can = {}
 }) {
   const linkedDocs = training.company_documents || training.companyDocuments || [];
+  const allSelectableDocs = allDocuments.length > 0 ? allDocuments : linkedDocs;
 
   const { data, setData, put, processing, errors } = useForm({
     title: test.title || `${training.title} Assessment`,
@@ -259,6 +261,42 @@ export default function TestBuilder({
         }
       }
     }
+    setData('questions', updated);
+  };
+
+  const handleQuestionScopeChange = (qIndex, newScope) => {
+    const updated = [...data.questions];
+    updated[qIndex].scope = newScope;
+
+    if (newScope === 'document') {
+      if (!updated[qIndex].company_document_id && allSelectableDocs.length > 0) {
+        const defaultDoc = linkedDocs[0] || allSelectableDocs[0];
+        updated[qIndex].company_document_id = defaultDoc.id;
+        updated[qIndex].document_title = defaultDoc.title;
+      }
+    } else {
+      updated[qIndex].company_document_id = null;
+      updated[qIndex].document_title = null;
+      updated[qIndex].document_section_reference = '';
+    }
+
+    setData('questions', updated);
+  };
+
+  const handleQuestionDocumentChange = (qIndex, docId) => {
+    const updated = [...data.questions];
+    const docIdNum = Number(docId);
+    updated[qIndex].company_document_id = docIdNum;
+
+    const matchedDoc = allSelectableDocs.find((d) => d.id === docIdNum);
+    updated[qIndex].document_title = matchedDoc ? matchedDoc.title : null;
+
+    setData('questions', updated);
+  };
+
+  const handleQuestionSectionRefChange = (qIndex, value) => {
+    const updated = [...data.questions];
+    updated[qIndex].document_section_reference = value;
     setData('questions', updated);
   };
 
@@ -770,9 +808,68 @@ export default function TestBuilder({
                     </Stack>
                   </div>
 
+                  {/* Question Scope & Document Ownership Configuration */}
+                  <Box className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <Box className="w-full sm:w-56">
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label="Question Scope / Ownership"
+                        value={q.scope || 'catalog'}
+                        onChange={(e) => handleQuestionScopeChange(qIndex, e.target.value)}
+                        sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
+                      >
+                        <MenuItem value="catalog">🎓 Catalog Specific</MenuItem>
+                        <MenuItem value="document">📄 Belong to Document</MenuItem>
+                        <MenuItem value="global">🌐 Global Question</MenuItem>
+                      </TextField>
+                    </Box>
+
+                    {q.scope === 'document' && (
+                      <>
+                        <Box className="flex-1 min-w-[240px]">
+                          <TextField
+                            select
+                            fullWidth
+                            size="small"
+                            label="Target Reference Document"
+                            value={q.company_document_id || ''}
+                            onChange={(e) => handleQuestionDocumentChange(qIndex, e.target.value)}
+                            error={!q.company_document_id}
+                            helperText={!q.company_document_id ? 'Select which document this question belongs to' : ''}
+                            sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
+                          >
+                            <MenuItem value="" disabled>-- Select Document --</MenuItem>
+                            {allSelectableDocs.map((doc) => {
+                              const isRef = linkedDocs.some((ld) => ld.id === doc.id);
+                              return (
+                                <MenuItem key={doc.id} value={doc.id}>
+                                  {doc.title} {isRef ? ' (Referenced)' : ''}
+                                </MenuItem>
+                              );
+                            })}
+                          </TextField>
+                        </Box>
+
+                        <Box className="w-full sm:w-60">
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Section Reference (Optional)"
+                            placeholder="e.g. Clause 4.2, Section 1"
+                            value={q.document_section_reference || ''}
+                            onChange={(e) => handleQuestionSectionRefChange(qIndex, e.target.value)}
+                            sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
+                          />
+                        </Box>
+                      </>
+                    )}
+                  </Box>
+
                   {q.scope === 'document' && (
                     <Alert severity="info" sx={{ py: 0.5, fontSize: '0.75rem', borderRadius: 2 }}>
-                      This question is linked to <b>{q.document_title || 'a reference document'}</b>. Any updates made in the Document Studio automatically update this question across all training courses.
+                      This question is linked to <b>{q.document_title || 'the selected reference document'}</b>. Any updates made in the Document Studio or here will sync to this document&apos;s question bank and all referencing training courses.
                     </Alert>
                   )}
 

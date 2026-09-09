@@ -266,4 +266,72 @@ class DocumentTestQuestionTest extends TestCase
             'test_question_id' => $q->id,
         ]);
     }
+
+    public function test_can_convert_catalog_question_to_belong_to_specific_document(): void
+    {
+        $test = Test::create([
+            'training_id' => $this->trainingA->id,
+            'title' => 'Initial Assessment',
+            'passing_score' => 80,
+            'attempt_limit' => 3,
+            'status' => 'active',
+        ]);
+
+        // Question starts with catalog scope
+        $catalogQ = TestQuestion::create([
+            'test_id' => $test->id,
+            'training_id' => $this->trainingA->id,
+            'scope' => 'catalog',
+            'question' => 'How to log cash transactions?',
+            'question_type' => 'MULTIPLE_CHOICE',
+            'marks' => 2.0,
+        ]);
+        TestOption::create(['test_question_id' => $catalogQ->id, 'answer' => 'In Cashbook', 'is_correct' => true]);
+        TestOption::create(['test_question_id' => $catalogQ->id, 'answer' => 'Ignore', 'is_correct' => false]);
+
+        // Trainer in test-builder changes scope to 'document' and selects $this->document->id
+        $payload = [
+            'title' => 'Updated Assessment',
+            'description' => 'Converted question',
+            'passing_score' => 80,
+            'attempt_limit' => 3,
+            'status' => 'active',
+            'questions' => [
+                [
+                    'id' => $catalogQ->id,
+                    'scope' => 'document',
+                    'company_document_id' => $this->document->id,
+                    'document_section_reference' => 'Section 3.4',
+                    'question' => 'How to log cash transactions according to SOP-001?',
+                    'question_type' => 'MULTIPLE_CHOICE',
+                    'marks' => 2.0,
+                    'options' => [
+                        ['id' => null, 'answer' => 'In Cashbook', 'is_correct' => true],
+                        ['id' => null, 'answer' => 'Ignore', 'is_correct' => false],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->trainer)
+            ->put(route('training.tests.save-builder', $test), $payload);
+
+        $response->assertSessionHasNoErrors();
+
+        // Verify question in database now belongs to the document
+        $catalogQ->refresh();
+        $this->assertEquals('document', $catalogQ->scope);
+        $this->assertEquals($this->document->id, $catalogQ->company_document_id);
+        $this->assertEquals('Section 3.4', $catalogQ->document_section_reference);
+        $this->assertEquals('How to log cash transactions according to SOP-001?', $catalogQ->question);
+
+        // Verify it appears in the document's question bank
+        $this->assertTrue($this->document->questions->contains('id', $catalogQ->id));
+
+        // Verify it now propagates to Training B which also references this document
+        $trainingBDocs = Training::with('companyDocuments.questions')->find($this->trainingB->id);
+        $docInTrainingB = $trainingBDocs->companyDocuments->firstWhere('id', $this->document->id);
+        $this->assertNotNull($docInTrainingB);
+        $this->assertTrue($docInTrainingB->questions->contains('id', $catalogQ->id));
+    }
 }
