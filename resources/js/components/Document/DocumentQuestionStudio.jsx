@@ -34,6 +34,20 @@ import ArticleIcon from '@mui/icons-material/Article';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SchoolIcon from '@mui/icons-material/School';
 
+const dropdownMenuProps = {
+  autoFocus: false,
+  disableAutoFocusItem: true,
+  anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+  transformOrigin: { vertical: 'top', horizontal: 'left' },
+  PaperProps: {
+    sx: {
+      maxHeight: 280,
+      mt: 0.5,
+      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
+    },
+  },
+};
+
 export default function DocumentQuestionStudio({
   open,
   onClose,
@@ -515,6 +529,7 @@ export default function DocumentQuestionStudio({
                       label="Type"
                       value={q.question_type}
                       onChange={(e) => handleQuestionTypeChange(qIndex, e.target.value)}
+                      SelectProps={{ MenuProps: dropdownMenuProps }}
                       sx={{ width: 140 }}
                     >
                       <MenuItem value="MULTIPLE_CHOICE">Single Choice</MenuItem>

@@ -52,15 +52,27 @@ import {
   AutoAwesome as AutoAwesomeIcon
 } from '@mui/icons-material';
 
+const dropdownMenuProps = {
+  autoFocus: false,
+  disableAutoFocusItem: true,
+  anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+  transformOrigin: { vertical: 'top', horizontal: 'left' },
+  PaperProps: {
+    sx: {
+      maxHeight: 280,
+      mt: 0.5,
+      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
+    },
+  },
+};
+
 export default function TestBuilder({
   training = {},
   test = {},
   globalQuestions = [],
-  allDocuments = [],
   can = {}
 }) {
   const linkedDocs = training.company_documents || training.companyDocuments || [];
-  const allSelectableDocs = allDocuments.length > 0 ? allDocuments : linkedDocs;
 
   const { data, setData, put, processing, errors } = useForm({
     title: test.title || `${training.title} Assessment`,
@@ -269,10 +281,9 @@ export default function TestBuilder({
     updated[qIndex].scope = newScope;
 
     if (newScope === 'document') {
-      if (!updated[qIndex].company_document_id && allSelectableDocs.length > 0) {
-        const defaultDoc = linkedDocs[0] || allSelectableDocs[0];
-        updated[qIndex].company_document_id = defaultDoc.id;
-        updated[qIndex].document_title = defaultDoc.title;
+      if (!updated[qIndex].company_document_id && linkedDocs.length > 0) {
+        updated[qIndex].company_document_id = linkedDocs[0].id;
+        updated[qIndex].document_title = linkedDocs[0].title;
       }
     } else {
       updated[qIndex].company_document_id = null;
@@ -288,7 +299,7 @@ export default function TestBuilder({
     const docIdNum = Number(docId);
     updated[qIndex].company_document_id = docIdNum;
 
-    const matchedDoc = allSelectableDocs.find((d) => d.id === docIdNum);
+    const matchedDoc = linkedDocs.find((d) => d.id === docIdNum);
     updated[qIndex].document_title = matchedDoc ? matchedDoc.title : null;
 
     setData('questions', updated);
@@ -440,6 +451,7 @@ export default function TestBuilder({
                     label="Status"
                     value={data.status}
                     onChange={(e) => setData('status', e.target.value)}
+                    SelectProps={{ MenuProps: dropdownMenuProps }}
                   >
                     <MenuItem value="active">Active</MenuItem>
                     <MenuItem value="draft">Draft</MenuItem>
@@ -791,6 +803,7 @@ export default function TestBuilder({
                         label="Type"
                         value={q.question_type}
                         onChange={(e) => handleQuestionTypeChange(qIndex, e.target.value)}
+                        SelectProps={{ MenuProps: dropdownMenuProps }}
                         sx={{ width: 170 }}
                       >
                         <MenuItem value="MULTIPLE_CHOICE">Multiple Choice (Single)</MenuItem>
@@ -818,6 +831,7 @@ export default function TestBuilder({
                         label="Question Scope / Ownership"
                         value={q.scope || 'catalog'}
                         onChange={(e) => handleQuestionScopeChange(qIndex, e.target.value)}
+                        SelectProps={{ MenuProps: dropdownMenuProps }}
                         sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
                       >
                         <MenuItem value="catalog">🎓 Catalog Specific</MenuItem>
@@ -837,18 +851,26 @@ export default function TestBuilder({
                             value={q.company_document_id || ''}
                             onChange={(e) => handleQuestionDocumentChange(qIndex, e.target.value)}
                             error={!q.company_document_id}
-                            helperText={!q.company_document_id ? 'Select which document this question belongs to' : ''}
+                            helperText={
+                              linkedDocs.length === 0
+                                ? 'No documents are linked to this training catalog.'
+                                : !q.company_document_id
+                                ? 'Select which document this question belongs to'
+                                : ''
+                            }
+                            SelectProps={{ MenuProps: dropdownMenuProps }}
                             sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
                           >
-                            <MenuItem value="" disabled>-- Select Document --</MenuItem>
-                            {allSelectableDocs.map((doc) => {
-                              const isRef = linkedDocs.some((ld) => ld.id === doc.id);
-                              return (
+                            <MenuItem value="" disabled>-- Select Referenced Document --</MenuItem>
+                            {linkedDocs.length === 0 ? (
+                              <MenuItem value="" disabled>No documents linked to this catalog</MenuItem>
+                            ) : (
+                              linkedDocs.map((doc) => (
                                 <MenuItem key={doc.id} value={doc.id}>
-                                  {doc.title} {isRef ? ' (Referenced)' : ''}
+                                  {doc.title}
                                 </MenuItem>
-                              );
-                            })}
+                              ))
+                            )}
                           </TextField>
                         </Box>
 
