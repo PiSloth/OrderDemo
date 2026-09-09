@@ -19,7 +19,10 @@ import {
   Chip,
   Alert,
   Tooltip,
-  CircularProgress
+  CircularProgress,
+  SpeedDial,
+  SpeedDialIcon,
+  SpeedDialAction
 } from '@mui/material';
 
 import CloseIcon from '@mui/icons-material/Close';
@@ -33,6 +36,9 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import ArticleIcon from '@mui/icons-material/Article';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SchoolIcon from '@mui/icons-material/School';
+import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 
 const dropdownMenuProps = {
   autoFocus: false,
@@ -644,6 +650,49 @@ export default function DocumentQuestionStudio({
                 </div>
               </Paper>
             ))
+          )}
+
+          {/* Floating Action Button (SpeedDial) to add new question block */}
+          {canCreate && (
+            <SpeedDial
+              ariaLabel="Add Question Block"
+              sx={{
+                position: 'fixed',
+                bottom: 28,
+                right: 32,
+                zIndex: 1300,
+              }}
+              icon={<SpeedDialIcon />}
+              FabProps={{
+                color: 'primary',
+                sx: {
+                  boxShadow: '0 8px 24px -4px rgba(2, 132, 199, 0.5)',
+                  bgcolor: '#0284c7',
+                  '&:hover': {
+                    bgcolor: '#0369a1',
+                  },
+                },
+              }}
+            >
+              <SpeedDialAction
+                icon={<RadioButtonCheckedIcon sx={{ color: '#0284c7' }} />}
+                tooltipTitle="Multiple Choice"
+                tooltipOpen
+                onClick={() => handleAddQuestion('MULTIPLE_CHOICE')}
+              />
+              <SpeedDialAction
+                icon={<CheckBoxIcon sx={{ color: '#0284c7' }} />}
+                tooltipTitle="Multi-Select"
+                tooltipOpen
+                onClick={() => handleAddQuestion('MULTI_SELECT')}
+              />
+              <SpeedDialAction
+                icon={<ToggleOnIcon sx={{ color: '#0d9488', fontSize: 26 }} />}
+                tooltipTitle="True / False"
+                tooltipOpen
+                onClick={() => handleAddQuestion('TRUE_FALSE')}
+              />
+            </SpeedDial>
           )}
         </Box>
       </DialogContent>
