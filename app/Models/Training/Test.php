@@ -5,6 +5,7 @@ namespace App\Models\Training;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Test extends Model
@@ -30,9 +31,24 @@ class Test extends Model
         return $this->belongsTo(Training::class);
     }
 
-    public function questions(): HasMany
+    /**
+     * All questions assigned to this test (via test_has_questions pivot)
+     * Supports Document-owned, Catalog-owned, and Global questions.
+     */
+    public function questions(): BelongsToMany
     {
-        return $this->hasMany(TestQuestion::class)->orderBy('sort_order');
+        return $this->belongsToMany(TestQuestion::class, 'test_has_questions')
+            ->withPivot(['marks', 'sort_order', 'is_mandatory'])
+            ->withTimestamps()
+            ->orderBy('test_has_questions.sort_order');
+    }
+
+    /**
+     * Questions created specifically for this test
+     */
+    public function catalogQuestions(): HasMany
+    {
+        return $this->hasMany(TestQuestion::class, 'test_id')->orderBy('sort_order');
     }
 
     public function attempts(): HasMany

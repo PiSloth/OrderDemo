@@ -61,7 +61,7 @@ class TrainingEmployeeController extends Controller
 
         // Load test questions and options (without is_correct to prevent inspect cheating while taking test)
         $test->load(['questions' => function ($q) {
-            $q->orderBy('sort_order')->with(['options' => function ($opt) {
+            $q->orderBy('test_has_questions.sort_order')->with(['options' => function ($opt) {
                 $opt->select(['id', 'test_question_id', 'answer', 'sort_order'])->orderBy('sort_order');
             }]);
         }]);

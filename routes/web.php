@@ -148,6 +148,22 @@ Route::middleware(['auth'])->prefix('document')->name('document.')->group(functi
     Route::delete('library/{document}', [DocumentLibraryController::class, 'destroy'])
         ->name('library.destroy')
         ->middleware('can:document.delete');
+
+    // Document Test Questions Management
+    Route::get('library/{document}/questions', [\App\Http\Controllers\Document\DocumentQuestionController::class, 'index'])
+        ->name('library.questions.index')
+        ->middleware('can:test-question.view');
+    Route::post('library/{document}/questions', [\App\Http\Controllers\Document\DocumentQuestionController::class, 'store'])
+        ->name('library.questions.store')
+        ->middleware('can:test-question.create');
+    Route::put('library/{document}/questions/sync', [\App\Http\Controllers\Document\DocumentQuestionController::class, 'sync'])
+        ->name('library.questions.sync');
+    Route::put('questions/{question}', [\App\Http\Controllers\Document\DocumentQuestionController::class, 'update'])
+        ->name('questions.update')
+        ->middleware('can:test-question.update');
+    Route::delete('questions/{question}', [\App\Http\Controllers\Document\DocumentQuestionController::class, 'destroy'])
+        ->name('questions.destroy')
+        ->middleware('can:test-question.delete');
 });
 
 

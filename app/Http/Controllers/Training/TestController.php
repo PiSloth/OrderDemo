@@ -15,9 +15,14 @@ use Inertia\Response;
 
 class TestController extends Controller
 {
-    public function builder(Training $training): Response
+    public function builder(Request $request, Training $training): Response
     {
-        $training->load(['category']);
+        $training->load([
+            'category',
+            'companyDocuments' => fn($q) => $q->with([
+                'questions' => fn($qu) => $qu->with('options')->orderBy('sort_order'),
+            ]),
+        ]);
 
         $test = Test::query()
             ->where('training_id', $training->id)
@@ -36,9 +41,24 @@ class TestController extends Controller
             $test->load(['questions.options']);
         }
 
+        $globalQuestions = TestQuestion::query()
+            ->where('scope', 'global')
+            ->with('options')
+            ->orderBy('sort_order')
+            ->get();
+
+        $user = $request->user();
+
         return Inertia::render('Training/Tests/Builder', [
             'training' => $training,
             'test' => $test,
+            'globalQuestions' => $globalQuestions,
+            'can' => [
+                'test_question_create' => (bool) $user?->can('test-question.create'),
+                'test_question_update' => (bool) $user?->can('test-question.update'),
+                'test_question_delete' => (bool) $user?->can('test-question.delete'),
+                'test_question_view' => (bool) $user?->can('test-question.view'),
+            ],
         ]);
     }
 
@@ -52,6 +72,9 @@ class TestController extends Controller
             'status' => ['required', 'string', 'in:active,draft,inactive'],
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.id' => ['nullable'],
+            'questions.*.scope' => ['nullable', 'string', 'in:document,catalog,global'],
+            'questions.*.company_document_id' => ['nullable', 'integer', 'exists:company_documents,id'],
+            'questions.*.document_section_reference' => ['nullable', 'string', 'max:255'],
             'questions.*.question' => ['required', 'string'],
             'questions.*.question_type' => ['required', 'string', 'in:MULTIPLE_CHOICE,TRUE_FALSE,MULTI_SELECT'],
             'questions.*.marks' => ['required', 'numeric', 'min:0.1'],
@@ -68,33 +91,62 @@ class TestController extends Controller
             }
         }
 
-        DB::transaction(function () use ($test, $validated) {
+        DB::transaction(function () use ($test, $validated, $request) {
             $test->update([
                 'title' => $validated['title'],
-                'description' => $validated['description'],
+                'description' => $validated['description'] ?? null,
                 'passing_score' => $validated['passing_score'],
                 'attempt_limit' => $validated['attempt_limit'],
                 'status' => $validated['status'],
             ]);
 
-            $existingQuestionIds = [];
+            $syncedPivotData = [];
+            $catalogQuestionIdsKept = [];
 
             foreach ($validated['questions'] as $qIndex => $qData) {
                 $questionId = !empty($qData['id']) && is_numeric($qData['id']) ? (int) $qData['id'] : null;
+                $scope = $qData['scope'] ?? 'catalog';
 
                 $question = $questionId ? TestQuestion::find($questionId) : null;
-                if (!$question || $question->test_id !== $test->id) {
-                    $question = new TestQuestion(['test_id' => $test->id]);
+
+                if ($scope === 'document' || $scope === 'global') {
+                    // Document or global question: if already exists, attach or update
+                    if (!$question) {
+                        // Creating a document question on the fly if doc id provided
+                        $question = new TestQuestion([
+                            'company_document_id' => $qData['company_document_id'] ?? null,
+                            'scope' => $scope,
+                            'created_by' => $request->user()->id,
+                        ]);
+                    }
+                    $question->question = $qData['question'];
+                    $question->question_type = $qData['question_type'];
+                    $question->marks = $qData['marks'];
+                    $question->document_section_reference = $qData['document_section_reference'] ?? null;
+                    $question->updated_by = $request->user()->id;
+                    $question->save();
+                } else {
+                    // Catalog-owned question
+                    if (!$question || $question->scope !== 'catalog' || $question->training_id !== $test->training_id) {
+                        $question = new TestQuestion([
+                            'test_id' => $test->id,
+                            'training_id' => $test->training_id,
+                            'scope' => 'catalog',
+                            'created_by' => $request->user()->id,
+                        ]);
+                    }
+
+                    $question->question = $qData['question'];
+                    $question->question_type = $qData['question_type'];
+                    $question->marks = $qData['marks'];
+                    $question->sort_order = $qIndex + 1;
+                    $question->updated_by = $request->user()->id;
+                    $question->save();
+
+                    $catalogQuestionIdsKept[] = $question->id;
                 }
 
-                $question->question = $qData['question'];
-                $question->question_type = $qData['question_type'];
-                $question->marks = $qData['marks'];
-                $question->sort_order = $qIndex + 1;
-                $question->save();
-
-                $existingQuestionIds[] = $question->id;
-
+                // Options synchronization
                 $existingOptionIds = [];
                 foreach ($qData['options'] as $oIndex => $oData) {
                     $optionId = !empty($oData['id']) && is_numeric($oData['id']) ? (int) $oData['id'] : null;
@@ -112,12 +164,24 @@ class TestController extends Controller
                     $existingOptionIds[] = $option->id;
                 }
 
-                // Delete removed options
                 TestOption::where('test_question_id', $question->id)->whereNotIn('id', $existingOptionIds)->delete();
+
+                // Prepare pivot data for test_has_questions
+                $syncedPivotData[$question->id] = [
+                    'marks' => $qData['marks'],
+                    'sort_order' => $qIndex + 1,
+                    'is_mandatory' => true,
+                ];
             }
 
-            // Delete removed questions
-            TestQuestion::where('test_id', $test->id)->whereNotIn('id', $existingQuestionIds)->delete();
+            // Sync pivot table test_has_questions
+            $test->questions()->sync($syncedPivotData);
+
+            // Only delete catalog-scoped questions belonging to this test that were removed
+            TestQuestion::where('test_id', $test->id)
+                ->where('scope', 'catalog')
+                ->whereNotIn('id', $catalogQuestionIdsKept)
+                ->delete();
         });
 
         return back()->with('message', 'Test questions and options saved successfully.');

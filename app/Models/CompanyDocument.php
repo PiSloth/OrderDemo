@@ -74,6 +74,11 @@ class CompanyDocument extends Model
         return $this->belongsToMany(\App\Models\Training\Training::class, 'training_company_documents');
     }
 
+    public function questions(): HasMany
+    {
+        return $this->hasMany(\App\Models\Training\TestQuestion::class, 'company_document_id')->orderBy('sort_order');
+    }
+
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
         if (!$user) {

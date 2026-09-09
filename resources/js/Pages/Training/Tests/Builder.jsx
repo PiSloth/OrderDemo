@@ -14,15 +14,21 @@ import {
   Paper,
   IconButton,
   Radio,
-  RadioGroup,
   Checkbox,
-  FormControlLabel,
   Chip,
   Alert,
   Tooltip,
   SpeedDial,
   SpeedDialIcon,
-  SpeedDialAction
+  SpeedDialAction,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Badge
 } from '@mui/material';
 
 import {
@@ -36,13 +42,24 @@ import {
   ArrowDownward as ArrowDownwardIcon,
   RadioButtonChecked as RadioButtonCheckedIcon,
   CheckBox as CheckBoxIcon,
-  ToggleOn as ToggleOnIcon
+  ToggleOn as ToggleOnIcon,
+  Article as ArticleIcon,
+  Public as PublicIcon,
+  School as SchoolIcon,
+  LibraryBooks as LibraryBooksIcon,
+  OpenInNew as OpenInNewIcon,
+  ExpandMore as ExpandMoreIcon,
+  AutoAwesome as AutoAwesomeIcon
 } from '@mui/icons-material';
 
 export default function TestBuilder({
   training = {},
-  test = {}
+  test = {},
+  globalQuestions = [],
+  can = {}
 }) {
+  const linkedDocs = training.company_documents || training.companyDocuments || [];
+
   const { data, setData, put, processing, errors } = useForm({
     title: test.title || `${training.title} Assessment`,
     description: test.description || `Evaluation test for ${training.title}`,
@@ -51,17 +68,93 @@ export default function TestBuilder({
     status: test.status || 'active',
     questions: (test.questions || []).map((q, idx) => ({
       _uid: q.id ? `q-${q.id}` : `q-init-${idx}-${Date.now()}`,
-      id: q.id,
+      id: q.id || null,
+      scope: q.scope || (q.company_document_id ? 'document' : 'catalog'),
+      company_document_id: q.company_document_id || null,
+      document_section_reference: q.document_section_reference || '',
+      document_title: q.company_document?.title || null,
       question: q.question,
       question_type: q.question_type,
-      marks: q.marks,
+      marks: q.marks ?? 1.0,
       options: (q.options || []).map((opt) => ({
-        id: opt.id,
+        id: opt.id || null,
         answer: opt.answer,
         is_correct: Boolean(opt.is_correct),
       })),
     })),
   });
+
+  const [globalModalOpen, setGlobalModalOpen] = useState(false);
+  const [docsExpanded, setDocsExpanded] = useState(true);
+
+  // Check if question is already in test
+  const isQuestionInTest = (questionId) => {
+    return Boolean(questionId && data.questions.some((q) => q.id === questionId));
+  };
+
+  // Attach a question from document or global pool
+  const handleAttachExternalQuestion = (extQ, scope = 'document', docTitle = null) => {
+    if (isQuestionInTest(extQ.id)) return;
+
+    setData('questions', [
+      ...data.questions,
+      {
+        _uid: `q-ext-${extQ.id}-${Date.now()}`,
+        id: extQ.id,
+        scope: scope,
+        company_document_id: extQ.company_document_id || (scope === 'document' ? extQ.company_document_id : null),
+        document_section_reference: extQ.document_section_reference || '',
+        document_title: docTitle || extQ.company_document?.title || null,
+        question: extQ.question,
+        question_type: extQ.question_type,
+        marks: Number(extQ.marks) || 1.0,
+        options: (extQ.options || []).map((opt) => ({
+          id: opt.id || null,
+          answer: opt.answer,
+          is_correct: Boolean(opt.is_correct),
+        })),
+      },
+    ]);
+  };
+
+  // Detach an external question
+  const handleDetachQuestion = (questionId) => {
+    setData(
+      'questions',
+      data.questions.filter((q) => q.id !== questionId)
+    );
+  };
+
+  // Attach all questions from a specific document
+  const handleAttachAllFromDoc = (doc) => {
+    const docQuestions = doc.questions || [];
+    const newToAdd = [];
+
+    docQuestions.forEach((dq) => {
+      if (!isQuestionInTest(dq.id)) {
+        newToAdd.push({
+          _uid: `q-doc-${dq.id}-${Date.now()}`,
+          id: dq.id,
+          scope: 'document',
+          company_document_id: doc.id,
+          document_section_reference: dq.document_section_reference || '',
+          document_title: doc.title,
+          question: dq.question,
+          question_type: dq.question_type,
+          marks: Number(dq.marks) || 1.0,
+          options: (dq.options || []).map((opt) => ({
+            id: opt.id || null,
+            answer: opt.answer,
+            is_correct: Boolean(opt.is_correct),
+          })),
+        });
+      }
+    });
+
+    if (newToAdd.length > 0) {
+      setData('questions', [...data.questions, ...newToAdd]);
+    }
+  };
 
   const handleAddQuestion = (type = 'MULTIPLE_CHOICE') => {
     const defaultOptions =
@@ -89,6 +182,10 @@ export default function TestBuilder({
       {
         _uid: `q-new-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         id: null,
+        scope: 'catalog',
+        company_document_id: null,
+        document_section_reference: '',
+        document_title: null,
         question: '',
         question_type: type,
         marks: 1.0,
@@ -96,7 +193,6 @@ export default function TestBuilder({
       },
     ]);
 
-    // Smoothly scroll down so the newly added question is in view
     setTimeout(() => {
       window.scrollTo({
         top: document.documentElement.scrollHeight,
@@ -212,6 +308,12 @@ export default function TestBuilder({
     put(`/training/tests/${test.id}/save-builder`);
   };
 
+  // Count available document questions
+  const totalDocQuestionsAvailable = linkedDocs.reduce(
+    (sum, d) => sum + (d.questions?.length || 0),
+    0
+  );
+
   return (
     <AsideLayout title={`Test Builder: ${training.title}`}>
       <Head title={`Test Builder - ${training.title}`} />
@@ -225,7 +327,7 @@ export default function TestBuilder({
               Test & Assessment Builder
             </Typography>
             <Typography variant="body2" className="text-slate-500 dark:text-slate-400">
-              Configure Multiple Choice and True/False questions for <b>{training.title}</b> ({training.code}).
+              Configure knowledge-check assessments for <b>{training.title}</b> ({training.code}).
             </Typography>
           </div>
 
@@ -310,22 +412,191 @@ export default function TestBuilder({
             </CardContent>
           </Card>
 
-          {/* Questions Section */}
+          {/* Section 1: Referenced Documents & Shared Question Bank */}
+          {linkedDocs.length > 0 && (
+            <Card elevation={0} className="border border-sky-200 dark:border-sky-900/60 rounded-2xl shadow-sm bg-sky-50/40 dark:bg-sky-950/20">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ArticleIcon className="text-sky-600" />
+                    <div>
+                      <Typography variant="subtitle1" className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        Referenced Documents Question Bank
+                        <Badge
+                          badgeContent={totalDocQuestionsAvailable}
+                          color="primary"
+                          sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', height: 18, minWidth: 18 } }}
+                        />
+                      </Typography>
+                      <Typography variant="caption" className="text-slate-500">
+                        This training catalog references {linkedDocs.length} document(s). Questions created for these documents can be included with auto-updating synchronization.
+                      </Typography>
+                    </div>
+                  </div>
+
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => setDocsExpanded((prev) => !prev)}
+                    endIcon={<ExpandMoreIcon sx={{ transform: docsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.2s' }} />}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {docsExpanded ? 'Hide Documents' : 'Browse Documents'}
+                  </Button>
+                </div>
+
+                {docsExpanded && (
+                  <div className="space-y-3 pt-2">
+                    {linkedDocs.map((doc) => {
+                      const docQuestions = doc.questions || [];
+                      const includedCount = docQuestions.filter((dq) => isQuestionInTest(dq.id)).length;
+
+                      return (
+                        <Paper
+                          key={doc.id}
+                          elevation={0}
+                          className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <Typography variant="subtitle2" className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                                <ArticleIcon fontSize="small" className="text-sky-600" />
+                                {doc.title}
+                                <Chip
+                                  label={`${docQuestions.length} Questions in Bank`}
+                                  size="small"
+                                  variant="outlined"
+                                  color="info"
+                                  sx={{ fontSize: '0.68rem', height: 20 }}
+                                />
+                              </Typography>
+                              <Typography variant="caption" className="text-slate-500">
+                                {includedCount} of {docQuestions.length} included in this test assessment.
+                              </Typography>
+                            </div>
+
+                            <Stack direction="row" spacing={1}>
+                              {docQuestions.length > 0 && includedCount < docQuestions.length && (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                  startIcon={<AddIcon />}
+                                  onClick={() => handleAttachAllFromDoc(doc)}
+                                  sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600 }}
+                                >
+                                  Include All ({docQuestions.length})
+                                </Button>
+                              )}
+
+                              <Button
+                                size="small"
+                                variant="text"
+                                color="info"
+                                endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                                component="a"
+                                href={`/document/library?doc=${doc.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                              >
+                                Edit Questions in Studio
+                              </Button>
+                            </Stack>
+                          </div>
+
+                          {/* Preview of Questions in Document */}
+                          {docQuestions.length > 0 ? (
+                            <div className="space-y-1.5 pl-6 border-l-2 border-slate-100 dark:border-slate-800">
+                              {docQuestions.map((dq) => {
+                                const inTest = isQuestionInTest(dq.id);
+                                return (
+                                  <div
+                                    key={dq.id}
+                                    className="flex items-center justify-between text-xs py-1 px-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                  >
+                                    <div className="flex items-center gap-2 flex-1 mr-2">
+                                      <Chip
+                                        label={dq.question_type === 'MULTI_SELECT' ? 'Multi' : dq.question_type === 'TRUE_FALSE' ? 'T/F' : 'Single'}
+                                        size="small"
+                                        sx={{ fontSize: '0.62rem', height: 18 }}
+                                      />
+                                      <span className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1">
+                                        {dq.question}
+                                      </span>
+                                    </div>
+
+                                    {inTest ? (
+                                      <Chip
+                                        size="small"
+                                        color="success"
+                                        variant="outlined"
+                                        icon={<CheckCircleIcon sx={{ fontSize: '13px !important' }} />}
+                                        label="Included"
+                                        onDelete={() => handleDetachQuestion(dq.id)}
+                                        sx={{ height: 22, fontSize: '0.68rem', fontWeight: 600 }}
+                                      />
+                                    ) : (
+                                      <Button
+                                        size="small"
+                                        variant="text"
+                                        onClick={() => handleAttachExternalQuestion(dq, 'document', doc.title)}
+                                        sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0 }}
+                                      >
+                                        + Add to Test
+                                      </Button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <Typography variant="caption" className="text-slate-400 italic block pl-6">
+                              No questions built for this document yet. Click &quot;Edit Questions in Studio&quot; to build them.
+                            </Typography>
+                          )}
+                        </Paper>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Section 2: Questions in Test */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <Typography variant="h6" className="font-bold text-slate-900 dark:text-slate-100">
-                  Questions ({data.questions.length})
+                <Typography variant="h6" className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  Test Questions ({data.questions.length})
                 </Typography>
                 <Typography variant="caption" className="text-slate-500">
                   Total Marks:{' '}
                   <b>
                     {data.questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0)} pts
                   </b>
+                  {' • '}
+                  {data.questions.filter((q) => q.scope === 'document').length} document-linked,{' '}
+                  {data.questions.filter((q) => q.scope === 'catalog').length} catalog-specific,{' '}
+                  {data.questions.filter((q) => q.scope === 'global').length} global
                 </Typography>
               </div>
 
               <Stack direction="row" spacing={1} flexWrap="wrap">
+                {globalQuestions.length > 0 && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="secondary"
+                    startIcon={<PublicIcon />}
+                    onClick={() => setGlobalModalOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Global Bank ({globalQuestions.length})
+                  </Button>
+                )}
+
                 <Button
                   size="small"
                   variant="outlined"
@@ -333,7 +604,7 @@ export default function TestBuilder({
                   onClick={() => handleAddQuestion('MULTIPLE_CHOICE')}
                   sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
-                  Multiple Choice
+                  + Multiple Choice
                 </Button>
                 <Button
                   size="small"
@@ -343,16 +614,17 @@ export default function TestBuilder({
                   onClick={() => handleAddQuestion('MULTI_SELECT')}
                   sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
-                  Multi-Select
+                  + Multi-Select
                 </Button>
                 <Button
                   size="small"
                   variant="outlined"
+                  color="secondary"
                   startIcon={<AddIcon />}
                   onClick={() => handleAddQuestion('TRUE_FALSE')}
                   sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
-                  True / False
+                  + True / False
                 </Button>
               </Stack>
             </div>
@@ -366,10 +638,40 @@ export default function TestBuilder({
               >
                 <CardContent className="p-5 space-y-4">
                   <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
                         {qIndex + 1}
                       </span>
+
+                      {/* Question Scope Badge */}
+                      {q.scope === 'document' ? (
+                        <Chip
+                          icon={<ArticleIcon sx={{ fontSize: '14px !important' }} />}
+                          label={q.document_title ? `📄 ${q.document_title}` : '📄 Document-Owned'}
+                          size="small"
+                          color="info"
+                          variant="outlined"
+                          sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                        />
+                      ) : q.scope === 'global' ? (
+                        <Chip
+                          icon={<PublicIcon sx={{ fontSize: '14px !important' }} />}
+                          label="🌐 Global Question"
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                          sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                        />
+                      ) : (
+                        <Chip
+                          icon={<SchoolIcon sx={{ fontSize: '14px !important' }} />}
+                          label="🎓 Catalog Specific"
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                        />
+                      )}
+
                       <Chip
                         label={
                           q.question_type === 'MULTI_SELECT'
@@ -468,6 +770,12 @@ export default function TestBuilder({
                     </Stack>
                   </div>
 
+                  {q.scope === 'document' && (
+                    <Alert severity="info" sx={{ py: 0.5, fontSize: '0.75rem', borderRadius: 2 }}>
+                      This question is linked to <b>{q.document_title || 'a reference document'}</b>. Any updates made in the Document Studio automatically update this question across all training courses.
+                    </Alert>
+                  )}
+
                   <TextField
                     required
                     fullWidth
@@ -558,7 +866,7 @@ export default function TestBuilder({
 
             {data.questions.length === 0 && (
               <Alert severity="warning" className="rounded-2xl py-6">
-                No questions added yet. Click <b>Multiple Choice</b>, <b>Multi-Select</b>, or <b>True / False</b> above, or use the floating (+) button at the bottom-right to add questions to this test.
+                No questions added to this test yet. Click <b>Multiple Choice</b>, <b>Multi-Select</b>, or <b>True / False</b> above, or include questions from the referenced documents above.
               </Alert>
             )}
           </div>
@@ -582,6 +890,81 @@ export default function TestBuilder({
           </Box>
         </form>
       </Box>
+
+      {/* Global Questions Bank Modal */}
+      <Dialog
+        open={globalModalOpen}
+        onClose={() => setGlobalModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle className="flex items-center gap-2">
+          <PublicIcon className="text-secondary" />
+          Import from Global Questions Pool
+        </DialogTitle>
+        <DialogContent dividers className="space-y-3">
+          <Typography variant="body2" className="text-slate-500">
+            Global questions are company-wide questions (general compliance, safety, IT security) available across all training courses.
+          </Typography>
+
+          {globalQuestions.length === 0 ? (
+            <Typography variant="body2" className="text-slate-400 py-6 text-center italic">
+              No global questions available in pool.
+            </Typography>
+          ) : (
+            <div className="space-y-2">
+              {globalQuestions.map((gq) => {
+                const inTest = isQuestionInTest(gq.id);
+                return (
+                  <Paper
+                    key={gq.id}
+                    elevation={0}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Chip
+                          label={gq.question_type}
+                          size="small"
+                          sx={{ fontSize: '0.65rem', height: 18 }}
+                        />
+                        <span className="text-xs text-slate-500">{gq.marks} pts</span>
+                      </div>
+                      <Typography variant="subtitle2" className="font-semibold text-slate-900 dark:text-slate-100">
+                        {gq.question}
+                      </Typography>
+                    </div>
+
+                    {inTest ? (
+                      <Chip
+                        label="Already Added"
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                        sx={{ fontSize: '0.7rem' }}
+                      />
+                    ) : (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => {
+                          handleAttachExternalQuestion(gq, 'global');
+                        }}
+                        sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                      >
+                        + Add to Test
+                      </Button>
+                    )}
+                  </Paper>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGlobalModalOpen(false)}>Done</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Floating Action Button (SpeedDial) to add new questions from anywhere */}
       <SpeedDial

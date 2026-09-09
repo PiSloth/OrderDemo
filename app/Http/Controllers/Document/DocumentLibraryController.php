@@ -63,6 +63,7 @@ class DocumentLibraryController extends Controller
                         'scopes.department:id,name',
                         'scopes.officePosition:id,name',
                     ]),
+                    'questions' => fn($q) => $q->with(['options', 'creator:id,name'])->orderBy('sort_order'),
                 ])
                 ->find((int) $docId);
         }
@@ -108,11 +109,21 @@ class DocumentLibraryController extends Controller
                 'create' => (bool) $user?->can('document.create'),
                 'update' => (bool) $user?->can('document.update'),
                 'delete' => (bool) $user?->can('document.delete'),
+                'test_question' => [
+                    'view' => (bool) $user?->can('test-question.view'),
+                    'create' => (bool) $user?->can('test-question.create'),
+                    'update' => (bool) $user?->can('test-question.update'),
+                    'delete' => (bool) $user?->can('test-question.delete'),
+                ],
             ],
             'permissions' => [
                 'can_create' => (bool) $user?->can('document.create'),
                 'can_update' => (bool) $user?->can('document.update'),
                 'can_delete' => (bool) $user?->can('document.delete'),
+                'can_view_test_question' => (bool) $user?->can('test-question.view'),
+                'can_create_test_question' => (bool) $user?->can('test-question.create'),
+                'can_update_test_question' => (bool) $user?->can('test-question.update'),
+                'can_delete_test_question' => (bool) $user?->can('test-question.delete'),
             ],
             'filters' => [
                 'mode' => $mode,
@@ -383,6 +394,7 @@ class DocumentLibraryController extends Controller
                 'scopes.department:id,name',
                 'scopes.officePosition:id,name',
             ]),
+            'questions' => fn($q) => $q->with(['options', 'creator:id,name'])->orderBy('sort_order'),
         ]);
 
         return response()->json([

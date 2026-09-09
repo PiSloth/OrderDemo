@@ -6,6 +6,7 @@ import DocumentSearchModal from '../../../components/Document/DocumentSearchModa
 import DocumentPreviewModal from '../../../components/Document/DocumentPreviewModal';
 import TrainingScopeModal from '../../../components/Training/TrainingScopeModal';
 import DocumentImageModal from '../../../components/Document/DocumentImageModal';
+import DocumentQuestionStudio from '../../../components/Document/DocumentQuestionStudio';
 
 import {
   Box,
@@ -56,6 +57,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ShareIcon from '@mui/icons-material/Share';
 import SchoolIcon from '@mui/icons-material/School';
+import QuizIcon from '@mui/icons-material/Quiz';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -88,6 +91,10 @@ export default function Index({
   const canCreate = Boolean(can?.create ?? permissions?.can_create);
   const canUpdate = Boolean(can?.update ?? permissions?.can_update);
   const canDelete = Boolean(can?.delete ?? permissions?.can_delete);
+  const canViewTestQuestion = Boolean(can?.test_question?.view ?? permissions?.can_view_test_question);
+  const canCreateTestQuestion = Boolean(can?.test_question?.create ?? permissions?.can_create_test_question);
+  const canUpdateTestQuestion = Boolean(can?.test_question?.update ?? permissions?.can_update_test_question);
+  const canDeleteTestQuestion = Boolean(can?.test_question?.delete ?? permissions?.can_delete_test_question);
 
   const [mode, setMode] = useState(filters.mode || 'department');
   const [search, setSearch] = useState(filters.q || '');
@@ -120,6 +127,7 @@ export default function Index({
   const [expandedFolders, setExpandedFolders] = useState({});
   const [selectedRevision, setSelectedRevision] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [questionStudioOpen, setQuestionStudioOpen] = useState(false);
 
   // Scope Modal State for clicked Training Catalog
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
@@ -933,6 +941,14 @@ export default function Index({
                       iconPosition="start"
                       sx={{ textTransform: 'none', fontWeight: 600 }}
                     />
+                    {canViewTestQuestion && (
+                      <Tab
+                        label={`Assessment Questions (${currentDoc.questions?.length || 0})`}
+                        icon={<QuizIcon fontSize="small" />}
+                        iconPosition="start"
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                      />
+                    )}
                   </Tabs>
                 </Box>
               </Box>
@@ -985,6 +1001,160 @@ export default function Index({
                         </Button>
                       </Paper>
                     ))
+                  )}
+                </CardContent>
+              )}
+
+              {/* Tab 2: Assessment Questions */}
+              {activeTab === 2 && canViewTestQuestion && (
+                <CardContent className="p-6 space-y-4">
+                  {/* Studio Banner */}
+                  <Paper
+                    elevation={0}
+                    className="p-5 rounded-2xl bg-gradient-to-r from-sky-50 to-indigo-50 dark:from-sky-950/40 dark:to-indigo-950/40 border border-sky-200 dark:border-sky-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1">
+                      <Typography variant="subtitle1" className="font-bold text-sky-900 dark:text-sky-100 flex items-center gap-2">
+                        <QuizIcon className="text-sky-600" />
+                        Document Assessment Questions ({currentDoc.questions?.length || 0})
+                      </Typography>
+                      <Typography variant="body2" className="text-slate-600 dark:text-slate-300">
+                        Questions built here belong to this document and automatically propagate to all training catalogs referencing it.
+                      </Typography>
+                      {currentDoc.trainings && currentDoc.trainings.length > 0 && (
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <Chip
+                            size="small"
+                            icon={<SchoolIcon sx={{ fontSize: '14px !important' }} />}
+                            label={`Active in ${currentDoc.trainings.length} Training Catalog(s)`}
+                            color="primary"
+                            variant="outlined"
+                            sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {(canCreateTestQuestion || canUpdateTestQuestion) && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<QuizIcon />}
+                        onClick={() => setQuestionStudioOpen(true)}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, whiteSpace: 'nowrap', px: 3 }}
+                      >
+                        Open Question Studio (Split View)
+                      </Button>
+                    )}
+                  </Paper>
+
+                  {/* Question Cards List */}
+                  {(!currentDoc.questions || currentDoc.questions.length === 0) ? (
+                    <Paper
+                      elevation={0}
+                      className="p-10 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3"
+                    >
+                      <QuizIcon sx={{ fontSize: 44, color: 'text.secondary' }} />
+                      <Typography variant="subtitle1" className="font-bold text-slate-700 dark:text-slate-300">
+                        No Questions Created for this Document
+                      </Typography>
+                      <Typography variant="body2" className="text-slate-500 max-w-md mx-auto">
+                        Trainers can analyze this SOP or policy and build knowledge-check questions that automatically propagate to all referencing training courses.
+                      </Typography>
+                      {canCreateTestQuestion && (
+                        <Button
+                          variant="outlined"
+                          startIcon={<AddIcon />}
+                          onClick={() => setQuestionStudioOpen(true)}
+                          sx={{ textTransform: 'none', fontWeight: 600, mt: 1 }}
+                        >
+                          Build First Question
+                        </Button>
+                      )}
+                    </Paper>
+                  ) : (
+                    <div className="space-y-3">
+                      {currentDoc.questions.map((q, qIndex) => (
+                        <Paper
+                          key={q.id || qIndex}
+                          elevation={0}
+                          className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="w-5 h-5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
+                                  {qIndex + 1}
+                                </span>
+                                <Chip
+                                  label={
+                                    q.question_type === 'MULTI_SELECT'
+                                      ? 'Multi-Select'
+                                      : q.question_type === 'TRUE_FALSE'
+                                      ? 'True / False'
+                                      : 'Single Choice'
+                                  }
+                                  size="small"
+                                  color={
+                                    q.question_type === 'MULTI_SELECT'
+                                      ? 'info'
+                                      : q.question_type === 'TRUE_FALSE'
+                                      ? 'secondary'
+                                      : 'primary'
+                                  }
+                                  sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }}
+                                />
+                                <Chip
+                                  label={`${Number(q.marks) || 1} pt`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ fontWeight: 600, fontSize: '0.65rem', height: 20 }}
+                                />
+                                {q.document_section_reference && (
+                                  <Chip
+                                    label={`Ref: ${q.document_section_reference}`}
+                                    size="small"
+                                    sx={{ bgcolor: 'slate.100', dark: { bgcolor: 'slate.800' }, fontSize: '0.65rem', height: 20 }}
+                                  />
+                                )}
+                              </div>
+                              <Typography variant="body1" className="font-semibold text-slate-900 dark:text-slate-100 pt-1">
+                                {q.question}
+                              </Typography>
+                            </div>
+
+                            {(canUpdateTestQuestion || canDeleteTestQuestion) && (
+                              <Button
+                                size="small"
+                                variant="text"
+                                startIcon={<EditIcon />}
+                                onClick={() => setQuestionStudioOpen(true)}
+                                sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Options Preview */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-7 pt-1">
+                            {(q.options || []).map((opt) => (
+                              <div
+                                key={opt.id || opt.answer}
+                                className={`text-xs p-2 rounded-lg border flex items-center gap-2 ${
+                                  opt.is_correct
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-medium'
+                                    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                                }`}
+                              >
+                                {opt.is_correct && <CheckCircleIcon sx={{ fontSize: 14 }} className="text-emerald-600" />}
+                                <span>{opt.answer}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </Paper>
+                      ))}
+                    </div>
                   )}
                 </CardContent>
               )}
@@ -1112,6 +1282,22 @@ export default function Index({
           Document link copied to clipboard!
         </Alert>
       </Snackbar>
+
+      {/* Document Assessment Question Studio (Side-by-Side Analysis Mode) */}
+      <DocumentQuestionStudio
+        open={questionStudioOpen}
+        onClose={() => setQuestionStudioOpen(false)}
+        document={currentDoc}
+        canCreate={canCreateTestQuestion}
+        canUpdate={canUpdateTestQuestion}
+        canDelete={canDeleteTestQuestion}
+        onQuestionsUpdated={(updatedQuestions) => {
+          setCurrentDoc((prev) => ({
+            ...prev,
+            questions: updatedQuestions,
+          }));
+        }}
+      />
     </AsideLayout>
   );
 }
