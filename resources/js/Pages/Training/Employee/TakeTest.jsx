@@ -216,6 +216,8 @@ export default function TakeTest({
     return ans !== undefined && ans !== null && ans !== '';
   }).length;
 
+  const remainingCount = Math.max(0, questions.length - answeredCount);
+
   const isCurrentQuestionAnswered = () => {
     const q = questions[currentQuestionIndex];
     if (!q) return true;
@@ -276,7 +278,7 @@ export default function TakeTest({
     <AsideLayout title={`Assessment: ${test.title}`}>
       <Head title={`Take Test: ${test.title}`} />
 
-      <Box className="max-w-4xl mx-auto space-y-2.5">
+      <Box className="max-w-4xl mx-auto space-y-2.5 pb-16 sm:pb-0">
         {/* Consolidated Ultra-Compact Top Bar */}
         <Box className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -305,12 +307,24 @@ export default function TakeTest({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Answered & Remaining Count */}
+            {questions.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                  Answered: <b>{answeredCount}</b>
+                </span>
+                <span className="text-[11px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                  Remain: <b>{remainingCount}</b>
+                </span>
+              </div>
+            )}
+
             <Chip
               label={`Attempt ${attemptsUsed}/${attemptLimit}`}
               size="small"
               variant="outlined"
               color={isLimitReached ? 'error' : 'default'}
-              sx={{ height: 22, fontSize: '10.5px', fontWeight: 700 }}
+              sx={{ height: 22, fontSize: '10.5px', fontWeight: 700, display: { xs: 'none', sm: 'inline-flex' } }}
             />
 
             <Chip
@@ -450,50 +464,6 @@ export default function TakeTest({
                   </div>
                 )}
 
-                {/* Compact Jump Strip & Progress Counter Bar */}
-                {questions.length > 0 && (
-                  <div className="flex items-center justify-between gap-2 p-1.5 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] font-black text-slate-700 dark:text-slate-300">
-                        Q {currentQuestionIndex + 1}/{questions.length}
-                      </span>
-                      <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
-                        ({answeredCount} answered)
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
-                      {questions.map((q, idx) => {
-                        const ans = data.answers[q.id];
-                        const isAnswered = q.question_type === 'MULTI_SELECT'
-                          ? Array.isArray(ans) && ans.length > 0
-                          : ans !== undefined && ans !== null && ans !== '';
-                        const isCurrent = idx === currentQuestionIndex;
-
-                        return (
-                          <button
-                            key={q.id}
-                            type="button"
-                            onClick={() => jumpToQuestion(idx)}
-                            className={`shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-lg text-[10.5px] font-black transition-all flex items-center justify-center relative ${
-                              isCurrent
-                                ? 'bg-sky-600 text-white shadow-sm ring-2 ring-sky-400'
-                                : isAnswered
-                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-500/25'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
-                          >
-                            {idx + 1}
-                            {isAnswered && !isCurrent && (
-                              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 {/* Form: Slide View with Left/Right Floating Icon Buttons */}
                 <form onSubmit={handleSubmit} className="pt-0.5">
                   {questions.length === 0 ? (
@@ -511,38 +481,75 @@ export default function TakeTest({
 
                       return (
                         <div className="flex items-center gap-1.5 sm:gap-2.5">
-                          {/* Floating Left Icon Button */}
-                          <Tooltip title={currentQuestionIndex === 0 ? 'First Question' : 'Previous Question'}>
-                            <span>
-                              <IconButton
-                                size="small"
-                                disabled={currentQuestionIndex === 0}
-                                onClick={goToPrevQuestion}
-                                sx={{
-                                  width: { xs: 32, sm: 38 },
-                                  height: { xs: 32, sm: 38 },
-                                  bgcolor: 'background.paper',
-                                  boxShadow: 2,
-                                  border: '1px solid',
-                                  borderColor: 'divider',
-                                  '&:hover': { bgcolor: 'action.hover' },
-                                  '&.Mui-disabled': { opacity: 0.25 },
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <NavigateBeforeIcon fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
+                          {/* Floating Left Icon Button (Desktop / Laptop only) */}
+                          <div className="hidden sm:inline-flex shrink-0">
+                            <Tooltip title={currentQuestionIndex === 0 ? 'First Question' : 'Previous Question'}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={currentQuestionIndex === 0}
+                                  onClick={goToPrevQuestion}
+                                  sx={{
+                                    width: { xs: 32, sm: 38 },
+                                    height: { xs: 32, sm: 38 },
+                                    bgcolor: 'background.paper',
+                                    boxShadow: 2,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    '&:hover': { bgcolor: 'action.hover' },
+                                    '&.Mui-disabled': { opacity: 0.25 },
+                                  }}
+                                >
+                                  <NavigateBeforeIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </div>
 
-                          {/* Slide Question Card */}
+                          {/* Slide Question Card with Brain Box & Bulb Watermark */}
                           <Card
                             key={q.id}
                             elevation={0}
-                            className="flex-1 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900"
+                            className="flex-1 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900 relative overflow-hidden"
                           >
-                            <CardContent className="p-3 sm:p-4 space-y-2.5">
-                              {/* Card Header: badges + Submit button */}
+                            {/* Watermark: Brain Box with Lightbulb */}
+                            <div
+                              className="absolute right-3 bottom-2 pointer-events-none select-none text-sky-900/10 dark:text-sky-300/10 flex items-center justify-center z-0"
+                              aria-hidden="true"
+                            >
+                              <svg
+                                width="140"
+                                height="140"
+                                viewBox="0 0 100 100"
+                                fill="currentColor"
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-24 h-24 sm:w-32 sm:h-32"
+                              >
+                                {/* Knowledge Box */}
+                                <rect x="14" y="22" width="72" height="70" rx="14" fill="none" stroke="currentColor" strokeWidth="4" />
+                                <path d="M14 44 H86" stroke="currentColor" strokeWidth="2.5" strokeDasharray="3 3" />
+                                
+                                {/* Lightbulb glowing atop box */}
+                                <path d="M50 4 C43 4 38 9 38 15 C38 19 41 22 43 24 V29 H57 V24 C59 22 62 19 62 15 C62 9 57 4 50 4 Z" fill="currentColor" />
+                                <rect x="44" y="30" width="12" height="2.5" rx="1" fill="currentColor" />
+                                <rect x="46" y="33.5" width="8" height="2" rx="1" fill="currentColor" />
+                                <line x1="50" y1="0" x2="50" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <line x1="33" y1="7" x2="35" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <line x1="67" y1="7" x2="65" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+
+                                {/* Brain structure inside the box */}
+                                <path
+                                  d="M36 52 C32 52 30 55 30 59 C30 62 32 65 34 66 C32 68 31 71 33 74 C35 77 39 78 42 77 C43 80 47 81 50 80 C53 81 57 80 58 77 C61 78 65 77 67 74 C69 71 68 68 66 66 C68 65 70 62 70 59 C70 55 68 52 64 52 C63 48 59 46 55 47 C53 45 47 45 45 47 C41 46 37 48 36 52 Z"
+                                  fill="currentColor"
+                                />
+                                <path d="M50 50 V78" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                                <path d="M42 58 Q47 60 45 68" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                                <path d="M58 58 Q53 60 55 68" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                              </svg>
+                            </div>
+
+                            <CardContent className="p-3 sm:p-4 space-y-2.5 relative z-10">
+                              {/* Card Header: badges */}
                               <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
                                 <div className="flex items-center gap-1.5">
                                   <span className="px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-[10.5px]">
@@ -571,26 +578,6 @@ export default function TakeTest({
                                     variant="outlined"
                                     sx={{ height: 20, fontWeight: 700, fontSize: '0.68rem' }}
                                   />
-
-                                  {/* Compact Finish & Submit button on Card Header */}
-                                  <Button
-                                    type="submit"
-                                    size="small"
-                                    variant="contained"
-                                    color="success"
-                                    disabled={processing}
-                                    startIcon={processing ? <CircularProgress size={11} color="inherit" /> : <SendIcon sx={{ fontSize: 12 }} />}
-                                    sx={{
-                                      textTransform: 'none',
-                                      height: 22,
-                                      fontSize: '10.5px',
-                                      fontWeight: 800,
-                                      borderRadius: '6px',
-                                      px: 1.2,
-                                    }}
-                                  >
-                                    {processing ? 'Submitting...' : 'Submit'}
-                                  </Button>
                                 </Stack>
                               </div>
 
@@ -676,53 +663,150 @@ export default function TakeTest({
                                   })}
                                 </RadioGroup>
                               )}
+
+                              {/* Submit Button at end of slide card on the LAST question once answer is selected */}
+                              {qIndex === questions.length - 1 && isAnswered && (
+                                <div className="pt-2 flex justify-end border-t border-slate-100 dark:border-slate-800">
+                                  <Button
+                                    type="submit"
+                                    variant="contained"
+                                    color="success"
+                                    size="small"
+                                    disabled={processing}
+                                    startIcon={processing ? <CircularProgress size={12} color="inherit" /> : <SendIcon sx={{ fontSize: 14 }} />}
+                                    sx={{
+                                      textTransform: 'none',
+                                      fontWeight: 800,
+                                      borderRadius: '8px',
+                                      px: 2.5,
+                                      py: 0.6,
+                                      fontSize: '12px',
+                                      boxShadow: 2,
+                                    }}
+                                  >
+                                    {processing ? 'Submitting Answers...' : 'Submit Assessment'}
+                                  </Button>
+                                </div>
+                              )}
                             </CardContent>
                           </Card>
 
-                          {/* Floating Right Icon Button */}
-                          {currentQuestionIndex < questions.length - 1 ? (
-                            <Tooltip title="Next Question">
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={goToNextQuestion}
-                                sx={{
-                                  width: { xs: 32, sm: 38 },
-                                  height: { xs: 32, sm: 38 },
-                                  bgcolor: 'primary.main',
-                                  color: 'white',
-                                  boxShadow: 2,
-                                  '&:hover': { bgcolor: 'primary.dark' },
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <NavigateNextIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          ) : (
-                            <Tooltip title="Submit Assessment">
-                              <IconButton
-                                size="small"
-                                type="submit"
-                                color="success"
-                                disabled={processing}
-                                sx={{
-                                  width: { xs: 32, sm: 38 },
-                                  height: { xs: 32, sm: 38 },
-                                  bgcolor: 'success.main',
-                                  color: 'white',
-                                  boxShadow: 2,
-                                  '&:hover': { bgcolor: 'success.dark' },
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon sx={{ fontSize: 16 }} />}
-                              </IconButton>
-                            </Tooltip>
-                          )}
+                          {/* Floating Right Icon Button (Desktop / Laptop only) */}
+                          <div className="hidden sm:inline-flex shrink-0">
+                            {currentQuestionIndex < questions.length - 1 ? (
+                              <Tooltip title="Next Question">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={goToNextQuestion}
+                                  sx={{
+                                    width: { xs: 32, sm: 38 },
+                                    height: { xs: 32, sm: 38 },
+                                    bgcolor: 'primary.main',
+                                    color: 'white',
+                                    boxShadow: 2,
+                                    '&:hover': { bgcolor: 'primary.dark' },
+                                  }}
+                                >
+                                  <NavigateNextIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              isAnswered && (
+                                <Tooltip title="Submit Assessment">
+                                  <IconButton
+                                    size="small"
+                                    type="submit"
+                                    color="success"
+                                    disabled={processing}
+                                    sx={{
+                                      width: { xs: 32, sm: 38 },
+                                      height: { xs: 32, sm: 38 },
+                                      bgcolor: 'success.main',
+                                      color: 'white',
+                                      boxShadow: 2,
+                                      '&:hover': { bgcolor: 'success.dark' },
+                                    }}
+                                  >
+                                    {processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon sx={{ fontSize: 16 }} />}
+                                  </IconButton>
+                                </Tooltip>
+                              )
+                            )}
+                          </div>
                         </div>
                       );
                     })()
+                  )}
+
+                  {/* Mobile Footer Swipe / Navigation Bar */}
+                  {questions.length > 0 && (
+                    <Box className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-2.5 px-4 shadow-xl flex items-center justify-between gap-2">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={currentQuestionIndex === 0}
+                        onClick={goToPrevQuestion}
+                        startIcon={<NavigateBeforeIcon sx={{ fontSize: 18 }} />}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          borderRadius: '10px',
+                          minWidth: 84,
+                          fontSize: '11px',
+                          py: 0.5,
+                        }}
+                      >
+                        Prev
+                      </Button>
+
+                      <div className="text-center px-1">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                          Q {currentQuestionIndex + 1} of {questions.length}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-bold">
+                          {answeredCount} answered
+                        </span>
+                      </div>
+
+                      {currentQuestionIndex < questions.length - 1 ? (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={goToNextQuestion}
+                          endIcon={<NavigateNextIcon sx={{ fontSize: 18 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            borderRadius: '10px',
+                            minWidth: 84,
+                            fontSize: '11px',
+                            py: 0.5,
+                          }}
+                        >
+                          Next
+                        </Button>
+                      ) : (
+                        <Button
+                          type="submit"
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          disabled={processing || !isCurrentQuestionAnswered()}
+                          startIcon={processing ? <CircularProgress size={12} color="inherit" /> : <SendIcon sx={{ fontSize: 13 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 800,
+                            borderRadius: '10px',
+                            minWidth: 84,
+                            fontSize: '11px',
+                            py: 0.5,
+                          }}
+                        >
+                          {processing ? 'Submitting...' : 'Submit'}
+                        </Button>
+                      )}
+                    </Box>
                   )}
                 </form>
 
