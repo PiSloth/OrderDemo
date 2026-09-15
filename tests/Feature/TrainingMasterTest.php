@@ -659,6 +659,90 @@ class TrainingMasterTest extends TestCase
         $this->assertNotNull($assignment->fresh()->completed_at);
     }
 
+    public function test_reassigning_pending_training_to_test_only_converts_type_and_removes_pending_session(): void
+    {
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+        $dept = Department::firstOrCreate(['name' => 'Cashier Dept ' . uniqid()]);
+        $pos = OfficePosition::firstOrCreate(['name' => 'Cashier ' . uniqid()]);
+
+        $training = Training::create([
+            'code' => 'CSH-TEST-' . uniqid(),
+            'title' => 'Cashier Operations',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        TrainingScope::create([
+            'training_id' => $training->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        // Creating user triggers onboarding FULL_TRAINING with provisioned session
+        $user = User::create([
+            'name' => 'Cashier Jane',
+            'email' => 'jane.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $assignment = TrainingAssignment::where('training_id', $training->id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $this->assertEquals('FULL_TRAINING', $assignment->assignment_type);
+        $this->assertEquals('PENDING', $assignment->status);
+
+        // A PENDING session was provisioned by onboarding
+        $participant = TrainingSessionParticipant::where('training_assignment_id', $assignment->id)->firstOrFail();
+        $sessionId = $participant->training_session_id;
+        $this->assertDatabaseHas('training_sessions', [
+            'id' => $sessionId,
+            'status' => 'PENDING',
+        ]);
+
+        // Admin now explicitly triggers TEST_ONLY assignment for this position scope
+        $admin = User::firstOrCreate([
+            'email' => 'admin.test.' . uniqid() . '@example.com',
+        ], [
+            'name' => 'Admin User',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+        ]);
+        $admin->givePermissionTo('training.catalog.update');
+
+        $resp = $this->actingAs($admin)->post(route('training.trainings.assign', $training), [
+            'target_type' => 'positions',
+            'assignment_type' => 'TEST_ONLY',
+            'office_position_ids' => [$pos->id],
+            'reason' => 'Annual test only reassignment',
+        ]);
+        $resp->assertRedirect();
+
+        // Verify assignment is updated to TEST_ONLY
+        $this->assertEquals('TEST_ONLY', $assignment->fresh()->assignment_type);
+
+        // Verify user is detached from pending session
+        $this->assertDatabaseMissing('training_session_participants', [
+            'training_assignment_id' => $assignment->id,
+        ]);
+
+        // Verify orphaned pending session was deleted
+        $this->assertDatabaseMissing('training_sessions', [
+            'id' => $sessionId,
+        ]);
+    }
+
     public function test_training_catalog_route_permissions_enforcement(): void
     {
         $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);

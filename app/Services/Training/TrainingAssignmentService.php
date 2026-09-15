@@ -103,6 +103,11 @@ class TrainingAssignmentService
                 }
             }
 
+            // If a shared session was provisioned in FULL_TRAINING mode but ended up with 0 participants, clean it up
+            if ($sharedSession && $sharedSession->participants()->count() === 0) {
+                $sharedSession->delete();
+            }
+
             return $assignedCount;
         });
     }
@@ -207,6 +212,37 @@ class TrainingAssignmentService
             ->first();
 
         if ($existing) {
+            // If assignment is still PENDING, allow updating assignment_type, trigger, and due_date
+            if ($existing->status === 'PENDING') {
+                $existing->assignment_type = $assignmentType;
+                if ($dueDate) {
+                    $existing->due_date = $dueDate;
+                }
+                if ($trigger) {
+                    $existing->training_trigger_id = $trigger->id;
+                }
+                $existing->save();
+
+                // If switched to TEST_ONLY, detach user from unapproved/unscheduled PENDING sessions
+                if ($assignmentType === 'TEST_ONLY') {
+                    $pendingParticipants = TrainingSessionParticipant::query()
+                        ->where('training_assignment_id', $existing->id)
+                        ->whereHas('session', fn($q) => $q->where('status', 'PENDING'))
+                        ->get();
+
+                    foreach ($pendingParticipants as $p) {
+                        $sessionId = $p->training_session_id;
+                        $p->delete();
+
+                        // If session has no participants remaining, delete the orphaned pending session
+                        $remaining = TrainingSessionParticipant::where('training_session_id', $sessionId)->count();
+                        if ($remaining === 0) {
+                            TrainingSession::where('id', $sessionId)->where('status', 'PENDING')->delete();
+                        }
+                    }
+                }
+            }
+
             if ($existingSession && $assignmentType === 'FULL_TRAINING') {
                 TrainingSessionParticipant::firstOrCreate(
                     [

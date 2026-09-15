@@ -103,10 +103,8 @@ class OfficePositionController extends Controller
             }
 
             $user->office_position_id = $officePosition->id;
-            $user->save();
+            $user->save(); // Triggers UserTrainingObserver::updated to assign matching onboarding trainings
 
-            // Trigger onboarding/scoping training assignments
-            $assignmentService->assignNewUser($user);
             $assignedCount++;
         }
 
