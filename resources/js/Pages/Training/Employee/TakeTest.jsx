@@ -39,8 +39,6 @@ import {
   Close as CloseIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
-  ViewCarousel as SlideViewIcon,
-  ViewList as ListViewIcon,
   Security as SecurityIcon,
   Shield as ShieldIcon,
   Lock as LockIcon,
@@ -67,7 +65,6 @@ export default function TakeTest({
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
 
   // Slide Card & Security States
-  const [viewMode, setViewMode] = useState('slide'); // 'slide' | 'list'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isScreenProtected, setIsScreenProtected] = useState(false);
   const [securityAlert, setSecurityAlert] = useState(null);
@@ -219,7 +216,21 @@ export default function TakeTest({
     return ans !== undefined && ans !== null && ans !== '';
   }).length;
 
+  const isCurrentQuestionAnswered = () => {
+    const q = questions[currentQuestionIndex];
+    if (!q) return true;
+    const ans = data.answers[q.id];
+    if (q.question_type === 'MULTI_SELECT') {
+      return Array.isArray(ans) && ans.length > 0;
+    }
+    return ans !== undefined && ans !== null && ans !== '';
+  };
+
   const goToNextQuestion = () => {
+    if (!isCurrentQuestionAnswered()) {
+      setSecurityAlert('Please select an answer for this question before proceeding to the next.');
+      return;
+    }
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
     }
@@ -232,6 +243,10 @@ export default function TakeTest({
   };
 
   const jumpToQuestion = (idx) => {
+    if (idx > currentQuestionIndex && !isCurrentQuestionAnswered()) {
+      setSecurityAlert('Please select an answer for this question before moving forward.');
+      return;
+    }
     if (idx >= 0 && idx < questions.length) {
       setCurrentQuestionIndex(idx);
     }
@@ -261,101 +276,111 @@ export default function TakeTest({
     <AsideLayout title={`Assessment: ${test.title}`}>
       <Head title={`Take Test: ${test.title}`} />
 
-      <Box className="max-w-4xl mx-auto space-y-6">
-        {/* Top Header */}
-        <Box className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <Typography variant="h5" className="font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <QuizIcon className="text-sky-600" />
-              {test.title}
-            </Typography>
-            <Typography variant="body2" className="text-slate-500 dark:text-slate-400">
-              Module: <b>{training.title}</b> ({training.code}) • Passing Score: <b>{test.passing_score}%</b> • Attempt Limit: <b>{attemptLimit}</b>
-            </Typography>
+      <Box className="max-w-4xl mx-auto space-y-2.5">
+        {/* Consolidated Ultra-Compact Top Bar */}
+        <Box className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Tooltip title="Back to My Trainings">
+              <IconButton
+                size="small"
+                component={Link}
+                href="/training/my-trainings"
+                sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', p: 0.5 }}
+              >
+                <ArrowBackIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+
+            <div className="truncate">
+              <div className="flex items-center gap-1.5 truncate">
+                <QuizIcon sx={{ fontSize: 16 }} className="text-sky-600 shrink-0" />
+                <span className="font-extrabold text-[13px] sm:text-sm text-slate-900 dark:text-slate-100 truncate">
+                  {test.title}
+                </span>
+                <span className="text-[11px] font-medium text-slate-400 hidden md:inline truncate">
+                  ({training.code})
+                </span>
+              </div>
+            </div>
           </div>
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Button
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Chip
+              label={`Attempt ${attemptsUsed}/${attemptLimit}`}
+              size="small"
               variant="outlined"
-              startIcon={<ArrowBackIcon />}
-              component={Link}
-              href="/training/my-trainings"
-              sx={{ textTransform: 'none', borderRadius: 2 }}
-            >
-              My Trainings
-            </Button>
-          </Stack>
+              color={isLimitReached ? 'error' : 'default'}
+              sx={{ height: 22, fontSize: '10.5px', fontWeight: 700 }}
+            />
+
+            <Chip
+              label={`Pass: ${test.passing_score}%`}
+              size="small"
+              variant="outlined"
+              sx={{ height: 22, fontSize: '10.5px', fontWeight: 600, display: { xs: 'none', sm: 'inline-flex' } }}
+            />
+
+            {hasLocalDraft && (
+              <Tooltip title="Clear saved draft answers">
+                <IconButton size="small" onClick={handleClearDraft} sx={{ p: 0.5, color: 'text.secondary' }}>
+                  <DeleteIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            <Tooltip title="Copying and screen capture are restricted">
+              <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                <LockIcon sx={{ fontSize: 13 }} />
+              </span>
+            </Tooltip>
+
+            {previousAttempts.length > 0 && (
+              <Button
+                size="small"
+                variant={activeTab === 'history' ? 'contained' : 'outlined'}
+                startIcon={<HistoryIcon sx={{ fontSize: 14 }} />}
+                onClick={() => setActiveTab(activeTab === 'test' ? 'history' : 'test')}
+                sx={{
+                  textTransform: 'none',
+                  height: 24,
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  px: 1,
+                }}
+              >
+                {activeTab === 'test' ? `History (${previousAttempts.length})` : 'Back to Test'}
+              </Button>
+            )}
+          </div>
         </Box>
 
         {flash?.message && (
           <Alert
             severity={latestAttempt?.result === 'PASSED' ? 'success' : 'warning'}
-            className="rounded-2xl shadow-sm"
+            className="rounded-xl shadow-sm py-0.5 px-3 text-xs"
           >
             {flash.message}
           </Alert>
         )}
-
-        {/* Attempt Limit / Status Banner */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 flex items-center justify-center font-bold">
-              #{attemptsUsed}
-            </div>
-            <div>
-              <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                Attempt Quota Status
-              </div>
-              <div className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
-                {attemptsUsed} of {attemptLimit} attempts used
-                {isLimitReached && (
-                  <span className="text-rose-600 ml-2 font-bold">(Limit Reached)</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Tab Switchers */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant={activeTab === 'test' ? 'contained' : 'outlined'}
-              size="small"
-              disabled={isLimitReached && latestAttempt?.result !== 'PASSED'}
-              onClick={() => setActiveTab('test')}
-              sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
-            >
-              Take Assessment
-            </Button>
-            {previousAttempts.length > 0 && (
-              <Button
-                variant={activeTab === 'history' ? 'contained' : 'outlined'}
-                size="small"
-                startIcon={<HistoryIcon />}
-                onClick={() => setActiveTab('history')}
-                sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
-              >
-                Review & Correct Answers ({previousAttempts.length})
-              </Button>
-            )}
-          </div>
-        </div>
 
         {/* Tab 1: Take Test Form */}
         {activeTab === 'test' && (
           <>
             {isLimitReached && latestAttempt?.result !== 'PASSED' ? (
               <Card elevation={0} className="border border-rose-300 bg-rose-50/50 dark:bg-rose-950/20 dark:border-rose-800 rounded-2xl p-6 text-center space-y-3">
-                <CancelIcon color="error" sx={{ fontSize: 48 }} />
-                <Typography variant="h6" className="font-extrabold text-rose-900 dark:text-rose-200">
+                <CancelIcon color="error" sx={{ fontSize: 44 }} />
+                <Typography variant="subtitle1" className="font-extrabold text-rose-900 dark:text-rose-200">
                   Maximum Attempt Limit Reached
                 </Typography>
-                <Typography variant="body2" className="text-rose-700 dark:text-rose-300 max-w-lg mx-auto">
-                  You have used all <b>{attemptLimit}</b> allowable attempts for this training module. Please contact your trainer or compliance administrator if you require an additional attempt waiver or a retraining session.
+                <Typography variant="body2" className="text-rose-700 dark:text-rose-300 max-w-lg mx-auto text-xs">
+                  You have used all <b>{attemptLimit}</b> allowable attempts for this training module. Please contact your trainer if you require an additional waiver.
                 </Typography>
                 {previousAttempts.length > 0 && (
                   <Button
                     variant="contained"
                     color="primary"
+                    size="small"
                     onClick={() => setActiveTab('history')}
                     sx={{ textTransform: 'none', borderRadius: 2, mt: 1 }}
                   >
@@ -364,7 +389,8 @@ export default function TakeTest({
                 )}
               </Card>
             ) : (
-              <div className="space-y-5 secure-assessment select-none"
+              <div
+                className="space-y-2 secure-assessment select-none"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setSecurityAlert('Right-click context menu is restricted during the assessment.');
@@ -398,153 +424,60 @@ export default function TakeTest({
                   }
                 `}</style>
 
-                {/* Security Overlay for Screen Capture / Blur Protection */}
+                {/* Security Privacy Overlay */}
                 {isScreenProtected && (
                   <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-xl p-6 text-center text-white space-y-4 animate-in fade-in duration-200">
-                    <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center ring-1 ring-amber-500/40">
-                      <ShieldIcon sx={{ fontSize: 38 }} />
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center ring-1 ring-amber-500/40">
+                      <ShieldIcon sx={{ fontSize: 32 }} />
                     </div>
                     <div className="space-y-1">
-                      <Typography variant="h6" className="font-extrabold text-white">
-                        Assessment Privacy Screen Active
+                      <Typography variant="subtitle1" className="font-extrabold text-white">
+                        Assessment Window Protected
                       </Typography>
-                      <Typography variant="body2" className="text-slate-400 max-w-sm mx-auto text-xs sm:text-sm">
-                        Test questions are concealed while the window is out of focus or screen capture tools are active to protect exam integrity.
+                      <Typography variant="body2" className="text-slate-400 max-w-sm mx-auto text-xs">
+                        Questions are concealed while window focus is lost or screen capture is active.
                       </Typography>
                     </div>
                     <Button
                       variant="contained"
                       color="primary"
-                      size="large"
+                      size="small"
                       onClick={() => setIsScreenProtected(false)}
-                      sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 3, px: 4, py: 1 }}
+                      sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, px: 3 }}
                     >
                       Resume Assessment
                     </Button>
                   </div>
                 )}
 
-                {/* Control Bar: Mode switch, Security badge & Draft status */}
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                      <Button
-                        size="small"
-                        variant={viewMode === 'slide' ? 'contained' : 'text'}
-                        color={viewMode === 'slide' ? 'primary' : 'inherit'}
-                        onClick={() => setViewMode('slide')}
-                        startIcon={<SlideViewIcon sx={{ fontSize: 16 }} />}
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 700,
-                          fontSize: '0.78rem',
-                          borderRadius: '10px',
-                          px: 1.5,
-                          py: 0.5,
-                          boxShadow: viewMode === 'slide' ? undefined : 'none',
-                        }}
-                      >
-                        Slide View
-                      </Button>
-                      <Button
-                        size="small"
-                        variant={viewMode === 'list' ? 'contained' : 'text'}
-                        color={viewMode === 'list' ? 'primary' : 'inherit'}
-                        onClick={() => setViewMode('list')}
-                        startIcon={<ListViewIcon sx={{ fontSize: 16 }} />}
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 700,
-                          fontSize: '0.78rem',
-                          borderRadius: '10px',
-                          px: 1.5,
-                          py: 0.5,
-                          boxShadow: viewMode === 'list' ? undefined : 'none',
-                        }}
-                      >
-                        List View
-                      </Button>
-                    </div>
-
-                    <Tooltip title="Screenshots and text copy are restricted for test integrity">
-                      <Chip
-                        icon={<LockIcon sx={{ fontSize: 14 }} />}
-                        label="Secure"
-                        size="small"
-                        variant="outlined"
-                        color="default"
-                        sx={{ fontWeight: 700, fontSize: '0.7rem', display: { xs: 'none', sm: 'inline-flex' } }}
-                      />
-                    </Tooltip>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {hasLocalDraft && (
-                      <Button
-                        color="inherit"
-                        size="small"
-                        startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
-                        onClick={handleClearDraft}
-                        sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}
-                      >
-                        Clear Draft
-                      </Button>
-                    )}
-
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                      Answered: <b className="text-sky-600 dark:text-sky-400">{answeredCount}</b> / {questions.length}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
+                {/* Compact Jump Strip & Progress Counter Bar */}
                 {questions.length > 0 && (
-                  <div className="space-y-1.5 px-1">
-                    <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
-                      <span>Overall Progress</span>
-                      <span>{Math.round((answeredCount / (questions.length || 1)) * 100)}%</span>
+                  <div className="flex items-center justify-between gap-2 p-1.5 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-black text-slate-700 dark:text-slate-300">
+                        Q {currentQuestionIndex + 1}/{questions.length}
+                      </span>
+                      <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                        ({answeredCount} answered)
+                      </span>
                     </div>
-                    <LinearProgress
-                      variant="determinate"
-                      value={questions.length ? (answeredCount / questions.length) * 100 : 0}
-                      sx={{
-                        height: 7,
-                        borderRadius: 4,
-                        bgcolor: 'slate.200',
-                        '& .MuiLinearProgress-bar': {
-                          borderRadius: 4,
-                          background: 'linear-gradient(90deg, #0284c7 0%, #06b6d4 100%)',
-                        },
-                      }}
-                    />
-                  </div>
-                )}
 
-                {/* Question Jump Strip (Horizontal Scroll for Mobile & Desktop) */}
-                {questions.length > 1 && (
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 sm:p-2.5 shadow-sm">
-                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5">
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
                       {questions.map((q, idx) => {
                         const ans = data.answers[q.id];
                         const isAnswered = q.question_type === 'MULTI_SELECT'
                           ? Array.isArray(ans) && ans.length > 0
                           : ans !== undefined && ans !== null && ans !== '';
-                        const isCurrent = viewMode === 'slide' && idx === currentQuestionIndex;
+                        const isCurrent = idx === currentQuestionIndex;
 
                         return (
                           <button
                             key={q.id}
                             type="button"
-                            onClick={() => {
-                              jumpToQuestion(idx);
-                              if (viewMode === 'list') {
-                                const el = document.getElementById(`q-card-${q.id}`);
-                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }
-                            }}
-                            className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center relative ${
+                            onClick={() => jumpToQuestion(idx)}
+                            className={`shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-lg text-[10.5px] font-black transition-all flex items-center justify-center relative ${
                               isCurrent
-                                ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400 ring-offset-2 dark:ring-offset-slate-900'
+                                ? 'bg-sky-600 text-white shadow-sm ring-2 ring-sky-400'
                                 : isAnswered
                                 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-500/25'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -552,9 +485,7 @@ export default function TakeTest({
                           >
                             {idx + 1}
                             {isAnswered && !isCurrent && (
-                              <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-900 flex items-center justify-center">
-                                <span className="text-[7px] text-white">✓</span>
-                              </span>
+                              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                             )}
                           </button>
                         );
@@ -563,14 +494,13 @@ export default function TakeTest({
                   </div>
                 )}
 
-                {/* Form Body: Slide View or List View */}
-                <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Form: Slide View with Left/Right Floating Icon Buttons */}
+                <form onSubmit={handleSubmit} className="pt-0.5">
                   {questions.length === 0 ? (
-                    <Alert severity="info" className="rounded-2xl">
-                      No questions have been published for this test yet. Please check back later.
+                    <Alert severity="info" className="rounded-xl text-xs py-1">
+                      No questions have been published for this test yet.
                     </Alert>
-                  ) : viewMode === 'slide' ? (
-                    /* SLIDE VIEW: One Question Card at a time */
+                  ) : (
                     (() => {
                       const q = questions[currentQuestionIndex] || questions[0];
                       const qIndex = currentQuestionIndex;
@@ -580,387 +510,226 @@ export default function TakeTest({
                         : ans !== undefined && ans !== null && ans !== '';
 
                       return (
-                        <Card
-                          key={q.id}
-                          elevation={0}
-                          className="border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm bg-white dark:bg-slate-900 transition-all"
-                        >
-                          <CardContent className="p-5 sm:p-8 space-y-6">
-                            {/* Card Header */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-xs tracking-wide">
-                                  Question {qIndex + 1} of {questions.length}
-                                </span>
-                                {isAnswered && (
-                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                                    <CheckCircleIcon sx={{ fontSize: 14 }} /> Answered
-                                  </span>
-                                )}
-                              </div>
-
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                {q.question_type === 'MULTI_SELECT' && (
-                                  <Chip
-                                    label="Multi-Select"
-                                    size="small"
-                                    color="info"
-                                    variant="outlined"
-                                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
-                                  />
-                                )}
-                                <Chip
-                                  label={`${q.marks} pt${q.marks > 1 ? 's' : ''}`}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ fontWeight: 700 }}
-                                />
-                              </Stack>
-                            </div>
-
-                            {/* Question Title */}
-                            <div className="space-y-1">
-                              <Typography variant="h6" className="font-extrabold text-slate-900 dark:text-slate-100 text-base sm:text-lg leading-relaxed">
-                                {q.question}
-                              </Typography>
-                              {q.question_type === 'MULTI_SELECT' && (
-                                <Typography variant="caption" className="text-sky-600 dark:text-sky-400 font-semibold block">
-                                  Select all options that apply.
-                                </Typography>
-                              )}
-                            </div>
-
-                            {/* Options List */}
-                            {q.question_type === 'MULTI_SELECT' ? (
-                              <div className="space-y-3">
-                                {(q.options || []).map((opt, oIndex) => {
-                                  const letter = String.fromCharCode(65 + oIndex);
-                                  const isSelected = Array.isArray(data.answers[q.id]) && data.answers[q.id].includes(opt.id);
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => handleToggleOption(q.id, opt.id)}
-                                      className={`min-h-[52px] p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 select-none touch-manipulation ${
-                                        isSelected
-                                          ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/40 dark:border-sky-600 ring-2 ring-sky-500/20 shadow-sm'
-                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900/50'
-                                      }`}
-                                    >
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onChange={() => handleToggleOption(q.id, opt.id)}
-                                        size="medium"
-                                        color="primary"
-                                        sx={{ p: 0.5 }}
-                                      />
-                                      <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-xs flex items-center justify-center shrink-0">
-                                        {letter}
-                                      </span>
-                                      <span className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 flex-1">
-                                        {opt.answer}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <RadioGroup
-                                value={data.answers[q.id] || ''}
-                                onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
-                                className="space-y-3"
-                              >
-                                {(q.options || []).map((opt, oIndex) => {
-                                  const letter = String.fromCharCode(65 + oIndex);
-                                  const isSelected = data.answers[q.id] === opt.id;
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => handleSelectOption(q.id, opt.id)}
-                                      className={`min-h-[52px] p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 select-none touch-manipulation ${
-                                        isSelected
-                                          ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/40 dark:border-sky-600 ring-2 ring-sky-500/20 shadow-sm'
-                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900/50'
-                                      }`}
-                                    >
-                                      <Radio
-                                        value={opt.id}
-                                        checked={isSelected}
-                                        size="medium"
-                                        color="primary"
-                                        sx={{ p: 0.5 }}
-                                      />
-                                      <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-xs flex items-center justify-center shrink-0">
-                                        {letter}
-                                      </span>
-                                      <span className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 flex-1">
-                                        {opt.answer}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </RadioGroup>
-                            )}
-
-                            {/* Desktop Prev / Next Card Footer */}
-                            <div className="hidden sm:flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                              <Button
-                                variant="outlined"
+                        <div className="flex items-center gap-1.5 sm:gap-2.5">
+                          {/* Floating Left Icon Button */}
+                          <Tooltip title={currentQuestionIndex === 0 ? 'First Question' : 'Previous Question'}>
+                            <span>
+                              <IconButton
+                                size="small"
                                 disabled={currentQuestionIndex === 0}
                                 onClick={goToPrevQuestion}
-                                startIcon={<NavigateBeforeIcon />}
-                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                                sx={{
+                                  width: { xs: 32, sm: 38 },
+                                  height: { xs: 32, sm: 38 },
+                                  bgcolor: 'background.paper',
+                                  boxShadow: 2,
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  '&:hover': { bgcolor: 'action.hover' },
+                                  '&.Mui-disabled': { opacity: 0.25 },
+                                  flexShrink: 0,
+                                }}
                               >
-                                Previous Question
-                              </Button>
+                                <NavigateBeforeIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
 
-                              {currentQuestionIndex < questions.length - 1 ? (
-                                <Button
-                                  variant="contained"
-                                  onClick={goToNextQuestion}
-                                  endIcon={<NavigateNextIcon />}
-                                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-                                >
-                                  Next Question
-                                </Button>
-                              ) : (
-                                <Button
-                                  type="submit"
-                                  variant="contained"
-                                  color="success"
-                                  disabled={processing}
-                                  startIcon={processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
-                                  sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, px: 3 }}
-                                >
-                                  {processing ? 'Submitting...' : 'Finish & Submit'}
-                                </Button>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })()
-                  ) : (
-                    /* LIST VIEW: All Questions Sequentially */
-                    <div className="space-y-6">
-                      {questions.map((q, qIndex) => (
-                        <Card
-                          id={`q-card-${q.id}`}
-                          key={q.id}
-                          elevation={0}
-                          className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900"
-                        >
-                          <CardContent className="p-5 sm:p-6 space-y-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex items-center gap-2">
-                                <span className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
-                                  {qIndex + 1}
-                                </span>
-                                <div>
-                                  <Typography variant="subtitle1" className="font-bold text-slate-900 dark:text-slate-100">
-                                    {q.question}
-                                  </Typography>
-                                  {q.question_type === 'MULTI_SELECT' && (
-                                    <Typography variant="caption" className="text-sky-600 dark:text-sky-400 font-semibold block mt-0.5">
-                                      (Multiple Choice: Check all correct answers)
-                                    </Typography>
+                          {/* Slide Question Card */}
+                          <Card
+                            key={q.id}
+                            elevation={0}
+                            className="flex-1 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900"
+                          >
+                            <CardContent className="p-3 sm:p-4 space-y-2.5">
+                              {/* Card Header: badges + Submit button */}
+                              <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-[10.5px]">
+                                    Question {qIndex + 1} of {questions.length}
+                                  </span>
+                                  {isAnswered && (
+                                    <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
+                                      <CheckCircleIcon sx={{ fontSize: 12 }} /> Answered
+                                    </span>
                                   )}
                                 </div>
-                              </div>
 
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                {q.question_type === 'MULTI_SELECT' && (
+                                <Stack direction="row" spacing={0.75} alignItems="center">
+                                  {q.question_type === 'MULTI_SELECT' && (
+                                    <Chip
+                                      label="Multi-Select"
+                                      size="small"
+                                      color="info"
+                                      variant="outlined"
+                                      sx={{ height: 20, fontWeight: 700, fontSize: '0.65rem' }}
+                                    />
+                                  )}
                                   <Chip
-                                    label="Multi-Select"
+                                    label={`${q.marks} pt`}
                                     size="small"
-                                    color="info"
                                     variant="outlined"
-                                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                                    sx={{ height: 20, fontWeight: 700, fontSize: '0.68rem' }}
                                   />
+
+                                  {/* Compact Finish & Submit button on Card Header */}
+                                  <Button
+                                    type="submit"
+                                    size="small"
+                                    variant="contained"
+                                    color="success"
+                                    disabled={processing}
+                                    startIcon={processing ? <CircularProgress size={11} color="inherit" /> : <SendIcon sx={{ fontSize: 12 }} />}
+                                    sx={{
+                                      textTransform: 'none',
+                                      height: 22,
+                                      fontSize: '10.5px',
+                                      fontWeight: 800,
+                                      borderRadius: '6px',
+                                      px: 1.2,
+                                    }}
+                                  >
+                                    {processing ? 'Submitting...' : 'Submit'}
+                                  </Button>
+                                </Stack>
+                              </div>
+
+                              {/* Question Title (10 pt = ~13.3px on laptop) */}
+                              <div className="space-y-0.5">
+                                <Typography className="text-[13px] sm:text-[13.3px] font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                                  {q.question}
+                                </Typography>
+                                {q.question_type === 'MULTI_SELECT' && (
+                                  <Typography className="text-[10.5px] text-sky-600 dark:text-sky-400 font-semibold block">
+                                    (Check all correct answers)
+                                  </Typography>
                                 )}
-                                <Chip
-                                  label={`${q.marks} pt${q.marks > 1 ? 's' : ''}`}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ fontWeight: 600 }}
-                                />
-                              </Stack>
-                            </div>
-
-                            <Divider />
-
-                            {q.question_type === 'MULTI_SELECT' ? (
-                              <div className="space-y-2.5">
-                                {(q.options || []).map((opt, oIndex) => {
-                                  const letter = String.fromCharCode(65 + oIndex);
-                                  const isSelected = Array.isArray(data.answers[q.id]) && data.answers[q.id].includes(opt.id);
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => handleToggleOption(q.id, opt.id)}
-                                      className={`min-h-[48px] p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
-                                        isSelected
-                                          ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700 ring-1 ring-sky-500'
-                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                      }`}
-                                    >
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onChange={() => handleToggleOption(q.id, opt.id)}
-                                        size="small"
-                                        color="primary"
-                                        sx={{ p: 0.5 }}
-                                      />
-                                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                        <span className="font-bold mr-2 text-slate-400">{letter}.</span>
-                                        {opt.answer}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
                               </div>
-                            ) : (
-                              <RadioGroup
-                                value={data.answers[q.id] || ''}
-                                onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
-                                className="space-y-2.5"
-                              >
-                                {(q.options || []).map((opt, oIndex) => {
-                                  const letter = String.fromCharCode(65 + oIndex);
-                                  const isSelected = data.answers[q.id] === opt.id;
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => handleSelectOption(q.id, opt.id)}
-                                      className={`min-h-[48px] p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
-                                        isSelected
-                                          ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700 ring-1 ring-sky-500'
-                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                      }`}
-                                    >
-                                      <Radio
-                                        value={opt.id}
-                                        checked={isSelected}
-                                        size="small"
-                                        color="primary"
-                                        sx={{ p: 0.5 }}
-                                      />
-                                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                        <span className="font-bold mr-2 text-slate-400">{letter}.</span>
-                                        {opt.answer}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </RadioGroup>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* Responsive Sticky Action Bar (Mobile thumb-friendly & Desktop) */}
-                  {questions.length > 0 && (
-                    <Box className="sticky bottom-3 sm:bottom-4 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl">
-                      <div className="flex items-center justify-between gap-2">
-                        {viewMode === 'slide' ? (
-                          <>
-                            <Button
-                              size="medium"
-                              variant="outlined"
-                              disabled={currentQuestionIndex === 0}
-                              onClick={goToPrevQuestion}
-                              startIcon={<NavigateBeforeIcon />}
-                              sx={{
-                                textTransform: 'none',
-                                fontWeight: 700,
-                                borderRadius: 2,
-                                minWidth: { xs: 44, sm: 100 },
-                                px: { xs: 1.5, sm: 2.5 },
-                              }}
-                            >
-                              <span className="hidden sm:inline">Previous</span>
-                            </Button>
+                              {/* Options List (10 pt = ~13.3px on laptop) */}
+                              {q.question_type === 'MULTI_SELECT' ? (
+                                <div className="space-y-1.5">
+                                  {(q.options || []).map((opt, oIndex) => {
+                                    const letter = String.fromCharCode(65 + oIndex);
+                                    const isSelected = Array.isArray(data.answers[q.id]) && data.answers[q.id].includes(opt.id);
+                                    return (
+                                      <div
+                                        key={opt.id}
+                                        onClick={() => handleToggleOption(q.id, opt.id)}
+                                        className={`min-h-[36px] py-1 px-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-2 select-none touch-manipulation ${
+                                          isSelected
+                                            ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/40 dark:border-sky-600 ring-1 ring-sky-500/30'
+                                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900/50'
+                                        }`}
+                                      >
+                                        <Checkbox
+                                          checked={isSelected}
+                                          onChange={() => handleToggleOption(q.id, opt.id)}
+                                          size="small"
+                                          color="primary"
+                                          sx={{ p: 0.25 }}
+                                        />
+                                        <span className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-[10.5px] flex items-center justify-center shrink-0">
+                                          {letter}
+                                        </span>
+                                        <span className="text-[13px] font-medium text-slate-800 dark:text-slate-200 flex-1 leading-tight">
+                                          {opt.answer}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <RadioGroup
+                                  value={data.answers[q.id] || ''}
+                                  onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
+                                  className="space-y-1.5"
+                                >
+                                  {(q.options || []).map((opt, oIndex) => {
+                                    const letter = String.fromCharCode(65 + oIndex);
+                                    const isSelected = data.answers[q.id] === opt.id;
+                                    return (
+                                      <div
+                                        key={opt.id}
+                                        onClick={() => handleSelectOption(q.id, opt.id)}
+                                        className={`min-h-[36px] py-1 px-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-2 select-none touch-manipulation ${
+                                          isSelected
+                                            ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/40 dark:border-sky-600 ring-1 ring-sky-500/30'
+                                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900/50'
+                                        }`}
+                                      >
+                                        <Radio
+                                          value={opt.id}
+                                          checked={isSelected}
+                                          size="small"
+                                          color="primary"
+                                          sx={{ p: 0.25 }}
+                                        />
+                                        <span className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-[10.5px] flex items-center justify-center shrink-0">
+                                          {letter}
+                                        </span>
+                                        <span className="text-[13px] font-medium text-slate-800 dark:text-slate-200 flex-1 leading-tight">
+                                          {opt.answer}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </RadioGroup>
+                              )}
+                            </CardContent>
+                          </Card>
 
-                            <div className="text-center px-1">
-                              <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200">
-                                Q {currentQuestionIndex + 1} of {questions.length}
-                              </div>
-                              <div className="text-[11px] text-slate-500 font-bold">
-                                {answeredCount} answered
-                              </div>
-                            </div>
-
-                            {currentQuestionIndex < questions.length - 1 ? (
-                              <Button
-                                size="medium"
-                                variant="contained"
+                          {/* Floating Right Icon Button */}
+                          {currentQuestionIndex < questions.length - 1 ? (
+                            <Tooltip title="Next Question">
+                              <IconButton
+                                size="small"
+                                color="primary"
                                 onClick={goToNextQuestion}
-                                endIcon={<NavigateNextIcon />}
                                 sx={{
-                                  textTransform: 'none',
-                                  fontWeight: 700,
-                                  borderRadius: 2,
-                                  minWidth: { xs: 44, sm: 100 },
-                                  px: { xs: 1.5, sm: 2.5 },
+                                  width: { xs: 32, sm: 38 },
+                                  height: { xs: 32, sm: 38 },
+                                  bgcolor: 'primary.main',
+                                  color: 'white',
+                                  boxShadow: 2,
+                                  '&:hover': { bgcolor: 'primary.dark' },
+                                  flexShrink: 0,
                                 }}
                               >
-                                <span className="hidden sm:inline">Next</span>
-                              </Button>
-                            ) : (
-                              <Button
+                                <NavigateNextIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="Submit Assessment">
+                              <IconButton
+                                size="small"
                                 type="submit"
-                                size="medium"
-                                variant="contained"
                                 color="success"
                                 disabled={processing}
-                                startIcon={processing ? <CircularProgress size={14} color="inherit" /> : <SendIcon sx={{ fontSize: 16 }} />}
                                 sx={{
-                                  textTransform: 'none',
-                                  fontWeight: 800,
-                                  borderRadius: 2,
-                                  minWidth: { xs: 44, sm: 100 },
-                                  px: { xs: 2, sm: 3 },
+                                  width: { xs: 32, sm: 38 },
+                                  height: { xs: 32, sm: 38 },
+                                  bgcolor: 'success.main',
+                                  color: 'white',
+                                  boxShadow: 2,
+                                  '&:hover': { bgcolor: 'success.dark' },
+                                  flexShrink: 0,
                                 }}
                               >
-                                {processing ? 'Submitting...' : 'Submit'}
-                              </Button>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="space-y-0.5">
-                              <Typography variant="body2" className="text-slate-700 dark:text-slate-300 font-bold text-xs sm:text-sm">
-                                Answered: <b className="text-sky-600">{answeredCount}</b> of <b>{questions.length}</b>
-                              </Typography>
-                              {hasLocalDraft && (
-                                <Typography variant="caption" className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium text-[11px]">
-                                  <CheckCircleIcon sx={{ fontSize: 13 }} /> Auto-saved
-                                </Typography>
-                              )}
-                            </div>
-
-                            <Button
-                              type="submit"
-                              variant="contained"
-                              size="large"
-                              disabled={processing}
-                              startIcon={processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
-                              sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, px: { xs: 2.5, sm: 4 } }}
-                            >
-                              {processing ? 'Submitting...' : 'Submit Assessment'}
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </Box>
+                                {processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon sx={{ fontSize: 16 }} />}
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </div>
+                      );
+                    })()
                   )}
                 </form>
 
-                {/* Snackbar Security Alert */}
+                {/* Snackbar Security & Validation Alert */}
                 <Snackbar
                   open={Boolean(securityAlert)}
-                  autoHideDuration={3500}
+                  autoHideDuration={3000}
                   onClose={() => setSecurityAlert(null)}
                   message={securityAlert}
                   anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
