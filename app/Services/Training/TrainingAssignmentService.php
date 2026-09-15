@@ -343,7 +343,7 @@ class TrainingAssignmentService
         $training = $assignment->training;
         $parentSession = $parentSessionId ? TrainingSession::find($parentSessionId) : null;
 
-        // Look for an existing pending/open remedial session linked to this parent session
+        // Look for an existing pending/open remedial session linked to this parent session (or training)
         $remedialSession = null;
         if ($parentSession) {
             $remedialSession = TrainingSession::query()
@@ -351,10 +351,17 @@ class TrainingAssignmentService
                 ->where('parent_session_id', $parentSession->id)
                 ->whereIn('status', ['PENDING', 'OPEN', 'IN_PROGRESS'])
                 ->first();
+        } else {
+            $remedialSession = TrainingSession::query()
+                ->where('training_id', $training->id)
+                ->whereNull('parent_session_id')
+                ->where('session_code', 'like', '%-REM-%')
+                ->whereIn('status', ['PENDING', 'OPEN', 'IN_PROGRESS'])
+                ->first();
         }
 
         if (!$remedialSession) {
-            $parentCode = $parentSession?->session_code ?? ($training->code . '-S001');
+            $parentCode = $parentSession?->session_code;
             $remCount = TrainingSession::where('training_id', $training->id)
                 ->where('parent_session_id', $parentSession?->id)
                 ->count() + 1;
@@ -363,12 +370,20 @@ class TrainingAssignmentService
             $startDate = now()->addDays(3)->toDateString();
             $endDate = now()->addDays(3 + $durationDays - 1)->toDateString();
 
+            $sessionCode = $parentCode
+                ? ($parentCode . '-REM-' . str_pad((string) $remCount, 2, '0', STR_PAD_LEFT))
+                : ($training->code . '-REM-' . str_pad((string) $remCount, 2, '0', STR_PAD_LEFT));
+
+            $title = $parentCode
+                ? ($training->title . ' - Remedial Session (Ref: ' . $parentCode . ')')
+                : ($training->title . ' - Remedial Session #' . $remCount);
+
             $remedialSession = TrainingSession::create([
                 'training_id' => $training->id,
                 'parent_session_id' => $parentSession?->id,
                 'trainer_id' => $parentSession?->trainer_id,
-                'session_code' => $parentCode . '-REM-' . str_pad((string) $remCount, 2, '0', STR_PAD_LEFT),
-                'title' => $training->title . ' - Remedial Session (Ref: ' . $parentCode . ')',
+                'session_code' => $sessionCode,
+                'title' => $title,
                 'scheduled_at' => now()->addDays(3)->setHour(9)->setMinute(0),
                 'start_date' => $startDate,
                 'end_date' => $endDate,

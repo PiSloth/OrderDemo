@@ -566,6 +566,44 @@ class TrainingSharedSessionAndApprovalTest extends TestCase
         $this->assertDatabaseMissing('training_session_participants', ['id' => $participant->id]);
         $this->assertDatabaseMissing('training_assignments', ['id' => $assignment->id]);
     }
+
+    public function test_failing_test_only_auto_provisions_pending_remedial_session_requiring_approval(): void
+    {
+        $assignment = TrainingAssignment::create([
+            'training_id' => $this->training->id,
+            'user_id' => $this->user1->id,
+            'assignment_type' => 'TEST_ONLY',
+            'status' => 'PENDING',
+        ]);
+
+        $evalService = app(TestEvaluationService::class);
+        $wrongAnswer = $this->test->questions->first()->options->where('is_correct', false)->first();
+
+        // User fails test (without parent session, as it was TEST_ONLY)
+        $attempt = $evalService->startAttempt($this->test, $this->user1, $assignment);
+        $evalService->submitAttempt($attempt, [
+            $this->test->questions->first()->id => $wrongAnswer->id,
+        ]);
+
+        // Assignment should now be IN_PROGRESS
+        $this->assertEquals('IN_PROGRESS', $assignment->fresh()->status);
+
+        // A remedial session must be auto-created in PENDING status (approval needed)
+        $remedialSession = TrainingSession::where('training_id', $this->training->id)
+            ->where('session_code', 'like', '%-REM-%')
+            ->first();
+
+        $this->assertNotNull($remedialSession);
+        $this->assertEquals('PENDING', $remedialSession->status);
+
+        // Failed trainee must be assigned to this remedial session
+        $this->assertDatabaseHas('training_session_participants', [
+            'training_session_id' => $remedialSession->id,
+            'training_assignment_id' => $assignment->id,
+            'user_id' => $this->user1->id,
+            'attendance_status' => 'REGISTERED',
+        ]);
+    }
 }
 
 

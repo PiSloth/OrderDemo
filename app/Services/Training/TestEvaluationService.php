@@ -168,15 +168,13 @@ class TestEvaluationService
                     'status' => 'IN_PROGRESS',
                 ]);
             } else {
-                // FAILED test
+                // FAILED test: update assignment status to IN_PROGRESS
                 $assignment->update([
                     'status' => 'IN_PROGRESS',
                 ]);
 
-                // Next action: Attach to shared remedial session referencing the parent session
-                if (!$isTestOnly) {
-                    $this->assignmentService->attachToRemedialSession($assignment, $attempt->training_session_id);
-                }
+                // Auto-provision or attach to remedial training session in PENDING status (requires approval)
+                $this->assignmentService->attachToRemedialSession($assignment, $attempt->training_session_id);
             }
 
             return [

@@ -19,6 +19,8 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  LinearProgress,
+  Snackbar,
 } from '@mui/material';
 
 import {
@@ -35,6 +37,13 @@ import {
   History as HistoryIcon,
   Check as CheckIcon,
   Close as CloseIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  ViewCarousel as SlideViewIcon,
+  ViewList as ListViewIcon,
+  Security as SecurityIcon,
+  Shield as ShieldIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 
 export default function TakeTest({
@@ -56,6 +65,12 @@ export default function TakeTest({
   );
   const [selectedAttemptIndex, setSelectedAttemptIndex] = useState(0);
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
+
+  // Slide Card & Security States
+  const [viewMode, setViewMode] = useState('slide'); // 'slide' | 'list'
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isScreenProtected, setIsScreenProtected] = useState(false);
+  const [securityAlert, setSecurityAlert] = useState(null);
 
   const activeReviewAttempt = previousAttempts[selectedAttemptIndex] || latestAttempt;
 
@@ -81,6 +96,73 @@ export default function TakeTest({
       console.warn('Could not load draft answers from localStorage', err);
     }
   }, [storageKey]);
+
+  // 2. Anti-Screenshot & Screen Capture Protection
+  useEffect(() => {
+    if (activeTab !== 'test') return;
+
+    const handleWindowBlur = () => {
+      setIsScreenProtected(true);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsScreenProtected(true);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      // PrintScreen detection: clear clipboard immediately
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        try {
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText('');
+          }
+        } catch (err) {}
+        setIsScreenProtected(true);
+        setSecurityAlert('Screenshots and screen capture are prohibited during this assessment.');
+      }
+
+      // Block Ctrl+P / Cmd+P (Print)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        setSecurityAlert('Printing the assessment is prohibited.');
+      }
+
+      // Block Ctrl+S / Cmd+S (Save)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+      }
+
+      // Block Ctrl+U (View Source)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        try {
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText('');
+          }
+        } catch (err) {}
+        setIsScreenProtected(true);
+      }
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [activeTab]);
 
   // Helper to persist answer updates to localStorage
   const updateAnswersAndStorage = (newAnswers) => {
@@ -136,6 +218,24 @@ export default function TakeTest({
     }
     return ans !== undefined && ans !== null && ans !== '';
   }).length;
+
+  const goToNextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+    }
+  };
+
+  const goToPrevQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex((prev) => prev - 1);
+    }
+  };
+
+  const jumpToQuestion = (idx) => {
+    if (idx >= 0 && idx < questions.length) {
+      setCurrentQuestionIndex(idx);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -264,183 +364,608 @@ export default function TakeTest({
                 )}
               </Card>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Local Storage Draft Notice */}
-                {hasLocalDraft && (
-                  <Alert
-                    severity="info"
-                    icon={<SaveIcon fontSize="inherit" />}
-                    action={
+              <div className="space-y-5 secure-assessment select-none"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setSecurityAlert('Right-click context menu is restricted during the assessment.');
+                }}
+                onCopy={(e) => {
+                  e.preventDefault();
+                  setSecurityAlert('Copying test questions or answers is restricted.');
+                }}
+                onCut={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
+              >
+                <style>{`
+                  .secure-assessment {
+                    -webkit-user-select: none !important;
+                    -moz-user-select: none !important;
+                    -ms-user-select: none !important;
+                    user-select: none !important;
+                    -webkit-touch-callout: none !important;
+                  }
+                  @media print {
+                    body {
+                      display: none !important;
+                    }
+                  }
+                  .no-scrollbar::-webkit-scrollbar {
+                    display: none;
+                  }
+                  .no-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                  }
+                `}</style>
+
+                {/* Security Overlay for Screen Capture / Blur Protection */}
+                {isScreenProtected && (
+                  <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-xl p-6 text-center text-white space-y-4 animate-in fade-in duration-200">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center ring-1 ring-amber-500/40">
+                      <ShieldIcon sx={{ fontSize: 38 }} />
+                    </div>
+                    <div className="space-y-1">
+                      <Typography variant="h6" className="font-extrabold text-white">
+                        Assessment Privacy Screen Active
+                      </Typography>
+                      <Typography variant="body2" className="text-slate-400 max-w-sm mx-auto text-xs sm:text-sm">
+                        Test questions are concealed while the window is out of focus or screen capture tools are active to protect exam integrity.
+                      </Typography>
+                    </div>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      onClick={() => setIsScreenProtected(false)}
+                      sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 3, px: 4, py: 1 }}
+                    >
+                      Resume Assessment
+                    </Button>
+                  </div>
+                )}
+
+                {/* Control Bar: Mode switch, Security badge & Draft status */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                      <Button
+                        size="small"
+                        variant={viewMode === 'slide' ? 'contained' : 'text'}
+                        color={viewMode === 'slide' ? 'primary' : 'inherit'}
+                        onClick={() => setViewMode('slide')}
+                        startIcon={<SlideViewIcon sx={{ fontSize: 16 }} />}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.78rem',
+                          borderRadius: '10px',
+                          px: 1.5,
+                          py: 0.5,
+                          boxShadow: viewMode === 'slide' ? undefined : 'none',
+                        }}
+                      >
+                        Slide View
+                      </Button>
+                      <Button
+                        size="small"
+                        variant={viewMode === 'list' ? 'contained' : 'text'}
+                        color={viewMode === 'list' ? 'primary' : 'inherit'}
+                        onClick={() => setViewMode('list')}
+                        startIcon={<ListViewIcon sx={{ fontSize: 16 }} />}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.78rem',
+                          borderRadius: '10px',
+                          px: 1.5,
+                          py: 0.5,
+                          boxShadow: viewMode === 'list' ? undefined : 'none',
+                        }}
+                      >
+                        List View
+                      </Button>
+                    </div>
+
+                    <Tooltip title="Screenshots and text copy are restricted for test integrity">
+                      <Chip
+                        icon={<LockIcon sx={{ fontSize: 14 }} />}
+                        label="Secure"
+                        size="small"
+                        variant="outlined"
+                        color="default"
+                        sx={{ fontWeight: 700, fontSize: '0.7rem', display: { xs: 'none', sm: 'inline-flex' } }}
+                      />
+                    </Tooltip>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {hasLocalDraft && (
                       <Button
                         color="inherit"
                         size="small"
-                        startIcon={<DeleteIcon />}
+                        startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
                         onClick={handleClearDraft}
-                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                        sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}
                       >
                         Clear Draft
                       </Button>
-                    }
-                    className="rounded-2xl"
-                  >
-                    <b>Auto-Saved Draft Active:</b> Your answers are stored locally in this browser. Refreshing or returning later will keep your answers intact until you submit.
-                  </Alert>
-                )}
+                    )}
 
-                {questions.map((q, qIndex) => (
-                  <Card
-                    key={q.id}
-                    elevation={0}
-                    className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900"
-                  >
-                    <CardContent className="p-6 space-y-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
-                            {qIndex + 1}
-                          </span>
-                          <div>
-                            <Typography variant="subtitle1" className="font-bold text-slate-900 dark:text-slate-100">
-                              {q.question}
-                            </Typography>
-                            {q.question_type === 'MULTI_SELECT' && (
-                              <Typography variant="caption" className="text-sky-600 dark:text-sky-400 font-semibold block mt-0.5">
-                                (Multiple Choice: Check all correct answers)
-                              </Typography>
-                            )}
-                          </div>
-                        </div>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      Answered: <b className="text-sky-600 dark:text-sky-400">{answeredCount}</b> / {questions.length}
+                    </span>
+                  </div>
+                </div>
 
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          {q.question_type === 'MULTI_SELECT' && (
-                            <Chip
-                              label="Multi-Select"
-                              size="small"
-                              color="info"
-                              variant="outlined"
-                              sx={{ fontWeight: 700, fontSize: '0.7rem' }}
-                            />
-                          )}
-                          <Chip
-                            label={`${q.marks} pt${q.marks > 1 ? 's' : ''}`}
-                            size="small"
-                            variant="outlined"
-                            sx={{ fontWeight: 600 }}
-                          />
-                        </Stack>
-                      </div>
-
-                      <Divider />
-
-                      {q.question_type === 'MULTI_SELECT' ? (
-                        <div className="space-y-2 pl-2">
-                          {(q.options || []).map((opt, oIndex) => {
-                            const letter = String.fromCharCode(65 + oIndex);
-                            const isSelected = Array.isArray(data.answers[q.id]) && data.answers[q.id].includes(opt.id);
-                            return (
-                              <Paper
-                                key={opt.id}
-                                elevation={0}
-                                onClick={() => handleToggleOption(q.id, opt.id)}
-                                className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                                  isSelected
-                                    ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700 ring-1 ring-sky-500'
-                                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                }`}
-                              >
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onChange={() => handleToggleOption(q.id, opt.id)}
-                                      size="small"
-                                      color="primary"
-                                    />
-                                  }
-                                  label={
-                                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                      <span className="font-bold mr-2 text-slate-400">{letter}.</span>
-                                      {opt.answer}
-                                    </span>
-                                  }
-                                  className="w-full m-0"
-                                />
-                              </Paper>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <RadioGroup
-                          value={data.answers[q.id] || ''}
-                          onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
-                          className="space-y-2 pl-2"
-                        >
-                          {(q.options || []).map((opt, oIndex) => {
-                            const letter = String.fromCharCode(65 + oIndex);
-                            const isSelected = data.answers[q.id] === opt.id;
-                            return (
-                              <Paper
-                                key={opt.id}
-                                elevation={0}
-                                onClick={() => handleSelectOption(q.id, opt.id)}
-                                className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                                  isSelected
-                                    ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700 ring-1 ring-sky-500'
-                                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                }`}
-                              >
-                                <FormControlLabel
-                                  value={opt.id}
-                                  control={<Radio size="small" color="primary" />}
-                                  label={
-                                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                      <span className="font-bold mr-2 text-slate-400">{letter}.</span>
-                                      {opt.answer}
-                                    </span>
-                                  }
-                                  className="w-full m-0"
-                                />
-                              </Paper>
-                            );
-                          })}
-                        </RadioGroup>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {questions.length === 0 && (
-                  <Alert severity="info" className="rounded-2xl">
-                    No questions have been published for this test yet. Please check back later.
-                  </Alert>
-                )}
-
+                {/* Progress Bar */}
                 {questions.length > 0 && (
-                  <Box className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sticky bottom-4 shadow-lg">
-                    <div className="space-y-0.5">
-                      <Typography variant="body2" className="text-slate-700 dark:text-slate-300 font-bold">
-                        Answered: <b className="text-sky-600">{answeredCount}</b> of <b>{questions.length}</b> questions
-                      </Typography>
-                      {hasLocalDraft && (
-                        <Typography variant="caption" className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                          <CheckCircleIcon sx={{ fontSize: 13 }} /> Answers auto-saved in browser
-                        </Typography>
-                      )}
+                  <div className="space-y-1.5 px-1">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+                      <span>Overall Progress</span>
+                      <span>{Math.round((answeredCount / (questions.length || 1)) * 100)}%</span>
                     </div>
-
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      size="large"
-                      disabled={processing}
-                      startIcon={processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
-                      sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, px: 4 }}
-                    >
-                      {processing ? 'Submitting Answers...' : 'Submit Assessment'}
-                    </Button>
-                  </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={questions.length ? (answeredCount / questions.length) * 100 : 0}
+                      sx={{
+                        height: 7,
+                        borderRadius: 4,
+                        bgcolor: 'slate.200',
+                        '& .MuiLinearProgress-bar': {
+                          borderRadius: 4,
+                          background: 'linear-gradient(90deg, #0284c7 0%, #06b6d4 100%)',
+                        },
+                      }}
+                    />
+                  </div>
                 )}
-              </form>
+
+                {/* Question Jump Strip (Horizontal Scroll for Mobile & Desktop) */}
+                {questions.length > 1 && (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 sm:p-2.5 shadow-sm">
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5">
+                      {questions.map((q, idx) => {
+                        const ans = data.answers[q.id];
+                        const isAnswered = q.question_type === 'MULTI_SELECT'
+                          ? Array.isArray(ans) && ans.length > 0
+                          : ans !== undefined && ans !== null && ans !== '';
+                        const isCurrent = viewMode === 'slide' && idx === currentQuestionIndex;
+
+                        return (
+                          <button
+                            key={q.id}
+                            type="button"
+                            onClick={() => {
+                              jumpToQuestion(idx);
+                              if (viewMode === 'list') {
+                                const el = document.getElementById(`q-card-${q.id}`);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }}
+                            className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center relative ${
+                              isCurrent
+                                ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400 ring-offset-2 dark:ring-offset-slate-900'
+                                : isAnswered
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-500/25'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            {idx + 1}
+                            {isAnswered && !isCurrent && (
+                              <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-900 flex items-center justify-center">
+                                <span className="text-[7px] text-white">✓</span>
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Form Body: Slide View or List View */}
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {questions.length === 0 ? (
+                    <Alert severity="info" className="rounded-2xl">
+                      No questions have been published for this test yet. Please check back later.
+                    </Alert>
+                  ) : viewMode === 'slide' ? (
+                    /* SLIDE VIEW: One Question Card at a time */
+                    (() => {
+                      const q = questions[currentQuestionIndex] || questions[0];
+                      const qIndex = currentQuestionIndex;
+                      const ans = data.answers[q.id];
+                      const isAnswered = q.question_type === 'MULTI_SELECT'
+                        ? Array.isArray(ans) && ans.length > 0
+                        : ans !== undefined && ans !== null && ans !== '';
+
+                      return (
+                        <Card
+                          key={q.id}
+                          elevation={0}
+                          className="border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm bg-white dark:bg-slate-900 transition-all"
+                        >
+                          <CardContent className="p-5 sm:p-8 space-y-6">
+                            {/* Card Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center gap-2">
+                                <span className="px-3 py-1 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-xs tracking-wide">
+                                  Question {qIndex + 1} of {questions.length}
+                                </span>
+                                {isAnswered && (
+                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                                    <CheckCircleIcon sx={{ fontSize: 14 }} /> Answered
+                                  </span>
+                                )}
+                              </div>
+
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                {q.question_type === 'MULTI_SELECT' && (
+                                  <Chip
+                                    label="Multi-Select"
+                                    size="small"
+                                    color="info"
+                                    variant="outlined"
+                                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                                  />
+                                )}
+                                <Chip
+                                  label={`${q.marks} pt${q.marks > 1 ? 's' : ''}`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ fontWeight: 700 }}
+                                />
+                              </Stack>
+                            </div>
+
+                            {/* Question Title */}
+                            <div className="space-y-1">
+                              <Typography variant="h6" className="font-extrabold text-slate-900 dark:text-slate-100 text-base sm:text-lg leading-relaxed">
+                                {q.question}
+                              </Typography>
+                              {q.question_type === 'MULTI_SELECT' && (
+                                <Typography variant="caption" className="text-sky-600 dark:text-sky-400 font-semibold block">
+                                  Select all options that apply.
+                                </Typography>
+                              )}
+                            </div>
+
+                            {/* Options List */}
+                            {q.question_type === 'MULTI_SELECT' ? (
+                              <div className="space-y-3">
+                                {(q.options || []).map((opt, oIndex) => {
+                                  const letter = String.fromCharCode(65 + oIndex);
+                                  const isSelected = Array.isArray(data.answers[q.id]) && data.answers[q.id].includes(opt.id);
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      onClick={() => handleToggleOption(q.id, opt.id)}
+                                      className={`min-h-[52px] p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 select-none touch-manipulation ${
+                                        isSelected
+                                          ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/40 dark:border-sky-600 ring-2 ring-sky-500/20 shadow-sm'
+                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900/50'
+                                      }`}
+                                    >
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onChange={() => handleToggleOption(q.id, opt.id)}
+                                        size="medium"
+                                        color="primary"
+                                        sx={{ p: 0.5 }}
+                                      />
+                                      <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-xs flex items-center justify-center shrink-0">
+                                        {letter}
+                                      </span>
+                                      <span className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 flex-1">
+                                        {opt.answer}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <RadioGroup
+                                value={data.answers[q.id] || ''}
+                                onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
+                                className="space-y-3"
+                              >
+                                {(q.options || []).map((opt, oIndex) => {
+                                  const letter = String.fromCharCode(65 + oIndex);
+                                  const isSelected = data.answers[q.id] === opt.id;
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      onClick={() => handleSelectOption(q.id, opt.id)}
+                                      className={`min-h-[52px] p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 select-none touch-manipulation ${
+                                        isSelected
+                                          ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/40 dark:border-sky-600 ring-2 ring-sky-500/20 shadow-sm'
+                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900/50'
+                                      }`}
+                                    >
+                                      <Radio
+                                        value={opt.id}
+                                        checked={isSelected}
+                                        size="medium"
+                                        color="primary"
+                                        sx={{ p: 0.5 }}
+                                      />
+                                      <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-xs flex items-center justify-center shrink-0">
+                                        {letter}
+                                      </span>
+                                      <span className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 flex-1">
+                                        {opt.answer}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </RadioGroup>
+                            )}
+
+                            {/* Desktop Prev / Next Card Footer */}
+                            <div className="hidden sm:flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                              <Button
+                                variant="outlined"
+                                disabled={currentQuestionIndex === 0}
+                                onClick={goToPrevQuestion}
+                                startIcon={<NavigateBeforeIcon />}
+                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                              >
+                                Previous Question
+                              </Button>
+
+                              {currentQuestionIndex < questions.length - 1 ? (
+                                <Button
+                                  variant="contained"
+                                  onClick={goToNextQuestion}
+                                  endIcon={<NavigateNextIcon />}
+                                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                                >
+                                  Next Question
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="submit"
+                                  variant="contained"
+                                  color="success"
+                                  disabled={processing}
+                                  startIcon={processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
+                                  sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, px: 3 }}
+                                >
+                                  {processing ? 'Submitting...' : 'Finish & Submit'}
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })()
+                  ) : (
+                    /* LIST VIEW: All Questions Sequentially */
+                    <div className="space-y-6">
+                      {questions.map((q, qIndex) => (
+                        <Card
+                          id={`q-card-${q.id}`}
+                          key={q.id}
+                          elevation={0}
+                          className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white dark:bg-slate-900"
+                        >
+                          <CardContent className="p-5 sm:p-6 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-center gap-2">
+                                <span className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
+                                  {qIndex + 1}
+                                </span>
+                                <div>
+                                  <Typography variant="subtitle1" className="font-bold text-slate-900 dark:text-slate-100">
+                                    {q.question}
+                                  </Typography>
+                                  {q.question_type === 'MULTI_SELECT' && (
+                                    <Typography variant="caption" className="text-sky-600 dark:text-sky-400 font-semibold block mt-0.5">
+                                      (Multiple Choice: Check all correct answers)
+                                    </Typography>
+                                  )}
+                                </div>
+                              </div>
+
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                {q.question_type === 'MULTI_SELECT' && (
+                                  <Chip
+                                    label="Multi-Select"
+                                    size="small"
+                                    color="info"
+                                    variant="outlined"
+                                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                                  />
+                                )}
+                                <Chip
+                                  label={`${q.marks} pt${q.marks > 1 ? 's' : ''}`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ fontWeight: 600 }}
+                                />
+                              </Stack>
+                            </div>
+
+                            <Divider />
+
+                            {q.question_type === 'MULTI_SELECT' ? (
+                              <div className="space-y-2.5">
+                                {(q.options || []).map((opt, oIndex) => {
+                                  const letter = String.fromCharCode(65 + oIndex);
+                                  const isSelected = Array.isArray(data.answers[q.id]) && data.answers[q.id].includes(opt.id);
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      onClick={() => handleToggleOption(q.id, opt.id)}
+                                      className={`min-h-[48px] p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                                        isSelected
+                                          ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700 ring-1 ring-sky-500'
+                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                      }`}
+                                    >
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onChange={() => handleToggleOption(q.id, opt.id)}
+                                        size="small"
+                                        color="primary"
+                                        sx={{ p: 0.5 }}
+                                      />
+                                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                        <span className="font-bold mr-2 text-slate-400">{letter}.</span>
+                                        {opt.answer}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <RadioGroup
+                                value={data.answers[q.id] || ''}
+                                onChange={(e) => handleSelectOption(q.id, Number(e.target.value))}
+                                className="space-y-2.5"
+                              >
+                                {(q.options || []).map((opt, oIndex) => {
+                                  const letter = String.fromCharCode(65 + oIndex);
+                                  const isSelected = data.answers[q.id] === opt.id;
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      onClick={() => handleSelectOption(q.id, opt.id)}
+                                      className={`min-h-[48px] p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                                        isSelected
+                                          ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 dark:border-sky-700 ring-1 ring-sky-500'
+                                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                      }`}
+                                    >
+                                      <Radio
+                                        value={opt.id}
+                                        checked={isSelected}
+                                        size="small"
+                                        color="primary"
+                                        sx={{ p: 0.5 }}
+                                      />
+                                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                        <span className="font-bold mr-2 text-slate-400">{letter}.</span>
+                                        {opt.answer}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </RadioGroup>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Responsive Sticky Action Bar (Mobile thumb-friendly & Desktop) */}
+                  {questions.length > 0 && (
+                    <Box className="sticky bottom-3 sm:bottom-4 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl">
+                      <div className="flex items-center justify-between gap-2">
+                        {viewMode === 'slide' ? (
+                          <>
+                            <Button
+                              size="medium"
+                              variant="outlined"
+                              disabled={currentQuestionIndex === 0}
+                              onClick={goToPrevQuestion}
+                              startIcon={<NavigateBeforeIcon />}
+                              sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                borderRadius: 2,
+                                minWidth: { xs: 44, sm: 100 },
+                                px: { xs: 1.5, sm: 2.5 },
+                              }}
+                            >
+                              <span className="hidden sm:inline">Previous</span>
+                            </Button>
+
+                            <div className="text-center px-1">
+                              <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200">
+                                Q {currentQuestionIndex + 1} of {questions.length}
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-bold">
+                                {answeredCount} answered
+                              </div>
+                            </div>
+
+                            {currentQuestionIndex < questions.length - 1 ? (
+                              <Button
+                                size="medium"
+                                variant="contained"
+                                onClick={goToNextQuestion}
+                                endIcon={<NavigateNextIcon />}
+                                sx={{
+                                  textTransform: 'none',
+                                  fontWeight: 700,
+                                  borderRadius: 2,
+                                  minWidth: { xs: 44, sm: 100 },
+                                  px: { xs: 1.5, sm: 2.5 },
+                                }}
+                              >
+                                <span className="hidden sm:inline">Next</span>
+                              </Button>
+                            ) : (
+                              <Button
+                                type="submit"
+                                size="medium"
+                                variant="contained"
+                                color="success"
+                                disabled={processing}
+                                startIcon={processing ? <CircularProgress size={14} color="inherit" /> : <SendIcon sx={{ fontSize: 16 }} />}
+                                sx={{
+                                  textTransform: 'none',
+                                  fontWeight: 800,
+                                  borderRadius: 2,
+                                  minWidth: { xs: 44, sm: 100 },
+                                  px: { xs: 2, sm: 3 },
+                                }}
+                              >
+                                {processing ? 'Submitting...' : 'Submit'}
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="space-y-0.5">
+                              <Typography variant="body2" className="text-slate-700 dark:text-slate-300 font-bold text-xs sm:text-sm">
+                                Answered: <b className="text-sky-600">{answeredCount}</b> of <b>{questions.length}</b>
+                              </Typography>
+                              {hasLocalDraft && (
+                                <Typography variant="caption" className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium text-[11px]">
+                                  <CheckCircleIcon sx={{ fontSize: 13 }} /> Auto-saved
+                                </Typography>
+                              )}
+                            </div>
+
+                            <Button
+                              type="submit"
+                              variant="contained"
+                              size="large"
+                              disabled={processing}
+                              startIcon={processing ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
+                              sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, px: { xs: 2.5, sm: 4 } }}
+                            >
+                              {processing ? 'Submitting...' : 'Submit Assessment'}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </Box>
+                  )}
+                </form>
+
+                {/* Snackbar Security Alert */}
+                <Snackbar
+                  open={Boolean(securityAlert)}
+                  autoHideDuration={3500}
+                  onClose={() => setSecurityAlert(null)}
+                  message={securityAlert}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                />
+              </div>
             )}
           </>
         )}
