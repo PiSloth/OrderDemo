@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -10,8 +10,12 @@ const ensureFontLoaded = async () => {
         if (document.fonts && document.fonts.load) {
             await Promise.all([
                 document.fonts.load('11px Pyidaungsu'),
+                document.fonts.load('bold 11px Pyidaungsu'),
                 document.fonts.load('12px Pyidaungsu'),
-                document.fonts.load('14px Pyidaungsu'),
+                document.fonts.load('bold 12px Pyidaungsu'),
+                document.fonts.load('13.5px Pyidaungsu'),
+                document.fonts.load('14.5px Pyidaungsu'),
+                document.fonts.load('bold 14.5px Pyidaungsu'),
             ]);
             await document.fonts.ready;
         }
@@ -70,30 +74,82 @@ export const getDepartmentCode = (rawDept) => {
     return trimmed;
 };
 
+export const capitalizeWords = (str) => {
+    if (!str || typeof str !== 'string') return str || '-';
+    return str.replace(/\b([a-z])/g, (c) => c.toUpperCase());
+};
+
 /**
- * Generate Reference No: Re-[Department Name]/Concat(Date,Month,Yr(eg-26))
- * In တောင်းခံလွှာအမှတ်, the department must be from createdby department.
- * If the department name is 2 words like Internal Audit reform to IA.
+ * Generate Reference No: Re-[Request department Name]-[131026]-[today total of created issue + 1 for that requested department]
+ * Format: Re-[Request department Name]-[DDMMYY]-[IssueNo]
  */
-export const generateRepairRequestRefNo = (task, currentUser) => {
-    const createdByUser = task?.created_by_user || task?.createdByUser;
+export const generateRepairRequestRefNo = (task, currentUser, departments = [], todoLists = []) => {
+    // 1. Resolve Requested Department
+    const requestedDeptId =
+        task?.requested_by_department_id ||
+        task?.requestedByDepartmentId ||
+        task?.formData?.requestedByDepartmentId ||
+        task?.requested_by_department?.id ||
+        task?.requestedByDepartment?.id ||
+        task?.department?.id ||
+        null;
+
+    const matchedDept = Array.isArray(departments)
+        ? departments.find((d) => String(d.id) === String(requestedDeptId))
+        : null;
+
     const rawDept =
-        createdByUser?.department?.name ||
-        (typeof createdByUser?.department === 'string' ? createdByUser.department : null) ||
-        currentUser?.department?.name ||
-        (typeof currentUser?.department === 'string' ? currentUser.department : null) ||
-        task?.department?.name ||
         task?.requested_by_department?.name ||
+        task?.requestedByDepartment?.name ||
+        task?.department?.name ||
+        matchedDept?.name ||
+        (typeof task?.requested_by_department === 'string' ? task.requested_by_department : null) ||
+        (typeof task?.department === 'string' ? task.department : null) ||
+        task?.created_by_user?.department?.name ||
+        task?.createdByUser?.department?.name ||
+        currentUser?.department?.name ||
         'GEN';
 
     const deptCode = getDepartmentCode(rawDept);
 
+    // 2. Format Date as DDMMYY (e.g. 131026)
     const taskDate = task?.created_at ? new Date(task.created_at) : new Date();
     const day = String(taskDate.getDate()).padStart(2, '0');
     const month = String(taskDate.getMonth() + 1).padStart(2, '0');
     const year2Digit = String(taskDate.getFullYear()).slice(-2);
+    const dateFormatted = `${day}${month}${year2Digit}`;
 
-    return `Re-${deptCode}/${day}${month}${year2Digit}`;
+    // 3. Issue Count for that requested department created today (+ 1)
+    let issueNo = task?.daily_dept_issue_no || task?.dailyDeptIssueNo || task?.issue_number;
+
+    if (!issueNo) {
+        if (Array.isArray(todoLists) && todoLists.length > 0) {
+            const taskDateStr = taskDate.toISOString().slice(0, 10);
+            const sameDayDeptTasks = todoLists.filter((t) => {
+                const tDeptId =
+                    t.requested_by_department_id ||
+                    t.department?.id ||
+                    t.requested_by_department?.id ||
+                    t.department_id;
+                if (requestedDeptId && tDeptId && String(tDeptId) !== String(requestedDeptId)) {
+                    return false;
+                }
+                const tDateStr = t.created_at ? new Date(t.created_at).toISOString().slice(0, 10) : '';
+                return tDateStr === taskDateStr;
+            });
+
+            if (task?.id) {
+                const priorCount = sameDayDeptTasks.filter((t) => Number(t.id) <= Number(task.id)).length;
+                issueNo = priorCount > 0 ? priorCount : 1;
+            } else {
+                issueNo = sameDayDeptTasks.length + 1;
+            }
+        } else {
+            issueNo = 1;
+        }
+    }
+
+    return `Re-${deptCode}-${dateFormatted}-${issueNo}`;
 };
 
 export default function RepairRequestModal({
@@ -101,6 +157,10 @@ export default function RepairRequestModal({
     onClose,
     task = null,
     currentUser = null,
+    branches = [],
+    departments = [],
+    users = [],
+    todoLists = [],
 }) {
     const formRef = useRef(null);
     const [isCopying, setIsCopying] = useState(false);
@@ -108,9 +168,16 @@ export default function RepairRequestModal({
     const [isDownloadingPng, setIsDownloadingPng] = useState(false);
     const [notification, setNotification] = useState(null);
 
+    // Preload Pyidaungsu webfonts as soon as modal is opened
+    useEffect(() => {
+        if (isOpen) {
+            ensureFontLoaded();
+        }
+    }, [isOpen]);
+
     if (!isOpen || !task) return null;
 
-    const refNo = generateRepairRequestRefNo(task, currentUser);
+    const refNo = generateRepairRequestRefNo(task, currentUser, departments, todoLists);
 
     const taskDate = task.created_at ? new Date(task.created_at) : new Date();
     const formattedDate = taskDate.toLocaleDateString('en-GB', {
@@ -124,6 +191,7 @@ export default function RepairRequestModal({
         task.requested_by_branch?.name ||
         task.requestedByBranch?.name ||
         (typeof task.requested_by_branch === 'string' ? task.requested_by_branch : null) ||
+        branches?.find((b) => String(b.id) === String(task.requested_by_branch_id || task.requestedByBranchId || task.formData?.requestedByBranchId))?.name ||
         task.created_by_user?.branch?.name ||
         task.createdByUser?.branch?.name ||
         (typeof task.created_by_user?.branch === 'string' ? task.created_by_user.branch : null) ||
@@ -153,33 +221,133 @@ export default function RepairRequestModal({
     // Requester info
     const requesterUser = task.created_by_user || task.createdByUser || currentUser;
     const requesterName = requesterUser?.name || 'Authorized Requester';
+    const matchedRequesterUser = users?.find(
+        (u) => String(u.id) === String(requesterUser?.id || task.created_by_user_id || task.createdByUserId)
+    );
     const requesterPosition =
         requesterUser?.office_position?.name ||
-        requesterUser?.position?.name ||
         requesterUser?.officePosition?.name ||
-        requesterUser?.role ||
-        'Staff';
+        matchedRequesterUser?.office_position?.name ||
+        matchedRequesterUser?.officePosition?.name ||
+        '';
     const requesterDept =
         requesterUser?.department?.name ||
         (typeof requesterUser?.department === 'string' ? requesterUser.department : null) ||
+        matchedRequesterUser?.department?.name ||
+        (typeof matchedRequesterUser?.department === 'string' ? matchedRequesterUser.department : null) ||
         task?.department?.name ||
         task?.requested_by_department?.name ||
-        '-';
+        '';
+    const requesterRoleAndDept = [requesterPosition, requesterDept].filter(Boolean).join(' / ') || '-';
 
-    // Assigned info
+    // Assigned info: Only show office_position and department name
     const assignedUser = task.assigned_user;
     const assignedName = assignedUser?.name || 'Unassigned';
+    const matchedAssignedUser = users?.find(
+        (u) => String(u.id) === String(assignedUser?.id || task.assigned_user_id || task.assignedUserId || task.formData?.assignedUserId)
+    );
+
     const assignedPosition =
         assignedUser?.office_position?.name ||
-        assignedUser?.position?.name ||
         assignedUser?.officePosition?.name ||
-        assignedUser?.role ||
-        'Technician / Support Staff';
-    const assignedDept = assignedUser?.department?.name || 'IT Support / Admin Dept';
+        matchedAssignedUser?.office_position?.name ||
+        matchedAssignedUser?.officePosition?.name ||
+        '';
+
+    const assignedDept =
+        assignedUser?.department?.name ||
+        (typeof assignedUser?.department === 'string' ? assignedUser.department : null) ||
+        matchedAssignedUser?.department?.name ||
+        (typeof matchedAssignedUser?.department === 'string' ? matchedAssignedUser.department : null) ||
+        '';
+
+    const assignedRoleAndDept = [assignedPosition, assignedDept].filter(Boolean).join(' / ') || '-';
+
+    // Helper to format Due Date & Time for မှတ်ချက် (Remarks) row
+    const formatDueDateTime = (dateStr) => {
+        if (!dateStr) return '';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return String(dateStr);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = d.toLocaleDateString('en-GB', { month: 'short' });
+            const year = d.getFullYear();
+            let hours = d.getHours();
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            const timeStr = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+            return `${day} ${month} ${year}, ${timeStr}`;
+        } catch (e) {
+            return String(dateStr);
+        }
+    };
+
+    const taskDueDateTimeStr = formatDueDateTime(task.due_date || task.dueDate || task.formData?.dueDate);
 
     const showToast = (msg, type = 'success') => {
         setNotification({ message: msg, type });
         setTimeout(() => setNotification(null), 3500);
+    };
+
+    /**
+     * Unified canvas renderer that ensures:
+     * 1. Pyidaungsu fonts are loaded and ready in main document.
+     * 2. Custom document fonts and @font-face are injected into html2canvas's cloned iframe DOM.
+     * 3. Font ligatures are disabled on clone to prevent double glyph painting.
+     * 4. An integer scale (2) is used to avoid subpixel anti-aliasing ghost borders.
+     */
+    const renderFormToCanvas = async () => {
+        if (!formRef.current) return null;
+
+        await ensureFontLoaded();
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+        }
+        // Small delay to ensure layout and webfont metrics are fully resolved
+        await new Promise((resolve) => setTimeout(resolve, 80));
+
+        return await html2canvas(formRef.current, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            onclone: (clonedDoc) => {
+                const style = clonedDoc.createElement('style');
+                style.innerHTML = `
+                    @font-face {
+                        font-family: 'Pyidaungsu';
+                        src: url('/fonts/Pyidaungsu-Regular.ttf') format('truetype');
+                        font-weight: normal;
+                        font-style: normal;
+                    }
+                    @font-face {
+                        font-family: 'Pyidaungsu';
+                        src: url('/fonts/Pyidaungsu-Bold.ttf') format('truetype');
+                        font-weight: bold;
+                        font-style: normal;
+                    }
+                `;
+                clonedDoc.head.appendChild(style);
+
+                // Ensure all loaded document fonts exist in the isolated iframe
+                if (document.fonts) {
+                    document.fonts.forEach((font) => {
+                        try {
+                            clonedDoc.fonts.add(font);
+                        } catch (e) {
+                            // Ignore duplicate addition
+                        }
+                    });
+                }
+                const printable = clonedDoc.getElementById('repair-request-form-printable');
+                if (printable) {
+                    printable.style.fontFamily = "'Pyidaungsu', sans-serif";
+                    printable.style.fontFeatureSettings = '"liga" 0';
+                    printable.style.textRendering = 'geometricPrecision';
+                }
+            },
+        });
     };
 
     // Copy as Image using ClipboardItem API (captures pure document without card borders)
@@ -188,14 +356,12 @@ export default function RepairRequestModal({
         setIsCopying(true);
 
         try {
-            await ensureFontLoaded();
-
-            const canvas = await html2canvas(formRef.current, {
-                scale: 2.5,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-            });
+            const canvas = await renderFormToCanvas();
+            if (!canvas) {
+                showToast('Failed to render document to canvas', 'error');
+                setIsCopying(false);
+                return;
+            }
 
             canvas.toBlob(async (blob) => {
                 if (!blob) {
@@ -241,14 +407,12 @@ export default function RepairRequestModal({
         setIsDownloadingPdf(true);
 
         try {
-            await ensureFontLoaded();
-
-            const canvas = await html2canvas(formRef.current, {
-                scale: 2.5,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-            });
+            const canvas = await renderFormToCanvas();
+            if (!canvas) {
+                showToast('Failed to render document to canvas', 'error');
+                setIsDownloadingPdf(false);
+                return;
+            }
 
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
@@ -276,14 +440,12 @@ export default function RepairRequestModal({
         setIsDownloadingPng(true);
 
         try {
-            await ensureFontLoaded();
-
-            const canvas = await html2canvas(formRef.current, {
-                scale: 2.5,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-            });
+            const canvas = await renderFormToCanvas();
+            if (!canvas) {
+                showToast('Failed to render document to canvas', 'error');
+                setIsDownloadingPng(false);
+                return;
+            }
 
             const link = document.createElement('a');
             link.download = `Repair_Request_Form_${refNo.replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
@@ -492,7 +654,7 @@ export default function RepairRequestModal({
                                 style={{
                                     width: '100%',
                                     borderCollapse: 'collapse',
-                                    border: '1.5px solid #000000',
+                                    border: '1px solid #000000',
                                     fontSize: '11px',
                                     lineHeight: '1.4',
                                     color: '#000000',
@@ -520,7 +682,7 @@ export default function RepairRequestModal({
                                                 fontWeight: 'normal',
                                             }}
                                         >
-                                            {branchName}
+                                            {capitalizeWords(branchName)}
                                         </td>
                                     </tr>
 
@@ -704,9 +866,31 @@ export default function RepairRequestModal({
                                                 padding: '6px 10px',
                                                 height: '45px',
                                                 verticalAlign: 'top',
+                                                fontFamily: `'Pyidaungsu', sans-serif`,
+                                                fontSize: '11px',
+                                                lineHeight: '1.4',
                                             }}
                                         >
-                                            {/* Blank space for remarks/notes */}
+                                            {taskDueDateTimeStr && (
+                                                <div style={{ marginBottom: (task.remarks || task.note) ? '4px' : '0' }}>
+                                                    <span style={{ fontWeight: 'normal', color: '#111827' }}>
+                                                        သတ်မှတ်ပြီးစီးရမည့်အချိန် -{' '}
+                                                    </span>
+                                                    <span style={{ fontWeight: 600, color: '#000000' }}>
+                                                        {taskDueDateTimeStr}
+                                                    </span>
+                                                    {task.due_time?.duration ? (
+                                                        <span style={{ color: '#4b5563', marginLeft: '6px' }}>
+                                                            ({task.due_time.duration} Hours)
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                            {(task.remarks || task.note) && (
+                                                <div style={{ color: '#111827' }}>
+                                                    {task.remarks || task.note}
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
 
@@ -752,8 +936,7 @@ export default function RepairRequestModal({
                                             >
                                                 <span>ရာထူး/ဌာန</span>{' '}
                                                 <span style={{ marginLeft: '3px' }}>
-                                                    {requesterPosition}
-                                                    {requesterDept ? ' / ' + requesterDept : ''}
+                                                    {requesterRoleAndDept}
                                                 </span>
                                             </div>
                                         </td>
@@ -776,7 +959,7 @@ export default function RepairRequestModal({
                                             >
                                                 စစ်ဆေးသူ{' '}
                                                 <span style={{ fontWeight: 'normal', marginLeft: '3px' }}>
-                                                    - {assignedName}
+                                                    {assignedName}
                                                 </span>
                                             </div>
                                             <div
@@ -798,8 +981,7 @@ export default function RepairRequestModal({
                                             >
                                                 <span>ရာထူး/ဌာန</span>{' '}
                                                 <span style={{ marginLeft: '3px' }}>
-                                                    {assignedPosition}
-                                                    {assignedDept ? ' / ' + assignedDept : ''}
+                                                    {assignedRoleAndDept}
                                                 </span>
                                             </div>
                                         </td>

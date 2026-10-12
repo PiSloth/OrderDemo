@@ -7,8 +7,11 @@ export default function TaskDetailModal({
     isOpen,
     onClose,
     users = [],
+    branches = [],
+    departments = [],
     statuses = [],
     currentUser = null,
+    todoLists = [],
 }) {
     if (!isOpen || !task) return null;
 
@@ -1161,6 +1164,10 @@ export default function TaskDetailModal({
                 onClose={() => setShowRepairModal(false)}
                 task={task}
                 currentUser={currentUser}
+                branches={branches}
+                departments={departments}
+                users={users}
+                todoLists={todoLists}
             />
         </div>
     );

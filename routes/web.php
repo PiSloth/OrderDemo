@@ -245,6 +245,11 @@ Route::middleware(['auth'])->prefix('todo')->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/sale-kpi', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'index'])->name('kpi.sale-kpi');
     Route::get('/sale-kpi/data', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getData'])->name('kpi.sale-kpi.data');
+    Route::get('/sale-kpi/comparison-data', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getComparisonData'])->name('kpi.sale-kpi.comparison-data');
+    Route::get('/sale-kpi/heatmap-data', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getHeatmapData'])->name('kpi.sale-kpi.heatmap-data');
+    Route::get('/sale-kpi/trajectory-data', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getTrajectoryData'])->name('kpi.sale-kpi.trajectory-data');
+    Route::get('/sale-kpi/popular-products', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getPopularProducts'])->name('kpi.sale-kpi.popular-products');
+    Route::get('/sale-kpi/target-actual-summary', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getTargetActualSummary'])->name('kpi.sale-kpi.target-actual-summary');
     Route::post('/sale-kpi/promote-actions', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'storePromoteAction'])->name('kpi.sale-kpi.promote-actions.store');
     Route::get('/sale-kpi/search-todos', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'searchTodos'])->name('kpi.sale-kpi.search-todos');
     Route::get('/sale-kpi/search-kpi-tasks', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'searchKpiTasks'])->name('kpi.sale-kpi.search-kpi-tasks');
@@ -566,6 +571,54 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     Route::get('/assignments/{assignment}/attempt-history', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'attemptHistory'])->name('assignments.attempt-history');
     Route::delete('/assignments/{assignment}', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'deleteAssignment'])->name('assignments.destroy');
     Route::post('/assignments/cleanup-orphaned', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'cleanupOrphaned'])->name('assignments.cleanup-orphaned');
+});
+
+// Digital Asset Security Management Routes
+Route::middleware(['auth'])->prefix('digital-assets')->name('digital-assets.')->group(function () {
+    // Accounts
+    Route::get('/accounts', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'index'])->name('accounts.index');
+    Route::post('/accounts', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'store'])->name('accounts.store');
+    Route::get('/accounts/{account}', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'show'])->name('accounts.show');
+    Route::put('/accounts/{account}', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'update'])->name('accounts.update');
+    Route::post('/accounts/{account}/properties', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'updateProperty'])->name('accounts.properties.update');
+    Route::post('/property-histories/{history}/approve', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'approveProperty'])->name('accounts.properties.approve');
+    Route::post('/property-histories/{history}/reject', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'rejectProperty'])->name('accounts.properties.reject');
+    Route::post('/accounts/{account}/emails', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'linkEmail'])->name('accounts.emails.store');
+
+    // Platforms
+    Route::get('/platforms', [\App\Http\Controllers\DigitalAsset\SoftwarePlatformController::class, 'index'])->name('platforms.index');
+    Route::post('/platforms', [\App\Http\Controllers\DigitalAsset\SoftwarePlatformController::class, 'store'])->name('platforms.store');
+    Route::put('/platforms/{platform}', [\App\Http\Controllers\DigitalAsset\SoftwarePlatformController::class, 'update'])->name('platforms.update');
+
+    // Property Definitions
+    Route::get('/property-definitions', [\App\Http\Controllers\DigitalAsset\SoftwarePropertyDefinitionController::class, 'index'])->name('properties.index');
+    Route::post('/property-definitions', [\App\Http\Controllers\DigitalAsset\SoftwarePropertyDefinitionController::class, 'store'])->name('properties.store');
+    Route::put('/property-definitions/{definition}', [\App\Http\Controllers\DigitalAsset\SoftwarePropertyDefinitionController::class, 'update'])->name('properties.update');
+
+    // PIC Assignments
+    Route::post('/accounts/{account}/pics', [\App\Http\Controllers\DigitalAsset\SoftwareAccountPicController::class, 'assign'])->name('pics.assign');
+    Route::post('/pics/{pic}/revoke', [\App\Http\Controllers\DigitalAsset\SoftwareAccountPicController::class, 'revoke'])->name('pics.revoke');
+    Route::post('/pics/{pic}/reactivate', [\App\Http\Controllers\DigitalAsset\SoftwareAccountPicController::class, 'reactivate'])->name('pics.reactivate');
+
+    // Evidence
+    Route::post('/accounts/{account}/evidence', [\App\Http\Controllers\DigitalAsset\SoftwareAccountEvidenceController::class, 'upload'])->name('evidence.upload');
+    Route::post('/evidence/{evidence}/verify', [\App\Http\Controllers\DigitalAsset\SoftwareAccountEvidenceController::class, 'verify'])->name('evidence.verify');
+    Route::get('/evidence/{evidence}/download', [\App\Http\Controllers\DigitalAsset\SoftwareAccountEvidenceController::class, 'download'])->name('evidence.download');
+
+    // Reviews
+    Route::get('/reviews', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'index'])->name('reviews.index');
+    Route::post('/accounts/{account}/reviews', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'schedule'])->name('reviews.schedule');
+    Route::post('/reviews/{review}/start', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'start'])->name('reviews.start');
+    Route::post('/reviews/{review}/complete', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'complete'])->name('reviews.complete');
+
+    // Devices
+    Route::get('/devices', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'index'])->name('devices.index');
+    Route::post('/devices', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'store'])->name('devices.store');
+    Route::post('/accounts/{account}/devices', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'link'])->name('devices.link');
+    Route::post('/account-devices/{link}/verify', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'verifyLink'])->name('devices.verify');
+
+    // Audit Logs
+    Route::get('/audit-logs', [\App\Http\Controllers\DigitalAsset\SoftwareAccountAuditLogController::class, 'index'])->name('audit.index');
 });
 
 // Route::get('/order/dashboard', Dashboard::class)->name('ord_dashboard')->middleware('auth');

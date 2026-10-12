@@ -312,4 +312,20 @@ class User extends Authenticatable implements FilamentUser
         $role = strtolower($this->role ?? '');
         return $this->isAdmin() || str_contains($role, 'super') || str_contains($role, 'admin');
     }
+
+    public function softwareAccountPics(): HasMany
+    {
+        return $this->hasMany(\App\Models\DigitalAsset\SoftwareAccountPic::class, 'user_id');
+    }
+
+    public function assignedSoftwareAccounts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\DigitalAsset\SoftwareAccount::class,
+            'software_account_pics',
+            'user_id',
+            'software_account_id'
+        )->withPivot(['status', 'assigned_at', 'revoked_at', 'revoked_by', 'revocation_reason'])
+         ->withTimestamps();
+    }
 }

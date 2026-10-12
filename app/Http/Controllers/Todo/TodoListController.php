@@ -29,9 +29,12 @@ class TodoListController extends Controller
 
         $withRelations = [
             'assignedUser.department',
+            'assignedUser.officePosition',
             'createdByUser.department',
             'createdByUser.branch',
+            'createdByUser.officePosition',
             'requestedByBranch',
+            'department',
             'status',
             'dueTime.category',
             'dueTime.priority',
@@ -72,8 +75,9 @@ class TodoListController extends Controller
 
         $users = User::query()
             ->where('suspended', false)
+            ->with(['officePosition:id,name', 'department:id,name'])
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'department_id', 'branch_id']);
+            ->get(['id', 'name', 'email', 'department_id', 'branch_id', 'office_position_id']);
 
         $formattedDueTimes = $dueTimes->map(function ($dueTime) {
             return [
@@ -195,8 +199,9 @@ class TodoListController extends Controller
 
         $users = User::query()
             ->where('suspended', false)
+            ->with(['officePosition:id,name', 'department:id,name'])
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'department_id', 'branch_id']);
+            ->get(['id', 'name', 'email', 'department_id', 'branch_id', 'office_position_id']);
 
         // Build active tasks query
         $activeQuery = TodoList::query()
@@ -205,8 +210,10 @@ class TodoListController extends Controller
                 'dueTime.priority',
                 'status',
                 'assignedUser.department',
+                'assignedUser.officePosition',
                 'createdByUser.department',
                 'createdByUser.branch',
+                'createdByUser.officePosition',
                 'department',
                 'requestedByBranch',
                 'comments.user',
@@ -250,8 +257,11 @@ class TodoListController extends Controller
                 'dueTime.category',
                 'dueTime.priority',
                 'status',
-                'assignedUser',
-                'createdByUser',
+                'assignedUser.department',
+                'assignedUser.officePosition',
+                'createdByUser.department',
+                'createdByUser.branch',
+                'createdByUser.officePosition',
                 'department',
                 'requestedByBranch',
                 'comments.user',
@@ -270,7 +280,19 @@ class TodoListController extends Controller
         $endDate = $monthDate->copy()->endOfMonth()->endOfDay();
 
         $calendarQuery = TodoList::query()
-            ->with(['dueTime.category', 'dueTime.priority', 'status', 'assignedUser', 'department', 'comments.user'])
+            ->with([
+                'dueTime.category',
+                'dueTime.priority',
+                'status',
+                'assignedUser.department',
+                'assignedUser.officePosition',
+                'createdByUser.department',
+                'createdByUser.branch',
+                'createdByUser.officePosition',
+                'department',
+                'requestedByBranch',
+                'comments.user',
+            ])
             ->whereDate('due_date', '>=', $startDate->toDateString())
             ->whereDate('due_date', '<=', $endDate->toDateString())
             ->whereNull('deleted_at');
@@ -419,7 +441,20 @@ class TodoListController extends Controller
                     return response()->json([
                         'success' => true,
                         'message' => 'Task already created recently.',
-                        'task' => $duplicateCheck->load(['dueTime.category', 'status', 'assignedUser', 'kpiTaskInstance', 'kpiTaskInstances.user']),
+                        'task' => $duplicateCheck->load([
+                            'dueTime.category',
+                            'dueTime.priority',
+                            'status',
+                            'assignedUser.department',
+                            'assignedUser.officePosition',
+                            'createdByUser.department',
+                            'createdByUser.branch',
+                            'createdByUser.officePosition',
+                            'requestedByBranch',
+                            'department',
+                            'kpiTaskInstance',
+                            'kpiTaskInstances.user',
+                        ]),
                     ]);
                 }
                 return redirect()->back()->with('message', 'Task already created recently.');
@@ -555,7 +590,20 @@ class TodoListController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => $flashMsg,
-                    'task' => $task->load(['dueTime.category', 'status', 'assignedUser', 'kpiTaskInstance', 'kpiTaskInstances.user']),
+                    'task' => $task->load([
+                        'dueTime.category',
+                        'dueTime.priority',
+                        'status',
+                        'assignedUser.department',
+                        'assignedUser.officePosition',
+                        'createdByUser.department',
+                        'createdByUser.branch',
+                        'createdByUser.officePosition',
+                        'requestedByBranch',
+                        'department',
+                        'kpiTaskInstance',
+                        'kpiTaskInstances.user',
+                    ]),
                 ]);
             }
 

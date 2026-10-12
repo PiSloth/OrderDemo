@@ -326,10 +326,18 @@ export default function CreateTaskModal({
                         formData,
                         created_at: new Date().toISOString(),
                         due_date: formData.dueDate,
-                        due_time: selectedDueTimeObj?.raw || {
+                        due_time: {
+                            id: selectedDueTimeObj?.id,
                             name: selectedDueTimeObj?.name,
-                            category: { name: selectedCategoryObj?.name || selectedDueTimeObj?.categoryName },
-                            priority: { level: selectedDueTimeObj?.priorityLevel }
+                            category: {
+                                id: selectedCategoryObj?.id || selectedDueTimeObj?.categoryId,
+                                name: selectedCategoryObj?.name || selectedDueTimeObj?.categoryName || 'General Issue / Equipment',
+                            },
+                            priority: {
+                                id: selectedDueTimeObj?.priorityLevel,
+                                level: selectedDueTimeObj?.priorityLevel || 'Normal',
+                                name: selectedDueTimeObj?.priorityLevel || 'Normal',
+                            },
                         },
                         created_by_user: currentUser,
                         assigned_user: assignedUserObj,
@@ -351,6 +359,9 @@ export default function CreateTaskModal({
                     setSelectedDepartmentId('');
                     setSelectedCategoryId('');
                     setIsOpen(false);
+                    if (propOnClose) {
+                        propOnClose();
+                    }
                 },
                 onError: (errors) => {
                     const errMsgs = Object.values(errors).flat().join(' | ');
@@ -749,6 +760,9 @@ export default function CreateTaskModal({
                 }}
                 task={voucherTask}
                 currentUser={currentUser}
+                branches={branches}
+                departments={departments}
+                users={users}
             />
         </>
     );

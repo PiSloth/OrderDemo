@@ -20,6 +20,11 @@ class AuthServiceProvider extends ServiceProvider
         \Spatie\Permission\Models\Role::class => \App\Policies\RolePolicy::class,
         \Spatie\Permission\Models\Permission::class => \App\Policies\PermissionPolicy::class,
         \App\Models\CompanyDocument::class => \App\Policies\CompanyDocumentPolicy::class,
+        \App\Models\DigitalAsset\SoftwareAccount::class => \App\Policies\DigitalAsset\SoftwareAccountPolicy::class,
+        \App\Models\DigitalAsset\SoftwarePlatform::class => \App\Policies\DigitalAsset\SoftwarePlatformPolicy::class,
+        \App\Models\DigitalAsset\SoftwarePropertyDefinition::class => \App\Policies\DigitalAsset\SoftwarePropertyDefinitionPolicy::class,
+        \App\Models\DigitalAsset\SoftwareDevice::class => \App\Policies\DigitalAsset\SoftwareDevicePolicy::class,
+        \App\Models\DigitalAsset\SoftwareAccountReview::class => \App\Policies\DigitalAsset\SoftwareAccountReviewPolicy::class,
     ];
 
     /**

@@ -1522,8 +1522,11 @@ export default function Dashboard({
                     isOpen={!!selectedTaskDetail}
                     onClose={() => setSelectedTaskDetail(null)}
                     users={users}
+                    branches={branches}
+                    departments={departments}
                     statuses={statuses}
                     currentUser={user}
+                    todoLists={todoLists}
                 />
 
                 {/* GLOBAL CREATE TASK REQUEST MODAL */}

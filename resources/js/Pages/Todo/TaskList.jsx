@@ -36,6 +36,10 @@ export default function TaskList({
         const params = new URLSearchParams(window.location.search);
         if (params.get('createTask') === '1' || params.get('openModal') === '1') {
             setIsCreateModalOpen(true);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('createTask');
+            url.searchParams.delete('openModal');
+            window.history.replaceState({}, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
         }
     }, []);
 
@@ -1037,8 +1041,11 @@ export default function TaskList({
                     isOpen={!!selectedTaskDetail}
                     onClose={() => setSelectedTaskDetail(null)}
                     users={users}
+                    branches={branches}
+                    departments={departments}
                     statuses={statuses}
                     currentUser={user}
+                    todoLists={todoLists}
                 />
 
                 {/* DAY DETAIL MODAL */}

@@ -52,6 +52,35 @@ class TodoList extends Model
         'closed_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'daily_dept_issue_no',
+    ];
+
+    public function getDailyDeptIssueNoAttribute(): int
+    {
+        if (isset($this->attributes['daily_dept_issue_no'])) {
+            return (int) $this->attributes['daily_dept_issue_no'];
+        }
+
+        $deptId = $this->requested_by_department_id;
+        if (!$deptId) {
+            return 1;
+        }
+
+        $date = $this->created_at ? $this->created_at->toDateString() : now()->toDateString();
+
+        $query = static::withTrashed()
+            ->where('requested_by_department_id', $deptId)
+            ->whereDate('created_at', $date);
+
+        if ($this->id) {
+            $query->where('id', '<=', $this->id);
+        }
+
+        $count = $query->count();
+        return max(1, $count);
+    }
+
     public function dueTime()
     {
         return $this->belongsTo(TodoDueTime::class, 'todo_due_time_id');
@@ -83,6 +112,11 @@ class TodoList extends Model
     }
 
     public function department()
+    {
+        return $this->belongsTo(Department::class, 'requested_by_department_id');
+    }
+
+    public function requestedByDepartment()
     {
         return $this->belongsTo(Department::class, 'requested_by_department_id');
     }

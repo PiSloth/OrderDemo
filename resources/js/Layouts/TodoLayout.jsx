@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import toast, { Toaster } from 'react-hot-toast';
-import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
+import AsideLayout from './AsideLayout';
 
 export default function TodoLayout({ children, title }) {
     const { auth = {}, flash = {} } = usePage().props;
@@ -51,11 +51,12 @@ export default function TodoLayout({ children, title }) {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased">
-            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-            {/* Top Navigation Bar with Glassmorphism */}
-            <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/85 transition-all">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <AsideLayout title={title || "Todo Hub"} hideTopNav={true} noPadding={true}>
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased">
+                <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+                {/* Top Navigation Bar with Glassmorphism */}
+                <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/85 transition-all">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pl-24 sm:pl-28 lg:pl-8">
                     <div className="flex h-16 items-center justify-between">
                         {/* Left Side: Brand Logo & Desktop Nav Links */}
                         <div className="flex items-center gap-6 sm:gap-8 lg:gap-12">
@@ -191,6 +192,19 @@ export default function TodoLayout({ children, title }) {
 
                         {/* Mobile Nav Links */}
                         <div className="space-y-1 pt-1">
+                            {/* Mobile Main Aside Bar Trigger */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMobileMenuOpen(false);
+                                    window.dispatchEvent(new CustomEvent('open-main-aside'));
+                                }}
+                                className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60"
+                            >
+                                <span className="text-base">🧭</span>
+                                <span>Main Navigation Sidebar</span>
+                            </button>
+
                             {navItems.map((item, idx) => {
                                 const active = !item.isExternal && isCurrentUrl(item.href);
                                 if (item.isExternal) {
@@ -247,7 +261,7 @@ export default function TodoLayout({ children, title }) {
                 )}
                 {children}
             </main>
-            <ItSatisfactionModal />
         </div>
+    </AsideLayout>
     );
 }

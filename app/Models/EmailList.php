@@ -39,4 +39,9 @@ class EmailList extends Model
     {
         return $this->hasMany(WhiteboardContent::class, 'report_by');
     }
+
+    public function softwareAccountEmails(): HasMany
+    {
+        return $this->hasMany(\App\Models\DigitalAsset\SoftwareAccountEmail::class, 'email_id');
+    }
 }

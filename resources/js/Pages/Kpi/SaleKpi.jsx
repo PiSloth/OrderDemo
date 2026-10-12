@@ -9,6 +9,14 @@ import toast from 'react-hot-toast';
 
 import ReportEditorContainer from '../../Components/ReportStudio/ReportEditorContainer';
 
+// Modular KPI Analysis Components
+import SaleComparisonChart from '../../Components/Kpi/SaleComparisonChart';
+import BranchHeatmapMatrix from '../../Components/Kpi/BranchHeatmapMatrix';
+import TargetVsActualTrajectory from '../../Components/Kpi/TargetVsActualTrajectory';
+import PopularProductsTable from '../../Components/Kpi/PopularProductsTable';
+import TargetVsActualSummaryTable from '../../Components/Kpi/TargetVsActualSummaryTable';
+import { BarChart3, TrendingUp, Grid, Award, Menu as MenuIcon, PanelLeftClose } from 'lucide-react';
+
 // MUI Imports
 import {
     Button,
@@ -72,6 +80,8 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
     const [selectedBranches, setSelectedBranches] = useState([]);
     const [viewType, setViewType] = useState('daily'); // 'daily' or 'monthly'
     const [activeMetric, setActiveMetric] = useState('weight'); // 'weight', 'quantity', 'customer'
+    const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'comparison', 'heatmap'
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     
     // API Data
     const [dashboardData, setDashboardData] = useState(null);
@@ -753,136 +763,203 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
         return [...rewardsRows].sort((a, b) => b[selectedRewardsColumn] - a[selectedRewardsColumn]);
     }, [dashboardData, selectedRewardsColumn]);
 
-    const headerFilterActions = (
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Branch Filters - Custom Dropdown Checkbox */}
-            <div className="relative" ref={branchDropdownRef}>
-                <button
-                    type="button"
-                    onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-                    className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 transition flex items-center justify-between gap-1.5 min-w-36 shadow-sm"
-                >
-                    <span className="truncate">
-                        {selectedBranches.length === 0 
-                            ? 'All Branches' 
-                            : branches
-                                .filter(b => selectedBranches.includes(b.id))
-                                .map(b => capitalize(b.name))
-                                .join(', ')
-                        }
-                    </span>
-                    <ArrowDropDownIcon fontSize="small" className="text-slate-400" />
-                </button>
-
-                {branchDropdownOpen && (
-                    <div className="absolute right-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 space-y-0.5">
-                        {/* Combined Reset Action inside Selection Dropdown */}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setStartDate(defaultFrom);
-                                setEndDate(defaultTo);
-                                setSelectedBranches([]);
-                                if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
-                                    dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
-                                }
-                                setBranchDropdownOpen(false);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-xs font-bold transition border-b border-slate-100 dark:border-slate-700 pb-2 mb-1"
-                        >
-                            <RefreshIcon fontSize="small" className="text-slate-500" />
-                            <span>Reset All Filters</span>
-                        </button>
-
-                        {branches.map((b) => {
-                            const isChecked = selectedBranches.includes(b.id);
-                            return (
-                                <label
-                                    key={b.id}
-                                    className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition select-none"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={() => {
-                                            if (isChecked) {
-                                                setSelectedBranches(selectedBranches.filter(id => id !== b.id));
-                                            } else {
-                                                setSelectedBranches([...selectedBranches, b.id]);
-                                            }
-                                        }}
-                                        className="w-4 h-4 rounded border-slate-350 dark:border-slate-650 text-slate-900 focus:ring-slate-500 cursor-pointer"
-                                    />
-                                    <span className="text-xs text-slate-700 dark:text-slate-350 font-medium">
-                                        {capitalize(b.name)}
-                                    </span>
-                                </label>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Date Range Picker */}
-            <input
-                ref={dateRangeInputRef}
-                type="text"
-                placeholder="Select Date Range"
-                className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm w-44"
-            />
-
-            {/* View Promote Actions Trigger Button displaying Detail Item Names */}
-            {(() => {
-                const paList = dashboardData?.promote_actions || [];
-                let buttonText = 'PA (0)';
-                if (paList.length === 1) {
-                    buttonText = paList[0].name;
-                } else if (paList.length === 2) {
-                    buttonText = `${paList[0].name}, ${paList[1].name}`;
-                } else if (paList.length > 2) {
-                    buttonText = `${paList[0].name}, ${paList[1].name} (+${paList.length - 2})`;
-                }
-
-                return (
-                    <button
-                        onClick={() => setShowPromoteActionsListModal(true)}
-                        className="h-8 px-3 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-sm max-w-xs md:max-w-md"
-                        title={paList.length > 0 ? paList.map(pa => pa.name).join(', ') : 'No active promote actions'}
-                    >
-                        <CampaignIcon fontSize="small" />
-                        <span className="truncate">
-                            {paList.length === 0 ? 'PA (0)' : `PA: ${buttonText}`}
-                        </span>
-                    </button>
-                );
-            })()}
-
-            {/* Rich Text Report Studio Modal Trigger */}
-            <button
-                type="button"
-                onClick={() => setShowRichTextReportModal(true)}
-                className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
-            >
-                <DescriptionIcon fontSize="small" />
-                <span>Rich Text Report</span>
-            </button>
-        </div>
-    );
-
     return (
-        <AsideLayout title="Sale KPI Report Dashboard" headerActions={headerFilterActions}>
+        <AsideLayout title="Sale KPI Report Dashboard" hideTopNav={true}>
             <Head title="Sale KPI Report Dashboard" />
 
-            <div className="space-y-6 text-slate-800 dark:text-slate-100">
+            <div className="space-y-5 text-slate-800 dark:text-slate-100">
 
-                {loading && !dashboardData && (
-                    <div className="flex justify-center items-center py-12">
-                        <div className="w-8 h-8 border-4 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin"></div>
+                {/* Floating Glassmorphism Sticky Filter Bar */}
+                <div className="sticky top-2 sm:top-3 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-md shadow-slate-200/50 dark:shadow-none rounded-2xl p-2 sm:p-2.5 px-3 sm:px-4 flex items-center justify-between gap-3 flex-wrap transition-all">
+                    {/* Left: Branding & Title */}
+                    <div className="flex items-center gap-2.5">
+                        <img 
+                            src="/images/logo.png" 
+                            alt="STT Logo" 
+                            className="w-7 h-6 object-contain bg-white rounded-lg p-0.5 border border-slate-200 dark:border-slate-700" 
+                        />
+                        <div className="hidden sm:block">
+                            <h1 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                                Sale KPI Dashboard
+                            </h1>
+                            <p className="text-[10px] text-slate-400 leading-tight">
+                                Target vs Actual Analysis
+                            </p>
+                        </div>
                     </div>
-                )}
 
-                {/* Section 1: Column Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Right: Branch & Date Filter Controls, PA Badge & Rich Text Button */}
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {/* Branch Filters - Custom Dropdown Checkbox */}
+                        <div className="relative" ref={branchDropdownRef}>
+                            <button
+                                type="button"
+                                onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+                                className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 transition flex items-center justify-between gap-1.5 min-w-36 shadow-xs"
+                            >
+                                <span className="truncate">
+                                    {selectedBranches.length === 0 
+                                        ? 'All Branches' 
+                                        : branches
+                                            .filter(b => selectedBranches.includes(b.id))
+                                            .map(b => capitalize(b.name))
+                                            .join(', ')
+                                    }
+                                </span>
+                                <ArrowDropDownIcon fontSize="small" className="text-slate-400" />
+                            </button>
+
+                            {branchDropdownOpen && (
+                                <div className="absolute right-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 space-y-0.5">
+                                    {/* Combined Reset Action inside Selection Dropdown */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setStartDate(defaultFrom);
+                                            setEndDate(defaultTo);
+                                            setSelectedBranches([]);
+                                            if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
+                                                dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
+                                            }
+                                            setBranchDropdownOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-xs font-bold transition border-b border-slate-100 dark:border-slate-700 pb-2 mb-1"
+                                    >
+                                        <RefreshIcon fontSize="small" className="text-slate-500" />
+                                        <span>Reset All Filters</span>
+                                    </button>
+
+                                    {branches.map((b) => {
+                                        const isChecked = selectedBranches.includes(b.id);
+                                        return (
+                                            <label
+                                                key={b.id}
+                                                className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition select-none"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        if (isChecked) {
+                                                            setSelectedBranches(selectedBranches.filter(id => id !== b.id));
+                                                        } else {
+                                                            setSelectedBranches([...selectedBranches, b.id]);
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 rounded border-slate-350 dark:border-slate-650 text-slate-900 focus:ring-slate-500 cursor-pointer"
+                                                />
+                                                <span className="text-xs text-slate-700 dark:text-slate-350 font-medium">
+                                                    {capitalize(b.name)}
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Date Range Picker */}
+                        <input
+                            ref={dateRangeInputRef}
+                            type="text"
+                            placeholder="Select Date Range"
+                            className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-xs w-44"
+                        />
+
+                        {/* View Promote Actions Trigger Button displaying Detail Item Names */}
+                        {(() => {
+                            const paList = dashboardData?.promote_actions || [];
+                            let buttonText = 'PA (0)';
+                            if (paList.length === 1) {
+                                buttonText = paList[0].name;
+                            } else if (paList.length === 2) {
+                                buttonText = `${paList[0].name}, ${paList[1].name}`;
+                            } else if (paList.length > 2) {
+                                buttonText = `${paList[0].name}, ${paList[1].name} (+${paList.length - 2})`;
+                            }
+
+                            return (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPromoteActionsListModal(true)}
+                                    className="h-8 px-3 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs max-w-xs md:max-w-md"
+                                    title={paList.length > 0 ? paList.map(pa => pa.name).join(', ') : 'No active promote actions'}
+                                >
+                                    <CampaignIcon fontSize="small" />
+                                    <span className="truncate">
+                                        {paList.length === 0 ? 'PA (0)' : `PA: ${buttonText}`}
+                                    </span>
+                                </button>
+                            );
+                        })()}
+
+                        {/* Rich Text Report Studio Modal Trigger */}
+                        <button
+                            type="button"
+                            onClick={() => setShowRichTextReportModal(true)}
+                            className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                        >
+                            <DescriptionIcon fontSize="small" />
+                            <span>Rich Text Report</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Navigation Tabs - Untitled UI Style */}
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                    <nav className="flex space-x-1 sm:space-x-2" aria-label="Tabs">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('overview')}
+                            className={`flex items-center gap-2 py-2.5 px-3.5 text-xs font-semibold rounded-xl transition-all ${
+                                activeTab === 'overview'
+                                    ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                            }`}
+                        >
+                            <BarChart3 className="w-4 h-4" />
+                            <span>Overview & KPI Targets</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('comparison')}
+                            className={`flex items-center gap-2 py-2.5 px-3.5 text-xs font-semibold rounded-xl transition-all ${
+                                activeTab === 'comparison'
+                                    ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                            }`}
+                        >
+                            <TrendingUp className="w-4 h-4" />
+                            <span>Period Comparison & Trajectory</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('heatmap')}
+                            className={`flex items-center gap-2 py-2.5 px-3.5 text-xs font-semibold rounded-xl transition-all ${
+                                activeTab === 'heatmap'
+                                    ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                            }`}
+                        >
+                            <Grid className="w-4 h-4" />
+                            <span>Branch Heatmap & Popular Products</span>
+                        </button>
+                    </nav>
+                </div>
+
+                {/* Tab 1: Overview & KPI Targets */}
+                {activeTab === 'overview' && (
+                    <div className="space-y-6">
+                        {loading && !dashboardData && (
+                            <div className="flex justify-center items-center py-12">
+                                <div className="w-8 h-8 border-4 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        )}
+
+                        {/* Section 1: Column Charts */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-3">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div>
@@ -968,6 +1045,14 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
 
                     <div ref={lineChartRef} />
                 </div>
+
+                {/* Section: Monthly Target vs Actual Summary (with Flatpickr & Dual-Period Comparison) */}
+                <TargetVsActualSummaryTable
+                    defaultFrom={startDate}
+                    defaultTo={endDate}
+                    branches={branches}
+                    selectedBranches={selectedBranches}
+                />
 
                 {/* Section 4: Top Performer Table */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
@@ -1066,6 +1151,39 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                         </table>
                     </div>
                 </div>
+                    </div>
+                )}
+
+                {/* Tab 2: Period Comparison & Trajectory */}
+                {activeTab === 'comparison' && (
+                    <div className="space-y-6">
+                        <SaleComparisonChart
+                            branches={branches}
+                            selectedBranches={selectedBranches}
+                            defaultFrom={startDate}
+                            defaultTo={endDate}
+                        />
+                        <TargetVsActualTrajectory
+                            branches={branches}
+                            selectedBranches={selectedBranches}
+                        />
+                    </div>
+                )}
+
+                {/* Tab 3: Branch Heatmap & Popular Products */}
+                {activeTab === 'heatmap' && (
+                    <div className="space-y-6">
+                        <BranchHeatmapMatrix
+                            branches={branches}
+                            selectedBranches={selectedBranches}
+                            defaultFrom={startDate}
+                            defaultTo={endDate}
+                        />
+                        <PopularProductsTable
+                            branches={branches}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Line Chart marker details Modal */}

@@ -439,4 +439,512 @@ class KpiSaleKpiController extends Controller
 
         return response()->json($tasks);
     }
+
+    /**
+     * Period Comparison (Current vs Prev Period / YoY).
+     */
+    public function getComparisonData(Request $request)
+    {
+        $fromInput = $request->input('start_date');
+        $toInput = $request->input('end_date');
+        $mode = $request->input('compare_mode', 'prev_period'); // prev_period | yoy | none
+        $metric = $request->input('metric', 'gram') === 'pcs' ? 'pcs' : 'gram';
+        $branchIdsRaw = $request->input('branch_ids');
+
+        $from = $fromInput ? Carbon::parse($fromInput)->startOfDay() : Carbon::now()->subDays(6)->startOfDay();
+        $to = $toInput ? Carbon::parse($toInput)->startOfDay() : Carbon::now()->startOfDay();
+        if ($from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $branchIds = [];
+        if (!empty($branchIdsRaw)) {
+            if (is_string($branchIdsRaw)) {
+                $branchIds = array_filter(explode(',', $branchIdsRaw), fn($v) => strlen(trim($v)) > 0);
+            } else if (is_array($branchIdsRaw)) {
+                $branchIds = $branchIdsRaw;
+            }
+            $branchIds = array_values(array_filter(array_map('intval', $branchIds)));
+        }
+
+        $daysCount = $from->diffInDays($to) + 1;
+        $metricLabel = $metric === 'pcs' ? 'Pcs' : 'Gram';
+
+        // Base series (actual)
+        $baseMap = $this->querySaleMetricMap($from, $to, $branchIds, $metric);
+        $categories = [];
+        $baseData = [];
+        $cursor = $from->copy();
+        for ($i = 0; $i < $daysCount; $i++) {
+            $key = $cursor->format('Y-m-d');
+            $categories[] = $cursor->format('M j');
+            $baseData[] = round((float) ($baseMap[$key] ?? 0), 2);
+            $cursor->addDay();
+        }
+
+        $series = [
+            [
+                'name' => 'Actual ' . $metricLabel . ' (' . $from->format('M j') . ' - ' . $to->format('M j') . ')',
+                'data' => $baseData,
+            ],
+        ];
+
+        if ($mode !== 'none') {
+            if ($mode === 'yoy') {
+                $compareFrom = $from->copy()->subYear();
+                $compareTo = $to->copy()->subYear();
+            } else {
+                $compareTo = $from->copy()->subDay();
+                $compareFrom = $compareTo->copy()->subDays($daysCount - 1);
+            }
+
+            $compareMap = $this->querySaleMetricMap($compareFrom, $compareTo, $branchIds, $metric);
+            $compareData = [];
+            $cursor = $compareFrom->copy();
+            for ($i = 0; $i < $daysCount; $i++) {
+                $key = $cursor->format('Y-m-d');
+                $compareData[] = round((float) ($compareMap[$key] ?? 0), 2);
+                $cursor->addDay();
+            }
+
+            $label = ($mode === 'yoy')
+                ? 'Compare YoY (' . $compareFrom->format('M j, Y') . ' - ' . $compareTo->format('M j, Y') . ')'
+                : 'Compare Prev (' . $compareFrom->format('M j') . ' - ' . $compareTo->format('M j') . ')';
+
+            $series[] = [
+                'name' => $label,
+                'data' => $compareData,
+            ];
+        }
+
+        $baseTotal = array_sum($baseData);
+        $compareTotal = isset($compareData) ? array_sum($compareData) : 0;
+        $growth = $compareTotal > 0 ? round((($baseTotal - $compareTotal) / $compareTotal) * 100, 2) : 0;
+
+        return response()->json([
+            'categories' => $categories,
+            'series' => $series,
+            'summary' => [
+                'base_total' => $baseTotal,
+                'compare_total' => $compareTotal,
+                'growth_pct' => $growth,
+                'metric' => $metricLabel,
+            ],
+        ]);
+    }
+
+    /**
+     * Branch Achievement Heatmap Matrix.
+     */
+    public function getHeatmapData(Request $request)
+    {
+        $days = (int) $request->input('days', 7);
+        $days = max(7, min(31, $days));
+        $metric = $request->input('metric', 'gram') === 'pcs' ? 'pcs' : 'gram';
+        $branchIdsRaw = $request->input('branch_ids');
+
+        $branchIds = [];
+        if (!empty($branchIdsRaw)) {
+            if (is_string($branchIdsRaw)) {
+                $branchIds = array_filter(explode(',', $branchIdsRaw), fn($v) => strlen(trim($v)) > 0);
+            } else if (is_array($branchIdsRaw)) {
+                $branchIds = $branchIdsRaw;
+            }
+            $branchIds = array_values(array_filter(array_map('intval', $branchIds)));
+        }
+
+        $today = Carbon::now()->startOfDay();
+        $from = $today->copy()->subDays($days - 1);
+        $to = $today->copy();
+
+        $branchesQuery = Branch::where('is_jewelry_shop', true)->orderBy('name');
+        if (!empty($branchIds)) {
+            $branchesQuery->whereIn('id', $branchIds);
+        }
+        $branches = $branchesQuery->get(['id', 'name']);
+        $allBranchIds = $branches->pluck('id')->map(fn($id) => (int) $id)->all();
+
+        $dateKeys = [];
+        $dateLabels = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $dateKeys[] = $cursor->format('Y-m-d');
+            $dateLabels[] = $cursor->format('M j');
+            $cursor->addDay();
+        }
+
+        // Targets map
+        $targetCol = $metric === 'pcs' ? 'target_pcs' : 'target_gram';
+        $targets = BranchTarget::select('branch_id', 'year', 'month', 'day', $targetCol)
+            ->whereIn('branch_id', $allBranchIds)
+            ->whereBetween('year', [$from->year, $to->year])
+            ->get();
+
+        $targetsByBranchDate = [];
+        foreach ($targets as $t) {
+            $d = Carbon::create($t->year, $t->month, $t->day)->format('Y-m-d');
+            $targetsByBranchDate[$t->branch_id][$d] = (float) $t->{$targetCol};
+        }
+
+        // Actual map
+        $flag = $metric === 'pcs' ? 'daily_reports.is_sale_quantity' : 'daily_reports.is_sale_gram';
+        $actualRows = DailyReportRecord::select('daily_report_records.branch_id', 'daily_report_records.report_date', DB::raw('SUM(daily_report_records.number) as total'))
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where($flag, true)
+            ->whereIn('daily_report_records.branch_id', $allBranchIds)
+            ->whereBetween('daily_report_records.report_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->groupBy('daily_report_records.branch_id', 'daily_report_records.report_date')
+            ->get();
+
+        $actualByBranchDate = [];
+        foreach ($actualRows as $row) {
+            $actualByBranchDate[$row->branch_id][$row->report_date] = (float) $row->total;
+        }
+
+        $series = [];
+        foreach ($branches as $branch) {
+            $bId = (int) $branch->id;
+            $data = [];
+            for ($i = 0; $i < count($dateKeys); $i++) {
+                $dk = $dateKeys[$i];
+                $targetVal = (float) ($targetsByBranchDate[$bId][$dk] ?? 0);
+                $actualVal = (float) ($actualByBranchDate[$bId][$dk] ?? 0);
+
+                $pct = $targetVal > 0 ? round(($actualVal / $targetVal) * 100, 1) : null;
+                $data[] = [
+                    'x' => $dateLabels[$i],
+                    'y' => $pct,
+                    'target' => round($targetVal, 2),
+                    'actual' => round($actualVal, 2),
+                ];
+            }
+
+            $series[] = [
+                'name' => ucwords(strtolower($branch->name)),
+                'data' => $data,
+            ];
+        }
+
+        return response()->json([
+            'dateLabels' => $dateLabels,
+            'series' => $series,
+            'metric' => $metric,
+        ]);
+    }
+
+    /**
+     * Target vs Actual Month Trajectory (Optimized).
+     */
+    public function getTrajectoryData(Request $request)
+    {
+        $year = (int) $request->input('year', Carbon::now()->year);
+        $month = (int) $request->input('month', Carbon::now()->month);
+        $metric = $request->input('metric', 'gram') === 'pcs' ? 'pcs' : 'gram';
+        $branchIdsRaw = $request->input('branch_ids');
+
+        $start = Carbon::create($year, $month, 1)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $branchIds = [];
+        if (!empty($branchIdsRaw)) {
+            if (is_string($branchIdsRaw)) {
+                $branchIds = array_filter(explode(',', $branchIdsRaw), fn($v) => strlen(trim($v)) > 0);
+            } else if (is_array($branchIdsRaw)) {
+                $branchIds = $branchIdsRaw;
+            }
+            $branchIds = array_values(array_filter(array_map('intval', $branchIds)));
+        }
+
+        $targetCol = $metric === 'pcs' ? 'target_pcs' : 'target_gram';
+        $targetsMap = BranchTarget::where('year', $year)
+            ->where('month', $month)
+            ->when(!empty($branchIds), fn($q) => $q->whereIn('branch_id', $branchIds))
+            ->groupBy('day')
+            ->select('day', DB::raw("SUM({$targetCol}) as total"))
+            ->pluck('total', 'day')
+            ->toArray();
+
+        $actualFlag = $metric === 'pcs' ? 'daily_reports.is_sale_quantity' : 'daily_reports.is_sale_gram';
+        $actualsMap = DailyReportRecord::whereBetween('report_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where($actualFlag, true)
+            ->when(!empty($branchIds), fn($q) => $q->whereIn('daily_report_records.branch_id', $branchIds))
+            ->groupBy('report_date')
+            ->select('report_date', DB::raw('SUM(daily_report_records.number) as total'))
+            ->pluck('total', 'report_date')
+            ->toArray();
+
+        $categories = [];
+        $targets = [];
+        $actuals = [];
+
+        for ($date = $start->copy(); $date <= $end; $date->addDay()) {
+            $categories[] = $date->format('M j');
+            $targets[] = round((float) ($targetsMap[$date->day] ?? 0), 2);
+            $actuals[] = round((float) ($actualsMap[$date->format('Y-m-d')] ?? 0), 2);
+        }
+
+        $metricLabel = $metric === 'pcs' ? 'Pcs' : 'Gram';
+
+        return response()->json([
+            'categories' => $categories,
+            'series' => [
+                [
+                    'name' => 'Target (' . $metricLabel . ')',
+                    'data' => $targets,
+                ],
+                [
+                    'name' => 'Actual (' . $metricLabel . ')',
+                    'data' => $actuals,
+                ],
+            ],
+            'total_target' => array_sum($targets),
+            'total_actual' => array_sum($actuals),
+            'achievement_pct' => array_sum($targets) > 0 ? round((array_sum($actuals) / array_sum($targets)) * 100, 2) : 0,
+        ]);
+    }
+
+    /**
+     * Top 10 Most Popular Products.
+     */
+    public function getPopularProducts(Request $request)
+    {
+        $from = $request->input('start_date', Carbon::now()->subMonth()->format('Y-m-d'));
+        $to = $request->input('end_date', Carbon::now()->format('Y-m-d'));
+        $branchId = $request->input('branch_id');
+        $limit = (int) $request->input('limit', 10);
+
+        $query = DB::table('real_sales as rs')
+            ->select(
+                's.name as shape',
+                'p.length',
+                'p.weight',
+                'uoms.name as uom',
+                DB::raw('SUM(rs.qty) AS total_sale')
+            )
+            ->leftJoin('branch_psi_products as bpsi', 'rs.branch_psi_product_id', 'bpsi.id')
+            ->leftJoin('psi_products as p', 'p.id', 'bpsi.psi_product_id')
+            ->leftJoin('uoms', 'uoms.id', 'p.uom_id')
+            ->leftJoin('shapes as s', 's.id', 'p.shape_id')
+            ->whereBetween('rs.sale_date', [$from, $to])
+            ->when($branchId, fn($q) => $q->where('bpsi.branch_id', $branchId))
+            ->groupBy('s.name', 'p.length', 'uoms.name', 'p.weight')
+            ->orderByDesc('total_sale')
+            ->limit($limit);
+
+        $items = $query->get();
+
+        return response()->json($items);
+    }
+
+    /**
+     * Monthly Target vs Actual Summary with Dual-Period Comparison.
+     */
+    public function getTargetActualSummary(Request $request)
+    {
+        $primaryFromStr = $request->input('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
+        $primaryToStr = $request->input('end_date', Carbon::now()->format('Y-m-d'));
+        $compareFromStr = $request->input('compare_start_date');
+        $compareToStr = $request->input('compare_end_date');
+        $metric = $request->input('metric', 'gram') === 'pcs' ? 'pcs' : 'gram';
+        $branchIdsRaw = $request->input('branch_ids');
+
+        $primaryStart = Carbon::parse($primaryFromStr)->startOfDay();
+        $primaryEnd = Carbon::parse($primaryToStr)->endOfDay();
+
+        $compareStart = $compareFromStr ? Carbon::parse($compareFromStr)->startOfDay() : null;
+        $compareEnd = $compareToStr ? Carbon::parse($compareToStr)->endOfDay() : null;
+
+        $branchIds = [];
+        if (!empty($branchIdsRaw)) {
+            if (is_string($branchIdsRaw)) {
+                $branchIds = array_filter(explode(',', $branchIdsRaw), fn($v) => strlen(trim($v)) > 0);
+            } else if (is_array($branchIdsRaw)) {
+                $branchIds = $branchIdsRaw;
+            }
+            $branchIds = array_values(array_filter(array_map('intval', $branchIds)));
+        }
+
+        // Fetch Jewelry branches
+        $branchesQuery = Branch::where('is_jewelry_shop', true);
+        if (!empty($branchIds)) {
+            $branchesQuery->whereIn('id', $branchIds);
+        }
+        $branches = $branchesQuery->orderBy('name')->get(['id', 'name']);
+        $allBranchIds = $branches->pluck('id')->toArray();
+
+        // Query primary period data
+        $primaryData = $this->queryTargetActualPeriod($primaryStart, $primaryEnd, $allBranchIds, $metric);
+
+        // Query compare period data if requested
+        $compareData = null;
+        if ($compareStart && $compareEnd) {
+            $compareData = $this->queryTargetActualPeriod($compareStart, $compareEnd, $allBranchIds, $metric);
+        }
+
+        $rows = [];
+        $totalPrimaryTarget = 0.0;
+        $totalPrimaryActual = 0.0;
+        $totalCompareTarget = 0.0;
+        $totalCompareActual = 0.0;
+
+        foreach ($branches as $branch) {
+            $bId = (int) $branch->id;
+            $bName = ucwords(strtolower($branch->name));
+
+            $pTarget = (float) ($primaryData['targets'][$bId] ?? 0);
+            $pActual = (float) ($primaryData['actuals'][$bId] ?? 0);
+            $pGap = $pActual - $pTarget;
+            $pPercent = $pTarget > 0 ? round((($pActual - $pTarget) / $pTarget) * 100, 1) : null;
+
+            $totalPrimaryTarget += $pTarget;
+            $totalPrimaryActual += $pActual;
+
+            $row = [
+                'branch_id' => $bId,
+                'branch_name' => $bName,
+                'target' => $pTarget,
+                'actual' => $pActual,
+                'gap' => $pGap,
+                'percent' => $pPercent,
+            ];
+
+            if ($compareData) {
+                $cTarget = (float) ($compareData['targets'][$bId] ?? 0);
+                $cActual = (float) ($compareData['actuals'][$bId] ?? 0);
+                $cGap = $cActual - $cTarget;
+                $cPercent = $cTarget > 0 ? round((($cActual - $cTarget) / $cTarget) * 100, 1) : null;
+
+                $totalCompareTarget += $cTarget;
+                $totalCompareActual += $cActual;
+
+                // Compare variances between primary and comparison periods
+                $targetChange = $cTarget > 0 ? round((($pTarget - $cTarget) / $cTarget) * 100, 1) : null;
+                $actualChange = $cActual > 0 ? round((($pActual - $cActual) / $cActual) * 100, 1) : null;
+
+                $row['compare'] = [
+                    'target' => $cTarget,
+                    'actual' => $cActual,
+                    'gap' => $cGap,
+                    'percent' => $cPercent,
+                    'target_change_pct' => $targetChange,
+                    'actual_change_pct' => $actualChange,
+                ];
+            }
+
+            $rows[] = $row;
+        }
+
+        $totalPrimaryGap = $totalPrimaryActual - $totalPrimaryTarget;
+        $totalPrimaryPercent = $totalPrimaryTarget > 0 ? round((($totalPrimaryActual - $totalPrimaryTarget) / $totalPrimaryTarget) * 100, 1) : null;
+
+        $totals = [
+            'target' => $totalPrimaryTarget,
+            'actual' => $totalPrimaryActual,
+            'gap' => $totalPrimaryGap,
+            'percent' => $totalPrimaryPercent,
+        ];
+
+        if ($compareData) {
+            $totalCompareGap = $totalCompareActual - $totalCompareTarget;
+            $totalComparePercent = $totalCompareTarget > 0 ? round((($totalCompareActual - $totalCompareTarget) / $totalCompareTarget) * 100, 1) : null;
+
+            $totals['compare'] = [
+                'target' => $totalCompareTarget,
+                'actual' => $totalCompareActual,
+                'gap' => $totalCompareGap,
+                'percent' => $totalComparePercent,
+                'target_change_pct' => $totalCompareTarget > 0 ? round((($totalPrimaryTarget - $totalCompareTarget) / $totalCompareTarget) * 100, 1) : null,
+                'actual_change_pct' => $totalCompareActual > 0 ? round((($totalPrimaryActual - $totalCompareActual) / $totalCompareActual) * 100, 1) : null,
+            ];
+        }
+
+        return response()->json([
+            'metric' => $metric,
+            'has_comparison' => !empty($compareData),
+            'primary_range' => [
+                'from' => $primaryStart->format('Y-m-d'),
+                'to' => $primaryEnd->format('Y-m-d'),
+            ],
+            'compare_range' => $compareData ? [
+                'from' => $compareStart->format('Y-m-d'),
+                'to' => $compareEnd->format('Y-m-d'),
+            ] : null,
+            'totals' => $totals,
+            'rows' => $rows,
+        ]);
+    }
+
+    private function queryTargetActualPeriod(Carbon $start, Carbon $end, array $branchIds, string $metric): array
+    {
+        $targetCol = $metric === 'pcs' ? 'target_pcs' : 'target_gram';
+        $actualFlag = $metric === 'pcs' ? 'daily_reports.is_sale_quantity' : 'daily_reports.is_sale_gram';
+
+        // Segments per year/month for targets
+        $segments = [];
+        $cursor = $start->copy()->startOfMonth();
+        while ($cursor->lte($end)) {
+            $year = (int) $cursor->year;
+            $month = (int) $cursor->month;
+
+            $startDay = ($year === (int) $start->year && $month === (int) $start->month) ? (int) $start->day : 1;
+            $endDay = ($year === (int) $end->year && $month === (int) $end->month) ? (int) $end->day : (int) $cursor->daysInMonth;
+
+            $segments[] = [
+                'year' => $year,
+                'month' => $month,
+                'startDay' => $startDay,
+                'endDay' => $endDay,
+            ];
+
+            $cursor->addMonth();
+        }
+
+        $targets = BranchTarget::query()
+            ->select('branch_id', DB::raw("SUM({$targetCol}) as total"))
+            ->when(!empty($branchIds), fn($q) => $q->whereIn('branch_id', $branchIds))
+            ->where(function ($q) use ($segments) {
+                foreach ($segments as $i => $seg) {
+                    $method = $i === 0 ? 'where' : 'orWhere';
+                    $q->{$method}(function ($sq) use ($seg) {
+                        $sq->where('year', $seg['year'])
+                            ->where('month', $seg['month'])
+                            ->whereBetween('day', [$seg['startDay'], $seg['endDay']]);
+                    });
+                }
+            })
+            ->groupBy('branch_id')
+            ->pluck('total', 'branch_id')
+            ->toArray();
+
+        $actuals = DailyReportRecord::query()
+            ->select('daily_report_records.branch_id', DB::raw('SUM(daily_report_records.number) as total'))
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where($actualFlag, true)
+            ->when(!empty($branchIds), fn($q) => $q->whereIn('daily_report_records.branch_id', $branchIds))
+            ->whereBetween('daily_report_records.report_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->groupBy('daily_report_records.branch_id')
+            ->pluck('total', 'daily_report_records.branch_id')
+            ->toArray();
+
+        return [
+            'targets' => $targets,
+            'actuals' => $actuals,
+        ];
+    }
+
+    private function querySaleMetricMap(Carbon $fromDate, Carbon $toDate, array $branchIds = [], string $metric = 'gram')
+    {
+        $flag = $metric === 'pcs' ? 'daily_reports.is_sale_quantity' : 'daily_reports.is_sale_gram';
+
+        return DailyReportRecord::select('daily_report_records.report_date', DB::raw('SUM(daily_report_records.number) as total'))
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->where($flag, true)
+            ->when(!empty($branchIds), fn($q) => $q->whereIn('daily_report_records.branch_id', $branchIds))
+            ->whereBetween('daily_report_records.report_date', [$fromDate->format('Y-m-d'), $toDate->format('Y-m-d')])
+            ->groupBy('daily_report_records.report_date')
+            ->pluck('total', 'daily_report_records.report_date')
+            ->toArray();
+    }
 }
+

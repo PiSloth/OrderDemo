@@ -51,4 +51,9 @@ class OfficeAsset extends Model
     {
         return $this->hasMany(OfficeAssetTransaction::class);
     }
+
+    public function softwareDevices()
+    {
+        return $this->hasMany(\App\Models\DigitalAsset\SoftwareDevice::class, 'fixed_asset_id');
+    }
 }
