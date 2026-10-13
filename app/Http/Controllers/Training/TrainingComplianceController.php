@@ -330,4 +330,251 @@ class TrainingComplianceController extends Controller
 
         return back()->with('message', "Successfully purged {$deletedCount} unlinked/orphaned assignment record(s).");
     }
+
+    /**
+     * Get accessible employee list for skill matrix based on department scope, office position, and containment permissions.
+     */
+    public function skillMatrixUsers(Request $request)
+    {
+        $currentUser = $request->user();
+        if (!$currentUser) {
+            return response()->json(['users' => []], 401);
+        }
+
+        $canViewAll = $currentUser->isSuperUser()
+            || $currentUser->can('training.catalog.view')
+            || $currentUser->can('training.attempt.view');
+
+        $usersQuery = User::query()
+            ->where('suspended', false)
+            ->with(['department:id,name', 'officePosition:id,name']);
+
+        if (!$canViewAll) {
+            $userDeptId = $currentUser->department_id;
+            $userOfficePosId = $currentUser->office_position_id;
+
+            $usersQuery->where(function ($q) use ($currentUser, $userDeptId, $userOfficePosId) {
+                // 1. Current user himself
+                $q->where('id', $currentUser->id);
+
+                // 2. Department scope: same department (if user has a department)
+                if ($userDeptId) {
+                    $q->orWhere(function ($sub) use ($userDeptId, $userOfficePosId) {
+                        $sub->where('department_id', $userDeptId);
+                        // If office_position is set, can view members with office position or general members
+                        if ($userOfficePosId) {
+                            $sub->where(function ($opQuery) use ($userOfficePosId) {
+                                $opQuery->where('office_position_id', $userOfficePosId)
+                                    ->orWhereNull('office_position_id');
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        $users = $usersQuery->orderBy('name')->get(['id', 'name', 'email', 'department_id', 'office_position_id', 'profile_photo_path'])->map(function ($u) {
+            return [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'department_id' => $u->department_id,
+                'office_position_id' => $u->office_position_id,
+                'department' => $u->department,
+                'office_position' => $u->officePosition,
+                'profile_photo_url' => $u->profile_photo_url,
+            ];
+        });
+
+        return response()->json([
+            'users' => $users,
+            'departments' => Department::orderBy('name')->get(['id', 'name']),
+            'current_user_id' => $currentUser->id,
+            'can_view_all' => $canViewAll,
+        ]);
+    }
+
+    /**
+     * Get employee training skill matrix details and reliability statistics.
+     */
+    public function employeeSkillMatrix(Request $request, User $user)
+    {
+        $currentUser = $request->user();
+        if (!$currentUser) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $canViewAll = $currentUser->isSuperUser()
+            || $currentUser->can('training.catalog.view')
+            || $currentUser->can('training.attempt.view');
+
+        // Check if user is allowed to view target employee
+        if (!$canViewAll && $currentUser->id !== $user->id) {
+            $isSameDept = ($currentUser->department_id && $currentUser->department_id === $user->department_id);
+            if (!$isSameDept) {
+                return response()->json(['error' => 'Unauthorized to view this employee matrix.'], 403);
+            }
+        }
+
+        $user->load(['department:id,name', 'officePosition:id,name']);
+
+        // Fetch all assignments for this employee with training and test attempts
+        $assignments = TrainingAssignment::query()
+            ->where('user_id', $user->id)
+            ->with([
+                'training.category:id,name',
+                'training.test:id,training_id,title',
+                'testAttempts' => fn($q) => $q->orderByDesc('id'),
+            ])
+            ->get();
+
+        // Calculate skill details
+        $skills = $assignments->map(function ($assignment) {
+            $training = $assignment->training;
+            if (!$training) return null;
+
+            // Find latest test attempt
+            $latestAttempt = $assignment->testAttempts->first();
+            // Also find best/passed attempt if any
+            $bestAttempt = $assignment->testAttempts->where('result', 'PASSED')->sortByDesc('percentage')->first()
+                ?: $assignment->testAttempts->sortByDesc('percentage')->first();
+
+            $passingScore = (float) ($training->passing_score ?? 80.0);
+            $lastScore = $latestAttempt ? (float) $latestAttempt->percentage : null;
+            $bestScore = $bestAttempt ? (float) $bestAttempt->percentage : null;
+            $isPassed = $latestAttempt ? ($latestAttempt->result === 'PASSED' || ($latestAttempt->percentage >= $passingScore)) : false;
+            $isStar = $lastScore !== null && $lastScore >= 90.0;
+
+            // Operational proficiency rating based on score
+            if ($lastScore === null) {
+                $statusLabel = 'Not Attempted';
+                $statusColor = 'slate';
+                $relyRating = 'Unassessed';
+                $relyDescription = 'Assessment has not been taken yet.';
+            } elseif ($lastScore >= 90.0) {
+                $statusLabel = 'Mastery / Star Skill';
+                $statusColor = 'amber';
+                $relyRating = 'Highly Reliable (Star Performer)';
+                $relyDescription = 'Can be fully entrusted with critical operations, training peers, and independent decisions.';
+            } elseif ($lastScore >= 80.0) {
+                $statusLabel = 'Proficient';
+                $statusColor = 'emerald';
+                $relyRating = 'Reliable Practitioner';
+                $relyDescription = 'Solid execution competency with standard operational workflows and minor oversight.';
+            } elseif ($lastScore >= 70.0) {
+                $statusLabel = 'Competent';
+                $statusColor = 'blue';
+                $relyRating = 'Capable';
+                $relyDescription = 'Meets standard job requirements; periodic coaching recommended for complex edge cases.';
+            } elseif ($lastScore >= 60.0) {
+                $statusLabel = 'Developing';
+                $statusColor = 'orange';
+                $relyRating = 'Needs Supervised Practice';
+                $relyDescription = 'Marginal qualification; should work alongside a mentor on high-stakes tasks.';
+            } else {
+                $statusLabel = 'Uncertified / Failed';
+                $statusColor = 'rose';
+                $relyRating = 'Requires Retraining';
+                $relyDescription = 'Did not meet operational criteria; retraining and re-examination required.';
+            }
+
+            return [
+                'assignment_id' => $assignment->id,
+                'training_id' => $training->id,
+                'training_code' => $training->code,
+                'training_title' => $training->title,
+                'category_name' => $training->category?->name ?? 'General',
+                'assignment_status' => $assignment->status,
+                'passing_score' => $passingScore,
+                'last_score' => $lastScore,
+                'best_score' => $bestScore,
+                'is_passed' => $isPassed,
+                'is_star' => $isStar,
+                'total_attempts' => $assignment->testAttempts->count(),
+                'last_attempted_at' => $latestAttempt?->submitted_at?->toIso8601String() ?? $latestAttempt?->created_at?->toIso8601String(),
+                'status_label' => $statusLabel,
+                'status_color' => $statusColor,
+                'rely_rating' => $relyRating,
+                'rely_description' => $relyDescription,
+            ];
+        })->filter()->values();
+
+        // Overall Employee Synthesis & Reliability Calculation
+        $totalSkills = $skills->count();
+        $attemptedSkills = $skills->filter(fn($s) => $s['last_score'] !== null);
+        $passedSkills = $skills->filter(fn($s) => $s['is_passed']);
+        $starSkills = $skills->filter(fn($s) => $s['is_star']);
+
+        $averageScore = $attemptedSkills->isNotEmpty()
+            ? round($attemptedSkills->avg('last_score'), 1)
+            : 0;
+
+        // Is Employee a Star Person? (has >= 90% score across his skills, or all passed skills are >= 90%)
+        $isStarPerson = false;
+        if ($totalSkills > 0 && $attemptedSkills->count() === $totalSkills && $averageScore >= 90.0) {
+            // Checked if all individual skills are >= 90% or strictly high proficiency
+            $isStarPerson = $skills->every(fn($s) => ($s['last_score'] ?? 0) >= 90.0);
+        } elseif ($starSkills->count() > 0 && $starSkills->count() === $totalSkills) {
+            $isStarPerson = true;
+        }
+
+        // Qualitative synthesis: In which jobs/domains is he skillful?
+        $skillfulJobs = $skills->filter(fn($s) => ($s['last_score'] ?? 0) >= 80.0)
+            ->map(fn($s) => [
+                'title' => $s['training_title'],
+                'category' => $s['category_name'],
+                'score' => $s['last_score'],
+                'is_star' => $s['is_star'],
+            ])->values();
+
+        // How we should rely on this person (Overall synthesis)
+        if ($totalSkills === 0) {
+            $overallReliance = 'No Skills Assigned';
+            $overallDescription = 'This employee currently has no assigned training modules in the system.';
+            $overallBadgeColor = 'slate';
+        } elseif ($isStarPerson) {
+            $overallReliance = '🌟 Elite Star Performer (Highest Reliance)';
+            $overallDescription = 'Exemplary mastery across all competency requirements (all skills ≥90%). Ideal for team leadership, pivotal mission-critical operations, mentoring, and autonomous execution.';
+            $overallBadgeColor = 'amber';
+        } elseif ($averageScore >= 85.0 && $passedSkills->count() === $totalSkills) {
+            $overallReliance = 'Dependable Subject Matter Specialist';
+            $overallDescription = 'Thoroughly proficient and highly dependable. Can independently execute duties with confidence and standard operational compliance.';
+            $overallBadgeColor = 'emerald';
+        } elseif ($passedSkills->count() > 0 && $passedSkills->count() >= ($totalSkills / 2)) {
+            $overallReliance = 'Competent Operational Contributor';
+            $overallDescription = 'Reliable in certified core skill areas, while continuing advancement or retraining in pending topics.';
+            $overallBadgeColor = 'blue';
+        } elseif ($attemptedSkills->isEmpty()) {
+            $overallReliance = 'Pending Assessment & Onboarding';
+            $overallDescription = 'Assignments are active, awaiting scheduled training attendance and test evaluations.';
+            $overallBadgeColor = 'slate';
+        } else {
+            $overallReliance = 'Requires Targeted Guidance & Retraining';
+            $overallDescription = 'Currently has skills below passing criteria. Supervision recommended before delegating high-impact tasks.';
+            $overallBadgeColor = 'rose';
+        }
+
+        return response()->json([
+            'employee' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'department' => $user->department?->name ?? 'Unassigned Department',
+                'office_position' => $user->officePosition?->name ?? 'General Staff',
+                'profile_photo_url' => $user->profile_photo_url,
+            ],
+            'summary' => [
+                'total_skills' => $totalSkills,
+                'passed_skills' => $passedSkills->count(),
+                'star_skills' => $starSkills->count(),
+                'average_score' => $averageScore,
+                'is_star_person' => $isStarPerson,
+                'overall_reliance' => $overallReliance,
+                'overall_description' => $overallDescription,
+                'overall_badge_color' => $overallBadgeColor,
+            ],
+            'skillful_jobs' => $skillfulJobs,
+            'skills' => $skills,
+        ]);
+    }
 }

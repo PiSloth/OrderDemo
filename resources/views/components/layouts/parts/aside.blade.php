@@ -588,14 +588,14 @@
                     </ul>
                 </li>
 
-                <!-- 11. Training & Compliance Group -->
-                <li x-show="!search || 'training compliance dashboard catalog office positions sessions attendance tests'.includes(search.toLowerCase())">
+                <!-- 11. Reinforcement Learning Group -->
+                <li x-show="!search || 'reinforcement learning training compliance dashboard catalog office positions sessions attendance tests'.includes(search.toLowerCase())">
                     <button type="button" @click="openGroup = openGroup === 'training' ? '' : 'training'"
                         class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                         x-bind:class="openGroup === 'training' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'">
                         <span class="flex items-center">
                             <x-icon name="academic-cap" class="w-5 h-5 text-slate-400" />
-                            <span class="ml-3">Training & Compliance</span>
+                            <span class="ml-3">Reinforcement Learning</span>
                         </span>
                         <x-icon name="chevron-down" class="w-4 h-4 text-slate-400 transition-transform duration-200"
                             x-bind:class="{ 'rotate-180': openGroup === 'training' }" />

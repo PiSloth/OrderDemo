@@ -571,6 +571,10 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     Route::get('/assignments/{assignment}/attempt-history', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'attemptHistory'])->name('assignments.attempt-history');
     Route::delete('/assignments/{assignment}', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'deleteAssignment'])->name('assignments.destroy');
     Route::post('/assignments/cleanup-orphaned', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'cleanupOrphaned'])->name('assignments.cleanup-orphaned');
+
+    // Employee Skill Matrix Global Endpoints
+    Route::get('/skill-matrix/users', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'skillMatrixUsers'])->name('skill-matrix.users');
+    Route::get('/skill-matrix/employees/{user}', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'employeeSkillMatrix'])->name('skill-matrix.employee');
 });
 
 // Digital Asset Security Management Routes

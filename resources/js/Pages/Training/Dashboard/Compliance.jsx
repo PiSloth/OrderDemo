@@ -211,8 +211,8 @@ export default function Compliance({
   };
 
   return (
-    <AsideLayout title="Training Compliance Dashboard">
-      <Head title="Training Compliance Dashboard" />
+    <AsideLayout title="Reinforcement Learning Dashboard">
+      <Head title="Reinforcement Learning Dashboard" />
 
       <Box className="max-w-7xl mx-auto space-y-6">
         {/* Top Header */}
@@ -220,14 +220,33 @@ export default function Compliance({
           <div>
             <Typography variant="h5" className="font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <SchoolIcon className="text-sky-600" />
-              Training Compliance
+              Reinforcement Learning
             </Typography>
             <Typography variant="body2" className="text-slate-500 dark:text-slate-400">
-              Executive overview of employee training status, assessment performance, and organizational compliance.
+              Executive overview of employee training status, assessment performance, and organizational reinforcement learning milestones.
             </Typography>
           </div>
 
           <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-employee-skill-matrix'))}
+              startIcon={<TrophyIcon className="text-amber-500" />}
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 700,
+                borderColor: '#e2e8f0',
+                color: 'text.primary',
+                '&:hover': {
+                  borderColor: '#f59e0b',
+                  bgcolor: 'rgba(245, 158, 11, 0.08)'
+                }
+              }}
+            >
+              Employee Skill Matrix
+            </Button>
             <Button
               variant="outlined"
               size="small"
@@ -838,9 +857,14 @@ export default function Compliance({
                               {row.user?.name?.charAt(0) || 'U'}
                             </Avatar>
                             <div>
-                              <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-employee-skill-matrix', { detail: { userId: row.user?.id } }))}
+                                className="text-xs font-bold text-slate-800 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline text-left cursor-pointer transition"
+                                title="Click to view full Skill Matrix & Reliability"
+                              >
                                 {row.user?.name}
-                              </div>
+                              </button>
                               <div className="text-[11px] text-slate-400">{row.user?.email}</div>
                             </div>
                           </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
+import EmployeeSkillMatrixModal from '../components/Training/EmployeeSkillMatrixModal';
 
 export default function KpiLayout({ children, title }) {
     const { auth = {}, url = '' } = usePage().props;
@@ -121,6 +122,7 @@ export default function KpiLayout({ children, title }) {
             </div>
             <CreatePromoteActionModal />
             <ItSatisfactionModal />
+            <EmployeeSkillMatrixModal />
         </div>
     );
 }

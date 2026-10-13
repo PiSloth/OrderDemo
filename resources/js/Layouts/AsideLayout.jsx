@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
+import EmployeeSkillMatrixModal from '../components/Training/EmployeeSkillMatrixModal';
 
 // Material UI Imports
 import {
@@ -1158,8 +1159,8 @@ export default function AsideLayout({
                                 </ListItem>
                             )}
 
-                            {/* 11. Training & Compliance Group */}
-                            {matchesSearch('training compliance dashboard catalog office positions sessions attendance tests') && (
+                            {/* 11. Reinforcement Learning Group */}
+                            {matchesSearch('reinforcement learning training compliance dashboard catalog office positions sessions attendance tests') && (
                                 <ListItem disablePadding sx={{ display: 'block' }}>
                                     <ListItemButton 
                                         onClick={() => toggleGroup('training')} 
@@ -1169,7 +1170,7 @@ export default function AsideLayout({
                                             <GraduationCap size={18} className="nav-icon" />
                                         </ListItemIcon>
                                         <ListItemText 
-                                            primary="Training & Compliance" 
+                                            primary="Reinforcement Learning" 
                                             primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 'inherit' }} 
                                         />
                                         <ChevronDown 
@@ -1510,6 +1511,7 @@ export default function AsideLayout({
 
             <CreatePromoteActionModal />
             <ItSatisfactionModal />
+            <EmployeeSkillMatrixModal />
         </Box>
     );
 }
