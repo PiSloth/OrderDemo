@@ -1160,7 +1160,7 @@ export default function AsideLayout({
                             )}
 
                             {/* 11. Reinforcement Learning Group */}
-                            {matchesSearch('reinforcement learning training compliance dashboard catalog office positions sessions attendance tests') && (
+                            {matchesSearch('reinforcement learning training compliance dashboard skill matrix catalog office positions sessions attendance tests') && (
                                 <ListItem disablePadding sx={{ display: 'block' }}>
                                     <ListItemButton 
                                         onClick={() => toggleGroup('training')} 
@@ -1191,6 +1191,14 @@ export default function AsideLayout({
                                                 sx={subItemButtonSx(isCurrentUrl('/training/dashboard'))}
                                             >
                                                 <ListItemText primary="Compliance Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                            </ListItemButton>
+                                            <ListItemButton 
+                                                component="a" 
+                                                href="/training/skill-matrix" 
+                                                selected={isCurrentUrl('/training/skill-matrix')}
+                                                sx={subItemButtonSx(isCurrentUrl('/training/skill-matrix'))}
+                                            >
+                                                <ListItemText primary="Skill Matrix" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
                                                 component="a" 

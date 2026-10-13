@@ -496,6 +496,9 @@ Route::middleware(['auth'])->prefix('training')->name('training.')->group(functi
     // Compliance & Analytics Dashboard
     Route::get('/dashboard', [\App\Http\Controllers\Training\TrainingComplianceController::class, 'index'])->name('dashboard');
 
+    // Skill Matrix Page (Department, Branch, and Employee Matrix)
+    Route::get('/skill-matrix', [\App\Http\Controllers\Training\TrainingSkillMatrixController::class, 'index'])->name('skill-matrix.index');
+
     // Office Positions
     Route::get('/office-positions', [\App\Http\Controllers\Training\OfficePositionController::class, 'index'])->name('office-positions.index');
     Route::post('/office-positions', [\App\Http\Controllers\Training\OfficePositionController::class, 'store'])->name('office-positions.store');

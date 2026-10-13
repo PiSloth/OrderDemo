@@ -16,4 +16,8 @@ class Branch extends Model
         return $this->hasMany(BranchChecklist::class);
     }
 
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }
