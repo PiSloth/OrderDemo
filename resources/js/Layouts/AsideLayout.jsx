@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, Link } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
 import EmployeeSkillMatrixModal from '../components/Training/EmployeeSkillMatrixModal';
@@ -278,7 +278,7 @@ export default function AsideLayout({
                                 )}
                             </IconButton>
 
-                            <Box component="a" href="/order/dashboard" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'inherit' }}>
+                            <Box component={Link} href="/order/dashboard" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'inherit' }}>
                                 <Box 
                                     component="img" 
                                     src="/images/logo.png" 
@@ -412,7 +412,7 @@ export default function AsideLayout({
                         bgcolor: '#ffffff',
                         '.dark &': { bgcolor: '#0f172a' }
                     }}>
-                        <Box component="a" href="/order/dashboard" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'inherit' }}>
+                        <Box component={Link} href="/order/dashboard" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'inherit' }}>
                             <Box 
                                 component="img" 
                                 src="/images/logo.png" 
@@ -612,7 +612,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.performance} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/performance/branch-score" 
                                                 selected={isCurrentUrl('/performance/branch-score')}
                                                 sx={subItemButtonSx(isCurrentUrl('/performance/branch-score'))}
@@ -620,7 +620,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Daily Scores" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/performance/sale-dashboard" 
                                                 selected={isCurrentUrl('/performance/sale-dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/performance/sale-dashboard'))}
@@ -658,7 +658,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.order} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/order/add-order" 
                                                 selected={isCurrentUrl('/order/add-order')}
                                                 sx={subItemButtonSx(isCurrentUrl('/order/add-order'))}
@@ -666,7 +666,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Add Order" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/order/dashboard" 
                                                 selected={isCurrentUrl('/order/dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/order/dashboard'))}
@@ -674,7 +674,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Summary" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/order/order/dashboard" 
                                                 selected={isCurrentUrl('/order/order/dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/order/order/dashboard'))}
@@ -682,7 +682,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/order/export" 
                                                 selected={isCurrentUrl('/order/export')}
                                                 sx={subItemButtonSx(isCurrentUrl('/order/export'))}
@@ -690,7 +690,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Export" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/order/chats" 
                                                 selected={isCurrentUrl('/order/chats')}
                                                 sx={subItemButtonSx(isCurrentUrl('/order/chats'))}
@@ -698,7 +698,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="i-Meeting" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/order/comment/history" 
                                                 selected={isCurrentUrl('/order/comment/history')}
                                                 sx={subItemButtonSx(isCurrentUrl('/order/comment/history'))}
@@ -706,7 +706,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Comments" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/order/addsupplier" 
                                                 selected={isCurrentUrl('/order/addsupplier')}
                                                 sx={subItemButtonSx(isCurrentUrl('/order/addsupplier'))}
@@ -744,7 +744,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.psi} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/psi/mainboard" 
                                                 selected={isCurrentUrl('/psi/mainboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/psi/mainboard'))}
@@ -752,7 +752,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Mainboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/psi/oos" 
                                                 selected={isCurrentUrl('/psi/oos')}
                                                 sx={subItemButtonSx(isCurrentUrl('/psi/oos'))}
@@ -760,7 +760,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="OoS" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/psi/product/daily-sale" 
                                                 selected={isCurrentUrl('/psi/product/daily-sale')}
                                                 sx={subItemButtonSx(isCurrentUrl('/psi/product/daily-sale'))}
@@ -768,7 +768,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Daily Sale" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/psi/report" 
                                                 selected={isCurrentUrl('/psi/report')}
                                                 sx={subItemButtonSx(isCurrentUrl('/psi/report'))}
@@ -784,7 +784,7 @@ export default function AsideLayout({
                             {matchesSearch('sale kpi') && (
                                 <ListItem disablePadding>
                                     <ListItemButton 
-                                        component="a" 
+                                        component={Link} 
                                         href="/sale-kpi" 
                                         selected={isCurrentUrl('/sale-kpi')}
                                         sx={navItemButtonSx(isCurrentUrl('/sale-kpi'))}
@@ -843,7 +843,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.kpi} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/kpi/dashboard" 
                                                 selected={isCurrentUrl('/kpi/dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/kpi/dashboard'))}
@@ -851,7 +851,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/kpi/tasks" 
                                                 selected={isCurrentUrl('/kpi/tasks')}
                                                 sx={subItemButtonSx(isCurrentUrl('/kpi/tasks'))}
@@ -859,7 +859,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="My Tasks" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/kpi/approvals" 
                                                 selected={isCurrentUrl('/kpi/approvals')}
                                                 sx={subItemButtonSx(isCurrentUrl('/kpi/approvals'))}
@@ -897,7 +897,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.todo} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                              <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/todo/dashboard" 
                                                 selected={isCurrentUrl('/todo/dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/todo/dashboard'))}
@@ -905,7 +905,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/todo/list" 
                                                 selected={isCurrentUrl('/todo/list')}
                                                 sx={subItemButtonSx(isCurrentUrl('/todo/list'))}
@@ -913,7 +913,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Task List" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/operations/daily-notes" 
                                                 selected={isCurrentUrl('/operations/daily-notes')}
                                                 sx={subItemButtonSx(isCurrentUrl('/operations/daily-notes'))}
@@ -951,7 +951,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.operation} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/operations/it/issues" 
                                                 selected={isCurrentUrl('/operations/it/issues') && currentUrl === '/operations/it/issues'}
                                                 sx={subItemButtonSx(isCurrentUrl('/operations/it/issues') && currentUrl === '/operations/it/issues')}
@@ -959,7 +959,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Issue Tracking List" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/operations/it/issues/dashboard" 
                                                 selected={isCurrentUrl('/operations/it/issues/dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/operations/it/issues/dashboard'))}
@@ -967,7 +967,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="SLA Analytics Board" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/operations/it/issues/create" 
                                                 selected={isCurrentUrl('/operations/it/issues/create')}
                                                 sx={subItemButtonSx(isCurrentUrl('/operations/it/issues/create'))}
@@ -975,7 +975,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="New Ticket Studio" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/operations/it/issues/configure" 
                                                 selected={isCurrentUrl('/operations/it/issues/configure')}
                                                 sx={subItemButtonSx(isCurrentUrl('/operations/it/issues/configure'))}
@@ -983,7 +983,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Issue Configuration" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/operations/it/issues/reports" 
                                                 selected={isCurrentUrl('/operations/it/issues/reports')}
                                                 sx={subItemButtonSx(isCurrentUrl('/operations/it/issues/reports'))}
@@ -992,7 +992,7 @@ export default function AsideLayout({
                                             </ListItemButton>
                                             {can.itSatisfactionView && (
                                                 <ListItemButton 
-                                                    component="a" 
+                                                    component={Link} 
                                                     href="/operations/it/satisfaction" 
                                                     selected={isCurrentUrl('/operations/it/satisfaction')}
                                                     sx={subItemButtonSx(isCurrentUrl('/operations/it/satisfaction'))}
@@ -1031,7 +1031,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.reports} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/reports/analytic-board" 
                                                 selected={isCurrentUrl('/reports/analytic-board')}
                                                 sx={subItemButtonSx(isCurrentUrl('/reports/analytic-board'))}
@@ -1039,7 +1039,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Analytic Report" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/reports/create" 
                                                 selected={isCurrentUrl('/reports/create')}
                                                 sx={subItemButtonSx(isCurrentUrl('/reports/create'))}
@@ -1047,7 +1047,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="New Report Studio" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/taxonomies" 
                                                 selected={isCurrentUrl('/taxonomies')}
                                                 sx={subItemButtonSx(isCurrentUrl('/taxonomies'))}
@@ -1085,7 +1085,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.documents} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/document/library" 
                                                 selected={isCurrentUrl('/document/library')}
                                                 sx={subItemButtonSx(isCurrentUrl('/document/library'))}
@@ -1093,7 +1093,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Browse Documents" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/document/library/create" 
                                                 selected={isCurrentUrl('/document/library/create')}
                                                 sx={subItemButtonSx(isCurrentUrl('/document/library/create'))}
@@ -1101,7 +1101,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="New Document" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/document/email-list" 
                                                 selected={isCurrentUrl('/document/email-list')}
                                                 sx={subItemButtonSx(isCurrentUrl('/document/email-list'))}
@@ -1139,7 +1139,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.whiteboard} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/whiteboard/board" 
                                                 selected={isCurrentUrl('/whiteboard/board')}
                                                 sx={subItemButtonSx(isCurrentUrl('/whiteboard/board'))}
@@ -1147,7 +1147,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Board" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/whiteboard/config" 
                                                 selected={isCurrentUrl('/whiteboard/config')}
                                                 sx={subItemButtonSx(isCurrentUrl('/whiteboard/config'))}
@@ -1185,7 +1185,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.training} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/training/dashboard" 
                                                 selected={isCurrentUrl('/training/dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/training/dashboard'))}
@@ -1193,7 +1193,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Compliance Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/training/skill-matrix" 
                                                 selected={isCurrentUrl('/training/skill-matrix')}
                                                 sx={subItemButtonSx(isCurrentUrl('/training/skill-matrix'))}
@@ -1201,7 +1201,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Skill Matrix" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/training/trainings" 
                                                 selected={isCurrentUrl('/training/trainings')}
                                                 sx={subItemButtonSx(isCurrentUrl('/training/trainings'))}
@@ -1209,7 +1209,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Training Catalog" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/training/office-positions" 
                                                 selected={isCurrentUrl('/training/office-positions')}
                                                 sx={subItemButtonSx(isCurrentUrl('/training/office-positions'))}
@@ -1217,7 +1217,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Office Positions" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/training/sessions" 
                                                 selected={isCurrentUrl('/training/sessions')}
                                                 sx={subItemButtonSx(isCurrentUrl('/training/sessions'))}
@@ -1225,7 +1225,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Sessions & Attendance" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/training/my-trainings" 
                                                 selected={isCurrentUrl('/training/my-trainings')}
                                                 sx={subItemButtonSx(isCurrentUrl('/training/my-trainings'))}
@@ -1263,7 +1263,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.digitalAssets} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/digital-assets/accounts" 
                                                 selected={isCurrentUrl('/digital-assets/accounts')}
                                                 sx={subItemButtonSx(isCurrentUrl('/digital-assets/accounts'))}
@@ -1271,7 +1271,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Software Accounts" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/digital-assets/platforms" 
                                                 selected={isCurrentUrl('/digital-assets/platforms')}
                                                 sx={subItemButtonSx(isCurrentUrl('/digital-assets/platforms'))}
@@ -1279,7 +1279,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Platforms Catalog" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/digital-assets/property-definitions" 
                                                 selected={isCurrentUrl('/digital-assets/property-definitions')}
                                                 sx={subItemButtonSx(isCurrentUrl('/digital-assets/property-definitions'))}
@@ -1287,7 +1287,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Security Properties" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/digital-assets/reviews" 
                                                 selected={isCurrentUrl('/digital-assets/reviews')}
                                                 sx={subItemButtonSx(isCurrentUrl('/digital-assets/reviews'))}
@@ -1295,7 +1295,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Compliance Reviews" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/digital-assets/devices" 
                                                 selected={isCurrentUrl('/digital-assets/devices')}
                                                 sx={subItemButtonSx(isCurrentUrl('/digital-assets/devices'))}
@@ -1303,7 +1303,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Device Inventory" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/digital-assets/audit-logs" 
                                                 selected={isCurrentUrl('/digital-assets/audit-logs')}
                                                 sx={subItemButtonSx(isCurrentUrl('/digital-assets/audit-logs'))}
@@ -1341,7 +1341,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.officeAsset} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/office-asset" 
                                                 selected={isCurrentUrl('/office-asset') && !currentUrl.includes('groupBy=category')}
                                                 sx={subItemButtonSx(isCurrentUrl('/office-asset') && !currentUrl.includes('groupBy=category'))}
@@ -1349,7 +1349,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Asset List" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/office-asset?groupBy=category" 
                                                 selected={currentUrl.includes('groupBy=category')}
                                                 sx={subItemButtonSx(currentUrl.includes('groupBy=category'))}
@@ -1387,7 +1387,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.jewelry} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/jewelry/dashboard" 
                                                 selected={isCurrentUrl('/jewelry/dashboard')}
                                                 sx={subItemButtonSx(isCurrentUrl('/jewelry/dashboard'))}
@@ -1395,7 +1395,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/jewelry/groups" 
                                                 selected={isCurrentUrl('/jewelry/groups')}
                                                 sx={subItemButtonSx(isCurrentUrl('/jewelry/groups'))}
@@ -1433,7 +1433,7 @@ export default function AsideLayout({
                                     <Collapse in={openGroups.calendar} timeout="auto" unmountOnExit>
                                         <List component="div" disablePadding sx={{ pl: 3.5, ml: 1.5, borderLeft: '1px solid', borderColor: 'divider' }}>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/calendar/index" 
                                                 selected={isCurrentUrl('/calendar/index')}
                                                 sx={subItemButtonSx(isCurrentUrl('/calendar/index'))}
@@ -1441,7 +1441,7 @@ export default function AsideLayout({
                                                 <ListItemText primary="Calendar" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                             <ListItemButton 
-                                                component="a" 
+                                                component={Link} 
                                                 href="/calendar/auto-sync" 
                                                 selected={isCurrentUrl('/calendar/auto-sync')}
                                                 sx={subItemButtonSx(isCurrentUrl('/calendar/auto-sync'))}
@@ -1460,7 +1460,7 @@ export default function AsideLayout({
                     <Box sx={{ pt: 1, pb: 1, px: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                         <List component="div" size="small" disablePadding>
                             <ListItem disablePadding>
-                                <ListItemButton component="a" href="#" sx={subItemButtonSx(false)}>
+                                <ListItemButton component="button" onClick={(e) => e.preventDefault()} sx={subItemButtonSx(false)}>
                                     <ListItemIcon sx={{ minWidth: 28, color: 'text.secondary' }}>
                                         <BookOpen size={16} />
                                     </ListItemIcon>
@@ -1468,7 +1468,7 @@ export default function AsideLayout({
                                 </ListItemButton>
                             </ListItem>
                             <ListItem disablePadding>
-                                <ListItemButton component="a" href="/help" sx={subItemButtonSx(isCurrentUrl('/help'))}>
+                                <ListItemButton component={Link} href="/help" sx={subItemButtonSx(isCurrentUrl('/help'))}>
                                     <ListItemIcon sx={{ minWidth: 28, color: 'text.secondary' }}>
                                         <HelpCircle size={16} />
                                     </ListItemIcon>
@@ -1477,7 +1477,7 @@ export default function AsideLayout({
                             </ListItem>
                             {can.isSuperAdmin && (
                                 <ListItem disablePadding>
-                                    <ListItemButton component="a" href="/config" sx={subItemButtonSx(isCurrentUrl('/config'))}>
+                                    <ListItemButton component={Link} href="/config" sx={subItemButtonSx(isCurrentUrl('/config'))}>
                                         <ListItemIcon sx={{ minWidth: 28, color: 'text.secondary' }}>
                                             <Settings size={16} />
                                         </ListItemIcon>

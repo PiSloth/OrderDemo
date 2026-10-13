@@ -1,41 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import AsideLayout from '@/Layouts/AsideLayout';
+import UserSelectModal from '@/components/IT/UserSelectModal';
 import {
   Box,
   Card,
   CardContent,
   Typography,
-  Button,
+  Checkbox,
   Chip,
-  Divider,
+  FormControlLabel,
   Paper,
-  Stack,
-  MenuItem,
-  TextField,
   Table,
   TableHead,
   TableBody,
   TableRow,
   TableCell,
-  TableContainer,
-  LinearProgress
+  TableContainer
 } from '@mui/material';
 
 import {
   Print as PrintIcon,
-  ArrowBack as ArrowBackIcon,
-  EmojiEvents as TrophyIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  School as SchoolIcon,
-  VerifiedUser as VerifiedIcon,
   ContentCopy as CopyIcon,
   Share as ShareIcon,
   Quiz as QuizIcon,
-  AssignmentTurnedIn as AssignmentTurnedInIcon,
   EventAvailable as EventAvailableIcon,
-  WorkspacePremium as CertificateIcon
+  WorkspacePremium as CertificateIcon,
+  MenuBook as MenuBookIcon,
+  Description as DescriptionIcon
 } from '@mui/icons-material';
 
 export default function Scorecard({
@@ -45,18 +41,24 @@ export default function Scorecard({
   grading = {},
   trainer = null,
   attendedSession = null,
-  canManage = false,
-  availableAssignments = []
+  scorecardUsers = [],
+  scorecardDepartments = [],
+  currentUserName = ''
 }) {
   const [copied, setCopied] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
   const user = assignment.user || {};
   const training = assignment.training || {};
   const answers = latestAttempt?.answers || [];
+  const canSwitchUsers = Array.isArray(scorecardUsers) && scorecardUsers.length > 0;
+  const avatarUrl = user.profile_photo_url || null;
 
-  const handleAssignmentChange = (e) => {
-    const nextId = e.target.value;
-    if (nextId) {
-      router.get(`/training/assignments/${nextId}/scorecard`, {}, { preserveScroll: true });
+  const handleUserSelect = (selected) => {
+    setUserModalOpen(false);
+    if (selected?.latest_assignment_id && Number(selected.latest_assignment_id) !== Number(assignment.id)) {
+      router.get(`/training/assignments/${selected.latest_assignment_id}/scorecard`);
     }
   };
 
@@ -113,90 +115,30 @@ export default function Scorecard({
         }
       `}</style>
 
-      <Box className="max-w-5xl mx-auto space-y-6">
-        {/* Controls Toolbar (Hidden in Print) */}
-        <Box className="no-print flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<ArrowBackIcon />}
-              component={Link}
-              href="/training/my-trainings"
-              sx={{ textTransform: 'none', borderRadius: 2 }}
-            >
-              My Trainings
-            </Button>
-
-            {canManage && (
-              <Button
-                variant="outlined"
-                size="small"
-                component={Link}
-                href="/training/dashboard"
-                sx={{ textTransform: 'none', borderRadius: 2 }}
-              >
-                Compliance Matrix
-              </Button>
-            )}
-
-            {canManage && availableAssignments.length > 0 && (
-              <TextField
-                select
-                size="small"
-                label="Select Record"
-                value={assignment.id || ''}
-                onChange={handleAssignmentChange}
-                sx={{ minWidth: 260 }}
-              >
-                {availableAssignments.map((a) => (
-                  <MenuItem key={a.id} value={a.id}>
-                    {a.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<CopyIcon />}
-              onClick={copyShareLink}
-              sx={{ textTransform: 'none', borderRadius: 2 }}
-            >
-              {copied ? 'Link Copied!' : 'Copy Link'}
-            </Button>
-
-            <Button
-              variant="contained"
-              size="small"
-              color="primary"
-              startIcon={<PrintIcon />}
-              onClick={() => window.print()}
-              sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, px: 3 }}
-            >
-              Print / Save PDF
-            </Button>
-          </div>
-        </Box>
-
+      <Box className="max-w-[210mm] mx-auto space-y-6">
         {/* Printable Scorecard Document */}
         <div id="training-scorecard-print" className="space-y-6">
+          {/* Premium gold certificate frame */}
+          <div className="p-[3px] rounded-[26px] bg-gradient-to-br from-amber-200 via-yellow-600 to-amber-200 shadow-xl print-shadow-none overflow-hidden">
           <Card
             elevation={0}
-            className="border-2 border-slate-200 dark:border-slate-700 rounded-3xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden"
+            className="border border-amber-100 dark:border-slate-700 rounded-[24px] bg-white dark:bg-slate-900 shadow-none overflow-hidden relative"
           >
-            {/* Top Official Security & Banner Header */}
-            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 relative overflow-hidden">
+            {/* Top Official Security & Banner Header — ivory premium */}
+            <div
+              className="bg-[#FFFEF7] text-slate-900 p-6 sm:p-8 relative overflow-hidden rounded-t-[21px] border-b-4 border-amber-500"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle at 85% 10%, rgba(251,191,36,0.22) 0, transparent 45%), radial-gradient(circle at 5% 95%, rgba(30,27,75,0.06) 0, transparent 50%)',
+              }}
+            >
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center p-2">
+                  <div className="w-16 h-16 rounded-2xl border border-amber-300 shadow-sm flex items-center justify-center p-2">
                     <img
                       src="/images/logo.png"
                       alt="Organization Logo"
-                      className="w-full h-full object-contain filter brightness-110"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
                         e.target.style.display = 'none';
                       }}
@@ -204,28 +146,31 @@ export default function Scorecard({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                      <span className="text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded bg-indigo-950 text-amber-300 border border-amber-500/50">
                         Official Academic & Compliance Transcript
                       </span>
                     </div>
-                    <Typography variant="h5" className="font-black tracking-tight text-white mt-1">
+                    <Typography variant="h5" className="font-serif font-black tracking-tight text-indigo-950 mt-1">
                       International Training Scorecard
                     </Typography>
-                    <Typography variant="caption" className="text-slate-300 block">
+                    <div className="flex items-center gap-1 mt-1 text-amber-500 text-[11px] tracking-[0.35em]" aria-hidden="true">
+                      ★ ★ ★ ★ ★
+                    </div>
+                    <Typography variant="caption" className="text-slate-600 font-medium block">
                       {grading.evaluation_framework || 'Kirkpatrick Level 2 Learning Evaluation'} • {grading.standard_code}
                     </Typography>
                   </div>
                 </div>
 
-                <div className="text-right sm:border-l sm:border-white/15 sm:pl-6 space-y-1">
-                  <div className="text-[11px] font-mono text-slate-300">
-                    Verification ID: <b className="text-white">{grading.verification_code}</b>
+                <div className="text-right sm:border-l sm:border-amber-300 sm:pl-6 space-y-1">
+                  <div className="text-[11px] font-mono text-slate-500">
+                    Verification ID: <b className="text-indigo-950">{grading.verification_code}</b>
                   </div>
-                  <div className="text-[11px] text-slate-300">
-                    Issue Date: <b>{grading.issue_date}</b>
+                  <div className="text-[11px] text-slate-500">
+                    Issue Date: <b className="text-slate-900">{grading.issue_date}</b>
                   </div>
-                  <div className="text-[11px] text-slate-300">
-                    Renewal Due: <b>{grading.expiry_date}</b>
+                  <div className="text-[11px] text-slate-500">
+                    Renewal Due: <b className="text-slate-900">{grading.expiry_date}</b>
                   </div>
                 </div>
               </div>
@@ -235,16 +180,56 @@ export default function Scorecard({
               {/* Section 1: Candidate & Module Metadata */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 {/* Candidate Info */}
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 group/profile">
                   <Typography variant="caption" className="font-bold uppercase tracking-wider text-slate-400 block">
                     Candidate Profile
                   </Typography>
-                  <Typography variant="h6" className="font-extrabold text-slate-900 dark:text-slate-100">
-                    {user.name}
-                  </Typography>
+                  <div className="flex items-center gap-3.5">
+                    {/* Clickable avatar opens employee switch modal (managers) */}
+                    <div
+                      role={canSwitchUsers ? 'button' : undefined}
+                      tabIndex={canSwitchUsers ? 0 : undefined}
+                      title={canSwitchUsers ? 'Click to switch employee' : user.name}
+                      onClick={canSwitchUsers ? () => setUserModalOpen(true) : undefined}
+                      onKeyDown={canSwitchUsers ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setUserModalOpen(true); } } : undefined}
+                      className={`relative shrink-0 rounded-full ring-2 ring-amber-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 outline-none ${
+                        canSwitchUsers ? 'cursor-pointer group focus-visible:ring-indigo-500' : 'cursor-default'
+                      }`}
+                    >
+                      <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-indigo-100 via-white to-amber-100 flex items-center justify-center">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={user.name}
+                            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <span className="text-2xl font-black text-indigo-800 uppercase select-none">
+                            {(user.name || '?').charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                      {canSwitchUsers && (
+                        <div className="absolute inset-0 rounded-full bg-indigo-950/60 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 flex items-center justify-center transition-opacity duration-200">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-white">Switch</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <Typography variant="h6" className="font-serif font-black text-2xl tracking-tight text-slate-900 dark:text-slate-100 leading-tight">
+                        {user.name}
+                      </Typography>
+                      {canSwitchUsers && (
+                        <div className="text-[10px] font-semibold text-indigo-500 dark:text-indigo-400 mt-0.5 opacity-0 transition-opacity duration-200 group-hover/profile:opacity-100 group-focus-within/profile:opacity-100">
+                          Click avatar to switch employee
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div className="text-xs text-slate-600 dark:text-slate-300 space-y-0.5">
                     <div>Department: <b>{user.department?.name || 'General Staff'}</b></div>
-                    <div>Office Position: <b>{user.office_position?.name || 'Staff Member'}</b></div>
+                    <div>Office Position: <b>{user.officePosition?.name || user.office_position?.name || 'Staff Member'}</b></div>
                     <div>Employee Email: <b>{user.email}</b></div>
                   </div>
                 </div>
@@ -268,9 +253,9 @@ export default function Scorecard({
               </div>
 
               {/* Section 2: International Scoring & Performance Badges */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 {/* Gauge Radial Chart */}
-                <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                <div className="lg:col-span-4 h-full flex flex-col items-center justify-center p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
                   <Typography variant="caption" className="font-bold uppercase tracking-wider text-slate-400 mb-2 text-center">
                     Assessment Score
                   </Typography>
@@ -329,7 +314,7 @@ export default function Scorecard({
 
                   {/* 4 Summary Metrics */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Paper elevation={0} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                    <Paper elevation={0} className="p-3 h-full rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center">
                       <Typography variant="caption" className="text-slate-400 font-bold uppercase text-[10px] block">
                         Marks Earned
                       </Typography>
@@ -338,7 +323,7 @@ export default function Scorecard({
                       </Typography>
                     </Paper>
 
-                    <Paper elevation={0} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                    <Paper elevation={0} className="p-3 h-full rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center">
                       <Typography variant="caption" className="text-slate-400 font-bold uppercase text-[10px] block">
                         Accuracy Rate
                       </Typography>
@@ -347,7 +332,7 @@ export default function Scorecard({
                       </Typography>
                     </Paper>
 
-                    <Paper elevation={0} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                    <Paper elevation={0} className="p-3 h-full rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center">
                       <Typography variant="caption" className="text-slate-400 font-bold uppercase text-[10px] block">
                         Questions Passed
                       </Typography>
@@ -356,7 +341,7 @@ export default function Scorecard({
                       </Typography>
                     </Paper>
 
-                    <Paper elevation={0} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                    <Paper elevation={0} className="p-3 h-full rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center">
                       <Typography variant="caption" className="text-slate-400 font-bold uppercase text-[10px] block">
                         Attempt Count
                       </Typography>
@@ -368,50 +353,89 @@ export default function Scorecard({
                 </div>
               </div>
 
-              {/* Section 3: Competency Domains Breakdown */}
-              <div className="print-avoid-break space-y-3 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                <Typography variant="subtitle2" className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                  <AssignmentTurnedInIcon fontSize="small" className="text-sky-600" />
-                  International Competency Domain Index
-                </Typography>
+              {/* Section 3: Company Document Knowledge & Mastery Pass Rate */}
+              <div className="print-avoid-break space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <Typography variant="subtitle2" className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <MenuBookIcon fontSize="small" className="text-sky-600" />
+                      Company Document Mastery & Knowledge Pass Rate
+                    </Typography>
+                    <Typography variant="caption" className="text-slate-500 dark:text-slate-400">
+                      Per-document grade based on scored percentage — see grading scale at the end of this certificate
+                    </Typography>
+                  </div>
+                </div>
 
-                <div className="space-y-3 pt-1">
-                  {(grading.competency_domains || []).map((dom, dIdx) => (
-                    <div key={dIdx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                          {dom.domain}
+                <div className="space-y-2.5 pt-1">
+                  {((grading.document_breakdown && grading.document_breakdown.length > 0)
+                    ? grading.document_breakdown
+                    : (grading.competency_domains || [])
+                  ).map((doc, dIdx) => {
+                    const percentage = doc.percentage !== undefined ? doc.percentage : (doc.score || 0);
+                    const docTitle = doc.document_title || doc.domain || 'Standard Operational Procedure';
+                    const g = docGrade(percentage);
+
+                    return (
+                      <div
+                        key={dIdx}
+                        className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/60"
+                      >
+                        <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
+                          {docTitle}
                         </span>
-                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                          {dom.score}% (Benchmark: {dom.benchmark}%)
+                        <span className="flex items-center gap-2.5 shrink-0">
+                          <span className="text-base font-extrabold font-mono text-slate-700 dark:text-slate-200">
+                            {percentage}%
+                          </span>
+                          <span className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base border ${g.classes}`}>
+                            {g.letter}
+                          </span>
                         </span>
                       </div>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min(100, dom.score)}
-                        color={dom.score >= dom.benchmark ? 'success' : 'warning'}
-                        sx={{ height: 6, borderRadius: 3 }}
-                      />
-                      <Typography variant="caption" className="text-[11px] text-slate-400 block">
-                        {dom.description}
-                      </Typography>
+                    );
+                  })}
+
+                  {(!grading.document_breakdown || grading.document_breakdown.length === 0) && (!grading.competency_domains || grading.competency_domains.length === 0) && (
+                    <div className="p-4 text-center text-slate-400 text-xs italic bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800">
+                      No document questions recorded for this assessment.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
-              {/* Section 4: Detailed Questions & Answers Transcript */}
+              {/* Section 4: Detailed Questions & Answers Transcript (hidden until checked) */}
               <div className="print-avoid-break space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <Typography variant="subtitle2" className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                     <QuizIcon fontSize="small" className="text-sky-600" />
                     Itemized Examination Transcript & Evidence Log
                   </Typography>
-                  <Typography variant="caption" className="text-slate-400 font-medium">
-                    Preserved answers recorded for compliance audit
-                  </Typography>
+                  <div className="flex items-center gap-2">
+                    <Typography variant="caption" className="text-slate-400 font-medium hidden sm:block">
+                      Preserved answers recorded for compliance audit
+                    </Typography>
+                    <FormControlLabel
+                      className="no-print"
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={showTranscript}
+                          onChange={(e) => setShowTranscript(e.target.checked)}
+                          sx={{ color: '#0284c7', '&.Mui-checked': { color: '#0284c7' }, p: 0.5 }}
+                        />
+                      }
+                      label={
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                          Show logs{answers.length > 0 ? ` (${answers.length})` : ''}
+                        </span>
+                      }
+                      sx={{ mr: 0 }}
+                    />
+                  </div>
                 </div>
 
+                {showTranscript && (
                 <TableContainer className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                   <Table size="small">
                     <TableHead className="bg-slate-100 dark:bg-slate-800">
@@ -439,7 +463,20 @@ export default function Scorecard({
                             </TableCell>
 
                             <TableCell className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                              {q.question}
+                              <div>{q.question}</div>
+                              {q.company_document && (
+                                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                                    <DescriptionIcon sx={{ fontSize: 13 }} className="text-sky-600 dark:text-sky-400" />
+                                    {q.company_document.title}
+                                    {q.document_section_reference && (
+                                      <span className="text-slate-500 dark:text-slate-400 font-normal">
+                                        • {q.document_section_reference}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              )}
                             </TableCell>
 
                             <TableCell className="text-xs">
@@ -491,6 +528,7 @@ export default function Scorecard({
                     </TableBody>
                   </Table>
                 </TableContainer>
+                )}
               </div>
 
               {/* Section 5: Session Attendance Record (if applicable) */}
@@ -512,7 +550,7 @@ export default function Scorecard({
               )}
 
               {/* Section 6: Official Verification & Sign-off Block */}
-              <div className="print-avoid-break pt-6 border-t-2 border-slate-200 dark:border-slate-700">
+              <div className="print-avoid-break pt-6 border-t-2 border-amber-300 dark:border-amber-700">
                 <div className="grid grid-cols-3 gap-6 text-center">
                   <div className="space-y-1">
                     <div className="h-14 border-b-2 border-slate-300 dark:border-slate-600 mb-2 flex items-end justify-center pb-1">
@@ -543,9 +581,12 @@ export default function Scorecard({
                   </div>
 
                   <div className="space-y-1">
-                    <div className="h-14 border-b-2 border-slate-300 dark:border-slate-600 mb-2 flex items-end justify-center pb-1">
-                      <div className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 text-xs font-bold font-mono">
-                        <VerifiedIcon sx={{ fontSize: 16 }} /> CERTIFIED
+                    <div className="h-14 border-b-2 border-amber-300 dark:border-amber-700 mb-2 flex items-end justify-center pb-1">
+                      <div className="inline-flex items-center gap-1.5">
+                        <span className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 via-yellow-500 to-amber-600 flex items-center justify-center shadow-md ring-2 ring-amber-200 dark:ring-amber-800">
+                          <CertificateIcon sx={{ fontSize: 16 }} className="text-white" />
+                        </span>
+                        <span className="text-amber-700 dark:text-amber-400 text-xs font-black font-mono tracking-widest">CERTIFIED</span>
                       </div>
                     </div>
                     <Typography variant="caption" className="font-bold text-slate-700 dark:text-slate-300 block">
@@ -557,13 +598,142 @@ export default function Scorecard({
                   </div>
                 </div>
               </div>
+
+              {/* Grading Scale Reference — end of certificate */}
+              <div className="print-avoid-break pt-5 border-t border-dashed border-amber-300 dark:border-amber-800">
+                <Typography variant="caption" className="font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 block text-center">
+                  Document Grading Scale
+                </Typography>
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-3">
+                  {DOC_GRADE_SCALE.map((s) => {
+                    const g = docGrade(s.min);
+                    return (
+                      <span key={g.letter} className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm border ${g.classes}`}>
+                          {g.letter}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 font-mono">{s.label}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
+          </div>
         </div>
+
+        {/* ── Floating quick actions: right edge, wave-expand on click ── */}
+        <div className="no-print fixed right-2 sm:right-5 top-1/2 -translate-y-1/2 z-50 flex flex-col items-end gap-3">
+          {[
+            {
+              key: 'copy',
+              label: copied ? 'Link Copied!' : 'Copy Link',
+              icon: copied ? <CheckCircleIcon fontSize="small" /> : <CopyIcon fontSize="small" />,
+              onClick: copyShareLink,
+              btn: copied
+                ? 'bg-emerald-600 border-emerald-500 text-white'
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400',
+              x: '-18px',
+            },
+            {
+              key: 'print',
+              label: 'Print / Save PDF',
+              icon: <PrintIcon fontSize="small" />,
+              onClick: () => window.print(),
+              btn: 'bg-indigo-600 border-indigo-500 text-white',
+              x: '6px',
+            },
+            {
+              key: 'top',
+              label: 'Back to Top',
+              icon: <ArrowUpwardIcon fontSize="small" />,
+              onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+              btn: 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300',
+              x: '-18px',
+            },
+          ].map((a, i, arr) => (
+            <div
+              key={a.key}
+              className="flex items-center justify-end gap-2 transition-all duration-300 ease-out"
+              style={{
+                transitionDelay: fabOpen ? `${(arr.length - 1 - i) * 80}ms` : '0ms',
+                opacity: fabOpen ? 1 : 0,
+                transform: fabOpen
+                  ? `translateX(${a.x}) scale(1)`
+                  : 'translateX(0) translateY(14px) scale(0.3)',
+                pointerEvents: fabOpen ? 'auto' : 'none',
+              }}
+            >
+              <span className="text-[11px] font-bold whitespace-nowrap bg-slate-900/90 dark:bg-white/90 dark:text-slate-900 text-white px-2.5 py-1 rounded-lg shadow-lg">
+                {a.label}
+              </span>
+              <button
+                type="button"
+                onClick={a.onClick}
+                aria-label={a.label}
+                className={`w-11 h-11 rounded-full flex items-center justify-center shadow-xl border-2 transition-transform hover:scale-110 active:scale-95 ${a.btn}`}
+              >
+                {a.icon}
+              </button>
+            </div>
+          ))}
+
+          {/* Main toggle */}
+          <button
+            type="button"
+            onClick={() => setFabOpen((v) => !v)}
+            aria-label={fabOpen ? 'Close quick actions' : 'Open quick actions'}
+            className={`relative w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl border-2 border-white/50 transition-all duration-300 hover:scale-105 active:scale-95 ${
+              fabOpen
+                ? 'bg-gradient-to-br from-rose-500 to-orange-500 rotate-90'
+                : 'bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700'
+            }`}
+          >
+            {!fabOpen && (
+              <span className="absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-30 animate-ping" />
+            )}
+            <span className="relative">{fabOpen ? <CloseIcon /> : <ShareIcon />}</span>
+          </button>
+        </div>
+
+        {/* Employee switch modal (opened from avatar) */}
+        {canSwitchUsers && (
+          <UserSelectModal
+            open={userModalOpen}
+            onClose={() => setUserModalOpen(false)}
+            onSelect={handleUserSelect}
+            title="Switch Scorecard Employee"
+            subtitle="Search and select an employee to view their training scorecard"
+            selectedUserId={user.id}
+            selectedUserName={user.name}
+            users={scorecardUsers}
+            departments={scorecardDepartments}
+            currentUserName={currentUserName}
+          />
+        )}
       </Box>
     </AsideLayout>
   );
 }
+
+// Per-document letter grade scale: A+ ≥90, A ≥85, B+ ≥80, B ≥70, C <70
+function docGrade(pct) {
+  const v = Number(pct) || 0;
+  if (v >= 90) return { letter: 'A+', classes: 'bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-400/20 dark:text-amber-300 dark:border-amber-500/50' };
+  if (v >= 85) return { letter: 'A', classes: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-600/40' };
+  if (v >= 80) return { letter: 'B+', classes: 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-600/40' };
+  if (v >= 70) return { letter: 'B', classes: 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-600/40' };
+  return { letter: 'C', classes: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-600/40' };
+}
+
+const DOC_GRADE_SCALE = [
+  { min: 90, label: '≥ 90%' },
+  { min: 85, label: '≥ 85%' },
+  { min: 80, label: '≥ 80%' },
+  { min: 70, label: '≥ 70%' },
+  { min: 0, label: '< 70%' },
+];
 
 // ApexCharts Half-Donut Score Gauge
 function ApexScoreGauge({ value = 0, color = '#059669' }) {

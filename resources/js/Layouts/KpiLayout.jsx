@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, Link } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
 import EmployeeSkillMatrixModal from '../components/Training/EmployeeSkillMatrixModal';
@@ -54,7 +54,7 @@ export default function KpiLayout({ children, title }) {
                     <div>
                         {/* Logo / Header */}
                         <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800 pb-4">
-                            <a href="/kpi" className="flex items-center gap-2">
+                            <Link href="/kpi" className="flex items-center gap-2">
                                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 font-bold text-white dark:bg-slate-100 dark:text-slate-900">
                                     K
                                 </span>
@@ -62,7 +62,7 @@ export default function KpiLayout({ children, title }) {
                                     <span className="font-semibold text-slate-900 dark:text-slate-100">KPI Manager</span>
                                     <span className="block text-xs text-slate-500">OrderDemo</span>
                                 </div>
-                            </a>
+                            </Link>
                             <button
                                 type="button"
                                 onClick={() => setMobileMenuOpen(false)}
@@ -78,7 +78,7 @@ export default function KpiLayout({ children, title }) {
                                 if (item.show === false) return null;
                                 const active = isCurrentUrl(item.href);
                                 return (
-                                    <a
+                                    <Link
                                         key={idx}
                                         href={item.href}
                                         className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition ${
@@ -88,7 +88,7 @@ export default function KpiLayout({ children, title }) {
                                         }`}
                                     >
                                         {item.label}
-                                    </a>
+                                    </Link>
                                 );
                             })}
                         </nav>

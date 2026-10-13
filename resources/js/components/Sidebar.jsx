@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from '@inertiajs/react';
 import {
   List,
   ListItem,
@@ -40,7 +41,7 @@ export default function Sidebar({ currentUrl = '' }) {
         return (
           <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
-              component="a"
+              component={Link}
               href={item.path}
               selected={selected}
               sx={{
