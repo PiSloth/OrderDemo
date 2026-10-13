@@ -423,7 +423,6 @@ class TrainingComplianceController extends Controller
             ->where('user_id', $user->id)
             ->with([
                 'training.category:id,name',
-                'training.test:id,training_id,title',
                 'testAttempts' => fn($q) => $q->orderByDesc('id'),
             ])
             ->get();
