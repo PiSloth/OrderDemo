@@ -165,4 +165,51 @@
     background-color: #64748b !important;
 }
 
+/* Flatpickr Dropdown Positioning & Styling (Ensures alignment and prevents drift under zoom / sticky nav) */
+.flatpickr-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.flatpickr-calendar.static {
+    position: absolute;
+    top: calc(100% + 4px) !important;
+    left: 0;
+    z-index: 9999 !important;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.flatpickr-calendar.static.open {
+    display: block !important;
+    z-index: 9999 !important;
+}
+
+/* Ensure top arrow points up cleanly to the trigger input */
+.flatpickr-calendar.static:before,
+.flatpickr-calendar.static:after {
+    bottom: 100% !important;
+    top: auto !important;
+    border-top-color: transparent !important;
+}
+
+.flatpickr-calendar.static:before {
+    border-bottom-color: #cbd5e1 !important;
+}
+
+.flatpickr-calendar.static:after {
+    border-bottom-color: #ffffff !important;
+}
+
+.dark .flatpickr-calendar.static {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+.dark .flatpickr-calendar.static:after {
+    border-bottom-color: #0f172a !important;
+}
+
+
 

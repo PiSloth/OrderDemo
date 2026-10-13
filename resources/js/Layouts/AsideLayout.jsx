@@ -327,7 +327,7 @@ export default function AsideLayout({
                     type="button"
                     onClick={handleDrawerToggle}
                     onMouseEnter={handleOpenSidebar}
-                    className={`fixed left-0 top-3 sm:top-3.5 z-40 group flex items-center gap-2 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-l-0 border-amber-500/40 dark:border-amber-400/50 shadow-xl shadow-slate-900/30 rounded-r-2xl py-2 px-3 text-white transition-all duration-300 ease-in-out hover:bg-slate-800 hover:translate-x-1 hover:shadow-2xl hover:border-amber-400 cursor-pointer ${
+                    className={`fixed left-0 top-3 sm:top-3.5 z-50 group flex items-center gap-2 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-l-0 border-amber-500/40 dark:border-amber-400/50 shadow-xl shadow-slate-900/30 rounded-r-2xl py-2 px-3 text-white transition-all duration-300 ease-in-out hover:bg-slate-800 hover:translate-x-1 hover:shadow-2xl hover:border-amber-400 cursor-pointer ${
                         sidebarOpen ? 'opacity-0 pointer-events-none -translate-x-4' : 'opacity-100 pointer-events-auto translate-x-0'
                     }`}
                     title="Open Navigation Sidebar"

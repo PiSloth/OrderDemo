@@ -56,7 +56,7 @@ export default function TodoLayout({ children, title }) {
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 {/* Top Navigation Bar with Glassmorphism */}
                 <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/85 transition-all">
-                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pl-24 sm:pl-28 lg:pl-8">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pl-28 sm:pl-28 lg:pl-32">
                     <div className="flex h-16 items-center justify-between">
                         {/* Left Side: Brand Logo & Desktop Nav Links */}
                         <div className="flex items-center gap-6 sm:gap-8 lg:gap-12">

@@ -355,6 +355,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             mode: 'range',
             dateFormat: 'Y-m-d',
             defaultDate: [startDate, endDate],
+            static: true,
             onChange: (selectedDates) => {
                 if (selectedDates.length === 2) {
                     const [start, end] = selectedDates;

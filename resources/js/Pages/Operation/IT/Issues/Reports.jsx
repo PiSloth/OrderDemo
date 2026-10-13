@@ -383,6 +383,7 @@ export default function Reports({ report, filters, categories = [], priorities =
             dateFormat: 'Y-m-d',
             defaultDate: [startDate, endDate].filter(Boolean),
             allowInput: true,
+            static: true,
             onChange: (selectedDates) => {
                 if (selectedDates.length === 2) {
                     const fmt = (d) => d.toISOString().slice(0, 10);

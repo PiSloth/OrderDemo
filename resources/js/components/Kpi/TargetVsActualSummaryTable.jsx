@@ -45,6 +45,7 @@ export default function TargetVsActualSummaryTable({
             mode: 'range',
             dateFormat: 'Y-m-d',
             defaultDate: [primaryFrom, primaryTo],
+            static: true,
             onChange: (selectedDates, dateStr, instance) => {
                 if (selectedDates && selectedDates.length === 2) {
                     setPrimaryFrom(instance.formatDate(selectedDates[0], 'Y-m-d'));
@@ -84,6 +85,7 @@ export default function TargetVsActualSummaryTable({
                 mode: 'range',
                 dateFormat: 'Y-m-d',
                 defaultDate: [defaultCompStart, defaultCompEnd],
+                static: true,
                 onChange: (selectedDates, dateStr, instance) => {
                     if (selectedDates && selectedDates.length === 2) {
                         setCompareFrom(instance.formatDate(selectedDates[0], 'Y-m-d'));
@@ -149,7 +151,7 @@ export default function TargetVsActualSummaryTable({
     return (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xs transition-all space-y-5">
             {/* Header & Controls */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="relative z-20 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 shadow-2xs">
                         <Table className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
