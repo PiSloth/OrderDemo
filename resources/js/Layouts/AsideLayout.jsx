@@ -1192,14 +1192,16 @@ export default function AsideLayout({
                                             >
                                                 <ListItemText primary="Compliance Dashboard" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
-                                            <ListItemButton 
-                                                component={Link} 
-                                                href="/training/skill-matrix" 
-                                                selected={isCurrentUrl('/training/skill-matrix')}
-                                                sx={subItemButtonSx(isCurrentUrl('/training/skill-matrix'))}
-                                            >
-                                                <ListItemText primary="Skill Matrix" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
-                                            </ListItemButton>
+                                            {(auth?.user?.is_super_user || auth?.can?.skillMatrixView) && (
+                                                <ListItemButton 
+                                                    component={Link} 
+                                                    href="/training/skill-matrix" 
+                                                    selected={isCurrentUrl('/training/skill-matrix')}
+                                                    sx={subItemButtonSx(isCurrentUrl('/training/skill-matrix'))}
+                                                >
+                                                    <ListItemText primary="Skill Matrix" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                                </ListItemButton>
+                                            )}
                                             <ListItemButton 
                                                 component={Link} 
                                                 href="/training/trainings" 

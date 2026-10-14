@@ -27,7 +27,8 @@ import {
     ListFilter,
     RefreshCw,
     UserCheck,
-    Layers
+    Layers,
+    Globe
 } from 'lucide-react';
 
 export default function SkillMatrixIndex({
@@ -38,6 +39,8 @@ export default function SkillMatrixIndex({
     summary = {},
     current_user_id = null,
     can_view_all = true,
+    user_scope = 'global',
+    current_user = null,
     initialFilters = {}
 }) {
     // Current Active Tab: 'department' | 'branch' | 'employee'
@@ -234,18 +237,48 @@ export default function SkillMatrixIndex({
                     {/* Background Ambient Glow */}
                     <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
                     <div className="absolute bottom-0 left-1/3 -mb-20 w-60 h-60 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="space-y-2">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                                <span>Reinforcement Learning • Strategic Analytics</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>Reinforcement Learning • Strategic Analytics</span>
+                                </div>
+                                {user_scope === 'global' && (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                        <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>Global Scope (All Matrix)</span>
+                                    </div>
+                                )}
+                                {user_scope === 'department' && (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                        <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+                                        <span>Department Scope {current_user?.department_name ? `(${current_user.department_name})` : ''}</span>
+                                    </div>
+                                )}
+                                {user_scope === 'branch' && (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                        <Store className="w-3.5 h-3.5 text-cyan-400" />
+                                        <span>Branch Scope {current_user?.branch_name ? `(${current_user.branch_name})` : ''}</span>
+                                    </div>
+                                )}
+                                {user_scope === 'department_and_branch' && (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                        <Layers className="w-3.5 h-3.5 text-purple-400" />
+                                        <span>Department & Branch Scope</span>
+                                    </div>
+                                )}
                             </div>
                             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-3">
                                 <span>Skill Matrix Management</span>
                             </h1>
                             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-                                Monitor company-wide employee competency, evaluate departmental and branch qualification scores, and review operational reliance synthesis.
+                                {user_scope === 'global'
+                                    ? 'Monitor company-wide employee competency, evaluate departmental and branch qualification scores, and review operational reliance synthesis.'
+                                    : user_scope === 'branch'
+                                        ? `Monitor branch competency for ${current_user?.branch_name || 'your branch'}, evaluate qualification scores, and review operational reliance synthesis.`
+                                        : `Monitor departmental competency for ${current_user?.department_name || 'your department'}, evaluate qualification scores, and review operational reliance synthesis.`
+                                }
                             </p>
                         </div>
 

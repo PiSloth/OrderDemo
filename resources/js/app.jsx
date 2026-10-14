@@ -8,7 +8,26 @@ import '@fontsource/roboto/700.css';
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
+
+// Some sidebar links point to Blade/Livewire pages (non-Inertia). When an Inertia
+// <Link> visits one of them, the server returns a full HTML document and Inertia
+// would render it inside its iframe modal. Instead, fall back to a normal full
+// page navigation for successful non-Inertia GET responses.
+let lastVisit = null;
+router.on('before', (event) => {
+    lastVisit = event.detail.visit;
+});
+router.on('httpException', (event) => {
+    const response = event.detail.response;
+    const isInertia = response?.headers && response.headers['x-inertia'] !== undefined;
+    const method = String(lastVisit?.method || 'get').toLowerCase();
+
+    if (!isInertia && response?.status < 400 && method === 'get' && lastVisit?.url) {
+        event.preventDefault();
+        window.location.href = lastVisit.url.href ?? String(lastVisit.url);
+    }
+});
 
 if (typeof window !== 'undefined' && typeof window.route !== 'undefined') {
     globalThis.route = window.route;

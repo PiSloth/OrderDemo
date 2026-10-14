@@ -19,14 +19,18 @@ class TrainingSkillMatrixController extends Controller
     {
         $currentUser = $request->user();
 
-        $canViewAll = $currentUser->isSuperUser()
+        $isGlobalScope = $currentUser->isSuperUser()
+            || $currentUser->can('global-scope.view')
             || $currentUser->can('training.catalog.view')
             || $currentUser->can('training.attempt.view');
 
-        // Fetch Departments, Branches, Locations with user counts
-        $departments = Department::withCount('users')->orderBy('name')->get(['id', 'name']);
-        $branches = Branch::withCount('users')->orderBy('name')->get(['id', 'name']);
-        $locations = Location::withCount('users')->orderBy('name')->get(['id', 'name']);
+        $hasDeptScope = $currentUser->can('department-scope.view');
+        $hasBranchScope = $currentUser->can('branch-scope.view');
+
+        // Check if user has permission to view skill matrix
+        if (!$isGlobalScope && !$hasDeptScope && !$hasBranchScope) {
+            abort(403, 'Unauthorized. You do not have permission to view the skill matrix.');
+        }
 
         // Base users query
         $usersQuery = User::query()
@@ -47,18 +51,63 @@ class TrainingSkillMatrixController extends Controller
                 }
             ]);
 
-        // Restrict to user's department if not authorized to view all
-        if (!$canViewAll) {
+        // Restrict based on scopes if not authorized for global view
+        if (!$isGlobalScope) {
             $deptId = $currentUser->department_id;
-            $usersQuery->where(function ($q) use ($currentUser, $deptId) {
+            $branchId = $currentUser->branch_id;
+
+            $usersQuery->where(function ($q) use ($currentUser, $deptId, $branchId, $hasDeptScope, $hasBranchScope) {
+                // User can always see themselves
                 $q->where('id', $currentUser->id);
-                if ($deptId) {
+
+                // Department scope: same department persons
+                if ($hasDeptScope && $deptId) {
                     $q->orWhere('department_id', $deptId);
+                }
+
+                // Branch scope: same branch persons
+                if ($hasBranchScope && $branchId) {
+                    $q->orWhere('branch_id', $branchId);
                 }
             });
         }
 
         $rawUsers = $usersQuery->orderBy('name')->get();
+
+        // Fetch Departments, Branches, Locations with accurate scoped user counts
+        if ($isGlobalScope) {
+            $departments = Department::withCount('users')->orderBy('name')->get(['id', 'name']);
+            $branches = Branch::withCount('users')->orderBy('name')->get(['id', 'name']);
+            $locations = Location::withCount('users')->orderBy('name')->get(['id', 'name']);
+        } else {
+            $visibleDeptIds = $rawUsers->pluck('department_id')->filter()->unique();
+            $visibleBranchIds = $rawUsers->pluck('branch_id')->filter()->unique();
+            $visibleLocationIds = $rawUsers->pluck('location_id')->filter()->unique();
+
+            $departments = Department::whereIn('id', $visibleDeptIds)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(function ($dept) use ($rawUsers) {
+                    $dept->users_count = $rawUsers->where('department_id', $dept->id)->count();
+                    return $dept;
+                });
+
+            $branches = Branch::whereIn('id', $visibleBranchIds)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(function ($b) use ($rawUsers) {
+                    $b->users_count = $rawUsers->where('branch_id', $b->id)->count();
+                    return $b;
+                });
+
+            $locations = Location::whereIn('id', $visibleLocationIds)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(function ($loc) use ($rawUsers) {
+                    $loc->users_count = $rawUsers->where('location_id', $loc->id)->count();
+                    return $loc;
+                });
+        }
 
         // Compute overall matrix scores and competency metrics for every employee
         $employees = $rawUsers->map(function ($u) {
@@ -183,6 +232,13 @@ class TrainingSkillMatrixController extends Controller
         $totalPassedSkills = $employees->sum('passed_skills');
         $totalAssignedSkills = $employees->sum('total_skills');
 
+        $defaultTab = 'department';
+        if (!$isGlobalScope && $hasBranchScope && !$hasDeptScope) {
+            $defaultTab = 'branch';
+        }
+
+        $userScope = $isGlobalScope ? 'global' : ($hasDeptScope && $hasBranchScope ? 'department_and_branch' : ($hasBranchScope ? 'branch' : 'department'));
+
         return Inertia::render('Training/SkillMatrix/Index', [
             'departments' => $departments,
             'branches' => $branches,
@@ -197,12 +253,21 @@ class TrainingSkillMatrixController extends Controller
                 'total_assigned_skills' => $totalAssignedSkills,
             ],
             'current_user_id' => $currentUser->id,
-            'can_view_all' => $canViewAll,
+            'can_view_all' => $isGlobalScope,
+            'user_scope' => $userScope,
+            'current_user' => [
+                'id' => $currentUser->id,
+                'name' => $currentUser->name,
+                'department_id' => $currentUser->department_id,
+                'department_name' => $currentUser->department?->name,
+                'branch_id' => $currentUser->branch_id,
+                'branch_name' => $currentUser->branch?->name,
+            ],
             'initialFilters' => [
                 'department_id' => $request->query('department_id', ''),
                 'branch_id' => $request->query('branch_id', ''),
                 'location_id' => $request->query('location_id', ''),
-                'tab' => $request->query('tab', 'department'),
+                'tab' => $request->query('tab', $defaultTab),
             ],
         ]);
     }

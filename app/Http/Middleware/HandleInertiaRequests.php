@@ -46,6 +46,17 @@ class HandleInertiaRequests extends Middleware
                     'itSatisfactionCreate' => $request->user() ? (in_array(strtolower($request->user()->role ?? ''), ['super admin', 'super_admin', 'admin']) || $request->user()->can('it.satisfaction.create')) : false,
                     'itSatisfactionUpdate' => $request->user() ? (in_array(strtolower($request->user()->role ?? ''), ['super admin', 'super_admin', 'admin']) || $request->user()->can('it.satisfaction.update')) : false,
                     'itSatisfactionDelete' => $request->user() ? (in_array(strtolower($request->user()->role ?? ''), ['super admin', 'super_admin', 'admin']) || $request->user()->can('it.satisfaction.delete')) : false,
+                    'skillMatrixGlobal' => $request->user() ? ($request->user()->isSuperUser() || $request->user()->can('global-scope.view')) : false,
+                    'skillMatrixDept' => $request->user() ? $request->user()->can('department-scope.view') : false,
+                    'skillMatrixBranch' => $request->user() ? $request->user()->can('branch-scope.view') : false,
+                    'skillMatrixView' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->can('global-scope.view')
+                        || $request->user()->can('department-scope.view')
+                        || $request->user()->can('branch-scope.view')
+                        || $request->user()->can('training.catalog.view')
+                        || $request->user()->can('training.attempt.view')
+                    ) : false,
                 ],
             ],
             'flash' => [

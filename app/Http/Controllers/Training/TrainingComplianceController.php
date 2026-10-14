@@ -332,7 +332,7 @@ class TrainingComplianceController extends Controller
     }
 
     /**
-     * Get accessible employee list for skill matrix based on department scope, office position, and containment permissions.
+     * Get accessible employee list for skill matrix based on global, department, or branch scope permissions.
      */
     public function skillMatrixUsers(Request $request)
     {
@@ -341,56 +341,69 @@ class TrainingComplianceController extends Controller
             return response()->json(['users' => []], 401);
         }
 
-        $canViewAll = $currentUser->isSuperUser()
+        $isGlobalScope = $currentUser->isSuperUser()
+            || $currentUser->can('global-scope.view')
             || $currentUser->can('training.catalog.view')
             || $currentUser->can('training.attempt.view');
 
+        $hasDeptScope = $currentUser->can('department-scope.view');
+        $hasBranchScope = $currentUser->can('branch-scope.view');
+
+        if (!$isGlobalScope && !$hasDeptScope && !$hasBranchScope) {
+            return response()->json(['error' => 'Unauthorized. You do not have permission to view the skill matrix.'], 403);
+        }
+
         $usersQuery = User::query()
             ->where('suspended', false)
-            ->with(['department:id,name', 'officePosition:id,name']);
+            ->with(['department:id,name', 'branch:id,name', 'officePosition:id,name']);
 
-        if (!$canViewAll) {
+        if (!$isGlobalScope) {
             $userDeptId = $currentUser->department_id;
-            $userOfficePosId = $currentUser->office_position_id;
+            $userBranchId = $currentUser->branch_id;
 
-            $usersQuery->where(function ($q) use ($currentUser, $userDeptId, $userOfficePosId) {
+            $usersQuery->where(function ($q) use ($currentUser, $userDeptId, $userBranchId, $hasDeptScope, $hasBranchScope) {
                 // 1. Current user himself
                 $q->where('id', $currentUser->id);
 
-                // 2. Department scope: same department (if user has a department)
-                if ($userDeptId) {
-                    $q->orWhere(function ($sub) use ($userDeptId, $userOfficePosId) {
-                        $sub->where('department_id', $userDeptId);
-                        // If office_position is set, can view members with office position or general members
-                        if ($userOfficePosId) {
-                            $sub->where(function ($opQuery) use ($userOfficePosId) {
-                                $opQuery->where('office_position_id', $userOfficePosId)
-                                    ->orWhereNull('office_position_id');
-                            });
-                        }
-                    });
+                // 2. Department scope: same department persons
+                if ($hasDeptScope && $userDeptId) {
+                    $q->orWhere('department_id', $userDeptId);
+                }
+
+                // 3. Branch scope: same branch persons
+                if ($hasBranchScope && $userBranchId) {
+                    $q->orWhere('branch_id', $userBranchId);
                 }
             });
         }
 
-        $users = $usersQuery->orderBy('name')->get(['id', 'name', 'email', 'department_id', 'office_position_id', 'profile_photo_path'])->map(function ($u) {
+        $users = $usersQuery->orderBy('name')->get([
+            'id', 'name', 'email', 'department_id', 'branch_id', 'office_position_id', 'profile_photo_path'
+        ])->map(function ($u) {
             return [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
                 'department_id' => $u->department_id,
+                'branch_id' => $u->branch_id,
                 'office_position_id' => $u->office_position_id,
                 'department' => $u->department,
+                'branch' => $u->branch,
                 'office_position' => $u->officePosition,
                 'profile_photo_url' => $u->profile_photo_url,
             ];
         });
 
+        $visibleDeptIds = $users->pluck('department_id')->filter()->unique();
+
         return response()->json([
             'users' => $users,
-            'departments' => Department::orderBy('name')->get(['id', 'name']),
+            'departments' => $isGlobalScope
+                ? Department::orderBy('name')->get(['id', 'name'])
+                : Department::whereIn('id', $visibleDeptIds)->orderBy('name')->get(['id', 'name']),
             'current_user_id' => $currentUser->id,
-            'can_view_all' => $canViewAll,
+            'can_view_all' => $isGlobalScope,
+            'user_scope' => $isGlobalScope ? 'global' : ($hasDeptScope && $hasBranchScope ? 'department_and_branch' : ($hasBranchScope ? 'branch' : 'department')),
         ]);
     }
 
@@ -404,14 +417,25 @@ class TrainingComplianceController extends Controller
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
-        $canViewAll = $currentUser->isSuperUser()
+        $isGlobalScope = $currentUser->isSuperUser()
+            || $currentUser->can('global-scope.view')
             || $currentUser->can('training.catalog.view')
             || $currentUser->can('training.attempt.view');
 
-        // Check if user is allowed to view target employee
-        if (!$canViewAll && $currentUser->id !== $user->id) {
-            $isSameDept = ($currentUser->department_id && $currentUser->department_id === $user->department_id);
-            if (!$isSameDept) {
+        $hasDeptScope = $currentUser->can('department-scope.view');
+        $hasBranchScope = $currentUser->can('branch-scope.view');
+
+        // Check if user has permission to view skill matrix
+        if (!$isGlobalScope && !$hasDeptScope && !$hasBranchScope && $currentUser->id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized to view this employee matrix.'], 403);
+        }
+
+        // Check scope access for target employee
+        if (!$isGlobalScope && $currentUser->id !== $user->id) {
+            $isSameDept = $hasDeptScope && ($currentUser->department_id && $currentUser->department_id === $user->department_id);
+            $isSameBranch = $hasBranchScope && ($currentUser->branch_id && $currentUser->branch_id === $user->branch_id);
+
+            if (!$isSameDept && !$isSameBranch) {
                 return response()->json(['error' => 'Unauthorized to view this employee matrix.'], 403);
             }
         }
