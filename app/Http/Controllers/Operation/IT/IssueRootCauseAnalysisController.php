@@ -31,6 +31,7 @@ class IssueRootCauseAnalysisController extends Controller
             'category',
             'status',
             'assignedUser',
+            'creator.department',
             'rootCauses',
             'messages' => fn($q) => $q->where('is_log_note', true)->latest(),
         ]);
@@ -93,11 +94,16 @@ class IssueRootCauseAnalysisController extends Controller
             return $issue;
         });
 
-        // 2. Tab 2: Root cause summary grouped by root cause category and then by issue category
+        // 2. Tab 2: Root cause summary grouped by:
+        //    Level 1: Root Cause Category
+        //    Level 2: Issue Category
+        //    Level 3: Reported By Person's Department Name
         $summaryQuery = DB::table('issue_root_cause_logs as log')
             ->join('issue_root_causes as rc', 'log.root_cause_id', '=', 'rc.id')
             ->join('issues as i', 'log.issue_id', '=', 'i.id')
             ->leftJoin('issue_categories as ic', 'i.issue_category_id', '=', 'ic.id')
+            ->leftJoin('users as u', 'i.created_by', '=', 'u.id')
+            ->leftJoin('departments as d', 'u.department_id', '=', 'd.id')
             ->whereNull('i.deleted_at');
 
         if ($rootCauseDate) {
@@ -116,6 +122,8 @@ class IssueRootCauseAnalysisController extends Controller
             'rc.name as root_cause_name',
             'ic.id as issue_category_id',
             'ic.name as issue_category_name',
+            'd.id as department_id',
+            'd.name as department_name',
             'i.id as issue_id',
         ];
         if ($hasCategoryCol) {
@@ -131,8 +139,11 @@ class IssueRootCauseAnalysisController extends Controller
             $rcCategory = !empty($row->root_cause_category) ? trim($row->root_cause_category) : 'General';
             $issueCategory = !empty($row->issue_category_name) ? trim($row->issue_category_name) : 'Unassigned Category';
             $issueCategoryId = $row->issue_category_id ?? 0;
+            $deptName = !empty($row->department_name) ? trim($row->department_name) : 'No Department';
+            $deptId = $row->department_id ?? 0;
             $rcName = trim($row->root_cause_name);
 
+            // Level 1: Root Cause Category
             if (!isset($groupedSummary[$rcCategory])) {
                 $groupedSummary[$rcCategory] = [
                     'root_cause_category' => $rcCategory,
@@ -142,32 +153,51 @@ class IssueRootCauseAnalysisController extends Controller
             }
             $groupedSummary[$rcCategory]['total_count']++;
 
+            // Level 2: Issue Category
             if (!isset($groupedSummary[$rcCategory]['issue_categories'][$issueCategory])) {
                 $groupedSummary[$rcCategory]['issue_categories'][$issueCategory] = [
                     'issue_category_id' => $issueCategoryId,
                     'issue_category_name' => $issueCategory,
                     'total_count' => 0,
-                    'root_causes' => [],
+                    'departments' => [],
                 ];
             }
             $groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['total_count']++;
 
-            if (!isset($groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['root_causes'][$rcName])) {
-                $groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['root_causes'][$rcName] = [
+            // Level 3: Reported By Department
+            if (!isset($groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['departments'][$deptName])) {
+                $groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['departments'][$deptName] = [
+                    'department_id' => $deptId,
+                    'department_name' => $deptName,
+                    'total_count' => 0,
+                    'root_causes' => [],
+                ];
+            }
+            $groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['departments'][$deptName]['total_count']++;
+
+            // Root causes within Department
+            if (!isset($groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['departments'][$deptName]['root_causes'][$rcName])) {
+                $groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['departments'][$deptName]['root_causes'][$rcName] = [
                     'root_cause_id' => $row->root_cause_id,
                     'name' => $rcName,
                     'count' => 0,
                 ];
             }
-            $groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['root_causes'][$rcName]['count']++;
+            $groupedSummary[$rcCategory]['issue_categories'][$issueCategory]['departments'][$deptName]['root_causes'][$rcName]['count']++;
         }
 
         // Format summary into index arrays for frontend consumption
         $formattedSummary = array_values(array_map(function ($rcCatGroup) {
             $rcCatGroup['issue_categories'] = array_values(array_map(function ($issueCatGroup) {
-                $issueCatGroup['root_causes'] = array_values($issueCatGroup['root_causes']);
+                $issueCatGroup['departments'] = array_values(array_map(function ($deptGroup) {
+                    $deptGroup['root_causes'] = array_values($deptGroup['root_causes']);
+                    usort($deptGroup['root_causes'], fn($a, $b) => $b['count'] <=> $a['count']);
+                    return $deptGroup;
+                }, $issueCatGroup['departments']));
+                usort($issueCatGroup['departments'], fn($a, $b) => strcmp($a['department_name'], $b['department_name']));
                 return $issueCatGroup;
             }, $rcCatGroup['issue_categories']));
+            usort($rcCatGroup['issue_categories'], fn($a, $b) => strcmp($a['issue_category_name'], $b['issue_category_name']));
             return $rcCatGroup;
         }, $groupedSummary));
 

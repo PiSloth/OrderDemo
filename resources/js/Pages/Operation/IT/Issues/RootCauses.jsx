@@ -60,6 +60,7 @@ import {
     Save as SaveIcon,
     ListAlt as ListAltIcon,
     PieChart as PieChartIcon,
+    Business as BusinessIcon,
 } from '@mui/icons-material';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -100,9 +101,11 @@ export default function RootCauses({
         creating: false,
     });
 
-    // Collapsed state for Tab 2 Issue Categories
-    // Default: ALL issue categories are collapsed by default!
+    // Collapsed states for Tab 2:
+    // Level 2: Issue Categories (collapsed by default)
+    // Level 3: Departments (collapsed by default)
     const [expandedCategories, setExpandedCategories] = useState({});
+    const [expandedDepts, setExpandedDepts] = useState({});
 
     // Description read-more toggle map
     const [expandedDescriptions, setExpandedDescriptions] = useState({});
@@ -269,24 +272,38 @@ export default function RootCauses({
         }
     };
 
-    // Toggle accordion state in Tab 2
-    const toggleAccordion = (key) => {
+    // Toggle issue category accordion state in Tab 2 (Level 2)
+    const toggleCategory = (key) => {
         setExpandedCategories((prev) => ({
             ...prev,
             [key]: !prev[key],
         }));
     };
 
-    // Expand all or Collapse all in Tab 2
+    // Toggle department accordion state in Tab 2 (Level 3)
+    const toggleDept = (key) => {
+        setExpandedDepts((prev) => ({
+            ...prev,
+            [key]: !prev[key],
+        }));
+    };
+
+    // Expand all or Collapse all in Tab 2 (both Issue Categories and Departments)
     const handleToggleAllAccordions = (expandAll) => {
-        const nextState = {};
+        const nextCategories = {};
+        const nextDepts = {};
         summary.forEach((rcGroup, rcIdx) => {
-            rcGroup.issue_categories.forEach((icGroup, icIdx) => {
-                const key = `${rcIdx}-${icIdx}`;
-                nextState[key] = expandAll;
+            (rcGroup.issue_categories || []).forEach((icGroup, icIdx) => {
+                const catKey = `${rcIdx}-${icIdx}`;
+                nextCategories[catKey] = expandAll;
+                (icGroup.departments || []).forEach((deptGroup, deptIdx) => {
+                    const deptKey = `${rcIdx}-${icIdx}-${deptIdx}`;
+                    nextDepts[deptKey] = expandAll;
+                });
             });
         });
-        setExpandedCategories(nextState);
+        setExpandedCategories(nextCategories);
+        setExpandedDepts(nextDepts);
     };
 
     return (
@@ -538,7 +555,7 @@ export default function RootCauses({
                                                                 <Typography variant="subtitle2" fontWeight="700" color="#0f172a">
                                                                     #{issue.id} {issue.title}
                                                                 </Typography>
-                                                                <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} flexWrap="wrap">
+                                                                <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} flexWrap="wrap" alignItems="center">
                                                                     {issue.category && (
                                                                         <Chip
                                                                             size="small"
@@ -549,6 +566,20 @@ export default function RootCauses({
                                                                                 bgcolor: issue.category.is_erp ? '#eff6ff' : '#f1f5f9',
                                                                                 color: issue.category.is_erp ? '#1d4ed8' : '#475569',
                                                                                 fontWeight: 600,
+                                                                            }}
+                                                                        />
+                                                                    )}
+                                                                    {issue.creator && (
+                                                                        <Chip
+                                                                            size="small"
+                                                                            icon={<BusinessIcon style={{ fontSize: '0.75rem' }} />}
+                                                                            label={`${issue.creator.name}${issue.creator.department ? ` (${issue.creator.department.name})` : ''}`}
+                                                                            sx={{
+                                                                                fontSize: '0.72rem',
+                                                                                height: 22,
+                                                                                bgcolor: '#f1f5f9',
+                                                                                color: '#475569',
+                                                                                fontWeight: 500,
                                                                             }}
                                                                         />
                                                                     )}
@@ -763,10 +794,10 @@ export default function RootCauses({
                         <Box sx={{ mb: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
                             <Box>
                                 <Typography variant="h6" fontWeight="bold" color="#1e293b">
-                                    Root Cause Breakdown by Category
+                                    Root Cause Breakdown by Category & Department
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Grouped by <strong>Root Cause Category</strong>, then by <strong>Issue Category</strong> (collapsed by default).
+                                    Grouped by <strong>Root Cause Category</strong>, then by <strong>Issue Category</strong>, and by <strong>Reported by Department</strong> (cascading collapsible).
                                 </Typography>
                             </Box>
 
@@ -838,7 +869,7 @@ export default function RootCauses({
                                                         Root Cause Category: {rcCatGroup.root_cause_category}
                                                     </Typography>
                                                     <Typography variant="caption" color="text.secondary">
-                                                        {rcCatGroup.issue_categories.length} issue categories affected
+                                                        {rcCatGroup.issue_categories.length} issue {rcCatGroup.issue_categories.length === 1 ? 'category' : 'categories'} affected
                                                     </Typography>
                                                 </Box>
                                             </Stack>
@@ -852,16 +883,16 @@ export default function RootCauses({
 
                                         {/* Level 2: Nested Issue Categories (Collapsed by Default) */}
                                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                            <Stack spacing={1.5}>
+                                            <Stack spacing={1.75}>
                                                 {rcCatGroup.issue_categories.map((icGroup, icIdx) => {
-                                                    const accordionKey = `${rcIdx}-${icIdx}`;
-                                                    const isExpanded = !!expandedCategories[accordionKey];
+                                                    const catKey = `${rcIdx}-${icIdx}`;
+                                                    const isCatExpanded = !!expandedCategories[catKey];
 
                                                     return (
                                                         <Accordion
                                                             key={icGroup.issue_category_name}
-                                                            expanded={isExpanded}
-                                                            onChange={() => toggleAccordion(accordionKey)}
+                                                            expanded={isCatExpanded}
+                                                            onChange={() => toggleCategory(catKey)}
                                                             disableGutters
                                                             elevation={0}
                                                             sx={{
@@ -875,7 +906,7 @@ export default function RootCauses({
                                                             <AccordionSummary
                                                                 expandIcon={<ExpandMoreIcon />}
                                                                 sx={{
-                                                                    bgcolor: isExpanded ? '#f1f5f9' : '#ffffff',
+                                                                    bgcolor: isCatExpanded ? '#f1f5f9' : '#ffffff',
                                                                     transition: 'background-color 0.2s',
                                                                     '&:hover': { bgcolor: '#f8fafc' },
                                                                     px: 2,
@@ -889,8 +920,8 @@ export default function RootCauses({
                                                                         </Typography>
                                                                         <Chip
                                                                             size="small"
-                                                                            label={`${icGroup.root_causes.length} distinct root causes`}
-                                                                            sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#f1f5f9' }}
+                                                                            label={`${icGroup.departments?.length || 0} departments`}
+                                                                            sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#e2e8f0', color: '#475569' }}
                                                                         />
                                                                     </Stack>
 
@@ -901,68 +932,139 @@ export default function RootCauses({
                                                                             height: 22,
                                                                             fontWeight: 700,
                                                                             fontSize: '0.75rem',
-                                                                            bgcolor: isExpanded ? '#e0e7ff' : '#f1f5f9',
-                                                                            color: isExpanded ? '#3730a3' : '#475569',
+                                                                            bgcolor: isCatExpanded ? '#e0e7ff' : '#f1f5f9',
+                                                                            color: isCatExpanded ? '#3730a3' : '#475569',
                                                                         }}
                                                                     />
                                                                 </Box>
                                                             </AccordionSummary>
 
-                                                            {/* Level 3: Root causes and counts inside this issue category */}
-                                                            <AccordionDetails sx={{ p: 2, bgcolor: '#fafafa', borderTop: '1px solid #e2e8f0' }}>
-                                                                <Table size="small">
-                                                                    <TableHead>
-                                                                        <TableRow>
-                                                                            <TableCell sx={{ fontWeight: 600, color: '#64748b' }}>Root Cause Name</TableCell>
-                                                                            <TableCell align="right" sx={{ fontWeight: 600, color: '#64748b' }}>Issue Count</TableCell>
-                                                                            <TableCell align="right" sx={{ fontWeight: 600, color: '#64748b', width: '25%' }}>Share in Category</TableCell>
-                                                                        </TableRow>
-                                                                    </TableHead>
-                                                                    <TableBody>
-                                                                        {icGroup.root_causes.map((rcItem) => {
-                                                                            const percent = icGroup.total_count > 0
-                                                                                ? Math.round((rcItem.count / icGroup.total_count) * 100)
-                                                                                : 0;
+                                                            {/* Level 3: Cascading Departments Accordions (Collapsed by Default) */}
+                                                            <AccordionDetails sx={{ p: 2, bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                                                                <Box sx={{ pl: { xs: 1, sm: 2 }, borderLeft: '3px solid #6366f1', my: 0.5 }}>
+                                                                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 0.5, mb: 1.25, display: 'block' }}>
+                                                                        Reported by Person's Department
+                                                                    </Typography>
+
+                                                                    <Stack spacing={1.25}>
+                                                                        {(icGroup.departments || []).map((deptGroup, deptIdx) => {
+                                                                            const deptKey = `${rcIdx}-${icIdx}-${deptIdx}`;
+                                                                            const isDeptExpanded = !!expandedDepts[deptKey];
 
                                                                             return (
-                                                                                <TableRow key={rcItem.name} hover>
-                                                                                    <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>
-                                                                                        <Stack direction="row" spacing={1} alignItems="center">
-                                                                                            <BugReportIcon sx={{ fontSize: '1rem', color: '#64748b' }} />
-                                                                                            <span>{rcItem.name}</span>
-                                                                                        </Stack>
-                                                                                    </TableCell>
-                                                                                    <TableCell align="right">
-                                                                                        <Chip
-                                                                                            size="small"
-                                                                                            label={rcItem.count}
-                                                                                            color="primary"
-                                                                                            variant="outlined"
-                                                                                            sx={{ fontWeight: 700, height: 20, minWidth: 28 }}
-                                                                                        />
-                                                                                    </TableCell>
-                                                                                    <TableCell align="right">
-                                                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                                                                                            <Box sx={{ width: 80, bgcolor: '#e2e8f0', borderRadius: 1, height: 6, overflow: 'hidden' }}>
-                                                                                                <Box
-                                                                                                    sx={{
-                                                                                                        width: `${percent}%`,
-                                                                                                        bgcolor: '#3b82f6',
-                                                                                                        height: '100%',
-                                                                                                        borderRadius: 1,
-                                                                                                    }}
+                                                                                <Accordion
+                                                                                    key={deptGroup.department_name}
+                                                                                    expanded={isDeptExpanded}
+                                                                                    onChange={() => toggleDept(deptKey)}
+                                                                                    disableGutters
+                                                                                    elevation={0}
+                                                                                    sx={{
+                                                                                        border: '1px solid #e2e8f0',
+                                                                                        borderRadius: '6px !important',
+                                                                                        '&:before': { display: 'none' },
+                                                                                        bgcolor: '#ffffff',
+                                                                                        overflow: 'hidden',
+                                                                                    }}
+                                                                                >
+                                                                                    {/* Department Summary Header */}
+                                                                                    <AccordionSummary
+                                                                                        expandIcon={<ExpandMoreIcon />}
+                                                                                        sx={{
+                                                                                            bgcolor: isDeptExpanded ? '#eef2ff' : '#ffffff',
+                                                                                            transition: 'background-color 0.2s',
+                                                                                            '&:hover': { bgcolor: '#f8fafc' },
+                                                                                            px: 2,
+                                                                                            minHeight: 44,
+                                                                                        }}
+                                                                                    >
+                                                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', pr: 1.5 }}>
+                                                                                            <Stack direction="row" spacing={1.25} alignItems="center">
+                                                                                                <BusinessIcon fontSize="small" sx={{ color: isDeptExpanded ? '#4f46e5' : '#64748b' }} />
+                                                                                                <Typography variant="body2" fontWeight="600" color="#1e293b">
+                                                                                                    {deptGroup.department_name}
+                                                                                                </Typography>
+                                                                                                <Chip
+                                                                                                    size="small"
+                                                                                                    label={`${deptGroup.root_causes?.length || 0} distinct root causes`}
+                                                                                                    sx={{ height: 18, fontSize: '0.675rem', bgcolor: '#f1f5f9' }}
                                                                                                 />
-                                                                                            </Box>
-                                                                                            <Typography variant="caption" fontWeight="bold" color="text.secondary">
-                                                                                                {percent}%
-                                                                                            </Typography>
+                                                                                            </Stack>
+
+                                                                                            <Chip
+                                                                                                size="small"
+                                                                                                label={`${deptGroup.total_count} issue${deptGroup.total_count === 1 ? '' : 's'}`}
+                                                                                                sx={{
+                                                                                                    height: 20,
+                                                                                                    fontWeight: 700,
+                                                                                                    fontSize: '0.72rem',
+                                                                                                    bgcolor: isDeptExpanded ? '#e0e7ff' : '#f1f5f9',
+                                                                                                    color: isDeptExpanded ? '#3730a3' : '#475569',
+                                                                                                }}
+                                                                                            />
                                                                                         </Box>
-                                                                                    </TableCell>
-                                                                                </TableRow>
+                                                                                    </AccordionSummary>
+
+                                                                                    {/* Root causes table inside Department */}
+                                                                                    <AccordionDetails sx={{ p: 2, bgcolor: '#ffffff', borderTop: '1px solid #f1f5f9' }}>
+                                                                                        <Table size="small">
+                                                                                            <TableHead>
+                                                                                                <TableRow>
+                                                                                                    <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.75rem' }}>Root Cause Name</TableCell>
+                                                                                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.75rem' }}>Issue Count</TableCell>
+                                                                                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#64748b', width: '30%', fontSize: '0.75rem' }}>Share in Department</TableCell>
+                                                                                                </TableRow>
+                                                                                            </TableHead>
+                                                                                            <TableBody>
+                                                                                                {(deptGroup.root_causes || []).map((rcItem) => {
+                                                                                                    const percent = deptGroup.total_count > 0
+                                                                                                        ? Math.round((rcItem.count / deptGroup.total_count) * 100)
+                                                                                                        : 0;
+
+                                                                                                    return (
+                                                                                                        <TableRow key={rcItem.name} hover>
+                                                                                                            <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>
+                                                                                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                                                                                    <BugReportIcon sx={{ fontSize: '1rem', color: '#64748b' }} />
+                                                                                                                    <span>{rcItem.name}</span>
+                                                                                                                </Stack>
+                                                                                                            </TableCell>
+                                                                                                            <TableCell align="right">
+                                                                                                                <Chip
+                                                                                                                    size="small"
+                                                                                                                    label={rcItem.count}
+                                                                                                                    color="primary"
+                                                                                                                    variant="outlined"
+                                                                                                                    sx={{ fontWeight: 700, height: 20, minWidth: 28 }}
+                                                                                                                />
+                                                                                                            </TableCell>
+                                                                                                            <TableCell align="right">
+                                                                                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                                                                                                    <Box sx={{ width: 80, bgcolor: '#e2e8f0', borderRadius: 1, height: 6, overflow: 'hidden' }}>
+                                                                                                                        <Box
+                                                                                                                            sx={{
+                                                                                                                                width: `${percent}%`,
+                                                                                                                                bgcolor: '#4f46e5',
+                                                                                                                                height: '100%',
+                                                                                                                                borderRadius: 1,
+                                                                                                                            }}
+                                                                                                                        />
+                                                                                                                    </Box>
+                                                                                                                    <Typography variant="caption" sx={{ fontWeight: 700, minWidth: 36, color: '#475569' }}>
+                                                                                                                        {percent}%
+                                                                                                                    </Typography>
+                                                                                                                </Box>
+                                                                                                            </TableCell>
+                                                                                                        </TableRow>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </TableBody>
+                                                                                        </Table>
+                                                                                    </AccordionDetails>
+                                                                                </Accordion>
                                                                             );
                                                                         })}
-                                                                    </TableBody>
-                                                                </Table>
+                                                                    </Stack>
+                                                                </Box>
                                                             </AccordionDetails>
                                                         </Accordion>
                                                     );

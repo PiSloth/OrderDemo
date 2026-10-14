@@ -181,7 +181,7 @@ class IssueRootCauseAnalysisTest extends TestCase
         );
     }
 
-    public function test_summary_groups_by_root_cause_category_and_issue_category(): void
+    public function test_summary_groups_by_root_cause_category_issue_category_and_department(): void
     {
         $issue = $this->createSampleIssue('Issue for Summary');
         $rootCause = IssueRootCause::create([
@@ -203,9 +203,14 @@ class IssueRootCauseAnalysisTest extends TestCase
             ->where('summary', function ($summary) use ($rootCause) {
                 $hardwareCat = collect($summary)->firstWhere('root_cause_category', 'Hardware');
                 if (!$hardwareCat) return false;
+
                 $issueCat = collect($hardwareCat['issue_categories'])->firstWhere('issue_category_name', $this->category->name);
                 if (!$issueCat) return false;
-                return collect($issueCat['root_causes'])->contains('name', $rootCause->name);
+
+                $dept = collect($issueCat['departments'])->firstWhere('department_name', $this->department->name);
+                if (!$dept) return false;
+
+                return collect($dept['root_causes'])->contains('name', $rootCause->name);
             })
         );
     }
