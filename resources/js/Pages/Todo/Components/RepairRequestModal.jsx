@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import html2canvas from 'html2canvas';
+import { toCanvas } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 /**
@@ -291,11 +291,13 @@ export default function RepairRequestModal({
     };
 
     /**
-     * Unified canvas renderer that ensures:
-     * 1. Pyidaungsu fonts are loaded and ready in main document.
-     * 2. Custom document fonts and @font-face are injected into html2canvas's cloned iframe DOM.
-     * 3. Font ligatures are disabled on clone to prevent double glyph painting.
-     * 4. An integer scale (2) is used to avoid subpixel anti-aliasing ghost borders.
+     * Renders the form using the browser engine itself (SVG foreignObject) instead of
+     * html2canvas. html2canvas re-implements text layout (it splits text into words /
+     * characters and re-measures them on a 2D canvas), which breaks Myanmar complex-script
+     * shaping — combining marks get separated from base consonants and baselines shift,
+     * producing the overlapping / smudged glyphs seen in exported Copy / PDF / PNG output.
+     * html-to-image preserves the exact on-screen layout, Pyidaungsu shaping, table
+     * geometry and scroll position, so exports match the preview pixel-perfectly.
      */
     const renderFormToCanvas = async () => {
         if (!formRef.current) return null;
@@ -305,48 +307,12 @@ export default function RepairRequestModal({
             await document.fonts.ready;
         }
         // Small delay to ensure layout and webfont metrics are fully resolved
-        await new Promise((resolve) => setTimeout(resolve, 80));
+        await new Promise((resolve) => setTimeout(resolve, 120));
 
-        return await html2canvas(formRef.current, {
-            scale: 2,
-            useCORS: true,
+        return await toCanvas(formRef.current, {
             backgroundColor: '#ffffff',
-            logging: false,
-            onclone: (clonedDoc) => {
-                const style = clonedDoc.createElement('style');
-                style.innerHTML = `
-                    @font-face {
-                        font-family: 'Pyidaungsu';
-                        src: url('/fonts/Pyidaungsu-Regular.ttf') format('truetype');
-                        font-weight: normal;
-                        font-style: normal;
-                    }
-                    @font-face {
-                        font-family: 'Pyidaungsu';
-                        src: url('/fonts/Pyidaungsu-Bold.ttf') format('truetype');
-                        font-weight: bold;
-                        font-style: normal;
-                    }
-                `;
-                clonedDoc.head.appendChild(style);
-
-                // Ensure all loaded document fonts exist in the isolated iframe
-                if (document.fonts) {
-                    document.fonts.forEach((font) => {
-                        try {
-                            clonedDoc.fonts.add(font);
-                        } catch (e) {
-                            // Ignore duplicate addition
-                        }
-                    });
-                }
-                const printable = clonedDoc.getElementById('repair-request-form-printable');
-                if (printable) {
-                    printable.style.fontFamily = "'Pyidaungsu', sans-serif";
-                    printable.style.fontFeatureSettings = '"liga" 0';
-                    printable.style.textRendering = 'geometricPrecision';
-                }
-            },
+            pixelRatio: 2,
+            cacheBust: true,
         });
     };
 
