@@ -925,10 +925,12 @@ class ItIssueController extends Controller
             'category' => ['nullable', 'string', 'max:100'],
         ]);
 
-        IssueRootCause::create([
-            'name' => $validated['name'],
-            'category' => !empty($validated['category']) ? $validated['category'] : 'General',
-        ]);
+        $data = ['name' => $validated['name']];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('issue_root_causes', 'category') && !empty($validated['category'])) {
+            $data['category'] = $validated['category'];
+        }
+
+        IssueRootCause::create($data);
 
         return back()->with('success', 'Root cause created successfully!');
     }
@@ -942,10 +944,12 @@ class ItIssueController extends Controller
             'category' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $rootCause->update([
-            'name' => $validated['name'],
-            'category' => !empty($validated['category']) ? $validated['category'] : ($rootCause->category ?: 'General'),
-        ]);
+        $data = ['name' => $validated['name']];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('issue_root_causes', 'category') && !empty($validated['category'])) {
+            $data['category'] = $validated['category'];
+        }
+
+        $rootCause->update($data);
 
         return back()->with('success', 'Root cause updated successfully!');
     }

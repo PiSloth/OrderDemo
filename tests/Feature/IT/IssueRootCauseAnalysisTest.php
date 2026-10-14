@@ -214,4 +214,21 @@ class IssueRootCauseAnalysisTest extends TestCase
             })
         );
     }
+
+    public function test_can_update_root_cause_from_configure_route(): void
+    {
+        $rootCause = IssueRootCause::create([
+            'name' => 'Original Name ' . uniqid(),
+        ]);
+
+        $response = $this->patch(route('operation.it.issues.configure.root-causes.update', $rootCause->id), [
+            'name' => 'USER က လွဲမှားခြင်း',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('issue_root_causes', [
+            'id' => $rootCause->id,
+            'name' => 'USER က လွဲမှားခြင်း',
+        ]);
+    }
 }
