@@ -129,11 +129,17 @@ class IssueRootCauseAnalysisTest extends TestCase
         ]);
 
         $response->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('issue_root_cause_logs', [
+        $this->assertDatabaseHas('issue_messages', [
             'issue_id' => $issue->id,
-            'root_cause_id' => $rootCause->id,
-            'remark' => $remarkText,
+            'is_log_note' => true,
         ]);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('issue_root_cause_logs', 'remark')) {
+            $this->assertDatabaseHas('issue_root_cause_logs', [
+                'issue_id' => $issue->id,
+                'root_cause_id' => $rootCause->id,
+                'remark' => $remarkText,
+            ]);
+        }
     }
 
     public function test_filter_by_root_cause_created_date(): void

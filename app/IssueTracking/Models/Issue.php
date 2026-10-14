@@ -34,7 +34,7 @@ class Issue extends Model
         'fail_points' => 'integer',
     ];
 
-    protected $appends = ['is_overdue', 'is_urgent', 'resolution_days', 'sla_state'];
+    protected $appends = ['is_overdue', 'is_urgent', 'resolution_days', 'sla_state', 'root_cause_remark'];
 
     public function category(): BelongsTo { return $this->belongsTo(IssueCategory::class, 'issue_category_id'); }
     public function priority(): BelongsTo { return $this->belongsTo(IssuePriority::class, 'issue_priority_id'); }
@@ -48,8 +48,26 @@ class Issue extends Model
     public function images(): HasMany { return $this->hasMany(IssueImage::class); }
     public function statusHistories(): HasMany { return $this->hasMany(IssueStatusHistory::class); }
     public function activityLogs(): HasMany { return $this->hasMany(IssueActivityLog::class); }
-    public function rootCauses(): BelongsToMany { return $this->belongsToMany(IssueRootCause::class, 'issue_root_cause_logs', 'issue_id', 'root_cause_id')->withPivot('id', 'remark')->withTimestamps(); }
+    public function rootCauses(): BelongsToMany { return $this->belongsToMany(IssueRootCause::class, 'issue_root_cause_logs', 'issue_id', 'root_cause_id')->withTimestamps(); }
     public function rootCauseLogs(): HasMany { return $this->hasMany(IssueRootCauseLog::class); }
+
+    public function getRootCauseRemarkAttribute(): ?string
+    {
+        $rc = $this->relationLoaded('rootCauses') ? $this->rootCauses->first() : null;
+        if ($rc && isset($rc->pivot->remark) && !empty($rc->pivot->remark)) {
+            return $rc->pivot->remark;
+        }
+
+        if ($this->relationLoaded('messages')) {
+            foreach ($this->messages->where('is_log_note', true) as $m) {
+                if (preg_match('/(?:Reason \/ )?Remark:\s*(.+)$/i', $m->message, $matches)) {
+                    return trim($matches[1]);
+                }
+            }
+        }
+
+        return null;
+    }
 
     public function getIsOverdueAttribute(): bool
     {

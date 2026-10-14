@@ -176,7 +176,7 @@ export default function RootCauses({
             open: true,
             issue: issue,
             root_cause_id: currentRootCause ? currentRootCause.id : '',
-            remark: currentRootCause?.pivot?.remark || '',
+            remark: issue.root_cause_remark || currentRootCause?.remark || currentRootCause?.pivot?.remark || '',
             saving: false,
         });
         setShowNewRootCauseForm(false);
@@ -515,7 +515,7 @@ export default function RootCauses({
                                                 const assignedRootCause = issue.root_causes && issue.root_causes.length > 0
                                                     ? issue.root_causes[0]
                                                     : null;
-                                                const remark = assignedRootCause?.pivot?.remark;
+                                                const remark = issue.root_cause_remark || assignedRootCause?.remark || assignedRootCause?.pivot?.remark;
                                                 const loggedDate = assignedRootCause?.pivot?.created_at
                                                     ? new Date(assignedRootCause.pivot.created_at).toLocaleDateString()
                                                     : null;

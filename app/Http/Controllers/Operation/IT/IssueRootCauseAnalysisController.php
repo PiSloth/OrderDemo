@@ -56,13 +56,19 @@ class IssueRootCauseAnalysisController extends Controller
 
         // Search query
         if ($search) {
-            $query->where(function ($sub) use ($search) {
+            $hasRcCatCol = \Illuminate\Support\Facades\Schema::hasColumn('issue_root_causes', 'category');
+            $query->where(function ($sub) use ($search, $hasRcCatCol) {
                 $sub->where('title', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('rootCauses', function ($rcQ) use ($search) {
-                        $rcQ->where('name', 'like', "%{$search}%")
-                            ->orWhere('category', 'like', "%{$search}%")
-                            ->orWhere('issue_root_cause_logs.remark', 'like', "%{$search}%");
+                    ->orWhereHas('rootCauses', function ($rcQ) use ($search, $hasRcCatCol) {
+                        $rcQ->where('name', 'like', "%{$search}%");
+                        if ($hasRcCatCol) {
+                            $rcQ->orWhere('category', 'like', "%{$search}%");
+                        }
+                    })
+                    ->orWhereHas('messages', function ($mQ) use ($search) {
+                        $mQ->where('is_log_note', true)
+                            ->where('message', 'like', "%{$search}%");
                     });
             });
         }
@@ -73,16 +79,16 @@ class IssueRootCauseAnalysisController extends Controller
         // Paginate 5 items per page as requested
         $issues = $query->paginate(5)->withQueryString();
 
-        // If remark was previously logged in an issue message when closing, use it as fallback
+        // Populate remark from pivot or from historical log notes in issue_messages
         $issues->getCollection()->transform(function ($issue) {
+            $remark = $issue->root_cause_remark;
             $rc = $issue->rootCauses->first();
-            if ($rc && empty($rc->pivot->remark) && $issue->relationLoaded('messages')) {
-                $logNote = $issue->messages->first(function ($m) {
-                    return str_contains($m->message, 'Remark:');
-                });
-                if ($logNote && preg_match('/(?:Reason \/ )?Remark:\s*(.+)$/i', $logNote->message, $matches)) {
-                    $rc->pivot->remark = trim($matches[1]);
+            if ($rc) {
+                $rc->remark = $remark;
+                if (!isset($rc->pivot)) {
+                    $rc->pivot = new \stdClass();
                 }
+                $rc->pivot->remark = $remark;
             }
             return $issue;
         });
@@ -104,14 +110,21 @@ class IssueRootCauseAnalysisController extends Controller
             $summaryQuery->whereDate('log.created_at', '<=', $endDate);
         }
 
-        $summaryLogs = $summaryQuery->select([
+        $hasCategoryCol = \Illuminate\Support\Facades\Schema::hasColumn('issue_root_causes', 'category');
+        $selectCols = [
             'rc.id as root_cause_id',
             'rc.name as root_cause_name',
-            'rc.category as root_cause_category',
             'ic.id as issue_category_id',
             'ic.name as issue_category_name',
             'i.id as issue_id',
-        ])->get();
+        ];
+        if ($hasCategoryCol) {
+            $selectCols[] = 'rc.category as root_cause_category';
+        } else {
+            $selectCols[] = DB::raw("'General' as root_cause_category");
+        }
+
+        $summaryLogs = $summaryQuery->select($selectCols)->get();
 
         $groupedSummary = [];
         foreach ($summaryLogs as $row) {
@@ -162,13 +175,22 @@ class IssueRootCauseAnalysisController extends Controller
         usort($formattedSummary, fn($a, $b) => strcmp($a['root_cause_category'], $b['root_cause_category']));
 
         // Master data
-        $rootCauses = IssueRootCause::orderBy('category')->orderBy('name')->get();
-        $existingRootCauseCategories = IssueRootCause::select('category')
-            ->whereNotNull('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category')
-            ->values();
+        $hasRcCat = \Illuminate\Support\Facades\Schema::hasColumn('issue_root_causes', 'category');
+        $rcQuery = IssueRootCause::query();
+        if ($hasRcCat) {
+            $rcQuery->orderBy('category');
+        }
+        $rootCauses = $rcQuery->orderBy('name')->get();
+
+        $existingRootCauseCategories = [];
+        if ($hasRcCat) {
+            $existingRootCauseCategories = IssueRootCause::select('category')
+                ->whereNotNull('category')
+                ->distinct()
+                ->orderBy('category')
+                ->pluck('category')
+                ->values();
+        }
 
         $defaultCategories = ['Software', 'Hardware', 'Network', 'Human Factor', 'Process', 'Vendor', 'General'];
         $suggestedCategories = collect($existingRootCauseCategories)
@@ -205,18 +227,34 @@ class IssueRootCauseAnalysisController extends Controller
 
         $rootCause = IssueRootCause::findOrFail($validated['root_cause_id']);
 
-        // Sync root cause with remark
-        $issue->rootCauses()->sync([
-            $validated['root_cause_id'] => [
-                'remark' => $validated['remark'] ?? null,
-                'updated_at' => now(),
-            ],
-        ]);
+        // Sync root cause with remark in pivot if column exists, otherwise just sync ID
+        $hasPivotRemark = \Illuminate\Support\Facades\Schema::hasColumn('issue_root_cause_logs', 'remark');
+        if ($hasPivotRemark) {
+            $issue->rootCauses()->sync([
+                $validated['root_cause_id'] => [
+                    'remark' => $validated['remark'] ?? null,
+                    'updated_at' => now(),
+                ],
+            ]);
+        } else {
+            $issue->rootCauses()->sync([$validated['root_cause_id']]);
+        }
+
+        // Always save remark as an issue log note message (existing pattern across the app!)
+        if (!empty($validated['remark'])) {
+            \App\IssueTracking\Models\IssueMessage::create([
+                'issue_id' => $issue->id,
+                'created_by' => auth()->id() ?? $issue->created_by,
+                'message' => "Root Cause: {$rootCause->name}. Reason / Remark: {$validated['remark']}",
+                'is_log_note' => true,
+            ]);
+        }
 
         // Record activity log
+        $rcCatDisplay = $rootCause->category ?? 'General';
         $issue->activityLogs()->create([
             'action' => 'updated_root_cause',
-            'description' => "Root cause set to '{$rootCause->name}' ({$rootCause->category}). Remark: " . ($validated['remark'] ?: 'None'),
+            'description' => "Root cause set to '{$rootCause->name}' ({$rcCatDisplay}). Remark: " . ($validated['remark'] ?: 'None'),
             'performed_by' => auth()->id() ?? $issue->created_by,
         ]);
 
@@ -233,10 +271,12 @@ class IssueRootCauseAnalysisController extends Controller
             'category' => ['required', 'string', 'max:100'],
         ]);
 
-        $rootCause = IssueRootCause::create([
-            'name' => trim($validated['name']),
-            'category' => trim($validated['category']),
-        ]);
+        $data = ['name' => trim($validated['name'])];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('issue_root_causes', 'category')) {
+            $data['category'] = trim($validated['category']);
+        }
+
+        $rootCause = IssueRootCause::create($data);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
