@@ -200,7 +200,10 @@ export default function RootCauses({
 
     // Save issue's root cause and remark
     const handleSaveIssueRootCause = (e) => {
-        e.preventDefault();
+        if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+        }
+        if (!editModal.issue) return;
         if (!editModal.root_cause_id) {
             toast.error('Please select or create a root cause.');
             return;
@@ -223,6 +226,9 @@ export default function RootCauses({
                 onError: (errs) => {
                     const firstErr = Object.values(errs)[0];
                     toast.error(firstErr || 'Failed to update root cause.');
+                    setEditModal((prev) => ({ ...prev, saving: false }));
+                },
+                onFinish: () => {
                     setEditModal((prev) => ({ ...prev, saving: false }));
                 },
             }
@@ -1097,7 +1103,7 @@ export default function RootCauses({
                 fullWidth
                 PaperProps={{ sx: { borderRadius: 3 } }}
             >
-                <form onSubmit={handleSaveIssueRootCause}>
+                <form noValidate onSubmit={handleSaveIssueRootCause}>
                     <DialogTitle sx={{ m: 0, p: 2.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <Box>
@@ -1247,7 +1253,6 @@ export default function RootCauses({
                                             label="Root Cause Name"
                                             placeholder="e.g. Memory Leak, Database Timeout, Human Configuration Error"
                                             fullWidth
-                                            required
                                             value={newRootCause.name}
                                             onChange={(e) => setNewRootCause({ ...newRootCause, name: e.target.value })}
                                         />
@@ -1258,7 +1263,6 @@ export default function RootCauses({
                                                 label="Root Cause Category"
                                                 placeholder="e.g. Software, Hardware, Human Error, Network"
                                                 fullWidth
-                                                required
                                                 value={newRootCause.category}
                                                 onChange={(e) => setNewRootCause({ ...newRootCause, category: e.target.value })}
                                             />
@@ -1280,6 +1284,7 @@ export default function RootCauses({
 
                                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                             <Button
+                                                type="button"
                                                 size="small"
                                                 variant="outlined"
                                                 color="inherit"
@@ -1289,6 +1294,7 @@ export default function RootCauses({
                                                 Cancel
                                             </Button>
                                             <Button
+                                                type="button"
                                                 size="small"
                                                 variant="contained"
                                                 color="primary"
@@ -1323,7 +1329,7 @@ export default function RootCauses({
                     </DialogContent>
 
                     <DialogActions sx={{ p: 2, bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                        <Button onClick={closeEditDialog} color="inherit" sx={{ textTransform: 'none' }}>
+                        <Button type="button" onClick={closeEditDialog} color="inherit" sx={{ textTransform: 'none' }}>
                             Cancel
                         </Button>
                         <Button
@@ -1331,6 +1337,7 @@ export default function RootCauses({
                             variant="contained"
                             color="primary"
                             disabled={editModal.saving || !editModal.root_cause_id}
+                            onClick={handleSaveIssueRootCause}
                             startIcon={<SaveIcon />}
                             sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: 2 }}
                         >

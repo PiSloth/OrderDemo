@@ -259,16 +259,14 @@ class IssueRootCauseAnalysisController extends Controller
 
         // Sync root cause with remark in pivot if column exists, otherwise just sync ID
         $hasPivotRemark = \Illuminate\Support\Facades\Schema::hasColumn('issue_root_cause_logs', 'remark');
+        $pivotData = [];
         if ($hasPivotRemark) {
-            $issue->rootCauses()->sync([
-                $validated['root_cause_id'] => [
-                    'remark' => $validated['remark'] ?? null,
-                    'updated_at' => now(),
-                ],
-            ]);
-        } else {
-            $issue->rootCauses()->sync([$validated['root_cause_id']]);
+            $pivotData['remark'] = $validated['remark'] ?? null;
         }
+
+        $issue->rootCauses()->sync([
+            $validated['root_cause_id'] => $pivotData,
+        ]);
 
         // Always save remark as an issue log note message (existing pattern across the app!)
         if (!empty($validated['remark'])) {
@@ -287,6 +285,15 @@ class IssueRootCauseAnalysisController extends Controller
             'description' => "Root cause set to '{$rootCause->name}' ({$rcCatDisplay}). Remark: " . ($validated['remark'] ?: 'None'),
             'performed_by' => auth()->id() ?? $issue->created_by,
         ]);
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => "Root cause updated to '{$rootCause->name}' successfully.",
+                'rootCause' => $rootCause,
+                'remark' => $validated['remark'] ?? null,
+            ]);
+        }
 
         return back()->with('success', "Root cause updated to '{$rootCause->name}' successfully.");
     }

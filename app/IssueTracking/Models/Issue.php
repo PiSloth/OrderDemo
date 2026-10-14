@@ -48,7 +48,17 @@ class Issue extends Model
     public function images(): HasMany { return $this->hasMany(IssueImage::class); }
     public function statusHistories(): HasMany { return $this->hasMany(IssueStatusHistory::class); }
     public function activityLogs(): HasMany { return $this->hasMany(IssueActivityLog::class); }
-    public function rootCauses(): BelongsToMany { return $this->belongsToMany(IssueRootCause::class, 'issue_root_cause_logs', 'issue_id', 'root_cause_id')->withTimestamps(); }
+    public function rootCauses(): BelongsToMany
+    {
+        $relation = $this->belongsToMany(IssueRootCause::class, 'issue_root_cause_logs', 'issue_id', 'root_cause_id')
+            ->withTimestamps();
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('issue_root_cause_logs', 'remark')) {
+            $relation->withPivot('remark');
+        }
+
+        return $relation;
+    }
     public function rootCauseLogs(): HasMany { return $this->hasMany(IssueRootCauseLog::class); }
 
     public function getRootCauseRemarkAttribute(): ?string
@@ -59,8 +69,8 @@ class Issue extends Model
         }
 
         if ($this->relationLoaded('messages')) {
-            foreach ($this->messages->where('is_log_note', true) as $m) {
-                if (preg_match('/(?:Reason \/ )?Remark:\s*(.+)$/i', $m->message, $matches)) {
+            foreach ($this->messages->where('is_log_note', true)->sortByDesc('id') as $m) {
+                if (preg_match('/(?:Reason \/ )?Remark:\s*(.+)$/is', $m->message, $matches)) {
                     return trim($matches[1]);
                 }
             }
