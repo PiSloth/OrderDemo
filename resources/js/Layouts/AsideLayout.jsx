@@ -968,6 +968,14 @@ export default function AsideLayout({
                                             </ListItemButton>
                                             <ListItemButton 
                                                 component={Link} 
+                                                href="/operations/it/issues/root-causes" 
+                                                selected={isCurrentUrl('/operations/it/issues/root-causes')}
+                                                sx={subItemButtonSx(isCurrentUrl('/operations/it/issues/root-causes'))}
+                                            >
+                                                <ListItemText primary="Root Cause Analysis" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                            </ListItemButton>
+                                            <ListItemButton 
+                                                component={Link} 
                                                 href="/operations/it/issues/create" 
                                                 selected={isCurrentUrl('/operations/it/issues/create')}
                                                 sx={subItemButtonSx(isCurrentUrl('/operations/it/issues/create'))}

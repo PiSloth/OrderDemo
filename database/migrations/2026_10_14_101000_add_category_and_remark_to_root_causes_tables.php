@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::table('issue_root_causes', function (Blueprint $table) {
+            if (!Schema::hasColumn('issue_root_causes', 'category')) {
+                $table->string('category')->default('General')->after('name');
+            }
+        });
+
+        Schema::table('issue_root_cause_logs', function (Blueprint $table) {
+            if (!Schema::hasColumn('issue_root_cause_logs', 'remark')) {
+                $table->text('remark')->nullable()->after('root_cause_id');
+            }
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('issue_root_causes', function (Blueprint $table) {
+            if (Schema::hasColumn('issue_root_causes', 'category')) {
+                $table->dropColumn('category');
+            }
+        });
+
+        Schema::table('issue_root_cause_logs', function (Blueprint $table) {
+            if (Schema::hasColumn('issue_root_cause_logs', 'remark')) {
+                $table->dropColumn('remark');
+            }
+        });
+    }
+};

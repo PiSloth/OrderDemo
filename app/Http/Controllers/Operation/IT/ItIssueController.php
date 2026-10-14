@@ -462,7 +462,9 @@ class ItIssueController extends Controller
         ]);
 
         if (!empty($validated['root_cause_id'])) {
-            $issue->rootCauses()->syncWithoutDetaching([$validated['root_cause_id']]);
+            $issue->rootCauses()->syncWithoutDetaching([
+                $validated['root_cause_id'] => ['remark' => $validated['remark'] ?? null]
+            ]);
         }
 
         $logMsg = $currentStatus ? "Status changed from {$currentStatus->name} to {$status->name}." : "Status changed to {$status->name}.";
@@ -920,10 +922,12 @@ class ItIssueController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
         ]);
 
         IssueRootCause::create([
             'name' => $validated['name'],
+            'category' => !empty($validated['category']) ? $validated['category'] : 'General',
         ]);
 
         return back()->with('success', 'Root cause created successfully!');
@@ -935,9 +939,13 @@ class ItIssueController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $rootCause->update($validated);
+        $rootCause->update([
+            'name' => $validated['name'],
+            'category' => !empty($validated['category']) ? $validated['category'] : ($rootCause->category ?: 'General'),
+        ]);
 
         return back()->with('success', 'Root cause updated successfully!');
     }

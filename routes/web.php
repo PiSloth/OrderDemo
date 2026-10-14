@@ -18,6 +18,7 @@ use App\Livewire\Operation\Branch\BranchChecklist\Report as BranchChecklistRepor
 use App\Http\Controllers\Operation\IT\IssueAssignmentController;
 use App\Http\Controllers\Operation\IT\IssueMessageController;
 use App\Http\Controllers\Operation\IT\IssueStatusController;
+use App\Http\Controllers\Operation\IT\IssueRootCauseAnalysisController;
 use App\Http\Controllers\Kpi\ImportExportController as KpiImportExportController;
 use App\Http\Controllers\Kpi\KpiGroupController;
 use App\Http\Controllers\Todo\TodoListController;
@@ -372,6 +373,11 @@ Route::middleware(['auth'])->prefix('operations')->name('operation.')->group(fun
         Route::post('/issues/{issue}/override-sla', [ItIssueController::class, 'overrideSla'])->name('issues.override-sla');
         Route::patch('/issues/{issue}/assignment', [IssueAssignmentController::class, 'update'])->name('issues.assignment.update');
         Route::post('/issues/{issue}/messages', [ItIssueController::class, 'addMessage'])->name('issues.messages.store');
+
+        // IT Issue Root Cause Analysis & Management
+        Route::get('/issues/root-causes', [IssueRootCauseAnalysisController::class, 'index'])->name('issues.root-causes.index');
+        Route::post('/issues/{issue}/root-cause', [IssueRootCauseAnalysisController::class, 'updateIssueRootCause'])->name('issues.root-cause.update');
+        Route::post('/issues/root-causes', [IssueRootCauseAnalysisController::class, 'storeRootCause'])->name('issues.root-causes.store');
 
         // IT Satisfaction Survey & Ratings Management
         Route::get('/satisfaction', [ItSatisfactionController::class, 'index'])->name('satisfaction.index');
