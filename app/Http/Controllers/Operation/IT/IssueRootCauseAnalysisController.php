@@ -32,6 +32,7 @@ class IssueRootCauseAnalysisController extends Controller
             'status',
             'assignedUser',
             'rootCauses',
+            'messages' => fn($q) => $q->where('is_log_note', true)->latest(),
         ]);
 
         // Filter by root cause created date
@@ -71,6 +72,20 @@ class IssueRootCauseAnalysisController extends Controller
 
         // Paginate 5 items per page as requested
         $issues = $query->paginate(5)->withQueryString();
+
+        // If remark was previously logged in an issue message when closing, use it as fallback
+        $issues->getCollection()->transform(function ($issue) {
+            $rc = $issue->rootCauses->first();
+            if ($rc && empty($rc->pivot->remark) && $issue->relationLoaded('messages')) {
+                $logNote = $issue->messages->first(function ($m) {
+                    return str_contains($m->message, 'Remark:');
+                });
+                if ($logNote && preg_match('/(?:Reason \/ )?Remark:\s*(.+)$/i', $logNote->message, $matches)) {
+                    $rc->pivot->remark = trim($matches[1]);
+                }
+            }
+            return $issue;
+        });
 
         // 2. Tab 2: Root cause summary grouped by root cause category and then by issue category
         $summaryQuery = DB::table('issue_root_cause_logs as log')
