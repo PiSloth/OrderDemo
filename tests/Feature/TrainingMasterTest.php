@@ -1263,4 +1263,78 @@ class TrainingMasterTest extends TestCase
         // Old assignment remains preserved as FAILED
         $this->assertEquals('FAILED', $assignment1->fresh()->status);
     }
+
+    public function test_take_test_delivers_randomized_question_cards(): void
+    {
+        $dept = Department::create(['name' => 'Rand Dept ' . uniqid()]);
+        $pos = OfficePosition::create(['name' => 'Rand Position ' . uniqid()]);
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+
+        $user = User::create([
+            'name' => 'Random Test User',
+            'email' => 'rand.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $training = Training::create([
+            'code' => 'RAND-' . uniqid(),
+            'title' => 'Randomized Question Test Training',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $test = Test::create([
+            'training_id' => $training->id,
+            'title' => 'Random Test Card Order',
+            'passing_score' => 80.00,
+            'attempt_limit' => 3,
+            'status' => 'active',
+        ]);
+
+        // Create 8 questions
+        for ($i = 1; $i <= 8; $i++) {
+            $q = TestQuestion::create([
+                'test_id' => $test->id,
+                'question' => "Question number {$i}?",
+                'question_type' => 'MULTIPLE_CHOICE',
+                'marks' => 10,
+                'sort_order' => $i,
+            ]);
+            TestOption::create(['test_question_id' => $q->id, 'answer' => "Option A for Q{$i}", 'is_correct' => true, 'sort_order' => 1]);
+            TestOption::create(['test_question_id' => $q->id, 'answer' => "Option B for Q{$i}", 'is_correct' => false, 'sort_order' => 2]);
+        }
+
+        $assignment = TrainingAssignment::create([
+            'training_id' => $training->id,
+            'user_id' => $user->id,
+            'assignment_type' => 'TEST_ONLY',
+            'status' => 'PENDING',
+        ]);
+
+        $orders = [];
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $resp = $this->actingAs($user)->get(route('training.employee.take-test', [
+                'assignment' => $assignment->id,
+                'test' => $test->id,
+            ]));
+            $resp->assertStatus(200);
+
+            $deliveredQuestions = $resp->original->getData()['page']['props']['test']['questions'];
+            $this->assertCount(8, $deliveredQuestions);
+            $orders[] = collect($deliveredQuestions)->pluck('id')->all();
+        }
+
+        // With 8 questions over 5 loads, the probability of all 5 being identical order is virtually 0 (1/(8!)^4)
+        $uniqueOrders = collect($orders)->unique()->count();
+        $this->assertGreaterThan(1, $uniqueOrders, 'Question cards must be presented in randomized order each time user takes the test');
+    }
 }

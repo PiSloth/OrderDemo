@@ -84,6 +84,18 @@ class TrainingEmployeeController extends Controller
             }]);
         }]);
 
+        // Randomize the test question cards each time the user takes the test
+        $shuffledQuestions = $test->questions->shuffle()->values();
+
+        // Also randomize multiple choice / multi select options to prevent pattern cheating (preserve TRUE_FALSE logical order)
+        foreach ($shuffledQuestions as $question) {
+            if ($question->question_type !== 'TRUE_FALSE') {
+                $question->setRelation('options', $question->options->shuffle()->values());
+            }
+        }
+
+        $test->setRelation('questions', $shuffledQuestions);
+
         // Load evaluated attempts with questions and their correct answers for the review breakdown
         $previousAttempts = TestAttempt::query()
             ->where('training_assignment_id', $assignment->id)
