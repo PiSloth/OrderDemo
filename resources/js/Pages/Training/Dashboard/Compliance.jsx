@@ -182,6 +182,10 @@ export default function Compliance({
         return <Chip label="PENDING" size="small" color="warning" sx={{ fontWeight: 700 }} />;
       case 'OVERDUE':
         return <Chip label="OVERDUE" size="small" color="error" sx={{ fontWeight: 700 }} />;
+      case 'FAILED':
+        return <Chip label="FAILED" size="small" color="error" sx={{ fontWeight: 700 }} />;
+      case 'EXPIRED':
+        return <Chip label="EXPIRED" size="small" color="default" sx={{ fontWeight: 700 }} />;
       default:
         return <Chip label={status} size="small" sx={{ fontWeight: 600 }} />;
     }

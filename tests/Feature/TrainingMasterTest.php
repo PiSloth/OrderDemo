@@ -1080,4 +1080,187 @@ class TrainingMasterTest extends TestCase
         // 4. Scorecard route without parameters resolves appropriately
         $this->actingAs($employee)->get(route('training.scorecard'))->assertStatus(200);
     }
+
+    public function test_two_failed_attempts_marks_assignment_failed_when_attempt_limit_reached(): void
+    {
+        $dept = Department::create(['name' => 'Support Dept ' . uniqid()]);
+        $pos = OfficePosition::create(['name' => 'Agent ' . uniqid()]);
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+
+        $user = User::create([
+            'name' => 'Two Attempt User',
+            'email' => 'twoattempt.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $training = Training::create([
+            'code' => 'TWO-ATT-' . uniqid(),
+            'title' => 'Two Attempt Test Training',
+            'retrain_interval' => 6,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        // Create test with attempt_limit = 2
+        $test = Test::create([
+            'training_id' => $training->id,
+            'title' => 'Two Attempt Test',
+            'passing_score' => 80.00,
+            'attempt_limit' => 2,
+            'status' => 'active',
+        ]);
+
+        $q = TestQuestion::create([
+            'test_id' => $test->id,
+            'question' => 'Q1',
+            'marks' => 10,
+            'sort_order' => 1,
+        ]);
+        $optCorrect = TestOption::create(['test_question_id' => $q->id, 'answer' => 'Yes', 'is_correct' => true]);
+        $optWrong = TestOption::create(['test_question_id' => $q->id, 'answer' => 'No', 'is_correct' => false]);
+
+        $assignment = TrainingAssignment::create([
+            'training_id' => $training->id,
+            'user_id' => $user->id,
+            'assignment_type' => 'TEST_ONLY',
+            'status' => 'PENDING',
+        ]);
+
+        $evalService = app(TestEvaluationService::class);
+
+        // Attempt 1: Failed
+        $attempt1 = $evalService->startAttempt($test, $user, $assignment);
+        $this->assertEquals('IN_PROGRESS', $assignment->fresh()->status);
+        $res1 = $evalService->submitAttempt($attempt1, [$q->id => $optWrong->id]);
+        $this->assertFalse($res1['passed']);
+        $this->assertFalse($res1['limit_reached']);
+        // Status should be IN_PROGRESS because 1 attempt remains
+        $this->assertEquals('IN_PROGRESS', $assignment->fresh()->status);
+
+        // Attempt 2: Failed (Exhausts allowable attempts)
+        $attempt2 = $evalService->startAttempt($test, $user, $assignment);
+        $res2 = $evalService->submitAttempt($attempt2, [$q->id => $optWrong->id]);
+        $this->assertFalse($res2['passed']);
+        $this->assertTrue($res2['limit_reached']);
+
+        // Status should now be FAILED, NOT pending or inprogress
+        $this->assertEquals('FAILED', $assignment->fresh()->status);
+    }
+
+    public function test_reassigning_to_specific_employee_generates_new_assignment_and_test(): void
+    {
+        $dept = Department::create(['name' => 'Ops Dept ' . uniqid()]);
+        $pos = OfficePosition::create(['name' => 'Specialist ' . uniqid()]);
+        $permPos = \App\Models\Position::firstOrCreate(['name' => 'General Staff']);
+        $branch = \App\Models\Branch::firstOrCreate(['name' => 'HQ Branch']);
+        $location = \App\Models\Location::firstOrCreate(['name' => 'HQ Location']);
+
+        $admin = User::create([
+            'name' => 'Admin User',
+            'email' => 'admin.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+        $admin->givePermissionTo('training.catalog.update');
+
+        $user = User::create([
+            'name' => 'Trainee User',
+            'email' => 'trainee.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'position_id' => $permPos->id,
+            'branch_id' => $branch->id,
+            'location_id' => $location->id,
+            'department_id' => $dept->id,
+            'office_position_id' => $pos->id,
+        ]);
+
+        $training = Training::create([
+            'code' => 'REGEN-' . uniqid(),
+            'title' => 'Regenerate Task Training',
+            'retrain_interval' => 12,
+            'retrain_unit' => 'month',
+            'passing_score' => 80.00,
+            'status' => 'active',
+        ]);
+
+        $test = Test::create([
+            'training_id' => $training->id,
+            'title' => 'Regenerate Check Test',
+            'passing_score' => 80.00,
+            'attempt_limit' => 2,
+            'status' => 'active',
+        ]);
+
+        $q = TestQuestion::create([
+            'test_id' => $test->id,
+            'question' => 'Q1',
+            'marks' => 10,
+            'sort_order' => 1,
+        ]);
+        $optCorrect = TestOption::create(['test_question_id' => $q->id, 'answer' => 'Correct', 'is_correct' => true]);
+        $optWrong = TestOption::create(['test_question_id' => $q->id, 'answer' => 'Wrong', 'is_correct' => false]);
+
+        // 1. First assignment created
+        $assignment1 = TrainingAssignment::create([
+            'training_id' => $training->id,
+            'user_id' => $user->id,
+            'assignment_type' => 'TEST_ONLY',
+            'status' => 'PENDING',
+        ]);
+
+        // 2. Trainee answers two attempts and fails
+        $evalService = app(TestEvaluationService::class);
+        $att1 = $evalService->startAttempt($test, $user, $assignment1);
+        $evalService->submitAttempt($att1, [$q->id => $optWrong->id]);
+
+        $att2 = $evalService->startAttempt($test, $user, $assignment1);
+        $evalService->submitAttempt($att2, [$q->id => $optWrong->id]);
+
+        $assignment1->refresh();
+        $this->assertEquals('FAILED', $assignment1->status);
+
+        // 3. Admin generates task with this specific person from training catalog
+        $response = $this->actingAs($admin)->post(route('training.trainings.assign', $training), [
+            'target_type' => 'employees',
+            'assignment_type' => 'TEST_ONLY',
+            'user_ids' => [$user->id],
+            'reason' => 'Re-test requested after failing attempts',
+        ]);
+        $response->assertRedirect();
+
+        // 4. Assert that a NEW assignment was generated
+        $newAssignment = TrainingAssignment::where('training_id', $training->id)
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $assignment1->id)
+            ->first();
+
+        $this->assertNotNull($newAssignment, 'A new assignment must be generated for the specific person');
+        $this->assertEquals('PENDING', $newAssignment->status);
+        $this->assertEquals(0, $newAssignment->testAttempts()->count());
+
+        // 5. Trainee can now start their new test attempt on the new assignment
+        $newAttempt = $evalService->startAttempt($test, $user, $newAssignment);
+        $this->assertNotNull($newAttempt);
+        $this->assertEquals(1, $newAttempt->attempt_number);
+
+        // Trainee passes new attempt
+        $resPass = $evalService->submitAttempt($newAttempt, [$q->id => $optCorrect->id]);
+        $this->assertTrue($resPass['passed']);
+        $this->assertEquals('COMPLETED', $newAssignment->fresh()->status);
+
+        // Old assignment remains preserved as FAILED
+        $this->assertEquals('FAILED', $assignment1->fresh()->status);
+    }
 }

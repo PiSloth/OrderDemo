@@ -38,6 +38,7 @@ class TrainingComplianceController extends Controller
         $inProgressAssignments = TrainingAssignment::query()->where('status', 'IN_PROGRESS')->count();
         $pendingAssignments = TrainingAssignment::query()->where('status', 'PENDING')->count();
         $overdueAssignments = TrainingAssignment::query()->where('status', 'OVERDUE')->count();
+        $failedAssignments = TrainingAssignment::query()->where('status', 'FAILED')->count();
 
         // Upcoming assignments (pending/in_progress with due_date within next 14 days)
         $upcomingAssignments = TrainingAssignment::query()
@@ -202,6 +203,7 @@ class TrainingComplianceController extends Controller
                 'completed' => $completedAssignments,
                 'in_progress' => $inProgressAssignments,
                 'pending' => $pendingAssignments,
+                'failed' => $failedAssignments,
                 'total' => $totalAssignments,
             ],
             'departmentStats' => $departmentStats,
@@ -211,7 +213,7 @@ class TrainingComplianceController extends Controller
                 'departments' => $departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name]),
                 'officePositions' => $officePositions,
                 'trainings' => $trainings->map(fn($t) => ['id' => $t->id, 'code' => $t->code, 'title' => $t->title]),
-                'statuses' => ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE', 'EXPIRED'],
+                'statuses' => ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'OVERDUE', 'EXPIRED'],
                 'triggerTypes' => ['NEW_USER', 'WORKFLOW_CHANGE', 'RETRAINING', 'MANUAL'],
             ],
             'filters' => [

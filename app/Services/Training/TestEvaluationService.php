@@ -29,7 +29,15 @@ class TestEvaluationService
             ->count();
 
         if ($test->attempt_limit && $attemptCount >= $test->attempt_limit) {
+            if ($assignment->status !== 'COMPLETED') {
+                $assignment->update(['status' => 'FAILED']);
+            }
             abort(422, "You have reached the maximum attempt limit ({$test->attempt_limit}) for this assessment.");
+        }
+
+        // When starting test, mark assignment as IN_PROGRESS if still PENDING
+        if ($assignment->status === 'PENDING') {
+            $assignment->update(['status' => 'IN_PROGRESS']);
         }
 
         return TestAttempt::create([
@@ -157,6 +165,13 @@ class TestEvaluationService
                 }
             }
 
+            $totalAttempts = TestAttempt::query()
+                ->where('training_assignment_id', $assignment->id)
+                ->where('test_id', $test->id)
+                ->count();
+
+            $limitReached = (bool) ($test->attempt_limit && ($totalAttempts >= $test->attempt_limit));
+
             if ($passed && ($isTestOnly || $hasAttended)) {
                 $assignment->update([
                     'status' => 'COMPLETED',
@@ -168,10 +183,16 @@ class TestEvaluationService
                     'status' => 'IN_PROGRESS',
                 ]);
             } else {
-                // FAILED test: update assignment status to IN_PROGRESS
-                $assignment->update([
-                    'status' => 'IN_PROGRESS',
-                ]);
+                // FAILED test: if all allowable attempts have been exhausted, mark assignment as FAILED
+                if ($limitReached) {
+                    $assignment->update([
+                        'status' => 'FAILED',
+                    ]);
+                } else {
+                    $assignment->update([
+                        'status' => 'IN_PROGRESS',
+                    ]);
+                }
 
                 // Auto-provision or attach to remedial training session in PENDING status (requires approval)
                 $this->assignmentService->attachToRemedialSession($assignment, $attempt->training_session_id);
@@ -183,6 +204,7 @@ class TestEvaluationService
                 'max_score' => $maxScore,
                 'percentage' => $percentage,
                 'passed' => $passed,
+                'limit_reached' => $limitReached,
                 'requirement_completed' => ($passed && ($isTestOnly || $hasAttended)),
             ];
         });

@@ -18,6 +18,24 @@ class TrainingEmployeeController extends Controller
     {
         $user = $request->user();
 
+        // Auto-heal status for any existing assignments that reached attempt limit and failed
+        $activeAssignments = TrainingAssignment::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['PENDING', 'IN_PROGRESS'])
+            ->with(['training.test', 'testAttempts'])
+            ->get();
+
+        foreach ($activeAssignments as $assign) {
+            $test = $assign->training?->test;
+            if ($test && $test->attempt_limit) {
+                $attempts = $assign->testAttempts->where('test_id', $test->id);
+                $hasPassed = $attempts->contains('result', 'PASSED');
+                if (!$hasPassed && $attempts->count() >= $test->attempt_limit) {
+                    $assign->update(['status' => 'FAILED']);
+                }
+            }
+        }
+
         $assignments = TrainingAssignment::query()
             ->where('user_id', $user->id)
             ->with([
@@ -28,7 +46,7 @@ class TrainingEmployeeController extends Controller
                 'sessionParticipants.session.approver',
                 'testAttempts' => fn($q) => $q->with('answers')->latest(),
             ])
-            ->orderByRaw("FIELD(status, 'PENDING', 'IN_PROGRESS', 'OVERDUE', 'COMPLETED', 'EXPIRED')")
+            ->orderByRaw("FIELD(status, 'PENDING', 'IN_PROGRESS', 'OVERDUE', 'FAILED', 'COMPLETED', 'EXPIRED')")
             ->orderBy('due_date')
             ->get();
 
@@ -129,7 +147,9 @@ class TrainingEmployeeController extends Controller
             ? ($result['requirement_completed']
                 ? 'Congratulations! You passed the test and completed the training requirement.'
                 : 'You passed the test! Training requirement will be completed upon attendance verification.')
-            : 'Test submitted. Unfortunately, you did not achieve the required passing score. A new training session has been requested.';
+            : (!empty($result['limit_reached'])
+                ? 'Test submitted. You did not achieve the required passing score and have reached the maximum attempt limit.'
+                : 'Test submitted. Unfortunately, you did not achieve the required passing score. You may retake the test.');
 
         return redirect()
             ->route('training.employee.take-test', ['assignment' => $assignment->id, 'test' => $test->id])

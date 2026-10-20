@@ -89,6 +89,8 @@ class TrainingAssignmentService
                 ]);
             }
 
+            $isSpecificTarget = ($targetType === 'employees');
+
             foreach ($users as $user) {
                 $assignment = $this->createAssignmentForUser(
                     training: $training,
@@ -96,7 +98,8 @@ class TrainingAssignmentService
                     trigger: $trigger,
                     dueDate: $dueDate,
                     assignmentType: $assignmentType,
-                    existingSession: $sharedSession
+                    existingSession: $sharedSession,
+                    forceNew: $isSpecificTarget
                 );
                 if ($assignment) {
                     $assignedCount++;
@@ -197,7 +200,8 @@ class TrainingAssignmentService
         ?TrainingTrigger $trigger = null,
         ?Carbon $dueDate = null,
         string $assignmentType = 'FULL_TRAINING',
-        ?TrainingSession $existingSession = null
+        ?TrainingSession $existingSession = null,
+        bool $forceNew = false
     ): ?TrainingAssignment {
         // Calculate default due date if not provided
         if (!$dueDate) {
@@ -209,53 +213,83 @@ class TrainingAssignmentService
             ->where('training_id', $training->id)
             ->where('user_id', $user->id)
             ->whereIn('status', ['PENDING', 'IN_PROGRESS'])
+            ->latest('id')
             ->first();
 
         if ($existing) {
-            // If assignment is still PENDING, allow updating assignment_type, trigger, and due_date
-            if ($existing->status === 'PENDING') {
-                $existing->assignment_type = $assignmentType;
-                if ($dueDate) {
-                    $existing->due_date = $dueDate;
+            $hasAttempts = $existing->testAttempts()->exists();
+            $test = $training->test;
+            $limitReached = false;
+            if ($test && $hasAttempts) {
+                $attemptCount = $existing->testAttempts()->where('test_id', $test->id)->count();
+                $limitReached = $test->attempt_limit && ($attemptCount >= $test->attempt_limit);
+            }
+
+            // Auto-heal status if attempt limit reached on existing assignment
+            if ($limitReached && $existing->status !== 'COMPLETED') {
+                $existing->update(['status' => 'FAILED']);
+            }
+
+            // A new assignment should be generated when:
+            // 1. Explicitly requested via forceNew (e.g. specifically targeting this employee in catalog)
+            // 2. The previous assignment exhausted all allowable attempts ($limitReached)
+            // 3. The existing assignment has test attempts and admin triggered manual assignment (re-test / fresh test)
+            $isManualTrigger = ($trigger && $trigger->trigger_type === 'MANUAL');
+            $shouldGenerateNew = $forceNew || $limitReached || ($hasAttempts && $isManualTrigger);
+
+            if ($shouldGenerateNew) {
+                if (in_array($existing->status, ['PENDING', 'IN_PROGRESS'])) {
+                    $existing->update([
+                        'status' => $limitReached ? 'FAILED' : 'EXPIRED',
+                    ]);
                 }
-                if ($trigger) {
-                    $existing->training_trigger_id = $trigger->id;
-                }
-                $existing->save();
+                // Fall through to generate fresh assignment below
+            } else {
+                // If assignment is still PENDING and untouched, allow updating assignment_type, trigger, and due_date
+                if ($existing->status === 'PENDING') {
+                    $existing->assignment_type = $assignmentType;
+                    if ($dueDate) {
+                        $existing->due_date = $dueDate;
+                    }
+                    if ($trigger) {
+                        $existing->training_trigger_id = $trigger->id;
+                    }
+                    $existing->save();
 
-                // If switched to TEST_ONLY, detach user from unapproved/unscheduled PENDING sessions
-                if ($assignmentType === 'TEST_ONLY') {
-                    $pendingParticipants = TrainingSessionParticipant::query()
-                        ->where('training_assignment_id', $existing->id)
-                        ->whereHas('session', fn($q) => $q->where('status', 'PENDING'))
-                        ->get();
+                    // If switched to TEST_ONLY, detach user from unapproved/unscheduled PENDING sessions
+                    if ($assignmentType === 'TEST_ONLY') {
+                        $pendingParticipants = TrainingSessionParticipant::query()
+                            ->where('training_assignment_id', $existing->id)
+                            ->whereHas('session', fn($q) => $q->where('status', 'PENDING'))
+                            ->get();
 
-                    foreach ($pendingParticipants as $p) {
-                        $sessionId = $p->training_session_id;
-                        $p->delete();
+                        foreach ($pendingParticipants as $p) {
+                            $sessionId = $p->training_session_id;
+                            $p->delete();
 
-                        // If session has no participants remaining, delete the orphaned pending session
-                        $remaining = TrainingSessionParticipant::where('training_session_id', $sessionId)->count();
-                        if ($remaining === 0) {
-                            TrainingSession::where('id', $sessionId)->where('status', 'PENDING')->delete();
+                            // If session has no participants remaining, delete the orphaned pending session
+                            $remaining = TrainingSessionParticipant::where('training_session_id', $sessionId)->count();
+                            if ($remaining === 0) {
+                                TrainingSession::where('id', $sessionId)->where('status', 'PENDING')->delete();
+                            }
                         }
                     }
                 }
-            }
 
-            if ($existingSession && $assignmentType === 'FULL_TRAINING') {
-                TrainingSessionParticipant::firstOrCreate(
-                    [
-                        'training_session_id' => $existingSession->id,
-                        'user_id' => $user->id,
-                    ],
-                    [
-                        'training_assignment_id' => $existing->id,
-                        'attendance_status' => 'REGISTERED',
-                    ]
-                );
+                if ($existingSession && $assignmentType === 'FULL_TRAINING') {
+                    TrainingSessionParticipant::firstOrCreate(
+                        [
+                            'training_session_id' => $existingSession->id,
+                            'user_id' => $user->id,
+                        ],
+                        [
+                            'training_assignment_id' => $existing->id,
+                            'attendance_status' => 'REGISTERED',
+                        ]
+                    );
+                }
+                return $existing;
             }
-            return $existing;
         }
 
         $assignment = TrainingAssignment::create([

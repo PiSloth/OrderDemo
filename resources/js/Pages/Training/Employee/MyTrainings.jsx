@@ -35,6 +35,8 @@ export default function MyTrainings({ assignments = [] }) {
       IN_PROGRESS: { color: 'primary', label: 'IN PROGRESS' },
       PENDING: { color: 'warning', label: 'PENDING' },
       OVERDUE: { color: 'error', label: 'OVERDUE' },
+      FAILED: { color: 'error', label: 'FAILED' },
+      EXPIRED: { color: 'default', label: 'EXPIRED' },
     };
     const s = map[status] || { color: 'default', label: status };
     return <Chip label={s.label} color={s.color} size="small" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />;
