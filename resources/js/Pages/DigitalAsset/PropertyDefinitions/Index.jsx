@@ -33,6 +33,8 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedDefinition, setSelectedDefinition] = useState(null);
+    const [createOptionsInput, setCreateOptionsInput] = useState('');
+    const [editOptionsInput, setEditOptionsInput] = useState('');
 
     const [createFormData, setCreateFormData] = useState({
         software_platform_id: '',
@@ -61,12 +63,19 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
 
     const handleCreate = (e) => {
         e.preventDefault();
+        const isChoice = createFormData.data_type === 'single_choice' || createFormData.data_type === 'multi_choice';
+        const options = isChoice
+            ? createOptionsInput.split(',').map(s => s.trim()).filter(Boolean)
+            : null;
+
         router.post('/digital-assets/property-definitions', {
             ...createFormData,
             software_platform_id: createFormData.software_platform_id || null,
+            validation_rules: options && options.length > 0 ? { options } : null,
         }, {
             onSuccess: () => {
                 setCreateModalOpen(false);
+                setCreateOptionsInput('');
                 setCreateFormData({
                     software_platform_id: '',
                     code: '',
@@ -86,6 +95,8 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
 
     const openEdit = (def) => {
         setSelectedDefinition(def);
+        const isChoice = def.data_type === 'single_choice' || def.data_type === 'multi_choice';
+        setEditOptionsInput(isChoice && def.validation_rules?.options ? def.validation_rules.options.join(', ') : '');
         setEditFormData({
             label: def.label || '',
             description: def.description || '',
@@ -102,7 +113,15 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
     const handleUpdate = (e) => {
         e.preventDefault();
         if (!selectedDefinition) return;
-        router.put(`/digital-assets/property-definitions/${selectedDefinition.id}`, editFormData, {
+        const isChoice = selectedDefinition.data_type === 'single_choice' || selectedDefinition.data_type === 'multi_choice';
+        const options = isChoice
+            ? editOptionsInput.split(',').map(s => s.trim()).filter(Boolean)
+            : null;
+
+        router.put(`/digital-assets/property-definitions/${selectedDefinition.id}`, {
+            ...editFormData,
+            validation_rules: options && options.length > 0 ? { options } : null,
+        }, {
             onSuccess: () => {
                 setEditModalOpen(false);
                 setSelectedDefinition(null);
@@ -249,6 +268,18 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
                                 ))}
                             </TextField>
 
+                            {(createFormData.data_type === 'single_choice' || createFormData.data_type === 'multi_choice') && (
+                                <TextField
+                                    required
+                                    fullWidth
+                                    label="Allowed Choices / Options (comma-separated)"
+                                    placeholder="e.g. SMS, Authenticator App, Security Key, WhatsApp"
+                                    value={createOptionsInput}
+                                    onChange={(e) => setCreateOptionsInput(e.target.value)}
+                                    helperText="Type the allowed choices separated by commas"
+                                />
+                            )}
+
                             <TextField
                                 fullWidth
                                 multiline
@@ -311,6 +342,17 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
                                 label="Data Type"
                                 value={selectedDefinition?.data_type || ''}
                             />
+
+                            {(selectedDefinition?.data_type === 'single_choice' || selectedDefinition?.data_type === 'multi_choice') && (
+                                <TextField
+                                    fullWidth
+                                    label="Allowed Choices / Options (comma-separated)"
+                                    placeholder="e.g. SMS, Authenticator App, Security Key, WhatsApp"
+                                    value={editOptionsInput}
+                                    onChange={(e) => setEditOptionsInput(e.target.value)}
+                                    helperText="Type the allowed choices separated by commas"
+                                />
+                            )}
 
                             <TextField
                                 required

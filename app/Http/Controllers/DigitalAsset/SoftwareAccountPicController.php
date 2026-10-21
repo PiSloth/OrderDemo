@@ -40,17 +40,17 @@ class SoftwareAccountPicController extends Controller
         $this->authorize('managePics', $pic->account);
 
         $validated = $request->validate([
-            'reason' => 'required|string|max:500',
+            'reason' => 'nullable|string|max:500',
         ]);
 
         try {
             $this->picService->revokePic(
                 pic: $pic,
                 actorUserId: auth()->id(),
-                reason: $validated['reason']
+                reason: $validated['reason'] ?? null
             );
 
-            return back()->with('success', 'PIC assignment revoked successfully.');
+            return back()->with('success', 'PIC set to inactive successfully.');
         } catch (\Throwable $e) {
             return back()->withErrors(['reason' => $e->getMessage()]);
         }

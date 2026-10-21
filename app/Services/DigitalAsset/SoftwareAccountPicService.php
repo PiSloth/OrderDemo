@@ -69,43 +69,54 @@ class SoftwareAccountPicService
     }
 
     /**
-     * Revoke an active PIC assignment.
+     * Revoke / Inactivate an active PIC assignment.
      */
     public function revokePic(
         SoftwareAccountPic $pic,
         int $actorUserId,
-        string $reason
+        ?string $reason = null
     ): SoftwareAccountPic {
         if ($pic->status !== 'active') {
-            throw new InvalidArgumentException("Only active PIC assignments can be revoked.");
+            throw new InvalidArgumentException("Only active PIC assignments can be set to inactive.");
         }
 
-        return DB::transaction(function () use ($pic, $actorUserId, $reason) {
+        $reasonText = $reason ?: 'Status changed to inactive';
+
+        return DB::transaction(function () use ($pic, $actorUserId, $reasonText) {
             $pic->update([
                 'status' => 'revoked',
                 'revoked_at' => now(),
                 'revoked_by' => $actorUserId,
-                'revocation_reason' => $reason,
+                'revocation_reason' => $reasonText,
             ]);
 
             SoftwareAccountPicHistory::create([
                 'software_account_pic_id' => $pic->id,
                 'software_account_id' => $pic->software_account_id,
                 'user_id' => $pic->user_id,
-                'action' => 'revoked',
+                'action' => 'inactivated',
                 'performed_by' => $actorUserId,
-                'reason' => $reason,
+                'reason' => $reasonText,
                 'occurred_at' => now(),
             ]);
 
+            $picUser = User::find($pic->user_id);
+            $actorUser = User::find($actorUserId);
+
             SoftwareAccountAuditService::log(
-                action: 'pic.revoked',
+                action: 'pic.inactivated',
                 entityType: 'SoftwareAccountPic',
                 entityId: $pic->id,
                 softwareAccountId: $pic->software_account_id,
                 outcome: 'success',
-                reason: $reason,
-                metadata: ['revoked_user_id' => $pic->user_id],
+                reason: $reasonText,
+                metadata: [
+                    'pic_user_id' => $pic->user_id,
+                    'pic_user_name' => $picUser?->name,
+                    'new_status' => 'inactive',
+                    'changed_by_user_id' => $actorUserId,
+                    'changed_by_user_name' => $actorUser?->name,
+                ],
                 actorUserId: $actorUserId
             );
 
@@ -140,7 +151,9 @@ class SoftwareAccountPicService
             throw new InvalidArgumentException("An active assignment already exists for this user.");
         }
 
-        return DB::transaction(function () use ($pic, $actorUserId, $reason) {
+        $reasonText = $reason ?: 'Reactivated by user';
+
+        return DB::transaction(function () use ($pic, $actorUserId, $reasonText) {
             $pic->update([
                 'status' => 'active',
                 'assigned_at' => now(),
@@ -155,9 +168,12 @@ class SoftwareAccountPicService
                 'user_id' => $pic->user_id,
                 'action' => 'reactivated',
                 'performed_by' => $actorUserId,
-                'reason' => $reason,
+                'reason' => $reasonText,
                 'occurred_at' => now(),
             ]);
+
+            $picUser = User::find($pic->user_id);
+            $actorUser = User::find($actorUserId);
 
             SoftwareAccountAuditService::log(
                 action: 'pic.reactivated',
@@ -165,8 +181,14 @@ class SoftwareAccountPicService
                 entityId: $pic->id,
                 softwareAccountId: $pic->software_account_id,
                 outcome: 'success',
-                reason: $reason,
-                metadata: ['reactivated_user_id' => $pic->user_id],
+                reason: $reasonText,
+                metadata: [
+                    'reactivated_user_id' => $pic->user_id,
+                    'reactivated_user_name' => $picUser?->name,
+                    'new_status' => 'active',
+                    'changed_by_user_id' => $actorUserId,
+                    'changed_by_user_name' => $actorUser?->name,
+                ],
                 actorUserId: $actorUserId
             );
 

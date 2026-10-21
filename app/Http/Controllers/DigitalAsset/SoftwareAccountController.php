@@ -91,6 +91,8 @@ class SoftwareAccountController extends Controller
             'emails.emailRecord',
             'pics.user',
             'pics.revokedByUser',
+            'activePics.user',
+            'picHistories' => fn($q) => $q->latest('occurred_at'),
             'picHistories.user',
             'picHistories.performedByUser',
             'propertyHistories.propertyDefinition',
@@ -102,7 +104,8 @@ class SoftwareAccountController extends Controller
             'reviews.completedByUser',
             'accountDevices.device.fixedAsset',
             'authorizationGrants',
-            'auditLogs.actorUser' => fn($q) => $q->latest()->limit(50),
+            'auditLogs' => fn($q) => $q->latest('occurred_at')->limit(100),
+            'auditLogs.actorUser',
         ]);
 
         $platformId = $account->software_platform_id;

@@ -28,7 +28,9 @@ import {
     Divider,
     IconButton,
     Tooltip,
-    Alert
+    Alert,
+    Checkbox,
+    FormControlLabel
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon,
@@ -54,6 +56,7 @@ export default function AccountShow({
     officeAssets = []
 }) {
     const [currentTab, setCurrentTab] = useState(0);
+    const [showInactivePics, setShowInactivePics] = useState(false);
 
     // Modals
     const [editPropModal, setEditPropModal] = useState({ open: false, def: null, value: '', reason: '' });
@@ -146,6 +149,14 @@ export default function AccountShow({
         });
     };
 
+    const handleReactivatePic = (pic) => {
+        if (confirm(`Reactivate ${pic.user?.name || 'this user'} as Person in Charge?`)) {
+            router.post(`/digital-assets/pics/${pic.id}/reactivate`, {
+                reason: 'Reactivated by user',
+            }, { preserveScroll: true });
+        }
+    };
+
     const handleUploadEvidence = (e) => {
         e.preventDefault();
         const data = new FormData();
@@ -235,6 +246,9 @@ export default function AccountShow({
     };
 
     const currentProps = account.properties || {};
+    const allPics = account.pics && account.pics.length > 0 ? account.pics : (account.active_pics || []);
+    const activePics = allPics.filter(p => p.status === 'active');
+    const inactivePics = (account.pics || []).filter(p => p.status !== 'active');
 
     return (
         <AsideLayout title={`Software Account: ${account.account_name}`}>
@@ -295,20 +309,29 @@ export default function AccountShow({
 
             {/* Navigation Tabs */}
             <Card sx={{ borderRadius: 2, boxShadow: 1, mb: 3 }}>
-                <Tabs
-                    value={currentTab}
-                    onChange={(e, val) => setCurrentTab(val)}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}
-                >
-                    <Tab icon={<SecurityIcon />} iconPosition="start" label="Security Properties" sx={{ textTransform: 'none' }} />
-                    <Tab icon={<PersonIcon />} iconPosition="start" label={`PICs (${(account.active_pics || []).length})`} sx={{ textTransform: 'none' }} />
-                    <Tab icon={<EvidenceIcon />} iconPosition="start" label={`Evidence (${(account.evidence || []).length})`} sx={{ textTransform: 'none' }} />
-                    <Tab icon={<ReviewIcon />} iconPosition="start" label={`Reviews (${(account.reviews || []).length})`} sx={{ textTransform: 'none' }} />
-                    <Tab icon={<DevicesIcon />} iconPosition="start" label={`Devices (${(account.account_devices || []).length})`} sx={{ textTransform: 'none' }} />
-                    <Tab icon={<HistoryIcon />} iconPosition="start" label="Audit Trail" sx={{ textTransform: 'none' }} />
-                </Tabs>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
+                    <Tabs
+                        value={currentTab}
+                        onChange={(e, val) => setCurrentTab(val)}
+                        variant="scrollable"
+                        scrollButtons={false}
+                        sx={{
+                            '& .MuiTab-root': {
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                minHeight: 48,
+                                py: 1.5,
+                            },
+                        }}
+                    >
+                        <Tab icon={<SecurityIcon />} iconPosition="start" label="Security Properties" />
+                        <Tab icon={<PersonIcon />} iconPosition="start" label={`PICs (${activePics.length})`} />
+                        <Tab icon={<EvidenceIcon />} iconPosition="start" label={`Evidence (${(account.evidence || []).length})`} />
+                        <Tab icon={<ReviewIcon />} iconPosition="start" label={`Reviews (${(account.reviews || []).length})`} />
+                        <Tab icon={<DevicesIcon />} iconPosition="start" label={`Devices (${(account.account_devices || []).length})`} />
+                        <Tab icon={<HistoryIcon />} iconPosition="start" label="Audit Trail" />
+                    </Tabs>
+                </Box>
 
                 <Box sx={{ p: 3 }}>
                     {/* TAB 0: SECURITY PROPERTIES */}
@@ -381,14 +404,28 @@ export default function AccountShow({
                                                     <TableCell>
                                                         {pending ? (
                                                             <Box>
-                                                                <Chip size="small" color="warning" label={`Pending: ${JSON.stringify(pending.new_value?.value)}`} />
+                                                                <Chip
+                                                                    size="small"
+                                                                    color="warning"
+                                                                    label={`Pending: ${Array.isArray(pending.new_value?.value) ? pending.new_value.value.join(', ') : JSON.stringify(pending.new_value?.value)}`}
+                                                                />
                                                                 <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5 }}>
                                                                     <Button size="small" color="success" onClick={() => handleApproveProperty(pending.id)}>Approve</Button>
                                                                     <Button size="small" color="error" onClick={() => handleRejectProperty(pending.id)}>Reject</Button>
                                                                 </Box>
                                                             </Box>
                                                         ) : val !== undefined && val !== null ? (
-                                                            typeof val === 'boolean' ? (
+                                                            Array.isArray(val) ? (
+                                                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                                                    {val.length > 0 ? (
+                                                                        val.map((item, idx) => (
+                                                                            <Chip key={idx} size="small" label={String(item)} color="primary" variant="outlined" />
+                                                                        ))
+                                                                    ) : (
+                                                                        <Typography variant="caption" color="text.secondary">None selected</Typography>
+                                                                    )}
+                                                                </Box>
+                                                            ) : typeof val === 'boolean' ? (
                                                                 val ? <Chip size="small" color="success" label="Enabled / Yes" /> : <Chip size="small" color="default" label="Disabled / No" />
                                                             ) : typeof val === 'object' ? (
                                                                 JSON.stringify(val)
@@ -409,12 +446,20 @@ export default function AccountShow({
                                                     <TableCell align="right">
                                                         <Button
                                                             size="small"
-                                                            onClick={() => setEditPropModal({
-                                                                open: true,
-                                                                def,
-                                                                value: val !== undefined && val !== null ? val : '',
-                                                                reason: ''
-                                                            })}
+                                                            onClick={() => {
+                                                                let initialVal = val !== undefined && val !== null ? val : '';
+                                                                if (def.data_type === 'multi_choice') {
+                                                                    initialVal = Array.isArray(val) ? val : (val ? [val] : []);
+                                                                } else if (def.data_type === 'boolean') {
+                                                                    initialVal = val !== undefined && val !== null ? String(val) : 'false';
+                                                                }
+                                                                setEditPropModal({
+                                                                    open: true,
+                                                                    def,
+                                                                    value: initialVal,
+                                                                    reason: ''
+                                                                });
+                                                            }}
                                                             sx={{ textTransform: 'none' }}
                                                         >
                                                             Edit
@@ -432,19 +477,35 @@ export default function AccountShow({
                     {/* TAB 1: PERSONS IN CHARGE (PICS) */}
                     {currentTab === 1 && (
                         <Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                     Active Persons in Charge (PICs)
                                 </Typography>
-                                <Button
-                                    variant="contained"
-                                    size="small"
-                                    startIcon={<AddIcon />}
-                                    onClick={() => setAssignPicModal({ open: true, userId: '', reason: '' })}
-                                    sx={{ textTransform: 'none' }}
-                                >
-                                    Assign PIC
-                                </Button>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={showInactivePics}
+                                                onChange={(e) => setShowInactivePics(e.target.checked)}
+                                                size="small"
+                                            />
+                                        }
+                                        label={
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                Show Inactive PICs ({inactivePics.length})
+                                            </Typography>
+                                        }
+                                    />
+                                    <Button
+                                        variant="contained"
+                                        size="small"
+                                        startIcon={<AddIcon />}
+                                        onClick={() => setAssignPicModal({ open: true, userId: '', reason: '' })}
+                                        sx={{ textTransform: 'none' }}
+                                    >
+                                        Assign PIC
+                                    </Button>
+                                </Box>
                             </Box>
 
                             <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, mb: 4 }}>
@@ -459,21 +520,22 @@ export default function AccountShow({
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {account.active_pics && account.active_pics.length > 0 ? (
-                                            account.active_pics.map((pic) => (
+                                        {activePics.length > 0 ? (
+                                            activePics.map((pic) => (
                                                 <TableRow key={pic.id} hover>
                                                     <TableCell sx={{ fontWeight: 600 }}>{pic.user?.name}</TableCell>
-                                                    <TableCell>{pic.user?.email}</TableCell>
+                                                    <TableCell>{pic.user?.email || '-'}</TableCell>
                                                     <TableCell><Chip size="small" color="success" label="Active" /></TableCell>
-                                                    <TableCell>{new Date(pic.assigned_at).toLocaleString()}</TableCell>
+                                                    <TableCell>{pic.assigned_at ? new Date(pic.assigned_at).toLocaleString() : '-'}</TableCell>
                                                     <TableCell align="right">
                                                         <Button
                                                             size="small"
-                                                            color="error"
+                                                            color="warning"
+                                                            variant="outlined"
                                                             onClick={() => setRevokePicModal({ open: true, pic, reason: '' })}
                                                             sx={{ textTransform: 'none' }}
                                                         >
-                                                            Revoke
+                                                            Inactive
                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
@@ -488,6 +550,74 @@ export default function AccountShow({
                                     </TableBody>
                                 </Table>
                             </TableContainer>
+
+                            {/* Inactive PICs Table (Toggled via Checkbox) */}
+                            {showInactivePics && (
+                                <Box sx={{ mb: 4 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            Inactive Persons in Charge (PICs)
+                                            <Chip size="small" label={`${inactivePics.length} Inactive`} />
+                                        </Typography>
+                                    </Box>
+                                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                                        <Table size="small">
+                                            <TableHead sx={{ bgcolor: 'action.hover' }}>
+                                                <TableRow>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Assigned User</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Assigned At</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Inactive Created Time</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Inactive Changed By</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Reason / Notes</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700 }}>Action</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {inactivePics.length > 0 ? (
+                                                    inactivePics.map((pic) => (
+                                                        <TableRow key={pic.id} hover sx={{ bgcolor: 'action.hover' }}>
+                                                            <TableCell sx={{ fontWeight: 600 }}>{pic.user?.name}</TableCell>
+                                                            <TableCell>{pic.user?.email || '-'}</TableCell>
+                                                            <TableCell>
+                                                                <Chip size="small" color="default" variant="outlined" label="Inactive" />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {pic.assigned_at ? new Date(pic.assigned_at).toLocaleString() : '-'}
+                                                            </TableCell>
+                                                            <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                                                {pic.revoked_at ? new Date(pic.revoked_at).toLocaleString() : (pic.updated_at ? new Date(pic.updated_at).toLocaleString() : '-')}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {pic.revoked_by_user?.name || '-'}
+                                                            </TableCell>
+                                                            <TableCell>{pic.revocation_reason || '-'}</TableCell>
+                                                            <TableCell align="right">
+                                                                <Button
+                                                                    size="small"
+                                                                    color="primary"
+                                                                    variant="outlined"
+                                                                    onClick={() => handleReactivatePic(pic)}
+                                                                    sx={{ textTransform: 'none' }}
+                                                                >
+                                                                    Reactivate
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                                                            <Typography color="text.secondary">No inactive PICs found.</Typography>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                </Box>
+                            )}
 
                             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                                 Append-Only PIC History Log
@@ -512,7 +642,11 @@ export default function AccountShow({
                                                         <Chip
                                                             size="small"
                                                             label={hist.action}
-                                                            color={hist.action === 'assigned' ? 'success' : hist.action === 'revoked' ? 'error' : 'info'}
+                                                            color={
+                                                                hist.action === 'assigned' || hist.action === 'reactivated'
+                                                                    ? 'success'
+                                                                    : (hist.action === 'revoked' || hist.action === 'inactivated' ? 'error' : 'info')
+                                                            }
                                                         />
                                                     </TableCell>
                                                     <TableCell>{hist.user?.name}</TableCell>
@@ -816,6 +950,7 @@ export default function AccountShow({
                                             <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Actor</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Outcome</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Details / Reason</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>IP Address</TableCell>
                                         </TableRow>
                                     </TableHead>
@@ -833,12 +968,15 @@ export default function AccountShow({
                                                             color={log.outcome === 'success' ? 'success' : 'error'}
                                                         />
                                                     </TableCell>
+                                                    <TableCell>
+                                                        {log.reason || (log.metadata?.new_status ? `Status: ${log.metadata.new_status}` : (log.metadata?.pic_user_name ? `PIC: ${log.metadata.pic_user_name}` : '-'))}
+                                                    </TableCell>
                                                     <TableCell>{log.ip_address}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                                                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                                                     <Typography color="text.secondary">No audit logs recorded for this account.</Typography>
                                                 </TableCell>
                                             </TableRow>
@@ -885,6 +1023,43 @@ export default function AccountShow({
                                             <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                                         ))}
                                     </TextField>
+                                ) : editPropModal.def.data_type === 'multi_choice' ? (
+                                    <Box>
+                                        <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
+                                            Select Options ({Array.isArray(editPropModal.value) ? editPropModal.value.length : 0} selected):
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, maxHeight: 220, overflowY: 'auto', p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                                            {(editPropModal.def.validation_rules?.options || []).length > 0 ? (
+                                                (editPropModal.def.validation_rules?.options || []).map((opt) => {
+                                                    const currentArray = Array.isArray(editPropModal.value) ? editPropModal.value : [];
+                                                    const isChecked = currentArray.includes(opt);
+                                                    return (
+                                                        <FormControlLabel
+                                                            key={opt}
+                                                            control={
+                                                                <Checkbox
+                                                                    size="small"
+                                                                    checked={isChecked}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setEditPropModal({ ...editPropModal, value: [...currentArray, opt] });
+                                                                        } else {
+                                                                            setEditPropModal({ ...editPropModal, value: currentArray.filter(v => v !== opt) });
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            }
+                                                            label={<Typography variant="body2">{opt}</Typography>}
+                                                        />
+                                                    );
+                                                })
+                                            ) : (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    No allowed options configured for this property definition.
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </Box>
                                 ) : editPropModal.def.data_type === 'email_reference' ? (
                                     <TextField
                                         select
@@ -975,19 +1150,18 @@ export default function AccountShow({
                 </form>
             </Dialog>
 
-            {/* MODAL: REVOKE PIC */}
+            {/* MODAL: INACTIVATE PIC */}
             <Dialog open={revokePicModal.open} onClose={() => setRevokePicModal({ ...revokePicModal, open: false })} maxWidth="sm" fullWidth>
                 <form onSubmit={handleRevokePic}>
-                    <DialogTitle sx={{ fontWeight: 700 }}>Revoke PIC Assignment</DialogTitle>
+                    <DialogTitle sx={{ fontWeight: 700 }}>Set PIC to Inactive</DialogTitle>
                     <DialogContent dividers>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                             <Typography variant="body2">
-                                Are you sure you want to revoke PIC responsibility for <strong>{revokePicModal.pic?.user?.name}</strong>?
+                                Are you sure you want to set <strong>{revokePicModal.pic?.user?.name}</strong> to inactive?
                             </Typography>
                             <TextField
-                                required
                                 fullWidth
-                                label="Revocation Reason"
+                                label="Reason for Inactivating (Optional)"
                                 placeholder="e.g. Role transition, project handover..."
                                 value={revokePicModal.reason}
                                 onChange={(e) => setRevokePicModal({ ...revokePicModal, reason: e.target.value })}
@@ -996,7 +1170,7 @@ export default function AccountShow({
                     </DialogContent>
                     <DialogActions sx={{ p: 2 }}>
                         <Button onClick={() => setRevokePicModal({ ...revokePicModal, open: false })}>Cancel</Button>
-                        <Button type="submit" color="error" variant="contained">Revoke PIC</Button>
+                        <Button type="submit" color="warning" variant="contained">Confirm Inactive</Button>
                     </DialogActions>
                 </form>
             </Dialog>
