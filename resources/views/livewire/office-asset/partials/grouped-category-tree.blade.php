@@ -1,6 +1,12 @@
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Category Summary</h3>
+    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Category Summary</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Inventory grouped by category, branch, and item.</p>
+        </div>
+        <div>
+            <x-button sm positive label="Export Transactions" wire:click="openExportModal" icon="download" />
+        </div>
     </div>
 
     <div class="p-4 space-y-3">

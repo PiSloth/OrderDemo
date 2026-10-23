@@ -14,6 +14,9 @@ use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use WireUi\Traits\Actions;
 use Illuminate\Validation\Rule;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Response;
+use Spatie\SimpleExcel\SimpleExcelWriter;
 
 class OfficeAssetManager extends Component
 {
@@ -77,6 +80,15 @@ class OfficeAssetManager extends Component
     public $transactionDate;
     public $transactionRemark;
     public $transactionImage;
+
+    // Export Form
+    public $showExportModal = false;
+    public $exportStartDate = '';
+    public $exportEndDate = '';
+    public $exportBranchId = '';
+    public $exportCategoryId = '';
+    public $exportType = 'all';
+    public $exportFormat = 'xlsx';
 
     public function mount()
     {
@@ -574,6 +586,179 @@ class OfficeAssetManager extends Component
         AssetBatch::whereKey($batchId)->update([
             'total_cost' => $total ?? 0,
         ]);
+    }
+
+    public function openExportModal()
+    {
+        $this->resetExportForm();
+        $this->exportStartDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+        $this->exportEndDate = Carbon::now()->format('Y-m-d');
+        $this->exportBranchId = $this->filterBranch ?: '';
+        $this->exportCategoryId = $this->filterCategory ?: '';
+        $this->showExportModal = true;
+    }
+
+    public function resetExportForm()
+    {
+        $this->reset(['exportStartDate', 'exportEndDate', 'exportBranchId', 'exportCategoryId', 'exportType', 'exportFormat']);
+        $this->exportType = 'all';
+        $this->exportFormat = 'xlsx';
+        $this->resetValidation();
+    }
+
+    public function setDateRangePreset(string $preset): void
+    {
+        switch ($preset) {
+            case 'this_month':
+                $this->exportStartDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+                $this->exportEndDate = Carbon::now()->format('Y-m-d');
+                break;
+            case 'last_month':
+                $this->exportStartDate = Carbon::now()->subMonth()->startOfMonth()->format('Y-m-d');
+                $this->exportEndDate = Carbon::now()->subMonth()->endOfMonth()->format('Y-m-d');
+                break;
+            case 'last_30_days':
+                $this->exportStartDate = Carbon::now()->subDays(30)->format('Y-m-d');
+                $this->exportEndDate = Carbon::now()->format('Y-m-d');
+                break;
+            case 'this_year':
+                $this->exportStartDate = Carbon::now()->startOfYear()->format('Y-m-d');
+                $this->exportEndDate = Carbon::now()->format('Y-m-d');
+                break;
+            case 'all':
+                $this->exportStartDate = '';
+                $this->exportEndDate = '';
+                break;
+        }
+    }
+
+    public function getExportCountProperty(): int
+    {
+        try {
+            if ($this->exportStartDate && $this->exportEndDate && $this->exportStartDate > $this->exportEndDate) {
+                return 0;
+            }
+            return $this->getExportQuery()->count();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    protected function getExportQuery()
+    {
+        return OfficeAssetTransaction::query()
+            ->with([
+                'asset.item.category',
+                'asset.category',
+                'asset.branch',
+                'asset.department',
+                'user',
+            ])
+            ->when($this->exportStartDate, fn($q) => $q->whereDate('date', '>=', $this->exportStartDate))
+            ->when($this->exportEndDate, fn($q) => $q->whereDate('date', '<=', $this->exportEndDate))
+            ->when($this->exportBranchId, function ($q) {
+                $q->whereHas('asset', fn($aq) => $aq->where('branch_id', $this->exportBranchId));
+            })
+            ->when($this->exportCategoryId, function ($q) {
+                $q->whereHas('asset', function ($aq) {
+                    $aq->where(function ($sub) {
+                        $sub->whereHas('item', fn($iq) => $iq->where('asset_category_id', $this->exportCategoryId))
+                            ->orWhere('asset_category_id', $this->exportCategoryId);
+                    });
+                });
+            })
+            ->when($this->exportType && $this->exportType !== 'all', fn($q) => $q->where('type', $this->exportType));
+    }
+
+    public function exportTransactions()
+    {
+        $this->validate([
+            'exportStartDate' => 'nullable|date',
+            'exportEndDate' => 'nullable|date' . ($this->exportStartDate ? '|after_or_equal:exportStartDate' : ''),
+            'exportBranchId' => 'nullable|exists:branches,id',
+            'exportCategoryId' => 'nullable|exists:asset_categories,id',
+            'exportType' => 'required|in:all,in,out',
+            'exportFormat' => 'required|in:xlsx,csv',
+        ], [
+            'exportEndDate.after_or_equal' => 'The To Date must be after or equal to From Date.',
+        ]);
+
+        $query = $this->getExportQuery()
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc');
+
+        if ($query->count() === 0) {
+            $this->notification()->warning('No Transactions Found', 'There are no transactions matching the selected date range and filter criteria.');
+            return null;
+        }
+
+        $extension = $this->exportFormat === 'csv' ? 'csv' : 'xlsx';
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'office_asset_tx_') . '.' . $extension;
+
+        $headers = [
+            'Date',
+            'Branch',
+            'Product Name',
+            'Category',
+            'Department',
+            'Type',
+            'Quantity',
+            'Unit Cost',
+            'Total Cost',
+            'Remark',
+            'Recorded By',
+        ];
+
+        $writer = SimpleExcelWriter::create($tempFilePath)->addHeader($headers);
+
+        foreach ($query->lazy(250) as $transaction) {
+            $asset = $transaction->asset;
+            $productName = $asset?->item?->name ?? $asset?->name ?? 'Unnamed';
+            $categoryName = $asset?->item?->category?->name ?? ($asset?->category?->name ?? '-');
+            $branchName = $asset?->branch?->name ?? '-';
+            $departmentName = $asset?->department?->name ?? '-';
+            $cost = $asset?->cost;
+            $totalCost = ($cost !== null && $cost !== '') ? ((float) $cost * (int) $transaction->quantity) : null;
+
+            $dateFormatted = $transaction->date
+                ? Carbon::parse($transaction->date)->format('Y-m-d')
+                : ($transaction->created_at ? $transaction->created_at->format('Y-m-d') : '-');
+
+            $writer->addRow([
+                'Date' => $dateFormatted,
+                'Branch' => $branchName,
+                'Product Name' => $productName,
+                'Category' => $categoryName,
+                'Department' => $departmentName,
+                'Type' => strtoupper($transaction->type ?? ''),
+                'Quantity' => (int) $transaction->quantity,
+                'Unit Cost' => $cost !== null ? number_format((float) $cost, 2, '.', '') : '-',
+                'Total Cost' => $totalCost !== null ? number_format((float) $totalCost, 2, '.', '') : '-',
+                'Remark' => $transaction->remark ?? '-',
+                'Recorded By' => $transaction->user?->name ?? '-',
+            ]);
+        }
+
+        $writer->close();
+
+        $dateSuffix = '';
+        if ($this->exportStartDate && $this->exportEndDate) {
+            $dateSuffix = '_' . $this->exportStartDate . '_to_' . $this->exportEndDate;
+        } elseif ($this->exportStartDate) {
+            $dateSuffix = '_from_' . $this->exportStartDate;
+        } elseif ($this->exportEndDate) {
+            $dateSuffix = '_until_' . $this->exportEndDate;
+        }
+
+        $downloadFilename = 'office-asset-transactions' . $dateSuffix . '.' . $extension;
+
+        $this->showExportModal = false;
+
+        return Response::download($tempFilePath, $downloadFilename, [
+            'Content-Type' => $extension === 'csv'
+                ? 'text/csv'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 
     public function render()

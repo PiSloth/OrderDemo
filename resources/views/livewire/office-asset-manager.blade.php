@@ -5,6 +5,7 @@
             <x-button flat label="Category" wire:click="openCategoryCrud" />
             <x-button flat label="Item" wire:click="openItemCrud" />
             <x-button flat label="Batch" wire:click="openBatchCrud" />
+            <x-button positive label="Export Transactions" wire:click="openExportModal" icon="download" />
             <x-button primary label="Create Asset" wire:click="createAsset" icon="plus" />
         </div>
     </div>
@@ -455,6 +456,75 @@
                 <div class="flex justify-end gap-x-4">
                     <x-button flat label="Cancel" x-on:click="close" />
                     <x-button primary label="Save" wire:click="saveTransaction" />
+                </div>
+            </x-slot>
+        </x-card>
+    </x-modal>
+
+    <!-- Export Modal -->
+    <x-modal wire:model.defer="showExportModal">
+        <x-card title="Export Transaction History Report">
+            <div class="space-y-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Filter and export office asset transaction history (Stock In / Stock Out) with branch name, product name, quantities, and dates.
+                </p>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date Range Filter</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <x-input label="From Date" wire:model.live="exportStartDate" type="date" />
+                        <x-input label="To Date" wire:model.live="exportEndDate" type="date" />
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <button type="button" wire:click="setDateRangePreset('this_month')"
+                            class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200">This Month</button>
+                        <button type="button" wire:click="setDateRangePreset('last_month')"
+                            class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200">Last Month</button>
+                        <button type="button" wire:click="setDateRangePreset('last_30_days')"
+                            class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200">Last 30 Days</button>
+                        <button type="button" wire:click="setDateRangePreset('this_year')"
+                            class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200">This Year</button>
+                        <button type="button" wire:click="setDateRangePreset('all')"
+                            class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200">All Time</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <x-native-select label="Branch" wire:model.live="exportBranchId">
+                        <option value="">All Branches</option>
+                        @foreach ($branches as $branch)
+                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                        @endforeach
+                    </x-native-select>
+                    <x-native-select label="Category" wire:model.live="exportCategoryId">
+                        <option value="">All Categories</option>
+                        @foreach ($categories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        @endforeach
+                    </x-native-select>
+                    <x-native-select label="Transaction Type" wire:model.live="exportType">
+                        <option value="all">All Types (In & Out)</option>
+                        <option value="in">In (Stock In)</option>
+                        <option value="out">Out (Stock Out)</option>
+                    </x-native-select>
+                    <x-native-select label="File Format" wire:model.defer="exportFormat">
+                        <option value="xlsx">Excel (.xlsx)</option>
+                        <option value="csv">CSV (.csv)</option>
+                    </x-native-select>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg flex items-center justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-300 font-medium">Matching Transactions:</span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $this->exportCount > 0 ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200' }}">
+                        {{ number_format($this->exportCount) }} record(s) found
+                    </span>
+                </div>
+            </div>
+
+            <x-slot name="footer">
+                <div class="flex justify-end gap-x-4">
+                    <x-button flat label="Cancel" x-on:click="close" />
+                    <x-button positive label="Download Report" wire:click="exportTransactions" icon="download" wire:loading.attr="disabled" />
                 </div>
             </x-slot>
         </x-card>
