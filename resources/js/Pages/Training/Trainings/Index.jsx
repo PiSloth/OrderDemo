@@ -31,7 +31,10 @@ import {
   Tabs,
   Tab,
   Avatar,
-  Badge
+  Badge,
+  CircularProgress,
+  FormControl,
+  Select
 } from '@mui/material';
 
 import {
@@ -58,10 +61,13 @@ import {
   SelectAll as SelectAllIcon,
   Deselect as DeselectIcon,
   AssignmentInd as AssignIcon,
-  FilterAlt as FilterIcon
+  FilterAlt as FilterIcon,
+  Download as DownloadIcon,
+  Close as CloseIcon,
+  Visibility as ViewIcon
 } from '@mui/icons-material';
 
-import { exportTrainingMatrixPdf } from '../../../utils/trainingPdfExport';
+import { exportTrainingMatrixPdf, exportTrainingCurriculumPdf } from '../../../utils/trainingPdfExport';
 
 export default function TrainingsIndex({
   trainings = {},
@@ -86,6 +92,14 @@ export default function TrainingsIndex({
   const [docSearchModalOpen, setDocSearchModalOpen] = useState(false);
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [exportingPdf, setExportingPdf] = useState(false);
+
+  // PDF Curriculum Review & Assign State
+  const [reviewPdfModalOpen, setReviewPdfModalOpen] = useState(false);
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+  const [pdfPreviewFilename, setPdfPreviewFilename] = useState('');
+  const [pdfPreviewTraining, setPdfPreviewTraining] = useState(null);
+  const [selectedAssignCatalogId, setSelectedAssignCatalogId] = useState('');
 
   // Custom Assignment modal helper filters
   const [empSearch, setEmpSearch] = useState('');
@@ -366,6 +380,61 @@ export default function TrainingsIndex({
     }
   };
 
+  const handleOpenReviewPdf = async (specificTraining = null) => {
+    if (pdfPreviewUrl) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
+    }
+    setPdfPreviewTraining(specificTraining);
+    setSelectedAssignCatalogId(specificTraining ? String(specificTraining.id) : '');
+    setPdfPreviewLoading(true);
+    setReviewPdfModalOpen(true);
+
+    try {
+      const catalogsToExport = specificTraining
+        ? [specificTraining]
+        : (allActiveTrainings && allActiveTrainings.length > 0
+            ? allActiveTrainings
+            : (trainings.data || []));
+
+      const result = await exportTrainingCurriculumPdf({
+        trainings: catalogsToExport,
+        activeUsers,
+        singleTraining: specificTraining,
+        returnBlobOnly: true,
+      });
+
+      setPdfPreviewUrl(result.blobUrl);
+      setPdfPreviewFilename(result.filename);
+    } catch (err) {
+      console.error('Failed to generate curriculum PDF:', err);
+      alert('Failed to generate PDF: ' + (err?.message || 'Please check browser console'));
+      setReviewPdfModalOpen(false);
+    } finally {
+      setPdfPreviewLoading(false);
+    }
+  };
+
+  const handleDownloadPreviewPdf = () => {
+    if (!pdfPreviewUrl) return;
+    const a = document.createElement('a');
+    a.href = pdfPreviewUrl;
+    a.download = pdfPreviewFilename || 'Training_Curriculum_Report.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleAssignFromPdfReview = (target = null) => {
+    const trainingToAssign = target || pdfPreviewTraining || allActiveTrainings.find(t => String(t.id) === String(selectedAssignCatalogId)) || (trainings.data || []).find(t => String(t.id) === String(selectedAssignCatalogId));
+    if (!trainingToAssign) {
+      alert('Please select a training catalog to assign.');
+      return;
+    }
+    setReviewPdfModalOpen(false);
+    handleOpenManualAssign(trainingToAssign);
+  };
+
   return (
     <AsideLayout title="Training Master Catalog">
       <Head title="Training Catalog - Training Master" />
@@ -383,7 +452,17 @@ export default function TrainingsIndex({
             </Typography>
           </div>
 
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<PdfIcon />}
+              onClick={() => handleOpenReviewPdf(null)}
+              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+            >
+              Curriculum & Docs PDF
+            </Button>
+
             <Button
               variant="outlined"
               color="primary"
@@ -392,7 +471,7 @@ export default function TrainingsIndex({
               disabled={exportingPdf}
               sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
             >
-              {exportingPdf ? 'Generating PDF...' : 'Export PDF Report'}
+              {exportingPdf ? 'Generating PDF...' : 'Export Matrix PDF'}
             </Button>
 
             {permissions?.can_create && (
@@ -550,7 +629,18 @@ export default function TrainingsIndex({
                     )}
                   </Stack>
 
-                  <Stack direction="row" spacing={0.5}>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Tooltip title="Review Catalog & Documents PDF">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleOpenReviewPdf(t)}
+                        sx={{ bgcolor: 'rgba(239, 68, 68, 0.08)', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.16)' } }}
+                      >
+                        <PdfIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+
                     {permissions?.can_update && (
                       <Tooltip title="Edit Training & Scopes">
                         <IconButton size="small" onClick={() => handleOpenEdit(t)}>
@@ -874,9 +964,23 @@ export default function TrainingsIndex({
               <AssignIcon className="text-sky-600" />
               <span>Assign Training: {targetTraining?.title}</span>
             </div>
-            {targetTraining && (
-              <Chip label={targetTraining.code} size="small" color="primary" sx={{ fontWeight: 700 }} />
-            )}
+            <Stack direction="row" spacing={1} alignItems="center">
+              {targetTraining && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<PdfIcon />}
+                  onClick={() => handleOpenReviewPdf(targetTraining)}
+                  sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', borderRadius: 2 }}
+                >
+                  Review Curriculum PDF
+                </Button>
+              )}
+              {targetTraining && (
+                <Chip label={targetTraining.code} size="small" color="primary" sx={{ fontWeight: 700 }} />
+              )}
+            </Stack>
           </DialogTitle>
 
           <form onSubmit={handleManualAssignSubmit}>
@@ -1515,6 +1619,133 @@ export default function TrainingsIndex({
               Done ({data.document_ids?.length || 0} Selected)
             </Button>
           </DialogActions>
+        </Dialog>
+
+        {/* PDF Curriculum Review & Assign Modal */}
+        <Dialog
+          open={reviewPdfModalOpen}
+          onClose={() => {
+            setReviewPdfModalOpen(false);
+            if (pdfPreviewUrl) {
+              URL.revokeObjectURL(pdfPreviewUrl);
+              setPdfPreviewUrl(null);
+            }
+          }}
+          maxWidth="lg"
+          fullWidth
+          PaperProps={{
+            sx: { borderRadius: 3, height: '90vh', display: 'flex', flexDirection: 'column' },
+          }}
+        >
+          <DialogTitle className="font-bold flex flex-wrap items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 gap-2">
+            <div className="flex items-center gap-2">
+              <PdfIcon className="text-red-500" fontSize="medium" />
+              <div>
+                <Typography variant="subtitle1" className="font-bold leading-tight text-slate-900 dark:text-slate-100">
+                  {pdfPreviewTraining
+                    ? `Curriculum Specification & Assignee Review: [${pdfPreviewTraining.code}] ${pdfPreviewTraining.title}`
+                    : 'Training Catalog & Curriculum Document Report'}
+                </Typography>
+                <Typography variant="caption" className="text-slate-500">
+                  Review course title, description, connected SOPs/documents, and eligible assignees.
+                </Typography>
+              </div>
+            </div>
+
+            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+              {permissions?.can_update && (
+                pdfPreviewTraining ? (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    startIcon={<AssignIcon />}
+                    onClick={() => handleAssignFromPdfReview(pdfPreviewTraining)}
+                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                  >
+                    Choose Assignee / Assign Now
+                  </Button>
+                ) : (
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FormControl size="small" sx={{ minWidth: 220 }}>
+                      <Select
+                        value={selectedAssignCatalogId}
+                        onChange={(e) => setSelectedAssignCatalogId(e.target.value)}
+                        displayEmpty
+                        sx={{ fontSize: '0.8rem', borderRadius: 2 }}
+                      >
+                        <MenuItem value="">
+                          <em>Select Catalog to Assign...</em>
+                        </MenuItem>
+                        {(allActiveTrainings.length > 0 ? allActiveTrainings : (trainings.data || [])).map((tr) => (
+                          <MenuItem key={tr.id} value={String(tr.id)} sx={{ fontSize: '0.8rem' }}>
+                            [{tr.code}] {tr.title}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      disabled={!selectedAssignCatalogId}
+                      startIcon={<AssignIcon />}
+                      onClick={() => handleAssignFromPdfReview()}
+                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                    >
+                      Assign
+                    </Button>
+                  </Stack>
+                )
+              )}
+
+              <Button
+                variant="outlined"
+                color="inherit"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadPreviewPdf}
+                disabled={!pdfPreviewUrl || pdfPreviewLoading}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+              >
+                Download PDF
+              </Button>
+
+              <IconButton
+                size="small"
+                onClick={() => {
+                  setReviewPdfModalOpen(false);
+                  if (pdfPreviewUrl) {
+                    URL.revokeObjectURL(pdfPreviewUrl);
+                    setPdfPreviewUrl(null);
+                  }
+                }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          </DialogTitle>
+
+          <DialogContent className="p-0 flex-1 relative bg-slate-100 dark:bg-slate-950 flex flex-col items-center justify-center">
+            {pdfPreviewLoading ? (
+              <Box className="flex flex-col items-center justify-center p-12 space-y-4">
+                <CircularProgress color="primary" />
+                <Typography variant="body2" className="text-slate-600 dark:text-slate-300 font-medium">
+                  Generating Curriculum & Document PDF Report...
+                </Typography>
+              </Box>
+            ) : pdfPreviewUrl ? (
+              <iframe
+                src={pdfPreviewUrl}
+                title="Training Catalog PDF Preview"
+                className="w-full h-full border-0"
+              />
+            ) : (
+              <Alert severity="warning" className="m-6">
+                Unable to load PDF preview. Please try again or download directly.
+              </Alert>
+            )}
+          </DialogContent>
         </Dialog>
       </Box>
     </AsideLayout>

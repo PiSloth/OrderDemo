@@ -30,6 +30,8 @@ class TrainingController extends Controller
                 'scopes.department',
                 'scopes.officePosition',
                 'companyDocuments:id,title,department_id,company_document_type_id',
+                'companyDocuments.department:id,name',
+                'companyDocuments.type:id,name',
                 'test',
             ])
             ->withCount(['assignments', 'sessions', 'companyDocuments']);
@@ -70,8 +72,26 @@ class TrainingController extends Controller
 
         $allActiveTrainings = Training::query()
             ->where('status', 'active')
-            ->with(['scopes.department:id,name', 'scopes.officePosition:id,name', 'category:id,name'])
-            ->get(['id', 'code', 'title', 'training_category_id', 'passing_score', 'retrain_interval', 'retrain_unit']);
+            ->with([
+                'scopes.department:id,name',
+                'scopes.officePosition:id,name',
+                'category:id,name',
+                'companyDocuments:id,title,department_id,company_document_type_id',
+                'companyDocuments.department:id,name',
+                'companyDocuments.type:id,name',
+            ])
+            ->get([
+                'id',
+                'code',
+                'title',
+                'description',
+                'training_category_id',
+                'passing_score',
+                'retrain_interval',
+                'retrain_unit',
+                'duration_days',
+                'status',
+            ]);
 
         return Inertia::render('Training/Trainings/Index', [
             'trainings' => $trainings,
