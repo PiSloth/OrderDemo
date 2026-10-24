@@ -1,3 +1,4 @@
+import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { applyPyidaungsuFont } from './pdfFont';
@@ -552,99 +553,198 @@ export async function exportSessionAnnouncementPdf(session) {
 }
 
 /**
- * Generates and downloads (or returns a Blob URL preview for) the Training Catalog & Curriculum Document Report.
- * Displays:
- *  - Training Catalog Title, Code & Category
- *  - Course Description & Objectives
- *  - Documents / SOPs contained under each training catalog title
- *  - Target Scopes (Departments & Positions)
- *  - Eligible workforce assignees table with review checkboxes & status
+ * Ensures the Pyidaungsu webfont is fully loaded in the browser before rendering with html2canvas.
+ */
+const ensurePyidaungsuFontLoaded = async () => {
+  try {
+    if (document.fonts && document.fonts.load) {
+      await Promise.all([
+        document.fonts.load('12px Pyidaungsu'),
+        document.fonts.load('bold 12px Pyidaungsu'),
+      ]);
+      await document.fonts.ready;
+    }
+  } catch (e) {
+    console.warn('Pyidaungsu font load check warning:', e);
+  }
+};
+
+const escapeHtml = (text) => {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+const cleanTextHtml = (text) => {
+  if (!text) return '';
+  let s = typeof text !== 'string' ? String(text) : text;
+  if (/<[a-z][\s\S]*>/i.test(s)) {
+    const div = document.createElement('div');
+    div.innerHTML = s;
+    s = (div.textContent || div.innerText || '').trim();
+  }
+  return escapeHtml(s.trim());
+};
+
+const buildTrainingCardHtml = (t, index) => {
+  const docs = t.company_documents || t.companyDocuments || [];
+  const scopes = t.scopes || [];
+
+  const docsRowsHtml = docs.length === 0
+    ? `<tr><td colspan="4" style="padding: 10px 12px; text-align: center; color: #94a3b8; font-size: 11px; font-style: italic;">No company SOPs or reference documents are currently linked to this catalog.</td></tr>`
+    : docs.map((d, dIdx) => `
+      <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${dIdx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+        <td style="padding: 7px 8px; text-align: center; font-size: 11px; color: #64748b; width: 34px;">${dIdx + 1}</td>
+        <td style="padding: 7px 12px; font-size: 11.5px; font-weight: 600; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${cleanTextHtml(d.title || 'Untitled Document')}</td>
+        <td style="padding: 7px 12px; font-size: 11px; color: #475569; width: 150px; font-family: 'Pyidaungsu', sans-serif;">${cleanTextHtml(d.type?.name || 'SOP / Procedure')}</td>
+        <td style="padding: 7px 12px; font-size: 11px; color: #475569; width: 140px; font-family: 'Pyidaungsu', sans-serif;">${cleanTextHtml(d.department?.name || 'Company Wide')}</td>
+      </tr>
+    `).join('');
+
+  let scopesHtml = '';
+  if (scopes.length > 0) {
+    const scopePills = scopes.map(s => {
+      const dept = cleanTextHtml(s.department?.name || 'Any Dept');
+      const pos = cleanTextHtml(s.office_position?.name || s.officePosition?.name || 'All Positions');
+      return `<span style="display: inline-block; background-color: #f1f5f9; color: #334155; padding: 2px 8px; border-radius: 4px; font-size: 10.5px; margin: 2px 4px 2px 0; border: 1px solid #e2e8f0; font-family: 'Pyidaungsu', sans-serif;">${dept} &rarr; <strong>${pos}</strong></span>`;
+    }).join(' ');
+
+    scopesHtml = `
+      <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+        <span style="font-size: 10.5px; font-weight: bold; color: #475569; margin-right: 6px; text-transform: uppercase;">Target Scopes:</span>
+        ${scopePills}
+      </div>
+    `;
+  }
+
+  const categoryName = cleanTextHtml(t.category?.name || 'General');
+  const durationText = t.duration_days ? `<span style="margin-left: 14px; color: #64748b;">Duration: <strong style="color: #0f172a;">${t.duration_days} Day(s)</strong></span>` : '';
+
+  return `
+    <div class="training-catalog-card" style="margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 8px; background-color: #ffffff; overflow: hidden; page-break-inside: avoid; break-inside: avoid;">
+      <!-- Header bar -->
+      <div style="background-color: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 9px 14px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #0284c7;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 11px; font-weight: bold; color: #0284c7; background-color: #e0f2fe; padding: 2px 7px; border-radius: 4px; font-family: monospace;">${cleanTextHtml(t.code || 'N/A')}</span>
+          <span style="font-size: 13.5px; font-weight: bold; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${index}. ${cleanTextHtml(t.title || 'Untitled Training')}</span>
+        </div>
+        <div style="font-size: 10.5px; color: #475569; display: flex; gap: 12px; align-items: center;">
+          <span style="background-color: #ecfdf5; color: #059669; font-weight: bold; padding: 2px 8px; border-radius: 12px; border: 1px solid #a7f3d0; font-size: 10px;">${escapeHtml((t.status || 'ACTIVE').toUpperCase())}</span>
+          <span>Passing Score: <strong style="color: #059669;">${t.passing_score || 80}%</strong></span>
+          <span>Retrain: <strong>Every ${t.retrain_interval || 12} ${escapeHtml(t.retrain_unit || 'month')}(s)</strong></span>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div style="padding: 12px 16px;">
+        <!-- Category & Duration info -->
+        <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
+          Category: <strong style="color: #0284c7; font-family: 'Pyidaungsu', sans-serif;">${categoryName}</strong>
+          ${durationText}
+        </div>
+
+        <!-- Description -->
+        <div style="margin-bottom: 10px;">
+          <div style="font-size: 10.5px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 3px;">Description / Course Objectives:</div>
+          <div style="font-size: 11.5px; color: #1e293b; line-height: 1.55; font-family: 'Pyidaungsu', sans-serif; white-space: pre-wrap; word-break: break-word;">${cleanTextHtml(t.description || 'No detailed description provided for this training catalog.')}</div>
+        </div>
+
+        <!-- Connected Documents Table -->
+        <div style="margin-top: 10px;">
+          <div style="font-size: 10.5px; font-weight: bold; color: #0f172a; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="text-transform: uppercase; letter-spacing: 0.3px;">Connected Documents & SOPs Contained Under This Title:</span>
+            <span style="font-size: 10px; color: #64748b; font-weight: normal;">${docs.length} Document(s) Attached</span>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
+            <thead>
+              <tr style="background-color: #1e293b; color: #ffffff; font-size: 10.5px; text-align: left;">
+                <th style="padding: 6px 8px; width: 34px; text-align: center; border-right: 1px solid #334155;">#</th>
+                <th style="padding: 6px 12px; border-right: 1px solid #334155;">Document Title / Standard Procedure</th>
+                <th style="padding: 6px 12px; width: 150px; border-right: 1px solid #334155;">Document Type</th>
+                <th style="padding: 6px 12px; width: 140px;">Department</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${docsRowsHtml}
+            </tbody>
+          </table>
+        </div>
+
+        ${scopesHtml}
+      </div>
+    </div>
+  `;
+};
+
+const partitionTrainingsForPages = (trainingsList, measureContainer) => {
+  if (trainingsList.length === 0) return [[]];
+
+  measureContainer.innerHTML = trainingsList.map((t, idx) => buildTrainingCardHtml(t, idx + 1)).join('');
+  const cardElements = measureContainer.querySelectorAll('.training-catalog-card');
+  const cardHeights = Array.from(cardElements).map((el) => el.offsetHeight || 240);
+  measureContainer.innerHTML = '';
+
+  const MAX_PAGE_1_HEIGHT = 770;
+  const MAX_OTHER_PAGE_HEIGHT = 920;
+  const SIGNATURE_HEIGHT = 90;
+
+  const pages = [];
+  let currentPage = [];
+  let currentHeight = 0;
+
+  for (let i = 0; i < trainingsList.length; i++) {
+    const item = trainingsList[i];
+    const cHeight = cardHeights[i];
+    const isFirstPage = pages.length === 0;
+    const isLastItem = i === trainingsList.length - 1;
+
+    let maxAllowed = isFirstPage ? MAX_PAGE_1_HEIGHT : MAX_OTHER_PAGE_HEIGHT;
+    if (isLastItem) {
+      maxAllowed -= SIGNATURE_HEIGHT;
+    }
+
+    if (currentPage.length > 0 && currentHeight + cHeight > maxAllowed) {
+      pages.push(currentPage);
+      currentPage = [item];
+      currentHeight = cHeight;
+    } else {
+      currentPage.push(item);
+      currentHeight += cHeight;
+    }
+  }
+
+  if (currentPage.length > 0) {
+    pages.push(currentPage);
+  }
+
+  return pages;
+};
+
+/**
+ * Generates and downloads the Training Catalog & Connected Documents Report PDF
+ * with 100% native Myanmar Unicode text shaping (Pyidaungsu font).
+ * Excludes related personnel/employees, showing only course info, descriptions,
+ * connected SOPs/documents, and high-level target scopes.
  *
  * @param {Object} options
  * @param {Array} [options.trainings=[]] List of training catalog objects
- * @param {Array} [options.activeUsers=[]] List of active employees for assignee scoping
- * @param {Object|null} [options.singleTraining=null] If set, exports/previews only this specific training
- * @param {Boolean} [options.returnBlobOnly=false] If true, returns { doc, blobUrl, filename } for in-browser review
+ * @param {Object|null} [options.singleTraining=null] If set, exports only this specific training
  */
 export async function exportTrainingCurriculumPdf({
   trainings = [],
-  activeUsers = [],
   singleTraining = null,
-  returnBlobOnly = false,
 }) {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
-
-  const fontName = await applyPyidaungsuFont(doc);
-
-  const setFont = (style = 'normal', size = 9) => {
-    try {
-      doc.setFont(fontName, style);
-    } catch (e) {
-      doc.setFont('helvetica', style);
-    }
-    doc.setFontSize(size);
-  };
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 14;
-  let currentY = 16;
-
-  // Modern corporate color palette
-  const primaryNavy = [15, 23, 42]; // Slate-900
-  const brandSky = [14, 116, 144]; // Sky-700
-  const secondarySlate = [71, 85, 105]; // Slate-600
-  const lightBg = [240, 249, 255]; // Sky-50
-  const borderColor = [226, 232, 240]; // Slate-200
-
-  const runAutoTable = (options) => {
-    if (typeof autoTable === 'function') {
-      autoTable(doc, options);
-    } else if (typeof doc.autoTable === 'function') {
-      doc.autoTable(options);
-    }
-  };
-
-  const ensureSpace = (neededHeight) => {
-    if (currentY + neededHeight > pageHeight - margin - 15) {
-      doc.addPage();
-      currentY = margin + 8;
-      return true;
-    }
-    return false;
-  };
+  await ensurePyidaungsuFontLoaded();
 
   const trainingsList = singleTraining
     ? [singleTraining]
-    : (trainings.length > 0 ? trainings : []);
+    : (trainings && trainings.length > 0 ? trainings : []);
 
-  // 1. Header Banner
-  setFont('bold', 15);
-  doc.setTextColor(...primaryNavy);
-  const mainTitle = singleTraining
-    ? `Training Catalog Specification & Assignee Review`
-    : `Training Catalog & Curriculum Document Report`;
-  doc.text(mainTitle, margin, currentY);
-
-  currentY += 5.5;
-  setFont('normal', 8.5);
-  doc.setTextColor(...secondarySlate);
-  const subtitle = singleTraining
-    ? `Curriculum Objectives, Connected Documents / SOPs & Audience Scope: [${singleTraining.code}] ${singleTraining.title}`
-    : `Comprehensive Catalog Overview: Descriptions, Connected Documents / SOPs & Eligible Assignees`;
-  doc.text(subtitle, margin, currentY);
-
-  currentY += 4.5;
-  const nowStr = new Date().toLocaleString();
-  doc.text(`Generated on: ${nowStr} • Training Master Management System`, margin, currentY);
-
-  currentY += 7;
-
-  // 2. Summary KPI Box
   const totalCatalogs = trainingsList.length;
   let totalDocsCount = 0;
   trainingsList.forEach((t) => {
@@ -652,289 +752,157 @@ export async function exportTrainingCurriculumPdf({
     totalDocsCount += docs.length;
   });
 
-  doc.setFillColor(...lightBg);
-  doc.setDrawColor(186, 230, 253);
-  doc.roundedRect(margin, currentY, pageWidth - margin * 2, 13, 2, 2, 'FD');
+  const nowStr = new Date().toLocaleString();
+  const mainTitle = singleTraining
+    ? 'Training Catalog & Document Specification Report'
+    : 'Training Catalog & Connected Documents Report';
+  const subtitle = singleTraining
+    ? `Curriculum Objectives & Connected Documents / SOPs: [${singleTraining.code}] ${singleTraining.title}`
+    : 'Comprehensive Catalog Overview: Course Descriptions & Connected SOPs / Documents';
 
-  setFont('bold', 8.5);
-  doc.setTextColor(...brandSky);
-  const kpiText = singleTraining
-    ? `Course Code: ${singleTraining.code}   |   Status: ${(singleTraining.status || 'ACTIVE').toUpperCase()}   |   Connected SOPs / Documents: ${totalDocsCount}`
-    : `Total Training Programs: ${totalCatalogs}   |   Total Connected Documents: ${totalDocsCount}   |   Workforce Database: ${activeUsers.length} Active Employees`;
-  doc.text(kpiText, margin + 4, currentY + 8);
+  // Create temporary container for measurement and rendering
+  const renderContainer = document.createElement('div');
+  renderContainer.style.position = 'fixed';
+  renderContainer.style.left = '-99999px';
+  renderContainer.style.top = '0';
+  renderContainer.style.width = '794px';
+  renderContainer.style.zIndex = '-9999';
+  renderContainer.style.backgroundColor = '#ffffff';
+  renderContainer.style.fontFamily = `'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
+  document.body.appendChild(renderContainer);
 
-  currentY += 18;
+  try {
+    const pagesData = partitionTrainingsForPages(trainingsList, renderContainer);
+    const totalPages = pagesData.length;
 
-  if (trainingsList.length === 0) {
-    setFont('normal', 10);
-    doc.setTextColor(...secondarySlate);
-    doc.text('No training catalog records available for export.', margin, currentY);
-  } else {
-    trainingsList.forEach((t, tIdx) => {
-      // Check page break before starting each training catalog block
-      if (tIdx > 0) {
-        ensureSpace(40);
-      }
-
-      // Catalog Header Bar
-      const startCardY = currentY;
-      doc.setFillColor(248, 250, 252); // Slate-50
-      doc.setDrawColor(203, 213, 225); // Slate-300
-      doc.roundedRect(margin, startCardY, pageWidth - margin * 2, 11, 1.5, 1.5, 'FD');
-
-      // Left Accent Strip
-      doc.setFillColor(...brandSky);
-      doc.rect(margin, startCardY, 3, 11, 'F');
-
-      setFont('bold', 9.5);
-      doc.setTextColor(...primaryNavy);
-      const titleLine = `${tIdx + 1}. [${t.code || 'N/A'}] ${t.title || 'Untitled Training'}`;
-      doc.text(titleLine, margin + 5, startCardY + 7);
-
-      // Meta pills on right of header
-      setFont('normal', 7.5);
-      doc.setTextColor(...secondarySlate);
-      const metaRight = `Pass: ${t.passing_score || 80}% • Retrain: Every ${t.retrain_interval || 12} ${t.retrain_unit || 'month'}(s)`;
-      doc.text(metaRight, pageWidth - margin - 4, startCardY + 7, { align: 'right' });
-
-      currentY += 15;
-
-      // Category & Details row
-      setFont('bold', 8);
-      doc.setTextColor(...brandSky);
-      doc.text('Category: ', margin + 2, currentY);
-      setFont('normal', 8);
-      doc.setTextColor(...primaryNavy);
-      const categoryName = t.category?.name || 'General';
-      doc.text(categoryName, margin + 17, currentY);
-
-      if (t.duration_days) {
-        setFont('bold', 8);
-        doc.setTextColor(...brandSky);
-        doc.text('Duration: ', margin + 70, currentY);
-        setFont('normal', 8);
-        doc.setTextColor(...primaryNavy);
-        doc.text(`${t.duration_days} Day(s)`, margin + 84, currentY);
-      }
-
-      currentY += 5;
-
-      // Description Section
-      setFont('bold', 8);
-      doc.setTextColor(...secondarySlate);
-      doc.text('Description / Course Objectives:', margin + 2, currentY);
-      currentY += 4;
-
-      setFont('normal', 7.8);
-      doc.setTextColor(30, 41, 59);
-      const descText = t.description ? t.description.trim() : 'No detailed description provided for this training catalog.';
-      const descLines = doc.splitTextToSize(descText, pageWidth - margin * 2 - 4);
-      doc.text(descLines, margin + 2, currentY);
-      currentY += descLines.length * 3.8 + 4;
-
-      // Connected Documents Table ("which document contain under each title")
-      const docs = t.company_documents || t.companyDocuments || [];
-
-      const docRows = [];
-      if (docs.length === 0) {
-        docRows.push([
-          {
-            content: 'No company SOPs or reference documents are currently linked to this training catalog.',
-            colSpan: 4,
-            styles: { halign: 'center', fontSize: 7.5, textColor: [148, 163, 184], fontStyle: 'italic' },
-          },
-        ]);
-      } else {
-        docs.forEach((d, dIdx) => {
-          docRows.push([
-            `${dIdx + 1}`,
-            d.title || 'Untitled Document',
-            d.type?.name || 'SOP / Procedure',
-            d.department?.name || 'Company Wide',
-          ]);
-        });
-      }
-
-      runAutoTable({
-        startY: currentY,
-        head: [
-          [
-            '#',
-            `Connected Documents & SOPs Contained Under This Title (${docs.length})`,
-            'Document Type',
-            'Department',
-          ],
-        ],
-        body: docRows,
-        theme: 'grid',
-        styles: {
-          font: fontName,
-          fontSize: 7.5,
-          cellPadding: 2.2,
-          valign: 'middle',
-          lineColor: borderColor,
-          lineWidth: 0.15,
-        },
-        headStyles: {
-          fillColor: [30, 41, 59], // Slate-800
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 7.5,
-          halign: 'left',
-        },
-        columnStyles: {
-          0: { cellWidth: 8, halign: 'center' },
-          1: { cellWidth: 'auto', fontStyle: 'bold' },
-          2: { cellWidth: 38 },
-          3: { cellWidth: 38 },
-        },
-        margin: { left: margin, right: margin, bottom: 16 },
-      });
-
-      currentY = (doc.lastAutoTable?.finalY || currentY) + 5;
-
-      // Scopes & Eligible Assignees Review Section
-      const scopes = t.scopes || [];
-      const matchingEmployees = activeUsers.filter((u) => {
-        if (scopes.length === 0) return false;
-        return scopes.some((s) => {
-          if (s.department_id && s.department_id !== u.department_id) return false;
-          if (s.office_position_id && s.office_position_id !== u.office_position_id) return false;
-          return true;
-        });
-      });
-
-      const assigneeRows = [];
-      if (scopes.length === 0) {
-        assigneeRows.push([
-          {
-            content: 'No target scopes configured. This training can be manually assigned to any employee as needed.',
-            colSpan: 5,
-            styles: { halign: 'center', fontSize: 7.5, textColor: [148, 163, 184], fontStyle: 'italic' },
-          },
-        ]);
-      } else if (matchingEmployees.length === 0) {
-        assigneeRows.push([
-          {
-            content: 'No active workforce employees currently match the configured target scope combinations.',
-            colSpan: 5,
-            styles: { halign: 'center', fontSize: 7.5, textColor: [217, 119, 6], fontStyle: 'italic' },
-          },
-        ]);
-      } else {
-        matchingEmployees.forEach((u, uIdx) => {
-          const userAssignments = u.training_assignments || u.trainingAssignments || [];
-          const existingAssign = userAssignments.find(
-            (a) => (a.training_id || a.training?.id) === t.id
-          );
-          const statusText = existingAssign
-            ? (existingAssign.status || 'ASSIGNED').toUpperCase()
-            : 'Eligible (Not Assigned)';
-
-          assigneeRows.push([
-            '[  ]', // Review & choose checkbox
-            `${uIdx + 1}`,
-            `${u.name}\n${u.email}`,
-            `${u.department?.name || 'Unassigned'} • ${u.officePosition?.name || u.office_position?.name || 'Staff'}`,
-            statusText,
-          ]);
-        });
-      }
-
-      runAutoTable({
-        startY: currentY,
-        head: [
-          [
-            'Pick',
-            '#',
-            `Target Workforce Assignee Candidates (${matchingEmployees.length} Eligible)`,
-            'Department & Office Position',
-            'Assignment Status',
-          ],
-        ],
-        body: assigneeRows,
-        theme: 'grid',
-        styles: {
-          font: fontName,
-          fontSize: 7.2,
-          cellPadding: 2.2,
-          valign: 'middle',
-          lineColor: borderColor,
-          lineWidth: 0.15,
-        },
-        headStyles: {
-          fillColor: [14, 116, 144], // Sky-700
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 7.5,
-          halign: 'left',
-        },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
-          1: { cellWidth: 8, halign: 'center' },
-          2: { cellWidth: 62, fontStyle: 'bold' },
-          3: { cellWidth: 60 },
-          4: { cellWidth: 'auto', halign: 'center' },
-        },
-        margin: { left: margin, right: margin, bottom: 16 },
-      });
-
-      currentY = (doc.lastAutoTable?.finalY || currentY) + 8;
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
     });
 
-    // Sign-off / Reviewer Verification Section
-    ensureSpace(25);
-    setFont('bold', 8);
-    doc.setTextColor(...primaryNavy);
-    doc.text('Training Review & Assignee Authorization:', margin, currentY);
+    let currentItemIdx = 1;
 
-    setFont('normal', 7.5);
-    doc.setTextColor(...secondarySlate);
-    doc.text('This document serves as the curriculum syllabus and target assignee review for company compliance auditing.', margin, currentY + 4);
+    for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+      const pageItems = pagesData[pageIdx];
+      const isFirstPage = pageIdx === 0;
+      const isLastPage = pageIdx === totalPages - 1;
 
-    currentY += 14;
-    setFont('normal', 8);
-    doc.setTextColor(...primaryNavy);
-    doc.text('Reviewed By (Training Manager): ___________________________', margin, currentY);
-    doc.text('Date: ______________', margin + 85, currentY);
+      const pageElement = document.createElement('div');
+      pageElement.style.width = '794px';
+      pageElement.style.height = '1123px';
+      pageElement.style.minHeight = '1123px';
+      pageElement.style.maxHeight = '1123px';
+      pageElement.style.boxSizing = 'border-box';
+      pageElement.style.padding = '32px 36px';
+      pageElement.style.backgroundColor = '#ffffff';
+      pageElement.style.fontFamily = `'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
+      pageElement.style.display = 'flex';
+      pageElement.style.flexDirection = 'column';
+      pageElement.style.justifyContent = 'space-between';
 
-    doc.text('Authorized By (HR / Approver): ___________________________', pageWidth - margin - 85, currentY);
-    doc.text('Date: ______________', pageWidth - margin - 22, currentY);
+      // Top Content Wrapper
+      const topWrapper = document.createElement('div');
+
+      // Header Banner (Full on page 1, compact on page 2+)
+      if (isFirstPage) {
+        topWrapper.innerHTML = `
+          <div style="margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <h1 style="margin: 0; font-size: 18px; font-weight: bold; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${escapeHtml(mainTitle)}</h1>
+                <p style="margin: 4px 0 0 0; font-size: 11px; color: #475569; font-family: 'Pyidaungsu', sans-serif;">${escapeHtml(subtitle)}</p>
+              </div>
+              <div style="text-align: right; font-size: 10px; color: #64748b;">
+                <div>Generated: ${nowStr}</div>
+                <div style="font-weight: 600; color: #0284c7; margin-top: 2px;">Training Master Management System</div>
+              </div>
+            </div>
+
+            <!-- Summary KPI Box -->
+            <div style="margin-top: 10px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 7px 12px; font-size: 11px; color: #0369a1; font-weight: 600;">
+              Total Training Programs: ${totalCatalogs} &nbsp;&nbsp;|&nbsp;&nbsp; Total Connected SOPs & Documents: ${totalDocsCount}
+            </div>
+          </div>
+        `;
+      } else {
+        topWrapper.innerHTML = `
+          <div style="margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #64748b;">
+            <span style="font-weight: 600; color: #0f172a;">${escapeHtml(mainTitle)} (Continued)</span>
+            <span>Generated: ${nowStr}</span>
+          </div>
+        `;
+      }
+
+      // Add Cards
+      const cardsHtml = pageItems.map((t) => {
+        const html = buildTrainingCardHtml(t, currentItemIdx);
+        currentItemIdx++;
+        return html;
+      }).join('');
+
+      const cardsContainer = document.createElement('div');
+      cardsContainer.innerHTML = cardsHtml;
+      topWrapper.appendChild(cardsContainer);
+      pageElement.appendChild(topWrapper);
+
+      // Bottom Section Wrapper
+      const bottomWrapper = document.createElement('div');
+
+      // Signature Section on last page
+      let signatureHtml = '';
+      if (isLastPage) {
+        signatureHtml = `
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #cbd5e1; font-size: 10.5px;">
+            <div style="font-weight: bold; color: #0f172a; margin-bottom: 2px;">Training Curriculum Review & Verification:</div>
+            <div style="font-size: 10px; color: #64748b; margin-bottom: 10px;">This official document specifies the training course curriculum, passing scores, retrain intervals, and connected SOP documents.</div>
+            <div style="display: flex; justify-content: space-between; color: #0f172a; font-size: 11px;">
+              <div>Reviewed By (Training Manager): ___________________________ &nbsp;&nbsp; Date: ______________</div>
+              <div>Authorized By (HR / Approver): ___________________________ &nbsp;&nbsp; Date: ______________</div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Running Footer on every page
+      const footerHtml = `
+        <div style="margin-top: 10px; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; font-size: 9.5px; color: #94a3b8; font-style: italic;">
+          <div>Training Master Management System — Training Catalog & Connected Documents Report</div>
+          <div>Page ${pageIdx + 1} of ${totalPages}</div>
+        </div>
+      `;
+
+      bottomWrapper.innerHTML = signatureHtml + footerHtml;
+      pageElement.appendChild(bottomWrapper);
+
+      renderContainer.innerHTML = '';
+      renderContainer.appendChild(pageElement);
+
+      const canvas = await html2canvas(pageElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      if (pageIdx > 0) {
+        doc.addPage();
+      }
+      doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    }
+
+    const filename = singleTraining
+      ? `Training_Catalog_${singleTraining.code || 'Course'}_Documents_${new Date().toISOString().slice(0, 10)}.pdf`
+      : `Training_Catalog_Documents_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    doc.save(filename);
+    return { doc, filename };
+  } finally {
+    if (renderContainer && renderContainer.parentNode) {
+      renderContainer.parentNode.removeChild(renderContainer);
+    }
   }
-
-  // Footer: Page numbering
-  const totalPages = typeof doc.getNumberOfPages === 'function'
-    ? doc.getNumberOfPages()
-    : (doc.internal?.getNumberOfPages ? doc.internal.getNumberOfPages() : 1);
-
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    setFont('normal', 7.5);
-    doc.setTextColor(148, 163, 184);
-    const footerLabel = singleTraining
-      ? `Page ${i} of ${totalPages} • Training Course Review: [${singleTraining.code}] ${singleTraining.title}`
-      : `Page ${i} of ${totalPages} • Training Catalog Curriculum & Document Report`;
-    doc.text(footerLabel, pageWidth / 2, pageHeight - 6, { align: 'center' });
-  }
-
-  const filename = singleTraining
-    ? `Training_Catalog_${singleTraining.code}_Curriculum_${new Date().toISOString().slice(0, 10)}.pdf`
-    : `Training_Catalog_Curriculum_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
-
-  if (returnBlobOnly) {
-    const pdfBlob = doc.output('blob');
-    const blobUrl = URL.createObjectURL(pdfBlob);
-    return {
-      doc,
-      blobUrl,
-      filename,
-      totalPages,
-      totalCatalogs,
-    };
-  }
-
-  doc.save(filename);
-  return { doc, filename };
 }
 
 
