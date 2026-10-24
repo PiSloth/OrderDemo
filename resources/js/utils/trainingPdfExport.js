@@ -598,9 +598,9 @@ const buildTrainingCardHtml = (t, index) => {
     ? `<tr><td colspan="4" style="padding: 10px 12px; text-align: center; color: #94a3b8; font-size: 11px; font-style: italic;">No company SOPs or reference documents are currently linked to this catalog.</td></tr>`
     : docs.map((d, dIdx) => `
       <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${dIdx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-        <td style="padding: 7px 8px; text-align: center; font-size: 11px; color: #64748b; width: 34px;">${dIdx + 1}</td>
-        <td style="padding: 7px 12px; font-size: 11.5px; font-weight: 600; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${cleanTextHtml(d.title || 'Untitled Document')}</td>
-        <td style="padding: 7px 12px; font-size: 11px; color: #475569; width: 150px; font-family: 'Pyidaungsu', sans-serif;">${cleanTextHtml(d.type?.name || 'SOP / Procedure')}</td>
+        <td style="padding: 7px 8px; text-align: center; font-size: 11px; color: #64748b; width: 36px; border-right: 1px solid #e2e8f0;">${dIdx + 1}</td>
+        <td style="padding: 7px 12px; font-size: 11.5px; font-weight: 600; color: #0f172a; font-family: 'Pyidaungsu', sans-serif; border-right: 1px solid #e2e8f0;">${cleanTextHtml(d.title || 'Untitled Document')}</td>
+        <td style="padding: 7px 12px; font-size: 11px; color: #475569; width: 150px; font-family: 'Pyidaungsu', sans-serif; border-right: 1px solid #e2e8f0;">${cleanTextHtml(d.type?.name || 'SOP / Procedure')}</td>
         <td style="padding: 7px 12px; font-size: 11px; color: #475569; width: 140px; font-family: 'Pyidaungsu', sans-serif;">${cleanTextHtml(d.department?.name || 'Company Wide')}</td>
       </tr>
     `).join('');
@@ -610,12 +610,12 @@ const buildTrainingCardHtml = (t, index) => {
     const scopePills = scopes.map(s => {
       const dept = cleanTextHtml(s.department?.name || 'Any Dept');
       const pos = cleanTextHtml(s.office_position?.name || s.officePosition?.name || 'All Positions');
-      return `<span style="display: inline-block; background-color: #f1f5f9; color: #334155; padding: 2px 8px; border-radius: 4px; font-size: 10.5px; margin: 2px 4px 2px 0; border: 1px solid #e2e8f0; font-family: 'Pyidaungsu', sans-serif;">${dept} &rarr; <strong>${pos}</strong></span>`;
-    }).join(' ');
+      return `&bull; ${dept} &rarr; <strong>${pos}</strong>`;
+    }).join('&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;');
 
     scopesHtml = `
-      <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
-        <span style="font-size: 10.5px; font-weight: bold; color: #475569; margin-right: 6px; text-transform: uppercase;">Target Scopes:</span>
+      <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 11px; color: #475569; font-family: 'Pyidaungsu', sans-serif;">
+        <span style="font-weight: bold; text-transform: uppercase; margin-right: 6px;">Target Scopes:</span>
         ${scopePills}
       </div>
     `;
@@ -625,59 +625,68 @@ const buildTrainingCardHtml = (t, index) => {
   const durationText = t.duration_days ? `<span style="margin-left: 14px; color: #64748b;">Duration: <strong style="color: #0f172a;">${t.duration_days} Day(s)</strong></span>` : '';
 
   return `
-    <div class="training-catalog-card" style="margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 8px; background-color: #ffffff; overflow: hidden; page-break-inside: avoid; break-inside: avoid;">
+    <table class="training-catalog-card" style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 16px; background-color: #ffffff; table-layout: fixed;">
       <!-- Header bar -->
-      <div style="background-color: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 9px 14px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #0284c7;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 11px; font-weight: bold; color: #0284c7; background-color: #e0f2fe; padding: 2px 7px; border-radius: 4px; font-family: monospace;">${cleanTextHtml(t.code || 'N/A')}</span>
-          <span style="font-size: 13.5px; font-weight: bold; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${index}. ${cleanTextHtml(t.title || 'Untitled Training')}</span>
-        </div>
-        <div style="font-size: 10.5px; color: #475569; display: flex; gap: 12px; align-items: center;">
-          <span style="background-color: #ecfdf5; color: #059669; font-weight: bold; padding: 2px 8px; border-radius: 12px; border: 1px solid #a7f3d0; font-size: 10px;">${escapeHtml((t.status || 'ACTIVE').toUpperCase())}</span>
-          <span>Passing Score: <strong style="color: #059669;">${t.passing_score || 80}%</strong></span>
+      <tr style="background-color: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+        <td style="padding: 10px 14px; text-align: left; vertical-align: middle; border-left: 4px solid #0284c7;">
+          <span style="font-size: 11px; font-weight: bold; color: #0284c7; background-color: #e0f2fe; padding: 2px 7px; border-radius: 3px; font-family: monospace;">${cleanTextHtml(t.code || 'N/A')}</span>
+          <span style="font-size: 13.5px; font-weight: bold; color: #0f172a; margin-left: 8px; font-family: 'Pyidaungsu', sans-serif;">${index}. ${cleanTextHtml(t.title || 'Untitled Training')}</span>
+        </td>
+        <td style="padding: 10px 14px; text-align: right; vertical-align: middle; width: 310px; font-size: 10.5px; color: #475569;">
+          <span style="background-color: #ecfdf5; color: #059669; font-weight: bold; padding: 2px 8px; border-radius: 10px; border: 1px solid #a7f3d0; font-size: 10px; margin-right: 8px;">${escapeHtml((t.status || 'ACTIVE').toUpperCase())}</span>
+          <span>Pass: <strong style="color: #059669;">${t.passing_score || 80}%</strong></span>
+          &nbsp;&bull;&nbsp;
           <span>Retrain: <strong>Every ${t.retrain_interval || 12} ${escapeHtml(t.retrain_unit || 'month')}(s)</strong></span>
-        </div>
-      </div>
+        </td>
+      </tr>
 
       <!-- Card Body -->
-      <div style="padding: 12px 16px;">
-        <!-- Category & Duration info -->
-        <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
-          Category: <strong style="color: #0284c7; font-family: 'Pyidaungsu', sans-serif;">${categoryName}</strong>
-          ${durationText}
-        </div>
-
-        <!-- Description -->
-        <div style="margin-bottom: 10px;">
-          <div style="font-size: 10.5px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 3px;">Description / Course Objectives:</div>
-          <div style="font-size: 11.5px; color: #1e293b; line-height: 1.55; font-family: 'Pyidaungsu', sans-serif; white-space: pre-wrap; word-break: break-word;">${cleanTextHtml(t.description || 'No detailed description provided for this training catalog.')}</div>
-        </div>
-
-        <!-- Connected Documents Table -->
-        <div style="margin-top: 10px;">
-          <div style="font-size: 10.5px; font-weight: bold; color: #0f172a; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
-            <span style="text-transform: uppercase; letter-spacing: 0.3px;">Connected Documents & SOPs Contained Under This Title:</span>
-            <span style="font-size: 10px; color: #64748b; font-weight: normal;">${docs.length} Document(s) Attached</span>
+      <tr>
+        <td colspan="2" style="padding: 14px 16px;">
+          <!-- Category & Duration info -->
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 8px; font-family: 'Pyidaungsu', sans-serif;">
+            Category: <strong style="color: #0284c7;">${categoryName}</strong>
+            ${durationText}
           </div>
 
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
-            <thead>
-              <tr style="background-color: #1e293b; color: #ffffff; font-size: 10.5px; text-align: left;">
-                <th style="padding: 6px 8px; width: 34px; text-align: center; border-right: 1px solid #334155;">#</th>
-                <th style="padding: 6px 12px; border-right: 1px solid #334155;">Document Title / Standard Procedure</th>
-                <th style="padding: 6px 12px; width: 150px; border-right: 1px solid #334155;">Document Type</th>
-                <th style="padding: 6px 12px; width: 140px;">Department</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${docsRowsHtml}
-            </tbody>
-          </table>
-        </div>
+          <!-- Description -->
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 10.5px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 3px;">Description / Course Objectives:</div>
+            <div style="font-size: 12px; color: #1e293b; line-height: 1.6; font-family: 'Pyidaungsu', sans-serif; white-space: pre-wrap; word-break: break-word;">${cleanTextHtml(t.description || 'No detailed description provided for this training catalog.')}</div>
+          </div>
 
-        ${scopesHtml}
-      </div>
-    </div>
+          <!-- Connected Documents Table -->
+          <div style="margin-top: 10px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px;">
+              <tr>
+                <td style="font-size: 10.5px; font-weight: bold; color: #0f172a; text-transform: uppercase;">
+                  Connected Documents &amp; SOPs Contained Under This Title:
+                </td>
+                <td style="font-size: 10px; color: #64748b; text-align: right;">
+                  ${docs.length} Document(s) Attached
+                </td>
+              </tr>
+            </table>
+
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1;">
+              <thead>
+                <tr style="background-color: #1e293b; color: #ffffff; font-size: 10.5px; text-align: left;">
+                  <th style="padding: 7px 8px; width: 36px; text-align: center; border-right: 1px solid #334155;">#</th>
+                  <th style="padding: 7px 12px; border-right: 1px solid #334155;">Document Title / Standard Procedure</th>
+                  <th style="padding: 7px 12px; width: 150px; border-right: 1px solid #334155;">Document Type</th>
+                  <th style="padding: 7px 12px; width: 140px;">Department</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${docsRowsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          ${scopesHtml}
+        </td>
+      </tr>
+    </table>
   `;
 };
 
@@ -689,8 +698,8 @@ const partitionTrainingsForPages = (trainingsList, measureContainer) => {
   const cardHeights = Array.from(cardElements).map((el) => el.offsetHeight || 240);
   measureContainer.innerHTML = '';
 
-  const MAX_PAGE_1_HEIGHT = 770;
-  const MAX_OTHER_PAGE_HEIGHT = 920;
+  const MAX_PAGE_1_HEIGHT = 760;
+  const MAX_OTHER_PAGE_HEIGHT = 910;
   const SIGNATURE_HEIGHT = 90;
 
   const pages = [];
@@ -761,12 +770,14 @@ export async function exportTrainingCurriculumPdf({
     : 'Comprehensive Catalog Overview: Course Descriptions & Connected SOPs / Documents';
 
   // Create temporary container for measurement and rendering
+  // Coordinates (0, 0) with pointer-events: none and high zIndex below app body to prevent subpixel ghosting
   const renderContainer = document.createElement('div');
   renderContainer.style.position = 'fixed';
-  renderContainer.style.left = '-99999px';
+  renderContainer.style.left = '0';
   renderContainer.style.top = '0';
   renderContainer.style.width = '794px';
   renderContainer.style.zIndex = '-9999';
+  renderContainer.style.pointerEvents = 'none';
   renderContainer.style.backgroundColor = '#ffffff';
   renderContainer.style.fontFamily = `'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
   document.body.appendChild(renderContainer);
@@ -794,86 +805,96 @@ export async function exportTrainingCurriculumPdf({
       pageElement.style.minHeight = '1123px';
       pageElement.style.maxHeight = '1123px';
       pageElement.style.boxSizing = 'border-box';
-      pageElement.style.padding = '32px 36px';
+      pageElement.style.padding = '36px 40px';
       pageElement.style.backgroundColor = '#ffffff';
       pageElement.style.fontFamily = `'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
-      pageElement.style.display = 'flex';
-      pageElement.style.flexDirection = 'column';
-      pageElement.style.justifyContent = 'space-between';
-
-      // Top Content Wrapper
-      const topWrapper = document.createElement('div');
 
       // Header Banner (Full on page 1, compact on page 2+)
+      let headerHtml = '';
       if (isFirstPage) {
-        topWrapper.innerHTML = `
-          <div style="margin-bottom: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div>
-                <h1 style="margin: 0; font-size: 18px; font-weight: bold; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${escapeHtml(mainTitle)}</h1>
-                <p style="margin: 4px 0 0 0; font-size: 11px; color: #475569; font-family: 'Pyidaungsu', sans-serif;">${escapeHtml(subtitle)}</p>
-              </div>
-              <div style="text-align: right; font-size: 10px; color: #64748b;">
+        headerHtml = `
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed;">
+            <tr>
+              <td style="vertical-align: top; text-align: left;">
+                <div style="font-size: 18px; font-weight: bold; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${escapeHtml(mainTitle)}</div>
+                <div style="font-size: 11px; color: #475569; font-family: 'Pyidaungsu', sans-serif; margin-top: 4px;">${escapeHtml(subtitle)}</div>
+              </td>
+              <td style="vertical-align: top; text-align: right; width: 230px; font-size: 10px; color: #64748b;">
                 <div>Generated: ${nowStr}</div>
-                <div style="font-weight: 600; color: #0284c7; margin-top: 2px;">Training Master Management System</div>
-              </div>
-            </div>
+                <div style="font-weight: 600; color: #0284c7; margin-top: 2px;">Training Master System</div>
+              </td>
+            </tr>
+          </table>
 
-            <!-- Summary KPI Box -->
-            <div style="margin-top: 10px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 7px 12px; font-size: 11px; color: #0369a1; font-weight: 600;">
-              Total Training Programs: ${totalCatalogs} &nbsp;&nbsp;|&nbsp;&nbsp; Total Connected SOPs & Documents: ${totalDocsCount}
-            </div>
+          <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 8px 14px; margin-bottom: 16px; font-size: 11px; color: #0369a1; font-weight: bold; font-family: 'Pyidaungsu', sans-serif;">
+            Total Training Programs: ${totalCatalogs} &nbsp;&nbsp;|&nbsp;&nbsp; Total Connected SOPs &amp; Documents: ${totalDocsCount}
           </div>
         `;
       } else {
-        topWrapper.innerHTML = `
-          <div style="margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #64748b;">
-            <span style="font-weight: 600; color: #0f172a;">${escapeHtml(mainTitle)} (Continued)</span>
-            <span>Generated: ${nowStr}</span>
-          </div>
+        headerHtml = `
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; table-layout: fixed;">
+            <tr>
+              <td style="font-size: 10.5px; font-weight: bold; color: #0f172a; font-family: 'Pyidaungsu', sans-serif;">${escapeHtml(mainTitle)} (Continued)</td>
+              <td style="font-size: 10px; color: #64748b; text-align: right;">Generated: ${nowStr}</td>
+            </tr>
+          </table>
         `;
       }
 
-      // Add Cards
+      // Cards
       const cardsHtml = pageItems.map((t) => {
         const html = buildTrainingCardHtml(t, currentItemIdx);
         currentItemIdx++;
         return html;
       }).join('');
 
-      const cardsContainer = document.createElement('div');
-      cardsContainer.innerHTML = cardsHtml;
-      topWrapper.appendChild(cardsContainer);
-      pageElement.appendChild(topWrapper);
-
-      // Bottom Section Wrapper
-      const bottomWrapper = document.createElement('div');
-
       // Signature Section on last page
       let signatureHtml = '';
       if (isLastPage) {
         signatureHtml = `
-          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #cbd5e1; font-size: 10.5px;">
-            <div style="font-weight: bold; color: #0f172a; margin-bottom: 2px;">Training Curriculum Review & Verification:</div>
-            <div style="font-size: 10px; color: #64748b; margin-bottom: 10px;">This official document specifies the training course curriculum, passing scores, retrain intervals, and connected SOP documents.</div>
-            <div style="display: flex; justify-content: space-between; color: #0f172a; font-size: 11px;">
-              <div>Reviewed By (Training Manager): ___________________________ &nbsp;&nbsp; Date: ______________</div>
-              <div>Authorized By (HR / Approver): ___________________________ &nbsp;&nbsp; Date: ______________</div>
-            </div>
+          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #cbd5e1; font-size: 10.5px;">
+            <div style="font-weight: bold; color: #0f172a; margin-bottom: 2px;">Training Curriculum Review &amp; Verification:</div>
+            <div style="font-size: 10px; color: #64748b; margin-bottom: 12px;">This official document specifies the training course curriculum, passing scores, retrain intervals, and connected SOP documents.</div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: #0f172a; table-layout: fixed;">
+              <tr>
+                <td style="width: 50%; vertical-align: top;">Reviewed By (Training Manager): ___________________________ &nbsp;&nbsp; Date: ______________</td>
+                <td style="width: 50%; vertical-align: top; text-align: right;">Authorized By (HR / Approver): ___________________________ &nbsp;&nbsp; Date: ______________</td>
+              </tr>
+            </table>
           </div>
         `;
       }
 
       // Running Footer on every page
       const footerHtml = `
-        <div style="margin-top: 10px; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; font-size: 9.5px; color: #94a3b8; font-style: italic;">
-          <div>Training Master Management System — Training Catalog & Connected Documents Report</div>
-          <div>Page ${pageIdx + 1} of ${totalPages}</div>
+        <div style="margin-top: 10px; padding-top: 6px; border-top: 1px solid #f1f5f9; font-size: 9.5px; color: #94a3b8; font-style: italic;">
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+            <tr>
+              <td>Training Master Management System &mdash; Training Catalog &amp; Connected Documents Report</td>
+              <td style="text-align: right;">Page ${pageIdx + 1} of ${totalPages}</td>
+            </tr>
+          </table>
         </div>
       `;
 
-      bottomWrapper.innerHTML = signatureHtml + footerHtml;
-      pageElement.appendChild(bottomWrapper);
+      // Structure page content using a pure 2-row table (Top content & Bottom content)
+      // This guarantees vertical spacing without ANY flexbox or flex-direction
+      pageElement.innerHTML = `
+        <table style="width: 100%; height: 1051px; border-collapse: collapse; border: none; table-layout: fixed;">
+          <tr>
+            <td style="vertical-align: top; padding: 0;">
+              ${headerHtml}
+              <div>${cardsHtml}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="vertical-align: bottom; height: 60px; padding: 0;">
+              ${signatureHtml}
+              ${footerHtml}
+            </td>
+          </tr>
+        </table>
+      `;
 
       renderContainer.innerHTML = '';
       renderContainer.appendChild(pageElement);
@@ -883,6 +904,9 @@ export async function exportTrainingCurriculumPdf({
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
