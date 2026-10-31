@@ -25,21 +25,39 @@ class SoftwareDevicePolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('digital_asset.device.view') || $user->isAdmin();
+        return $user->can('hardware_device_inventory.view')
+            || $user->can('digital_asset.device.view')
+            || $user->isAdmin();
     }
 
     public function view(User $user, SoftwareDevice $device): bool
     {
-        return $user->can('digital_asset.device.view') || $user->isAdmin();
+        return $user->can('hardware_device_inventory.view')
+            || $user->can('digital_asset.device.view')
+            || $user->isAdmin();
     }
 
     public function create(User $user): bool
     {
-        return $user->can('digital_asset.device.create') || $user->isAdmin();
+        return $user->can('hardware_device_inventory.create')
+            || $user->can('digital_asset.device.create')
+            || $user->isAdmin();
     }
 
     public function update(User $user, SoftwareDevice $device): bool
     {
-        return $user->can('digital_asset.device.update') || $user->isAdmin();
+        return $user->can('hardware_device_inventory.update')
+            || $user->can('hardware_device_inventory.edit')
+            || $user->can('digital_asset.device.update')
+            || $user->can('digital_asset.device.edit')
+            || $user->isAdmin();
+    }
+
+    public function delete(User $user, SoftwareDevice $device): bool
+    {
+        return $user->can('hardware_device_inventory.delete')
+            || $user->can('digital_asset.device.delete')
+            || $user->isAdmin();
     }
 }
+

@@ -173,6 +173,29 @@ export default function TaskList({
         applyFilters({ selectedMonth: val });
     };
 
+    const handlePrevMonth = () => {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const prev = new Date(y, m - 2, 1);
+        const val = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+        setSelectedMonth(val);
+        applyFilters({ selectedMonth: val });
+    };
+
+    const handleNextMonth = () => {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const next = new Date(y, m, 1);
+        const val = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+        setSelectedMonth(val);
+        applyFilters({ selectedMonth: val });
+    };
+
+    const handleTodayMonth = () => {
+        const today = new Date();
+        const val = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        setSelectedMonth(val);
+        applyFilters({ selectedMonth: val });
+    };
+
     const handleStatusToggle = (statusId) => {
         const numId = Number(statusId);
         let next;
@@ -632,15 +655,45 @@ export default function TaskList({
                                 onChange={handleMonthChange}
                                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                             >
-                                {monthsWithTasks.length > 0 ? (
-                                    monthsWithTasks.map((m) => (
+                                {(() => {
+                                    const optionsMap = new Map();
+                                    
+                                    (monthsWithTasks || []).forEach((m) => {
+                                        optionsMap.set(m.value, {
+                                            value: m.value,
+                                            label: m.label,
+                                            count: m.count,
+                                        });
+                                    });
+
+                                    if (selectedMonth && !optionsMap.has(selectedMonth)) {
+                                        try {
+                                            const dateLabel = new Date(selectedMonth + '-01').toLocaleDateString('default', { month: 'long', year: 'numeric' });
+                                            optionsMap.set(selectedMonth, {
+                                                value: selectedMonth,
+                                                label: dateLabel,
+                                                count: 0,
+                                            });
+                                        } catch (e) {}
+                                    }
+
+                                    const sortedOptions = Array.from(optionsMap.values()).sort((a, b) => b.value.localeCompare(a.value));
+
+                                    if (sortedOptions.length === 0) {
+                                        const nowStr = new Date().toISOString().slice(0, 7);
+                                        return (
+                                            <option value={nowStr}>
+                                                {new Date().toLocaleDateString('default', { month: 'long', year: 'numeric' })}
+                                            </option>
+                                        );
+                                    }
+
+                                    return sortedOptions.map((m) => (
                                         <option key={m.value} value={m.value}>
                                             {m.label} ({m.count} tasks)
                                         </option>
-                                    ))
-                                ) : (
-                                    <option value={new Date().toISOString().slice(0, 7)}>{new Date().toLocaleDateString('default', { month: 'long', year: 'numeric' })}</option>
-                                )}
+                                    ));
+                                })()}
                             </select>
                         </div>
 
@@ -695,10 +748,51 @@ export default function TaskList({
                 {/* CALENDAR VIEW */}
                 {viewMode === 'calendar' && (
                     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                                {new Date(selectedMonth + '-01').toLocaleDateString('default', { month: 'long', year: 'numeric' })} Calendar Matrix
-                            </h2>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                                    {new Date(selectedMonth + '-01').toLocaleDateString('default', { month: 'long', year: 'numeric' })} Calendar Matrix
+                                </h2>
+                                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300">
+                                    {Object.values(calendarTasks || {}).reduce((acc, catMap) => acc + Object.values(catMap).reduce((s, cnt) => s + cnt, 0), 0)} month tasks
+                                </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={handlePrevMonth}
+                                        className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-slate-700 transition"
+                                        title="Previous Month"
+                                    >
+                                        ← Prev
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleTodayMonth}
+                                        className="rounded-lg px-2.5 py-1 text-xs font-semibold text-indigo-600 hover:bg-white dark:text-indigo-400 dark:hover:bg-slate-700 transition"
+                                    >
+                                        This Month
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleNextMonth}
+                                        className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-slate-700 transition"
+                                        title="Next Month"
+                                    >
+                                        Next →
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('list')}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition"
+                                >
+                                    📋 View as Checklist / Task List ({todoLists.length})
+                                </button>
+                            </div>
                         </div>
 
                         {/* Calendar Grid Header */}
@@ -955,6 +1049,7 @@ export default function TaskList({
                                 <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
                                     <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:bg-slate-800/50">
                                         <tr>
+                                            <th className="px-4 py-3 w-10 text-center">Check</th>
                                             <th className="px-4 py-3">Task Description</th>
                                             <th className="px-4 py-3">Category</th>
                                             <th className="px-4 py-3">Status</th>
@@ -971,7 +1066,23 @@ export default function TaskList({
                                                 className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 cursor-pointer"
                                                 onClick={() => setSelectedTaskDetail(t)}
                                             >
-                                                <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white max-w-xs truncate">{t.task}</td>
+                                                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                    {t.kpi_task_instance_id ? (
+                                                        <span title="Managed by KPI approval" className="cursor-not-allowed text-amber-500 opacity-70">🔒</span>
+                                                    ) : (
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(t.closed_at || t.todo_status_id)}
+                                                            onChange={() => handleCloseTask(t.id)}
+                                                            disabled={Boolean(t.closed_at || t.todo_status_id)}
+                                                            title={Boolean(t.closed_at || t.todo_status_id) ? "Task completed" : "Mark task as completed"}
+                                                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-80"
+                                                        />
+                                                    )}
+                                                </td>
+                                                <td className={`px-4 py-3 font-semibold text-slate-900 dark:text-white max-w-xs truncate ${(t.closed_at || t.todo_status_id) ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                                                    {t.task}
+                                                </td>
                                                 <td className="px-4 py-3">{t.due_time?.category?.name || '-'}</td>
                                                 <td className="px-4 py-3">
                                                     <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${getStatusBadge(t.status)}`}>
@@ -1186,6 +1297,7 @@ export default function TaskList({
                     itAdminDepartments={itAdminDepartments}
                     users={users}
                     userBranchId={userBranchId}
+                    todoLists={todoLists}
                 />
 
                 {/* REACT CONFIRMATION MODAL */}

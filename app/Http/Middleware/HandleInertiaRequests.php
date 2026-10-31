@@ -37,6 +37,20 @@ class HandleInertiaRequests extends Middleware
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
                     'role' => $request->user()->role,
+                    'department_id' => $request->user()->department_id,
+                    'department' => $request->user()->department ? [
+                        'id' => $request->user()->department->id,
+                        'name' => $request->user()->department->name,
+                    ] : null,
+                    'branch_id' => $request->user()->branch_id,
+                    'branch' => $request->user()->branch ? [
+                        'id' => $request->user()->branch->id,
+                        'name' => $request->user()->branch->name,
+                    ] : null,
+                    'office_position' => $request->user()->officePosition ? [
+                        'id' => $request->user()->officePosition->id,
+                        'name' => $request->user()->officePosition->name,
+                    ] : null,
                     'is_super_user' => method_exists($request->user(), 'isSuperUser') ? $request->user()->isSuperUser() : ($request->user()->role === 'admin'),
                     'is_it_department' => method_exists($request->user(), 'isFromItDepartment') ? $request->user()->isFromItDepartment() : false,
                 ] : null,
@@ -56,6 +70,52 @@ class HandleInertiaRequests extends Middleware
                         || $request->user()->can('branch-scope.view')
                         || $request->user()->can('training.catalog.view')
                         || $request->user()->can('training.attempt.view')
+                    ) : false,
+                    'accountView' => $request->user() ? ($request->user()->isSuperUser() || $request->user()->isFromItDepartment() || $request->user()->isAdmin() || $request->user()->can('account.view') || $request->user()->can('digital_asset.account.view')) : false,
+                    'accountCreate' => $request->user() ? ($request->user()->isSuperUser() || $request->user()->isFromItDepartment() || $request->user()->isAdmin() || $request->user()->can('account.create') || $request->user()->can('digital_asset.account.create')) : false,
+                    'accountEdit' => $request->user() ? ($request->user()->isSuperUser() || $request->user()->isFromItDepartment() || $request->user()->isAdmin() || $request->user()->can('account.edit') || $request->user()->can('account.update') || $request->user()->can('digital_asset.account.update')) : false,
+                    'accountDelete' => $request->user() ? ($request->user()->isSuperUser() || $request->user()->isFromItDepartment() || $request->user()->isAdmin() || $request->user()->can('account.delete') || $request->user()->can('digital_asset.account.delete') || $request->user()->can('digital_asset.account.retire')) : false,
+                    'securityAuditTrailView' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->isFromItDepartment()
+                        || $request->user()->isAdmin()
+                        || $request->user()->can('security_audit_trial.view')
+                        || $request->user()->can('security_audit_trail.view')
+                        || $request->user()->can('security-audit-trial.view')
+                        || $request->user()->can('security-audit-trail.view')
+                        || $request->user()->can('audit_trail.view')
+                        || $request->user()->can('audit.view')
+                        || $request->user()->can('digital_asset.audit.view')
+                    ) : false,
+                    'hardwareDeviceView' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->isFromItDepartment()
+                        || $request->user()->isAdmin()
+                        || $request->user()->can('hardware_device_inventory.view')
+                        || $request->user()->can('digital_asset.device.view')
+                    ) : false,
+                    'hardwareDeviceCreate' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->isFromItDepartment()
+                        || $request->user()->isAdmin()
+                        || $request->user()->can('hardware_device_inventory.create')
+                        || $request->user()->can('digital_asset.device.create')
+                    ) : false,
+                    'hardwareDeviceEdit' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->isFromItDepartment()
+                        || $request->user()->isAdmin()
+                        || $request->user()->can('hardware_device_inventory.update')
+                        || $request->user()->can('hardware_device_inventory.edit')
+                        || $request->user()->can('digital_asset.device.update')
+                        || $request->user()->can('digital_asset.device.edit')
+                    ) : false,
+                    'hardwareDeviceDelete' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->isFromItDepartment()
+                        || $request->user()->isAdmin()
+                        || $request->user()->can('hardware_device_inventory.delete')
+                        || $request->user()->can('digital_asset.device.delete')
                     ) : false,
                 ],
             ],

@@ -40,6 +40,8 @@ class SoftwarePropertyDefinitionController extends Controller
             'definitions' => $definitions,
             'platforms' => $platforms,
             'supportedDataTypes' => $supportedDataTypes,
+            'canCreate' => auth()->user()?->can('create', SoftwarePropertyDefinition::class) ?? false,
+            'canUpdate' => auth()->user()?->can('update', new SoftwarePropertyDefinition()) ?? false,
         ]);
     }
 

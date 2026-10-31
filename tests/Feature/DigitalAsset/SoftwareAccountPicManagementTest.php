@@ -63,7 +63,7 @@ class SoftwareAccountPicManagementTest extends TestCase
         $this->assertEquals('revoked', $revokedPic->status);
         $this->assertDatabaseHas('software_account_pic_history', [
             'software_account_pic_id' => $pic->id,
-            'action' => 'revoked',
+            'action' => 'inactivated',
             'user_id' => $this->picUser->id,
             'reason' => 'Employee transfer',
         ]);

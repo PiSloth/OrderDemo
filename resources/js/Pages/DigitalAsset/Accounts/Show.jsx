@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AsideLayout from '../../../Layouts/AsideLayout';
 import UserSelectModal from '@/components/IT/UserSelectModal';
+import EmailSelectModal from '@/components/IT/EmailSelectModal';
 import {
     Box,
     Card,
@@ -30,7 +31,12 @@ import {
     Tooltip,
     Alert,
     Checkbox,
-    FormControlLabel
+    FormControlLabel,
+    Popover,
+    InputAdornment,
+    Switch,
+    Autocomplete,
+    CircularProgress
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon,
@@ -43,7 +49,12 @@ import {
     Add as AddIcon,
     Download as DownloadIcon,
     CheckCircle as CheckCircleIcon,
-    Cancel as CancelIcon
+    Cancel as CancelIcon,
+    ViewColumn as ViewColumnIcon,
+    Email as EmailIcon,
+    Clear as ClearIcon,
+    Search as SearchIcon,
+    Edit as EditIcon
 } from '@mui/icons-material';
 
 export default function AccountShow({
@@ -57,12 +68,44 @@ export default function AccountShow({
 }) {
     const [currentTab, setCurrentTab] = useState(0);
     const [showInactivePics, setShowInactivePics] = useState(false);
+    const [showPicHistory, setShowPicHistory] = useState(false);
+
+    // Column visibility for Security Properties Catalog table (default hidden: code, type, policy)
+    const [propColumns, setPropColumns] = useState({
+        code: false,
+        label: true,
+        type: false,
+        value: true,
+        policy: false,
+    });
+    const [columnMenuAnchor, setColumnMenuAnchor] = useState(null);
 
     // Modals
+    const initialAssignPicState = {
+        open: false,
+        userId: '',
+        userName: '',
+        reason: '',
+        associate_device: false,
+        device_mode: 'select',
+        software_device_id: '',
+        relationship_type: 'authorized',
+        ownership_type: 'company',
+        fixed_asset_id: '',
+        hostname: '',
+        model_name: '',
+        manufacturer: '',
+        serial_number: '',
+        operating_system: '',
+        device_status: 'active',
+        notes: '',
+    };
     const [editPropModal, setEditPropModal] = useState({ open: false, def: null, value: '', reason: '' });
-    const [assignPicModal, setAssignPicModal] = useState({ open: false, userId: '', reason: '', userName: '' });
+    const [assignPicModal, setAssignPicModal] = useState(initialAssignPicState);
     const [userPickerOpen, setUserPickerOpen] = useState(false);
     const [userPickerTarget, setUserPickerTarget] = useState('pic'); // 'pic' or 'review'
+    const [emailPickerOpen, setEmailPickerOpen] = useState(false);
+    const [emailPickerTarget, setEmailPickerTarget] = useState('property'); // 'property' or 'linkEmail'
     const [revokePicModal, setRevokePicModal] = useState({ open: false, pic: null, reason: '' });
     const [uploadEvidenceModal, setUploadEvidenceModal] = useState({ open: false, defId: '', file: null });
     const [verifyEvidenceModal, setVerifyEvidenceModal] = useState({ open: false, evidence: null, status: 'accepted', notes: '' });
@@ -75,13 +118,15 @@ export default function AccountShow({
         open: false,
         mode: 'select', // 'select' or 'create'
         software_device_id: '',
-        relationship_type: 'registered',
+        user_id: '',
+        relationship_type: 'authorized',
         // Create new device fields
         ownership_type: 'company',
         fixed_asset_id: '',
         hostname: '',
         model_name: '',
         manufacturer: '',
+        serial_number: '',
         operating_system: '',
         device_status: 'active',
         notes: '',
@@ -101,6 +146,32 @@ export default function AccountShow({
         });
     };
 
+    const handleOpenEditPropModal = (def) => {
+        const val = currentProps[def.code];
+        let initialVal = val !== undefined && val !== null ? val : '';
+        if (def.data_type === 'boolean') {
+            initialVal = val !== undefined && val !== null ? Boolean(val) : false; // default false if null
+        } else if (def.data_type === 'multi_choice') {
+            initialVal = Array.isArray(val) ? val : (val ? [val] : []);
+        } else if (def.data_type === 'single_choice') {
+            initialVal = val !== undefined && val !== null ? String(val) : '';
+        }
+        setEditPropModal({
+            open: true,
+            def,
+            value: initialVal,
+            reason: '',
+        });
+    };
+
+    const handleQuickToggleBoolean = (def, nextChecked) => {
+        router.post(`/digital-assets/accounts/${account.id}/properties`, {
+            property_code: def.code,
+            value: nextChecked,
+            change_reason: `Swiped ${def.label} to ${nextChecked ? 'Enabled' : 'Disabled'}`,
+        }, { preserveScroll: true });
+    };
+
     const handleApproveProperty = (historyId) => {
         router.post(`/digital-assets/property-histories/${historyId}/approve`, {}, { preserveScroll: true });
     };
@@ -117,8 +188,24 @@ export default function AccountShow({
         router.post(`/digital-assets/accounts/${account.id}/pics`, {
             user_id: assignPicModal.userId,
             reason: assignPicModal.reason,
+            associate_device: assignPicModal.associate_device ? 1 : 0,
+            device_mode: assignPicModal.device_mode,
+            software_device_id: assignPicModal.software_device_id,
+            relationship_type: assignPicModal.relationship_type,
+            ownership_type: assignPicModal.ownership_type,
+            fixed_asset_id: assignPicModal.fixed_asset_id || null,
+            hostname: assignPicModal.hostname,
+            manufacturer: assignPicModal.manufacturer,
+            model_name: assignPicModal.model_name,
+            serial_number: assignPicModal.serial_number,
+            operating_system: assignPicModal.operating_system,
+            device_status: assignPicModal.device_status,
+            notes: assignPicModal.notes,
         }, {
-            onSuccess: () => setAssignPicModal({ open: false, userId: '', reason: '', userName: '' }),
+            onSuccess: () => setAssignPicModal({
+                ...initialAssignPicState,
+                software_device_id: availableDevices[0]?.id || '',
+            }),
         });
     };
 
@@ -192,11 +279,20 @@ export default function AccountShow({
 
     const handleCompleteReview = (e) => {
         e.preventDefault();
+        setCompleteReviewModal(prev => ({ ...prev, error: '', isSubmitting: true }));
         router.post(`/digital-assets/reviews/${completeReviewModal.review.id}/complete`, {
             result: completeReviewModal.result,
             notes: completeReviewModal.notes,
         }, {
-            onSuccess: () => setCompleteReviewModal({ open: false, review: null, result: 'compliant', notes: '' }),
+            preserveScroll: true,
+            onSuccess: () => setCompleteReviewModal({ open: false, review: null, result: 'compliant', notes: '', error: '', isSubmitting: false }),
+            onError: (errs) => {
+                setCompleteReviewModal(prev => ({
+                    ...prev,
+                    isSubmitting: false,
+                    error: errs.complete || errs.result || Object.values(errs)[0] || 'Failed to complete review.'
+                }));
+            }
         });
     };
 
@@ -218,23 +314,26 @@ export default function AccountShow({
             router.post(`/digital-assets/accounts/${account.id}/devices`, {
                 software_device_id: deviceModal.software_device_id,
                 relationship_type: deviceModal.relationship_type,
+                user_id: deviceModal.user_id || null,
             }, {
                 onSuccess: () => setDeviceModal(prev => ({ ...prev, open: false })),
             });
         } else {
-            // Create device first, then link
             router.post('/digital-assets/devices', {
                 ownership_type: deviceModal.ownership_type,
                 fixed_asset_id: deviceModal.fixed_asset_id || null,
                 hostname: deviceModal.hostname,
                 model_name: deviceModal.model_name,
                 manufacturer: deviceModal.manufacturer,
+                serial_number: deviceModal.serial_number,
                 operating_system: deviceModal.operating_system,
                 device_status: deviceModal.device_status,
                 notes: deviceModal.notes,
+                link_account_id: account.id,
+                relationship_type: deviceModal.relationship_type,
+                user_id: deviceModal.user_id || null,
             }, {
                 onSuccess: () => {
-                    // Refresh and close, or link will be done on redirect
                     setDeviceModal(prev => ({ ...prev, open: false }));
                 }
             });
@@ -316,11 +415,25 @@ export default function AccountShow({
                         variant="scrollable"
                         scrollButtons={false}
                         sx={{
+                            '& .MuiTabs-indicator': {
+                                display: 'none',
+                            },
                             '& .MuiTab-root': {
                                 textTransform: 'none',
                                 fontWeight: 600,
                                 minHeight: 48,
                                 py: 1.5,
+                                position: 'relative',
+                                '&.Mui-selected::after': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    bottom: 0,
+                                    left: 8,
+                                    right: 8,
+                                    height: '2.5px',
+                                    backgroundColor: 'primary.main',
+                                    borderRadius: '2px 2px 0 0',
+                                },
                             },
                         }}
                     >
@@ -337,19 +450,118 @@ export default function AccountShow({
                     {/* TAB 0: SECURITY PROPERTIES */}
                     {currentTab === 0 && (
                         <Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                     Security Properties Catalog
                                 </Typography>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() => setLinkEmailModal({ ...linkEmailModal, open: true })}
-                                    sx={{ textTransform: 'none' }}
-                                >
-                                    Associate Email Address
-                                </Button>
+                                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        startIcon={<ViewColumnIcon />}
+                                        onClick={(e) => setColumnMenuAnchor(e.currentTarget)}
+                                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                                    >
+                                        Columns
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => setLinkEmailModal({ ...linkEmailModal, open: true })}
+                                        sx={{ textTransform: 'none' }}
+                                    >
+                                        Associate Email Address
+                                    </Button>
+                                </Box>
                             </Box>
+
+                            {/* Column Visibility Popover Menu */}
+                            <Popover
+                                open={Boolean(columnMenuAnchor)}
+                                anchorEl={columnMenuAnchor}
+                                onClose={() => setColumnMenuAnchor(null)}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                PaperProps={{ sx: { p: 2, width: 240, borderRadius: 2, boxShadow: 3 } }}
+                            >
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                                    Show / Hide Columns
+                                </Typography>
+                                <Divider sx={{ mb: 1 }} />
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size="small"
+                                                checked={propColumns.code}
+                                                onChange={(e) => setPropColumns(prev => ({ ...prev, code: e.target.checked }))}
+                                            />
+                                        }
+                                        label={<Typography variant="body2">Property Code</Typography>}
+                                        sx={{ mx: 0 }}
+                                    />
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size="small"
+                                                checked={propColumns.label}
+                                                onChange={(e) => setPropColumns(prev => ({ ...prev, label: e.target.checked }))}
+                                            />
+                                        }
+                                        label={<Typography variant="body2">Label / Description</Typography>}
+                                        sx={{ mx: 0 }}
+                                    />
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size="small"
+                                                checked={propColumns.type}
+                                                onChange={(e) => setPropColumns(prev => ({ ...prev, type: e.target.checked }))}
+                                            />
+                                        }
+                                        label={<Typography variant="body2">Type</Typography>}
+                                        sx={{ mx: 0 }}
+                                    />
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size="small"
+                                                checked={propColumns.value}
+                                                onChange={(e) => setPropColumns(prev => ({ ...prev, value: e.target.checked }))}
+                                            />
+                                        }
+                                        label={<Typography variant="body2">Current Value</Typography>}
+                                        sx={{ mx: 0 }}
+                                    />
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size="small"
+                                                checked={propColumns.policy}
+                                                onChange={(e) => setPropColumns(prev => ({ ...prev, policy: e.target.checked }))}
+                                            />
+                                        }
+                                        label={<Typography variant="body2">Policy</Typography>}
+                                        sx={{ mx: 0 }}
+                                    />
+                                </Box>
+                                <Divider sx={{ my: 1 }} />
+                                <Button
+                                    fullWidth
+                                    size="small"
+                                    color="secondary"
+                                    onClick={() => setPropColumns({
+                                        code: false,
+                                        label: true,
+                                        type: false,
+                                        value: true,
+                                        policy: false,
+                                    })}
+                                    sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                                >
+                                    Reset to Default
+                                </Button>
+                            </Popover>
 
                             {/* Linked Emails Summary */}
                             <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
@@ -378,96 +590,174 @@ export default function AccountShow({
                                 <Table size="small">
                                     <TableHead sx={{ bgcolor: 'action.hover' }}>
                                         <TableRow>
-                                            <TableCell sx={{ fontWeight: 700 }}>Property Code</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Label / Description</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Current Value</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Policy</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 700 }}>Action</TableCell>
+                                            {propColumns.code && <TableCell sx={{ fontWeight: 700 }}>Property Code</TableCell>}
+                                            {propColumns.label && <TableCell sx={{ fontWeight: 700 }}>Label / Description</TableCell>}
+                                            {propColumns.type && <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>}
+                                            {propColumns.value && <TableCell sx={{ fontWeight: 700 }}>Current Value</TableCell>}
+                                            {propColumns.policy && <TableCell sx={{ fontWeight: 700 }}>Policy</TableCell>}
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {definitions.map((def) => {
-                                            const val = currentProps[def.code];
-                                            const pending = pendingChanges.find(h => h.property_definition_id === def.id);
+                                        {definitions.length > 0 ? (
+                                            definitions.map((def) => {
+                                                const val = currentProps[def.code];
+                                                const pending = pendingChanges.find(h => h.property_definition_id === def.id);
 
-                                            return (
-                                                <TableRow key={def.id} hover>
-                                                    <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{def.code}</TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{def.label}</Typography>
-                                                        {def.description && (
-                                                            <Typography variant="caption" color="text.secondary">{def.description}</Typography>
+                                                return (
+                                                    <TableRow key={def.id} hover>
+                                                        {propColumns.code && (
+                                                            <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{def.code}</TableCell>
                                                         )}
-                                                    </TableCell>
-                                                    <TableCell><Chip size="small" label={def.data_type} variant="outlined" /></TableCell>
-                                                    <TableCell>
-                                                        {pending ? (
-                                                            <Box>
-                                                                <Chip
-                                                                    size="small"
-                                                                    color="warning"
-                                                                    label={`Pending: ${Array.isArray(pending.new_value?.value) ? pending.new_value.value.join(', ') : JSON.stringify(pending.new_value?.value)}`}
-                                                                />
-                                                                <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5 }}>
-                                                                    <Button size="small" color="success" onClick={() => handleApproveProperty(pending.id)}>Approve</Button>
-                                                                    <Button size="small" color="error" onClick={() => handleRejectProperty(pending.id)}>Reject</Button>
-                                                                </Box>
-                                                            </Box>
-                                                        ) : val !== undefined && val !== null ? (
-                                                            Array.isArray(val) ? (
+                                                        {propColumns.label && (
+                                                            <TableCell>
+                                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{def.label}</Typography>
+                                                                {def.description && (
+                                                                    <Typography variant="caption" color="text.secondary">{def.description}</Typography>
+                                                                )}
+                                                            </TableCell>
+                                                        )}
+                                                        {propColumns.type && (
+                                                            <TableCell><Chip size="small" label={def.data_type} variant="outlined" /></TableCell>
+                                                        )}
+                                                        {propColumns.value && (
+                                                            <TableCell
+                                                                sx={{
+                                                                    minWidth: 200,
+                                                                    cursor: def.data_type !== 'boolean' ? 'pointer' : 'default',
+                                                                    '&:hover': def.data_type !== 'boolean' ? {
+                                                                        bgcolor: 'action.hover',
+                                                                    } : {},
+                                                                    transition: 'background-color 0.15s ease',
+                                                                }}
+                                                                onClick={() => {
+                                                                    if (def.data_type !== 'boolean') {
+                                                                        handleOpenEditPropModal(def);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {pending ? (
+                                                                    <Box>
+                                                                        <Chip
+                                                                            size="small"
+                                                                            color="warning"
+                                                                            label={
+                                                                                def.data_type === 'email_reference' && availableEmails.find(e => String(e.id) === String(pending.new_value?.value))
+                                                                                    ? `Pending: ${availableEmails.find(e => String(e.id) === String(pending.new_value?.value))?.email}`
+                                                                                    : `Pending: ${Array.isArray(pending.new_value?.value) ? pending.new_value.value.join(', ') : JSON.stringify(pending.new_value?.value)}`
+                                                                            }
+                                                                        />
+                                                                        <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5 }}>
+                                                                            <Button size="small" color="success" onClick={(e) => { e.stopPropagation(); handleApproveProperty(pending.id); }}>Approve</Button>
+                                                                            <Button size="small" color="error" onClick={(e) => { e.stopPropagation(); handleRejectProperty(pending.id); }}>Reject</Button>
+                                                                        </Box>
+                                                                    </Box>
+                                                                ) : def.data_type === 'boolean' ? (
+                                                                    /* Radio swipe style toggle switch. If default is null, show as false */
+                                                                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                                                                        <Switch
+                                                                            size="small"
+                                                                            checked={val !== undefined && val !== null ? Boolean(val) : false}
+                                                                            onChange={(e) => handleQuickToggleBoolean(def, e.target.checked)}
+                                                                            color="success"
+                                                                        />
+                                                                        <Typography
+                                                                            variant="body2"
+                                                                            sx={{
+                                                                                fontWeight: 600,
+                                                                                fontSize: '0.82rem',
+                                                                                color: Boolean(val) ? 'success.main' : 'text.secondary',
+                                                                            }}
+                                                                        >
+                                                                            {Boolean(val) ? 'Enabled / Yes' : 'Disabled / No'}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                ) : val !== undefined && val !== null ? (
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                                                                        <Box sx={{ flex: 1 }}>
+                                                                            {Array.isArray(val) ? (
+                                                                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                                                                    {val.length > 0 ? (
+                                                                                        val.map((item, idx) => (
+                                                                                            <Chip key={idx} size="small" label={String(item)} color="primary" variant="outlined" />
+                                                                                        ))
+                                                                                    ) : (
+                                                                                        <Typography variant="caption" color="text.secondary">None selected</Typography>
+                                                                                    )}
+                                                                                </Box>
+                                                                            ) : typeof val === 'object' ? (
+                                                                                JSON.stringify(val)
+                                                                            ) : def.data_type === 'email_reference' ? (
+                                                                                (() => {
+                                                                                    const em = availableEmails.find(e => String(e.id) === String(val));
+                                                                                    return em ? (
+                                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                                                            <Chip
+                                                                                                size="small"
+                                                                                                icon={<EmailIcon fontSize="small" />}
+                                                                                                label={em.email}
+                                                                                                color="primary"
+                                                                                                variant="outlined"
+                                                                                            />
+                                                                                            {em.user_name && (
+                                                                                                <Typography variant="caption" color="text.secondary">
+                                                                                                    ({em.user_name})
+                                                                                                </Typography>
+                                                                                            )}
+                                                                                        </Box>
+                                                                                    ) : (
+                                                                                        <Chip size="small" icon={<EmailIcon fontSize="small" />} label={`Email #${val}`} variant="outlined" />
+                                                                                    );
+                                                                                })()
+                                                                            ) : (
+                                                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                                                    {String(val)}
+                                                                                </Typography>
+                                                                            )}
+                                                                        </Box>
+                                                                        <Tooltip title="Click to edit value">
+                                                                            <EditIcon sx={{ fontSize: 16, color: 'action.disabled' }} />
+                                                                        </Tooltip>
+                                                                    </Box>
+                                                                ) : (
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                                                                        <Typography
+                                                                            variant="body2"
+                                                                            color="text.secondary"
+                                                                            sx={{
+                                                                                fontStyle: 'italic',
+                                                                                borderBottom: '1px dashed',
+                                                                                borderColor: 'divider',
+                                                                                display: 'inline-block',
+                                                                            }}
+                                                                        >
+                                                                            Not Set (Click to set)
+                                                                        </Typography>
+                                                                        <Tooltip title="Click to set value">
+                                                                            <EditIcon sx={{ fontSize: 16, color: 'action.disabled' }} />
+                                                                        </Tooltip>
+                                                                    </Box>
+                                                                )}
+                                                            </TableCell>
+                                                        )}
+                                                        {propColumns.policy && (
+                                                            <TableCell>
                                                                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                                                                    {val.length > 0 ? (
-                                                                        val.map((item, idx) => (
-                                                                            <Chip key={idx} size="small" label={String(item)} color="primary" variant="outlined" />
-                                                                        ))
-                                                                    ) : (
-                                                                        <Typography variant="caption" color="text.secondary">None selected</Typography>
-                                                                    )}
+                                                                    {def.is_required && <Chip size="small" label="Required" color="error" variant="outlined" />}
+                                                                    {def.evidence_required && <Chip size="small" label="Evidence Req" color="info" variant="outlined" />}
+                                                                    {def.requires_approval && <Chip size="small" label="Approval Req" color="warning" variant="outlined" />}
                                                                 </Box>
-                                                            ) : typeof val === 'boolean' ? (
-                                                                val ? <Chip size="small" color="success" label="Enabled / Yes" /> : <Chip size="small" color="default" label="Disabled / No" />
-                                                            ) : typeof val === 'object' ? (
-                                                                JSON.stringify(val)
-                                                            ) : (
-                                                                String(val)
-                                                            )
-                                                        ) : (
-                                                            <Typography variant="caption" color="text.secondary">Not Set</Typography>
+                                                            </TableCell>
                                                         )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                                                            {def.is_required && <Chip size="small" label="Required" color="error" variant="outlined" />}
-                                                            {def.evidence_required && <Chip size="small" label="Evidence Req" color="info" variant="outlined" />}
-                                                            {def.requires_approval && <Chip size="small" label="Approval Req" color="warning" variant="outlined" />}
-                                                        </Box>
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Button
-                                                            size="small"
-                                                            onClick={() => {
-                                                                let initialVal = val !== undefined && val !== null ? val : '';
-                                                                if (def.data_type === 'multi_choice') {
-                                                                    initialVal = Array.isArray(val) ? val : (val ? [val] : []);
-                                                                } else if (def.data_type === 'boolean') {
-                                                                    initialVal = val !== undefined && val !== null ? String(val) : 'false';
-                                                                }
-                                                                setEditPropModal({
-                                                                    open: true,
-                                                                    def,
-                                                                    value: initialVal,
-                                                                    reason: ''
-                                                                });
-                                                            }}
-                                                            sx={{ textTransform: 'none' }}
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
+                                                    </TableRow>
+                                                );
+                                            })
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={Object.values(propColumns).filter(Boolean).length || 1} align="center" sx={{ py: 3 }}>
+                                                    <Typography color="text.secondary">No security property definitions found.</Typography>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
@@ -481,7 +771,7 @@ export default function AccountShow({
                                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                     Active Persons in Charge (PICs)
                                 </Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
@@ -496,11 +786,29 @@ export default function AccountShow({
                                             </Typography>
                                         }
                                     />
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={showPicHistory}
+                                                onChange={(e) => setShowPicHistory(e.target.checked)}
+                                                size="small"
+                                            />
+                                        }
+                                        label={
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                Show PIC History Log ({(account.pic_histories || []).length})
+                                            </Typography>
+                                        }
+                                    />
                                     <Button
                                         variant="contained"
                                         size="small"
                                         startIcon={<AddIcon />}
-                                        onClick={() => setAssignPicModal({ open: true, userId: '', reason: '' })}
+                                        onClick={() => setAssignPicModal({
+                                            ...initialAssignPicState,
+                                            open: true,
+                                            software_device_id: availableDevices[0]?.id || ''
+                                        })}
                                         sx={{ textTransform: 'none' }}
                                     >
                                         Assign PIC
@@ -514,35 +822,79 @@ export default function AccountShow({
                                         <TableRow>
                                             <TableCell sx={{ fontWeight: 700 }}>Assigned User</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Associated Device(s)</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Assigned At</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Assigned By</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 700 }}>Action</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
                                         {activePics.length > 0 ? (
-                                            activePics.map((pic) => (
-                                                <TableRow key={pic.id} hover>
-                                                    <TableCell sx={{ fontWeight: 600 }}>{pic.user?.name}</TableCell>
-                                                    <TableCell>{pic.user?.email || '-'}</TableCell>
-                                                    <TableCell><Chip size="small" color="success" label="Active" /></TableCell>
-                                                    <TableCell>{pic.assigned_at ? new Date(pic.assigned_at).toLocaleString() : '-'}</TableCell>
-                                                    <TableCell align="right">
-                                                        <Button
-                                                            size="small"
-                                                            color="warning"
-                                                            variant="outlined"
-                                                            onClick={() => setRevokePicModal({ open: true, pic, reason: '' })}
-                                                            sx={{ textTransform: 'none' }}
-                                                        >
-                                                            Inactive
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
+                                            activePics.map((pic) => {
+                                                const picDevices = (account.account_devices || []).filter(
+                                                    d => String(d.user_id) === String(pic.user_id)
+                                                );
+                                                return (
+                                                    <TableRow key={pic.id} hover>
+                                                        <TableCell sx={{ fontWeight: 600 }}>{pic.user?.name}</TableCell>
+                                                        <TableCell>{pic.user?.email || '-'}</TableCell>
+                                                        <TableCell>
+                                                            {picDevices.length > 0 ? (
+                                                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                                                    {picDevices.map(pd => (
+                                                                        <Chip
+                                                                            key={pd.id}
+                                                                            size="small"
+                                                                            variant="outlined"
+                                                                            color="info"
+                                                                            icon={<DevicesIcon fontSize="small" />}
+                                                                            label={`${pd.device?.hostname || pd.device?.model_name || 'Device'} (${pd.device?.ownership_type || 'dev'})`}
+                                                                        />
+                                                                    ))}
+                                                                </Box>
+                                                            ) : (
+                                                                <Typography variant="caption" color="text.secondary">No device linked</Typography>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell><Chip size="small" color="success" label="Active" /></TableCell>
+                                                        <TableCell>{pic.assigned_at ? new Date(pic.assigned_at).toLocaleString() : '-'}</TableCell>
+                                                        <TableCell>
+                                                            {pic.assigned_by_user ? (
+                                                                <Box>
+                                                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                                        {pic.assigned_by_user.name}
+                                                                    </Typography>
+                                                                    {(pic.assigned_by_user.officePosition?.name || pic.assigned_by_user.office_position?.name || pic.assigned_by_user.position?.name || pic.assigned_by_user.department?.name) && (
+                                                                        <Typography variant="caption" color="text.secondary" display="block">
+                                                                            {[
+                                                                                pic.assigned_by_user.officePosition?.name || pic.assigned_by_user.office_position?.name || pic.assigned_by_user.position?.name,
+                                                                                pic.assigned_by_user.department?.name
+                                                                            ].filter(Boolean).join(' • ')}
+                                                                        </Typography>
+                                                                    )}
+                                                                </Box>
+                                                            ) : (
+                                                                <Typography variant="body2" color="text.secondary">-</Typography>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Button
+                                                                size="small"
+                                                                color="warning"
+                                                                variant="outlined"
+                                                                onClick={() => setRevokePicModal({ open: true, pic, reason: '' })}
+                                                                sx={{ textTransform: 'none' }}
+                                                            >
+                                                                Inactive
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                                                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                                                     <Typography color="text.secondary">No active PICs assigned.</Typography>
                                                 </TableCell>
                                             </TableRow>
@@ -619,51 +971,91 @@ export default function AccountShow({
                                 </Box>
                             )}
 
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                                Append-Only PIC History Log
-                            </Typography>
-                            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                                <Table size="small">
-                                    <TableHead sx={{ bgcolor: 'action.hover' }}>
-                                        <TableRow>
-                                            <TableCell sx={{ fontWeight: 700 }}>Occurred At</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>User</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Performed By</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Reason / Notes</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {account.pic_histories && account.pic_histories.length > 0 ? (
-                                            account.pic_histories.map((hist) => (
-                                                <TableRow key={hist.id}>
-                                                    <TableCell>{new Date(hist.occurred_at).toLocaleString()}</TableCell>
-                                                    <TableCell>
-                                                        <Chip
-                                                            size="small"
-                                                            label={hist.action}
-                                                            color={
-                                                                hist.action === 'assigned' || hist.action === 'reactivated'
-                                                                    ? 'success'
-                                                                    : (hist.action === 'revoked' || hist.action === 'inactivated' ? 'error' : 'info')
-                                                            }
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>{hist.user?.name}</TableCell>
-                                                    <TableCell>{hist.performed_by_user?.name}</TableCell>
-                                                    <TableCell>{hist.reason || '-'}</TableCell>
+                            {/* Append-Only PIC History Log (Toggled via Checkbox) */}
+                            {showPicHistory && (
+                                <Box sx={{ mt: 3 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            Append-Only PIC History Log
+                                            <Chip size="small" label={`${(account.pic_histories || []).length} Records`} />
+                                        </Typography>
+                                    </Box>
+                                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                                        <Table size="small">
+                                            <TableHead sx={{ bgcolor: 'action.hover' }}>
+                                                <TableRow>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Occurred At</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>User</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Performed By (Who Did This)</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700 }}>Reason / Notes</TableCell>
                                                 </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={5} align="center" sx={{ py: 2 }}>
-                                                    <Typography color="text.secondary">No history events recorded.</Typography>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
+                                            </TableHead>
+                                            <TableBody>
+                                                {account.pic_histories && account.pic_histories.length > 0 ? (
+                                                    account.pic_histories.map((hist) => (
+                                                        <TableRow key={hist.id} hover>
+                                                            <TableCell>{new Date(hist.occurred_at).toLocaleString()}</TableCell>
+                                                            <TableCell>
+                                                                <Chip
+                                                                    size="small"
+                                                                    label={hist.action}
+                                                                    color={
+                                                                        hist.action === 'assigned' || hist.action === 'reactivated'
+                                                                            ? 'success'
+                                                                            : (hist.action === 'revoked' || hist.action === 'inactivated' ? 'error' : 'info')
+                                                                    }
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                                    {hist.user?.name || '-'}
+                                                                </Typography>
+                                                                {(hist.user?.officePosition?.name || hist.user?.office_position?.name || hist.user?.position?.name || hist.user?.department?.name) && (
+                                                                    <Typography variant="caption" color="text.secondary" display="block">
+                                                                        {[
+                                                                            hist.user?.officePosition?.name || hist.user?.office_position?.name || hist.user?.position?.name,
+                                                                            hist.user?.department?.name
+                                                                        ].filter(Boolean).join(' • ')}
+                                                                    </Typography>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {hist.performed_by_user ? (
+                                                                    <Box>
+                                                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                                            {hist.performed_by_user.name}
+                                                                        </Typography>
+                                                                        {(hist.performed_by_user.officePosition?.name || hist.performed_by_user.office_position?.name || hist.performed_by_user.position?.name || hist.performed_by_user.department?.name) && (
+                                                                            <Typography variant="caption" color="text.secondary" display="block">
+                                                                                {[
+                                                                                    hist.performed_by_user.officePosition?.name || hist.performed_by_user.office_position?.name || hist.performed_by_user.position?.name,
+                                                                                    hist.performed_by_user.department?.name
+                                                                                ].filter(Boolean).join(' • ')}
+                                                                            </Typography>
+                                                                        )}
+                                                                    </Box>
+                                                                ) : (
+                                                                    <Typography variant="body2" color="text.secondary">
+                                                                        {hist.performed_by ? `User #${hist.performed_by}` : 'System'}
+                                                                    </Typography>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>{hist.reason || '-'}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                                                            <Typography color="text.secondary">No history events recorded.</Typography>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                </Box>
+                            )}
                         </Box>
                     )}
 
@@ -878,6 +1270,7 @@ export default function AccountShow({
                                     <TableHead sx={{ bgcolor: 'action.hover' }}>
                                         <TableRow>
                                             <TableCell sx={{ fontWeight: 700 }}>Hostname / Model</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Assigned PIC</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Ownership</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Fixed Asset Link</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Relationship</TableCell>
@@ -898,19 +1291,32 @@ export default function AccountShow({
                                                             </Typography>
                                                         )}
                                                     </TableCell>
+                                                    <TableCell>
+                                                        {ad.user ? (
+                                                            <Chip
+                                                                size="small"
+                                                                color="primary"
+                                                                variant="outlined"
+                                                                icon={<PersonIcon fontSize="small" />}
+                                                                label={ad.user.name}
+                                                            />
+                                                        ) : (
+                                                            <Typography variant="caption" color="text.secondary">Shared / General</Typography>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell><Chip size="small" label={ad.device?.ownership_type} /></TableCell>
                                                     <TableCell>{ad.device?.fixed_asset?.name || 'Personal Device'}</TableCell>
                                                     <TableCell><Chip size="small" color="primary" variant="outlined" label={ad.relationship_type} /></TableCell>
                                                     <TableCell>
                                                         <Chip
                                                             size="small"
-                                                            label={ad.is_verified ? 'Authorized' : 'Pending Verification'}
-                                                            color={ad.is_verified ? 'success' : 'warning'}
+                                                            label={(ad.is_verified || ad.verified_at || ad.relationship_type === 'authorized') ? 'Authorized' : 'Pending Verification'}
+                                                            color={(ad.is_verified || ad.verified_at || ad.relationship_type === 'authorized') ? 'success' : 'warning'}
                                                         />
                                                     </TableCell>
                                                     <TableCell>{ad.last_seen_at ? new Date(ad.last_seen_at).toLocaleDateString() : '-'}</TableCell>
                                                     <TableCell align="right">
-                                                        {!ad.is_verified && (
+                                                        {!(ad.is_verified || ad.verified_at || ad.relationship_type === 'authorized') && (
                                                             <Button
                                                                 size="small"
                                                                 color="success"
@@ -925,7 +1331,7 @@ export default function AccountShow({
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                                                <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
                                                     <Typography color="text.secondary">No devices currently associated.</Typography>
                                                 </TableCell>
                                             </TableRow>
@@ -1001,16 +1407,27 @@ export default function AccountShow({
                                 </Typography>
 
                                 {editPropModal.def.data_type === 'boolean' ? (
-                                    <TextField
-                                        select
-                                        fullWidth
-                                        label="Value"
-                                        value={editPropModal.value}
-                                        onChange={(e) => setEditPropModal({ ...editPropModal, value: e.target.value === 'true' })}
-                                    >
-                                        <MenuItem value="true">Enabled / Yes</MenuItem>
-                                        <MenuItem value="false">Disabled / No</MenuItem>
-                                    </TextField>
+                                    <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.default' }}>
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={Boolean(editPropModal.value)}
+                                                    onChange={(e) => setEditPropModal({ ...editPropModal, value: e.target.checked })}
+                                                    color="success"
+                                                />
+                                            }
+                                            label={
+                                                <Box>
+                                                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                                        {Boolean(editPropModal.value) ? 'Enabled / Yes' : 'Disabled / No'}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {editPropModal.def.description || 'Swipe switch to toggle security control'}
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                        />
+                                    </Box>
                                 ) : editPropModal.def.data_type === 'single_choice' ? (
                                     <TextField
                                         select
@@ -1062,16 +1479,57 @@ export default function AccountShow({
                                     </Box>
                                 ) : editPropModal.def.data_type === 'email_reference' ? (
                                     <TextField
-                                        select
                                         fullWidth
+                                        required={Boolean(editPropModal.def.is_required)}
                                         label="Referenced Email Master"
-                                        value={editPropModal.value}
-                                        onChange={(e) => setEditPropModal({ ...editPropModal, value: e.target.value })}
-                                    >
-                                        {availableEmails.map((em) => (
-                                            <MenuItem key={em.id} value={em.id}>{em.email} ({em.user_name})</MenuItem>
-                                        ))}
-                                    </TextField>
+                                        placeholder="Click Browse to search and select corporate email..."
+                                        value={
+                                            (() => {
+                                                const em = availableEmails.find(e => String(e.id) === String(editPropModal.value));
+                                                return em ? `${em.email} (${[em.user_name, em.department?.name].filter(Boolean).join(' • ')})` : '';
+                                            })()
+                                        }
+                                        onClick={() => {
+                                            setEmailPickerTarget('property');
+                                            setEmailPickerOpen(true);
+                                        }}
+                                        InputProps={{
+                                            readOnly: true,
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <EmailIcon color={editPropModal.value ? "primary" : "action"} fontSize="small" />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    {editPropModal.value && (
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditPropModal({ ...editPropModal, value: '' });
+                                                            }}
+                                                            sx={{ mr: 0.5 }}
+                                                        >
+                                                            <ClearIcon fontSize="small" />
+                                                        </IconButton>
+                                                    )}
+                                                    <Button
+                                                        variant="outlined"
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEmailPickerTarget('property');
+                                                            setEmailPickerOpen(true);
+                                                        }}
+                                                        sx={{ textTransform: 'none' }}
+                                                    >
+                                                        Browse
+                                                    </Button>
+                                                </InputAdornment>
+                                            )
+                                        }}
+                                    />
                                 ) : (
                                     <TextField
                                         fullWidth
@@ -1101,16 +1559,17 @@ export default function AccountShow({
             </Dialog>
 
             {/* MODAL: ASSIGN PIC */}
-            <Dialog open={assignPicModal.open} onClose={() => setAssignPicModal({ ...assignPicModal, open: false })} maxWidth="sm" fullWidth>
+            <Dialog open={assignPicModal.open} onClose={() => setAssignPicModal({ ...assignPicModal, open: false })} maxWidth="md" fullWidth>
                 <form onSubmit={handleAssignPic}>
                     <DialogTitle sx={{ fontWeight: 700 }}>Assign Person in Charge (PIC)</DialogTitle>
                     <DialogContent dividers>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
+                            {/* Employee Selection */}
                             <TextField
                                 required
                                 fullWidth
                                 label="Select Employee (PIC)"
-                                placeholder="Click to search and select employee..."
+                                placeholder="Click Browse to search and select employee..."
                                 value={assignPicModal.userName || (availableUsers.find(u => String(u.id) === String(assignPicModal.userId))?.name || '')}
                                 onClick={() => {
                                     setUserPickerTarget('pic');
@@ -1133,14 +1592,288 @@ export default function AccountShow({
                                         </Button>
                                     ),
                                 }}
-                                helperText="Click Browse to search employees across departments and branches"
+                                helperText="Search employees across departments and branches"
                             />
+
                             <TextField
                                 fullWidth
                                 label="Assignment Reason / Purpose"
+                                placeholder="e.g. Lead administrator, cloud operator, primary contact..."
                                 value={assignPicModal.reason}
                                 onChange={(e) => setAssignPicModal({ ...assignPicModal, reason: e.target.value })}
                             />
+
+                            {/* Device Association Section */}
+                            <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.default' }}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={assignPicModal.associate_device}
+                                            onChange={(e) => setAssignPicModal(prev => ({
+                                                ...prev,
+                                                associate_device: e.target.checked,
+                                                software_device_id: prev.software_device_id || (availableDevices[0]?.id || '')
+                                            }))}
+                                            color="primary"
+                                        />
+                                    }
+                                    label={
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <DevicesIcon fontSize="small" color="primary" />
+                                                Associate Hardware Device with this PIC
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Link the physical laptop, workstation, or mobile device used by this PIC to access the account.
+                                            </Typography>
+                                        </Box>
+                                    }
+                                />
+
+                                {assignPicModal.associate_device && (
+                                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        {/* Mode Switcher Tabs */}
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            <Button
+                                                size="small"
+                                                variant={assignPicModal.device_mode === 'select' ? 'contained' : 'outlined'}
+                                                onClick={() => setAssignPicModal(prev => ({ ...prev, device_mode: 'select' }))}
+                                                sx={{ textTransform: 'none', flex: 1 }}
+                                            >
+                                                Select Existing Device
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                variant={assignPicModal.device_mode === 'create' ? 'contained' : 'outlined'}
+                                                onClick={() => setAssignPicModal(prev => ({ ...prev, device_mode: 'create' }))}
+                                                sx={{ textTransform: 'none', flex: 1 }}
+                                            >
+                                                + Register New Device
+                                            </Button>
+                                        </Box>
+
+                                        {assignPicModal.device_mode === 'select' ? (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                {availableDevices.length > 0 ? (
+                                                    <>
+                                                        <Autocomplete
+                                                            size="small"
+                                                            fullWidth
+                                                            options={availableDevices}
+                                                            value={availableDevices.find(d => String(d.id) === String(assignPicModal.software_device_id)) || null}
+                                                            onChange={(event, newValue) => {
+                                                                setAssignPicModal(prev => ({
+                                                                    ...prev,
+                                                                    software_device_id: newValue ? newValue.id : ''
+                                                                }));
+                                                            }}
+                                                            isOptionEqualToValue={(option, val) => String(option?.id) === String(val?.id)}
+                                                            getOptionLabel={(option) => {
+                                                                if (!option) return '';
+                                                                if (typeof option === 'string') return option;
+                                                                const sn = option.serial_number ? `SN: ${option.serial_number}` : '[No S/N]';
+                                                                const name = option.hostname || option.model_name || 'Device';
+                                                                const owner = option.ownership_type ? `(${option.ownership_type})` : '';
+                                                                const asset = option.fixed_asset?.name ? `— ${option.fixed_asset.name}` : '';
+                                                                return `${sn} — ${name} ${owner} ${asset}`.trim();
+                                                            }}
+                                                            filterOptions={(options, { inputValue }) => {
+                                                                const q = inputValue.toLowerCase().trim();
+                                                                if (!q) return options;
+                                                                return options.filter((d) => {
+                                                                    const sn = (d.serial_number || '').toLowerCase();
+                                                                    const host = (d.hostname || '').toLowerCase();
+                                                                    const model = (d.model_name || '').toLowerCase();
+                                                                    const mfg = (d.manufacturer || '').toLowerCase();
+                                                                    const asset = (d.fixed_asset?.name || '').toLowerCase();
+                                                                    return sn.includes(q) || host.includes(q) || model.includes(q) || mfg.includes(q) || asset.includes(q);
+                                                                });
+                                                            }}
+                                                            renderOption={(props, option) => {
+                                                                const { key, ...restProps } = props;
+                                                                return (
+                                                                    <li key={key || option.id} {...restProps}>
+                                                                        <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', py: 0.5 }}>
+                                                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                                                                                <Typography
+                                                                                    variant="body2"
+                                                                                    sx={{
+                                                                                        fontWeight: 700,
+                                                                                        fontFamily: option.serial_number ? 'monospace' : 'inherit',
+                                                                                        color: option.serial_number ? 'primary.main' : 'text.secondary'
+                                                                                    }}
+                                                                                >
+                                                                                    {option.serial_number ? `SN: ${option.serial_number}` : '(No Serial Number)'}
+                                                                                </Typography>
+                                                                                <Chip
+                                                                                    label={option.ownership_type || 'device'}
+                                                                                    size="small"
+                                                                                    variant="outlined"
+                                                                                    sx={{ textTransform: 'capitalize', height: 20, fontSize: '0.68rem' }}
+                                                                                />
+                                                                            </Box>
+                                                                            <Typography variant="caption" color="text.secondary">
+                                                                                {option.hostname || option.model_name || 'Device'}
+                                                                                {option.manufacturer ? ` • ${option.manufacturer}` : ''}
+                                                                                {option.fixed_asset?.name ? ` • Asset: ${option.fixed_asset.name}` : ''}
+                                                                            </Typography>
+                                                                        </Box>
+                                                                    </li>
+                                                                );
+                                                            }}
+                                                            renderInput={(params) => (
+                                                                <TextField
+                                                                    {...params}
+                                                                    required={assignPicModal.associate_device}
+                                                                    label="Select Device by Serial Number *"
+                                                                    placeholder="Type serial number, hostname, or model..."
+                                                                    helperText="Searchable dropdown selection by serial number"
+                                                                    slotProps={{
+                                                                        ...params.slotProps,
+                                                                        input: {
+                                                                            ...params.slotProps?.input,
+                                                                            startAdornment: (
+                                                                                <>
+                                                                                    <InputAdornment position="start">
+                                                                                        <SearchIcon fontSize="small" color="action" />
+                                                                                    </InputAdornment>
+                                                                                    {params.slotProps?.input?.startAdornment}
+                                                                                </>
+                                                                            ),
+                                                                        },
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        />
+
+                                                        <TextField
+                                                            select
+                                                            required={assignPicModal.associate_device}
+                                                            fullWidth
+                                                            size="small"
+                                                            label="Access Relationship Type"
+                                                            value={assignPicModal.relationship_type}
+                                                            onChange={(e) => setAssignPicModal(prev => ({ ...prev, relationship_type: e.target.value }))}
+                                                        >
+                                                            <MenuItem value="authorized">Authorized (Pre-approved device)</MenuItem>
+                                                            <MenuItem value="registered">Registered (Standard Workstation)</MenuItem>
+                                                            <MenuItem value="observed">Observed (Detected / Audit Logged)</MenuItem>
+                                                            <MenuItem value="blocked">Blocked (Unauthorized)</MenuItem>
+                                                        </TextField>
+                                                    </>
+                                                ) : (
+                                                    <Alert severity="info" sx={{ mt: 1 }}>
+                                                        No devices currently registered in inventory. Switch to <strong>"+ Register New Device"</strong> to register one.
+                                                    </Alert>
+                                                )}
+                                            </Box>
+                                        ) : (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                <TextField
+                                                    select
+                                                    required={assignPicModal.associate_device}
+                                                    fullWidth
+                                                    size="small"
+                                                    label="Device Ownership"
+                                                    value={assignPicModal.ownership_type}
+                                                    onChange={(e) => setAssignPicModal(prev => ({ ...prev, ownership_type: e.target.value }))}
+                                                >
+                                                    <MenuItem value="company">Company Owned</MenuItem>
+                                                    <MenuItem value="personal">Personal / BYOD</MenuItem>
+                                                    <MenuItem value="other">Other / Contractor</MenuItem>
+                                                </TextField>
+
+                                                {assignPicModal.ownership_type === 'company' && officeAssets.length > 0 && (
+                                                    <TextField
+                                                        select
+                                                        fullWidth
+                                                        size="small"
+                                                        label="Link Office Fixed Asset (Optional)"
+                                                        value={assignPicModal.fixed_asset_id}
+                                                        onChange={(e) => setAssignPicModal(prev => ({ ...prev, fixed_asset_id: e.target.value }))}
+                                                        helperText="Optionally link device to company office asset inventory"
+                                                    >
+                                                        <MenuItem value="">None / Unassigned</MenuItem>
+                                                        {officeAssets.map((asset) => (
+                                                            <MenuItem key={asset.id} value={asset.id}>
+                                                                {asset.name} (ID: {asset.id})
+                                                            </MenuItem>
+                                                        ))}
+                                                    </TextField>
+                                                )}
+
+                                                <TextField
+                                                    required={assignPicModal.associate_device}
+                                                    fullWidth
+                                                    size="small"
+                                                    label="Hostname / Computer Name"
+                                                    placeholder="e.g. LAPTOP-DEV-01, MacBook-Pro-Design"
+                                                    value={assignPicModal.hostname}
+                                                    onChange={(e) => setAssignPicModal(prev => ({ ...prev, hostname: e.target.value }))}
+                                                />
+
+                                                <Grid container spacing={1.5}>
+                                                    <Grid item xs={6}>
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
+                                                            label="Manufacturer"
+                                                            placeholder="e.g. Apple, Dell, Lenovo"
+                                                            value={assignPicModal.manufacturer}
+                                                            onChange={(e) => setAssignPicModal(prev => ({ ...prev, manufacturer: e.target.value }))}
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={6}>
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
+                                                            label="Model Name"
+                                                            placeholder="e.g. ThinkPad T14, MacBook Pro 14"
+                                                            value={assignPicModal.model_name}
+                                                            onChange={(e) => setAssignPicModal(prev => ({ ...prev, model_name: e.target.value }))}
+                                                        />
+                                                    </Grid>
+                                                </Grid>
+
+                                                <Grid container spacing={1.5}>
+                                                    <Grid item xs={6}>
+                                                        <TextField
+                                                            required={assignPicModal.associate_device}
+                                                            fullWidth
+                                                            size="small"
+                                                            label="Serial Number *"
+                                                            placeholder="e.g. SN-8849202"
+                                                            value={assignPicModal.serial_number}
+                                                            onChange={(e) => setAssignPicModal(prev => ({ ...prev, serial_number: e.target.value }))}
+                                                            helperText="Required and unique hardware serial number"
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={6}>
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
+                                                            label="Operating System"
+                                                            placeholder="e.g. Windows 11 Pro, macOS Sonoma"
+                                                            value={assignPicModal.operating_system}
+                                                            onChange={(e) => setAssignPicModal(prev => ({ ...prev, operating_system: e.target.value }))}
+                                                        />
+                                                    </Grid>
+                                                </Grid>
+
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    multiline
+                                                    rows={2}
+                                                    label="Notes / Device Details"
+                                                    value={assignPicModal.notes}
+                                                    onChange={(e) => setAssignPicModal(prev => ({ ...prev, notes: e.target.value }))}
+                                                />
+                                            </Box>
+                                        )}
+                                    </Box>
+                                )}
+                            </Box>
                         </Box>
                     </DialogContent>
                     <DialogActions sx={{ p: 2 }}>
@@ -1335,17 +2068,23 @@ export default function AccountShow({
             </Dialog>
 
             {/* MODAL: COMPLETE REVIEW */}
-            <Dialog open={completeReviewModal.open} onClose={() => setCompleteReviewModal({ ...completeReviewModal, open: false })} maxWidth="sm" fullWidth>
+            <Dialog open={completeReviewModal.open} onClose={() => !completeReviewModal.isSubmitting && setCompleteReviewModal({ ...completeReviewModal, open: false })} maxWidth="sm" fullWidth>
                 <form onSubmit={handleCompleteReview}>
                     <DialogTitle sx={{ fontWeight: 700 }}>Complete Compliance Review</DialogTitle>
                     <DialogContent dividers>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                            {completeReviewModal.error && (
+                                <Alert severity="error" onClose={() => setCompleteReviewModal(prev => ({ ...prev, error: '' }))}>
+                                    {completeReviewModal.error}
+                                </Alert>
+                            )}
                             <TextField
                                 select
                                 fullWidth
                                 label="Compliance Result"
                                 value={completeReviewModal.result}
                                 onChange={(e) => setCompleteReviewModal({ ...completeReviewModal, result: e.target.value })}
+                                disabled={completeReviewModal.isSubmitting}
                             >
                                 <MenuItem value="compliant">Compliant (All policies satisfied)</MenuItem>
                                 <MenuItem value="needs_action">Needs Action (Minor issues found)</MenuItem>
@@ -1358,12 +2097,16 @@ export default function AccountShow({
                                 label="Auditor Findings & Conclusion"
                                 value={completeReviewModal.notes}
                                 onChange={(e) => setCompleteReviewModal({ ...completeReviewModal, notes: e.target.value })}
+                                disabled={completeReviewModal.isSubmitting}
+                                placeholder="Enter audit findings, observations, or remediation requirements..."
                             />
                         </Box>
                     </DialogContent>
                     <DialogActions sx={{ p: 2 }}>
-                        <Button onClick={() => setCompleteReviewModal({ ...completeReviewModal, open: false })}>Cancel</Button>
-                        <Button type="submit" variant="contained">Finalize Review</Button>
+                        <Button onClick={() => setCompleteReviewModal({ ...completeReviewModal, open: false })} disabled={completeReviewModal.isSubmitting}>Cancel</Button>
+                        <Button type="submit" variant="contained" disabled={completeReviewModal.isSubmitting} startIcon={completeReviewModal.isSubmitting ? <CircularProgress size={18} color="inherit" /> : null}>
+                            {completeReviewModal.isSubmitting ? 'Finalizing...' : 'Finalize Review'}
+                        </Button>
                     </DialogActions>
                 </form>
             </Dialog>
@@ -1375,17 +2118,57 @@ export default function AccountShow({
                     <DialogContent dividers>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                             <TextField
-                                select
                                 required
                                 fullWidth
                                 label="Email Master"
-                                value={linkEmailModal.emailId}
-                                onChange={(e) => setLinkEmailModal({ ...linkEmailModal, emailId: e.target.value })}
-                            >
-                                {availableEmails.map((em) => (
-                                    <MenuItem key={em.id} value={em.id}>{em.email} ({em.user_name})</MenuItem>
-                                ))}
-                            </TextField>
+                                placeholder="Click Browse to select corporate email..."
+                                value={
+                                    (() => {
+                                        const em = availableEmails.find(e => String(e.id) === String(linkEmailModal.emailId));
+                                        return em ? `${em.email} (${[em.user_name, em.department?.name].filter(Boolean).join(' • ')})` : '';
+                                    })()
+                                }
+                                onClick={() => {
+                                    setEmailPickerTarget('linkEmail');
+                                    setEmailPickerOpen(true);
+                                }}
+                                InputProps={{
+                                    readOnly: true,
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <EmailIcon color={linkEmailModal.emailId ? "primary" : "action"} fontSize="small" />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            {linkEmailModal.emailId && (
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setLinkEmailModal({ ...linkEmailModal, emailId: '' });
+                                                    }}
+                                                    sx={{ mr: 0.5 }}
+                                                >
+                                                    <ClearIcon fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEmailPickerTarget('linkEmail');
+                                                    setEmailPickerOpen(true);
+                                                }}
+                                                sx={{ textTransform: 'none' }}
+                                            >
+                                                Browse
+                                            </Button>
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
                             <TextField
                                 select
                                 fullWidth
@@ -1437,21 +2220,95 @@ export default function AccountShow({
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 {availableDevices.length > 0 ? (
                                     <>
-                                        <TextField
-                                            select
-                                            required
+                                        <Autocomplete
+                                            size="small"
                                             fullWidth
-                                            label="Select Hardware Device"
-                                            value={deviceModal.software_device_id}
-                                            onChange={(e) => setDeviceModal(prev => ({ ...prev, software_device_id: e.target.value }))}
-                                        >
-                                            {availableDevices.map((d) => (
-                                                <MenuItem key={d.id} value={d.id}>
-                                                    {d.hostname || d.model_name || 'Device'} ({d.ownership_type})
-                                                    {d.fixed_asset?.name ? ` — ${d.fixed_asset.name}` : ''}
-                                                </MenuItem>
-                                            ))}
-                                        </TextField>
+                                            options={availableDevices}
+                                            value={availableDevices.find(d => String(d.id) === String(deviceModal.software_device_id)) || null}
+                                            onChange={(event, newValue) => {
+                                                setDeviceModal(prev => ({
+                                                    ...prev,
+                                                    software_device_id: newValue ? newValue.id : ''
+                                                }));
+                                            }}
+                                            isOptionEqualToValue={(option, val) => String(option?.id) === String(val?.id)}
+                                            getOptionLabel={(option) => {
+                                                if (!option) return '';
+                                                if (typeof option === 'string') return option;
+                                                const sn = option.serial_number ? `SN: ${option.serial_number}` : '[No S/N]';
+                                                const name = option.hostname || option.model_name || 'Device';
+                                                const owner = option.ownership_type ? `(${option.ownership_type})` : '';
+                                                const asset = option.fixed_asset?.name ? `— ${option.fixed_asset.name}` : '';
+                                                return `${sn} — ${name} ${owner} ${asset}`.trim();
+                                            }}
+                                            filterOptions={(options, { inputValue }) => {
+                                                const q = inputValue.toLowerCase().trim();
+                                                if (!q) return options;
+                                                return options.filter((d) => {
+                                                    const sn = (d.serial_number || '').toLowerCase();
+                                                    const host = (d.hostname || '').toLowerCase();
+                                                    const model = (d.model_name || '').toLowerCase();
+                                                    const mfg = (d.manufacturer || '').toLowerCase();
+                                                    const asset = (d.fixed_asset?.name || '').toLowerCase();
+                                                    return sn.includes(q) || host.includes(q) || model.includes(q) || mfg.includes(q) || asset.includes(q);
+                                                });
+                                            }}
+                                            renderOption={(props, option) => {
+                                                const { key, ...restProps } = props;
+                                                return (
+                                                    <li key={key || option.id} {...restProps}>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', py: 0.5 }}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    sx={{
+                                                                        fontWeight: 700,
+                                                                        fontFamily: option.serial_number ? 'monospace' : 'inherit',
+                                                                        color: option.serial_number ? 'primary.main' : 'text.secondary'
+                                                                    }}
+                                                                >
+                                                                    {option.serial_number ? `SN: ${option.serial_number}` : '(No Serial Number)'}
+                                                                </Typography>
+                                                                <Chip
+                                                                    label={option.ownership_type || 'device'}
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    sx={{ textTransform: 'capitalize', height: 20, fontSize: '0.68rem' }}
+                                                                />
+                                                            </Box>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {option.hostname || option.model_name || 'Device'}
+                                                                {option.manufacturer ? ` • ${option.manufacturer}` : ''}
+                                                                {option.fixed_asset?.name ? ` • Asset: ${option.fixed_asset.name}` : ''}
+                                                            </Typography>
+                                                        </Box>
+                                                    </li>
+                                                );
+                                            }}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    required
+                                                    label="Select Device by Serial Number *"
+                                                    placeholder="Type serial number, hostname, or model..."
+                                                    helperText="Searchable dropdown selection by serial number"
+                                                    slotProps={{
+                                                        ...params.slotProps,
+                                                        input: {
+                                                            ...params.slotProps?.input,
+                                                            startAdornment: (
+                                                                <>
+                                                                    <InputAdornment position="start">
+                                                                        <SearchIcon fontSize="small" color="action" />
+                                                                    </InputAdornment>
+                                                                    {params.slotProps?.input?.startAdornment}
+                                                                </>
+                                                            ),
+                                                        },
+                                                    }}
+                                                />
+                                            )}
+                                        />
 
                                         <TextField
                                             select
@@ -1465,6 +2322,22 @@ export default function AccountShow({
                                             <MenuItem value="authorized">Authorized (Pre-approved device)</MenuItem>
                                             <MenuItem value="observed">Observed (Detected / Audit Logged)</MenuItem>
                                             <MenuItem value="blocked">Blocked (Unauthorized)</MenuItem>
+                                        </TextField>
+
+                                        <TextField
+                                            select
+                                            fullWidth
+                                            label="Assign to PIC (Optional)"
+                                            value={deviceModal.user_id || ''}
+                                            onChange={(e) => setDeviceModal(prev => ({ ...prev, user_id: e.target.value }))}
+                                            helperText="Associate this device with a specific Person in Charge (PIC)"
+                                        >
+                                            <MenuItem value="">Shared / General Account Device</MenuItem>
+                                            {activePics.map((p) => (
+                                                <MenuItem key={p.user_id} value={p.user_id}>
+                                                    {p.user?.name} {p.user?.email ? `(${p.user.email})` : ''}
+                                                </MenuItem>
+                                            ))}
                                         </TextField>
                                     </>
                                 ) : (
@@ -1536,13 +2409,44 @@ export default function AccountShow({
                                     </Grid>
                                 </Grid>
 
+                                <Grid container spacing={2}>
+                                    <Grid item xs={6}>
+                                        <TextField
+                                            required
+                                            fullWidth
+                                            label="Serial Number *"
+                                            placeholder="e.g. SN-8849202"
+                                            value={deviceModal.serial_number}
+                                            onChange={(e) => setDeviceModal(prev => ({ ...prev, serial_number: e.target.value }))}
+                                            helperText="Required and unique hardware serial number"
+                                        />
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <TextField
+                                            fullWidth
+                                            label="Operating System"
+                                            placeholder="e.g. Windows 11 Pro, macOS Sonoma"
+                                            value={deviceModal.operating_system}
+                                            onChange={(e) => setDeviceModal(prev => ({ ...prev, operating_system: e.target.value }))}
+                                        />
+                                    </Grid>
+                                </Grid>
+
                                 <TextField
+                                    select
                                     fullWidth
-                                    label="Operating System"
-                                    placeholder="e.g. Windows 11 Pro, macOS Sonoma, Ubuntu 24.04"
-                                    value={deviceModal.operating_system}
-                                    onChange={(e) => setDeviceModal(prev => ({ ...prev, operating_system: e.target.value }))}
-                                />
+                                    label="Assign to PIC (Optional)"
+                                    value={deviceModal.user_id || ''}
+                                    onChange={(e) => setDeviceModal(prev => ({ ...prev, user_id: e.target.value }))}
+                                    helperText="Associate this new device with a specific Person in Charge (PIC)"
+                                >
+                                    <MenuItem value="">Shared / General Account Device</MenuItem>
+                                    {activePics.map((p) => (
+                                        <MenuItem key={p.user_id} value={p.user_id}>
+                                            {p.user?.name} {p.user?.email ? `(${p.user.email})` : ''}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
 
                                 <TextField
                                     fullWidth
@@ -1582,6 +2486,29 @@ export default function AccountShow({
                 users={availableUsers}
                 departments={departments}
                 selectedUserId={userPickerTarget === 'pic' ? assignPicModal.userId : scheduleReviewModal.assignedTo}
+            />
+
+            {/* GLOBAL EMAIL SELECT MODAL */}
+            <EmailSelectModal
+                open={emailPickerOpen}
+                onClose={() => setEmailPickerOpen(false)}
+                onSelect={(selectedEmail) => {
+                    if (emailPickerTarget === 'property') {
+                        setEditPropModal(prev => ({ ...prev, value: selectedEmail.id }));
+                    } else if (emailPickerTarget === 'linkEmail') {
+                        setLinkEmailModal(prev => ({ ...prev, emailId: selectedEmail.id }));
+                    }
+                    setEmailPickerOpen(false);
+                }}
+                selectedEmailId={
+                    emailPickerTarget === 'property'
+                        ? editPropModal.value
+                        : linkEmailModal.emailId
+                }
+                emails={availableEmails}
+                departments={departments}
+                title={emailPickerTarget === 'property' ? 'Select Referenced Master Email' : 'Select Email to Associate'}
+                subtitle="Search and select a corporate email from the central email list"
             />
         </AsideLayout>
     );

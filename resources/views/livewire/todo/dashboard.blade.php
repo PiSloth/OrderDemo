@@ -40,7 +40,7 @@
                         altInputClass: 'block w-full sm:w-80 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm',
                         defaultDate: (alpine.dateFrom && alpine.dateTo) ? [alpine.dateFrom, alpine.dateTo] : null,
                         allowInput: true,
-                        appendTo: document.body,
+                        static: true,
                         onReady(selectedDates, dateStr, instance) {
                             // Ensure the calendar isn't clipped/hidden behind containers
                             try {

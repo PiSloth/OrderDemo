@@ -141,6 +141,11 @@ class TodoList extends Model
         return $this->comments()->whereNull('parent_id');
     }
 
+    public function references()
+    {
+        return $this->hasMany(TodoReference::class, 'todo_list_id');
+    }
+
     /**
      * Helper to sync KPI instance approval status back to the Todo Task.
      */

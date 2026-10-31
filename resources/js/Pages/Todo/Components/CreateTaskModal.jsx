@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, usePage } from '@inertiajs/react';
-import { Snackbar, Alert } from '@mui/material';
+import { Snackbar, Alert, CircularProgress } from '@mui/material';
+import axios from 'axios';
 import SearchableUserSelect from '../../../Components/SearchableUserSelect';
 import RepairRequestModal from './RepairRequestModal';
 
@@ -9,22 +10,60 @@ export default function CreateTaskModal({
     onClose: propOnClose = null,
     onSuccessTask: propOnSuccessTask = null,
     formattedDueTimes = [],
-    branches = [],
-    departments = [],
-    categories = [],
-    itAdminDepartments = [],
-    users = [],
+    branches: propBranches = [],
+    departments: propDepartments = [],
+    categories: propCategories = [],
+    itAdminDepartments: propItAdminDepartments = [],
+    users: propUsers = [],
     userBranchId = null,
-    dueTimes = [],
+    dueTimes: propDueTimes = [],
+    isGlobal = false,
+    todoLists: propTodoLists = [],
 }) {
-    const { auth } = usePage().props;
+    const pageProps = usePage().props;
+    const { auth, todoLists: pageTodoLists = [] } = pageProps;
     const currentUser = auth?.user;
+    const effectiveTodoLists = propTodoLists?.length > 0 ? propTodoLists : pageTodoLists;
 
     const [isOpen, setIsOpen] = useState(propIsOpen);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [voucherTask, setVoucherTask] = useState(null);
     const [isVoucherOpen, setIsVoucherOpen] = useState(false);
+    const [fetchedOptions, setFetchedOptions] = useState(null);
+    const [loadingOptions, setLoadingOptions] = useState(false);
+    const [globalCallback, setGlobalCallback] = useState(null);
+    const [suppressVoucher, setSuppressVoucher] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const needsOptions =
+            (!propBranches || propBranches.length === 0) &&
+            (!propDepartments || propDepartments.length === 0) &&
+            (!propDueTimes || propDueTimes.length === 0);
+
+        if (needsOptions && !fetchedOptions && !loadingOptions) {
+            setLoadingOptions(true);
+            axios.get('/todo/options')
+                .then(res => {
+                    setFetchedOptions(res.data);
+                })
+                .catch(err => {
+                    console.error('Error fetching todo options:', err);
+                })
+                .finally(() => {
+                    setLoadingOptions(false);
+                });
+        }
+    }, [isOpen, propBranches, propDepartments, propDueTimes, fetchedOptions, loadingOptions]);
+
+    const branches = (propBranches && propBranches.length > 0) ? propBranches : (fetchedOptions?.branches || []);
+    const departments = (propDepartments && propDepartments.length > 0) ? propDepartments : (fetchedOptions?.departments || []);
+    const categories = (propCategories && propCategories.length > 0) ? propCategories : (fetchedOptions?.categories || []);
+    const dueTimes = (propDueTimes && propDueTimes.length > 0) ? propDueTimes : (fetchedOptions?.dueTimes || []);
+    const users = (propUsers && propUsers.length > 0) ? propUsers : (fetchedOptions?.users || []);
+    const itAdminDepartments = (propItAdminDepartments && propItAdminDepartments.length > 0) ? propItAdminDepartments : (fetchedOptions?.itAdminDepartments || []);
 
     const { data: formData, setData: setFormData, post: postTask, processing: taskProcessing, reset: resetTaskForm, errors: formErrors } = useForm({
         selectedDueTimeId: '',
@@ -33,6 +72,11 @@ export default function CreateTaskModal({
         requestedByBranchId: userBranchId ? String(userBranchId) : '',
         requestedByDepartmentId: '',
         dueDate: '',
+        reference_type: '',
+        reference_id: '',
+        module: '',
+        reason: '',
+        action_type: '',
     });
 
     // Departments list: show all departments so users can create tasks for their own or other departments
@@ -168,6 +212,11 @@ export default function CreateTaskModal({
     // Global custom event listener so any module or page can trigger this modal
     useEffect(() => {
         const handleGlobalTrigger = (e) => {
+            // If this is the global instance in AsideLayout and we are on /todo/ (which has page-level modal), let page modal handle it
+            if (isGlobal && (window.location.pathname === '/todo' || window.location.pathname.startsWith('/todo/list') || window.location.pathname.startsWith('/todo/dashboard'))) {
+                return;
+            }
+
             const detail = e.detail || {};
             if (detail.task) setFormData('task', detail.task);
             if (detail.selectedDueTimeId) setFormData('selectedDueTimeId', String(detail.selectedDueTimeId));
@@ -176,13 +225,30 @@ export default function CreateTaskModal({
             if (detail.dueDate) setFormData('dueDate', detail.dueDate);
             if (detail.departmentId) setSelectedDepartmentId(String(detail.departmentId));
             if (detail.categoryId) setSelectedCategoryId(String(detail.categoryId));
+            if (detail.reference_type) setFormData('reference_type', detail.reference_type);
+            if (detail.reference_id) setFormData('reference_id', String(detail.reference_id));
+            if (detail.module) setFormData('module', detail.module);
+            if (detail.reason) setFormData('reason', detail.reason);
+            if (detail.action_type) setFormData('action_type', detail.action_type);
+
+            if (detail.suppressVoucher !== undefined) {
+                setSuppressVoucher(detail.suppressVoucher);
+            } else if (detail.reference_type) {
+                setSuppressVoucher(true);
+            } else {
+                setSuppressVoucher(false);
+            }
+
+            if (detail.onSuccess) {
+                setGlobalCallback(() => detail.onSuccess);
+            }
 
             setIsOpen(true);
         };
 
         window.addEventListener('open-create-todo-modal', handleGlobalTrigger);
         return () => window.removeEventListener('open-create-todo-modal', handleGlobalTrigger);
-    }, []);
+    }, [isGlobal]);
 
     // ESC Key handling to exit modal
     useEffect(() => {
@@ -320,6 +386,14 @@ export default function CreateTaskModal({
                     const selectedBranch = branches.find((b) => String(b.id) === String(formData.requestedByBranchId));
                     const assignedUserObj = users.find((u) => String(u.id) === String(formData.assignedUserId));
 
+                    const creatorDeptObj = currentUser?.department ||
+                        (currentUser?.department_id ? (departments.find((d) => String(d.id) === String(currentUser.department_id)) || users.find((u) => String(u.id) === String(currentUser.id))?.department) : null);
+
+                    const fullCreator = {
+                        ...currentUser,
+                        department: creatorDeptObj || currentUser?.department,
+                    };
+
                     const taskInfo = {
                         task: formData.task,
                         status: { status: 'In Progress' },
@@ -339,7 +413,7 @@ export default function CreateTaskModal({
                                 name: selectedDueTimeObj?.priorityLevel || 'Normal',
                             },
                         },
-                        created_by_user: currentUser,
+                        created_by_user: fullCreator,
                         assigned_user: assignedUserObj,
                         department: selectedDept || currentUser?.department,
                         requested_by_department: selectedDept,
@@ -349,11 +423,16 @@ export default function CreateTaskModal({
                     if (propOnSuccessTask) {
                         propOnSuccessTask(taskInfo);
                     }
+                    if (globalCallback) {
+                        globalCallback(taskInfo);
+                    }
                     window.dispatchEvent(new CustomEvent('todo-task-created', { detail: taskInfo }));
 
-                    // Trigger A5 Repair Request Form Modal for created task
-                    setVoucherTask(taskInfo);
-                    setIsVoucherOpen(true);
+                    if (!suppressVoucher) {
+                        // Trigger A5 Repair Request Form Modal for created task
+                        setVoucherTask(taskInfo);
+                        setIsVoucherOpen(true);
+                    }
 
                     resetTaskForm();
                     setSelectedDepartmentId('');
@@ -401,6 +480,25 @@ export default function CreateTaskModal({
                         ✕
                     </button>
                 </div>
+
+                {/* Cross-Module Finding Context Banner if Triggered by Module */}
+                {formData.reason && (
+                    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/80 p-3.5 text-xs text-indigo-950 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-200 shadow-sm flex items-start gap-2.5">
+                        <span className="text-base">📌</span>
+                        <div className="flex-1">
+                            <span className="font-bold uppercase tracking-wider block text-[10px] text-indigo-700 dark:text-indigo-300">
+                                Remediation Audit Context ({formData.module ? formData.module.replace('_', ' ').toUpperCase() : 'REFERENCED MODULE'}):
+                            </span>
+                            <p className="mt-0.5 leading-relaxed font-medium">{formData.reason}</p>
+                        </div>
+                    </div>
+                )}
+
+                {loadingOptions && (
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 py-1">
+                        <CircularProgress size={16} /> Loading departments & task categories...
+                    </div>
+                )}
 
                 {/* Task Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -763,6 +861,7 @@ export default function CreateTaskModal({
                 branches={branches}
                 departments={departments}
                 users={users}
+                todoLists={effectiveTodoLists}
             />
         </>
     );

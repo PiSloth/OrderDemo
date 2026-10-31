@@ -102,13 +102,14 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // Seed departments, master taxonomies, todo task module, and IT issue SLA sample data
+        // Seed departments, master taxonomies, todo task module, IT issue SLA, and digital assets
         $this->call([
             DepartmentSeeder::class,
             MasterTaxonomySeeder::class,
             TodoSeeder::class,
             ItIssueSeeder::class,
             UserDepartmentSeeder::class,
+            DigitalAssetSeeder::class,
         ]);
     }
 }

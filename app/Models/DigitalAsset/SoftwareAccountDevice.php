@@ -16,6 +16,7 @@ class SoftwareAccountDevice extends Model
     protected $fillable = [
         'software_account_id',
         'software_device_id',
+        'user_id',
         'relationship_type',
         'first_seen_at',
         'last_seen_at',
@@ -30,6 +31,15 @@ class SoftwareAccountDevice extends Model
         'verified_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'is_verified',
+    ];
+
+    public function getIsVerifiedAttribute(): bool
+    {
+        return !is_null($this->verified_at) || $this->relationship_type === 'authorized';
+    }
+
     public function account(): BelongsTo
     {
         return $this->belongsTo(SoftwareAccount::class, 'software_account_id');
@@ -38,6 +48,11 @@ class SoftwareAccountDevice extends Model
     public function device(): BelongsTo
     {
         return $this->belongsTo(SoftwareDevice::class, 'software_device_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function verifiedByUser(): BelongsTo

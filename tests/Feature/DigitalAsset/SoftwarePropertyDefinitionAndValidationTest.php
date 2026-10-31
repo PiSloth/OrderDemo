@@ -171,4 +171,67 @@ class SoftwarePropertyDefinitionAndValidationTest extends TestCase
         $this->assertEquals('SensitiveConfigV2', $this->account->properties[$def->code]);
         $this->assertEquals('approved', $history->fresh()->review_status);
     }
+
+    public function test_unauthorized_user_cannot_create_or_update_property_definition(): void
+    {
+        $regularUser = User::factory()->create([
+            'role' => 'staff',
+            'department_id' => null,
+            'suspended' => false,
+        ]);
+
+        // Attempt create
+        $response = $this->actingAs($regularUser)->post(route('digital-assets.properties.store'), [
+            'code' => 'unauth_prop',
+            'label' => 'Unauthorized Prop',
+            'data_type' => 'boolean',
+        ]);
+        $response->assertForbidden();
+
+        // Attempt update
+        $def = SoftwarePropertyDefinition::create([
+            'software_platform_id' => null,
+            'code' => 'test_def_' . uniqid(),
+            'label' => 'Original Label',
+            'data_type' => 'boolean',
+            'is_active' => true,
+        ]);
+
+        $updateResponse = $this->actingAs($regularUser)->put(route('digital-assets.properties.update', $def), [
+            'label' => 'Hacked Label',
+        ]);
+        $updateResponse->assertForbidden();
+    }
+
+    public function test_authorized_user_with_permission_can_create_and_update_property_definition(): void
+    {
+        $authorizedUser = User::factory()->create([
+            'role' => 'staff',
+            'department_id' => null,
+            'suspended' => false,
+        ]);
+
+        $authorizedUser->givePermissionTo([
+            'security_property_definition.create',
+            'security_property_definition.update',
+            'security_property_definition.view',
+        ]);
+
+        $code = 'authorized_code_' . uniqid();
+        $response = $this->actingAs($authorizedUser)->post(route('digital-assets.properties.store'), [
+            'code' => $code,
+            'label' => 'Authorized Property',
+            'data_type' => 'boolean',
+            'is_active' => true,
+        ]);
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('software_property_definitions', ['code' => $code]);
+
+        $def = SoftwarePropertyDefinition::where('code', $code)->firstOrFail();
+        $updateResponse = $this->actingAs($authorizedUser)->put(route('digital-assets.properties.update', $def), [
+            'label' => 'Updated Authorized Property',
+        ]);
+        $updateResponse->assertSessionHasNoErrors();
+        $this->assertEquals('Updated Authorized Property', $def->fresh()->label);
+    }
 }

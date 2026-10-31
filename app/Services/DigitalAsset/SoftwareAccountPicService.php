@@ -41,6 +41,7 @@ class SoftwareAccountPicService
                 'user_id' => $userId,
                 'status' => 'active',
                 'assigned_at' => now(),
+                'assigned_by' => $actorUserId,
             ]);
 
             SoftwareAccountPicHistory::create([
@@ -157,6 +158,7 @@ class SoftwareAccountPicService
             $pic->update([
                 'status' => 'active',
                 'assigned_at' => now(),
+                'assigned_by' => $actorUserId,
                 'revoked_at' => null,
                 'revoked_by' => null,
                 'revocation_reason' => null,

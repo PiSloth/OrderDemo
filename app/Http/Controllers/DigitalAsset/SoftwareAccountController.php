@@ -5,6 +5,7 @@ namespace App\Http\Controllers\DigitalAsset;
 use App\Http\Controllers\Controller;
 use App\Models\DigitalAsset\SoftwareAccount;
 use App\Models\DigitalAsset\SoftwareAccountEmail;
+use App\Models\DigitalAsset\SoftwareAccountPic;
 use App\Models\DigitalAsset\SoftwareAccountPropertyHistory;
 use App\Models\DigitalAsset\SoftwarePlatform;
 use App\Models\DigitalAsset\SoftwarePropertyDefinition;
@@ -32,7 +33,14 @@ class SoftwareAccountController extends Controller
     {
         $this->authorize('viewAny', SoftwareAccount::class);
 
-        $query = SoftwareAccount::with(['platform', 'activePics.user', 'emails.emailRecord']);
+        $query = SoftwareAccount::with([
+            'platform',
+            'activePics.user.department',
+            'activePics.user.branch',
+            'activePics.user.position',
+            'activePics.user.officePosition',
+            'emails.emailRecord'
+        ]);
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -69,11 +77,29 @@ class SoftwareAccountController extends Controller
             })->count(),
         ];
 
+        $users = User::with(['department', 'branch', 'position', 'officePosition'])
+            ->where('suspended', false)
+            ->orderBy('name')
+            ->get();
+        $departments = \App\Models\Department::orderBy('name')->get(['id', 'name']);
+        $allAccounts = SoftwareAccount::with(['platform'])->orderBy('account_name')->get(['id', 'software_platform_id', 'account_name', 'username', 'lifecycle_status']);
+        $allPics = SoftwareAccountPic::with(['account.platform', 'user.department', 'user.branch', 'user.position', 'user.officePosition', 'revokedByUser'])->latest('assigned_at')->get();
+
         return Inertia::render('DigitalAsset/Accounts/Index', [
             'accounts' => $accounts,
             'platforms' => $platforms,
             'filters' => $request->only(['search', 'platform_id', 'lifecycle_status', 'security_status']),
             'stats' => $stats,
+            'users' => $users,
+            'departments' => $departments,
+            'allAccounts' => $allAccounts,
+            'allPics' => $allPics,
+            'permissions' => [
+                'canCreate' => auth()->user()?->can('create', SoftwareAccount::class) ?? false,
+                'canView' => auth()->user()?->can('viewAny', SoftwareAccount::class) ?? false,
+                'canEdit' => auth()->user() ? (auth()->user()->isSuperUser() || auth()->user()->isFromItDepartment() || auth()->user()->isAdmin() || auth()->user()->can('account.edit') || auth()->user()->can('account.update') || auth()->user()->can('digital_asset.account.update')) : false,
+                'canDelete' => auth()->user() ? (auth()->user()->isSuperUser() || auth()->user()->isFromItDepartment() || auth()->user()->isAdmin() || auth()->user()->can('account.delete') || auth()->user()->can('digital_asset.account.delete') || auth()->user()->can('digital_asset.account.retire')) : false,
+            ],
         ]);
     }
 
@@ -89,12 +115,30 @@ class SoftwareAccountController extends Controller
             'creator',
             'updater',
             'emails.emailRecord',
-            'pics.user',
-            'pics.revokedByUser',
-            'activePics.user',
+            'pics.user.department',
+            'pics.user.branch',
+            'pics.user.officePosition',
+            'pics.user.position',
+            'pics.assignedByUser.department',
+            'pics.assignedByUser.officePosition',
+            'pics.assignedByUser.position',
+            'pics.revokedByUser.department',
+            'pics.revokedByUser.officePosition',
+            'pics.revokedByUser.position',
+            'activePics.user.department',
+            'activePics.user.branch',
+            'activePics.user.officePosition',
+            'activePics.user.position',
+            'activePics.assignedByUser.department',
+            'activePics.assignedByUser.officePosition',
+            'activePics.assignedByUser.position',
             'picHistories' => fn($q) => $q->latest('occurred_at'),
-            'picHistories.user',
-            'picHistories.performedByUser',
+            'picHistories.user.department',
+            'picHistories.user.officePosition',
+            'picHistories.user.position',
+            'picHistories.performedByUser.department',
+            'picHistories.performedByUser.officePosition',
+            'picHistories.performedByUser.position',
             'propertyHistories.propertyDefinition',
             'propertyHistories.changedByUser',
             'evidence.propertyDefinition',
@@ -103,6 +147,7 @@ class SoftwareAccountController extends Controller
             'reviews.assignedToUser',
             'reviews.completedByUser',
             'accountDevices.device.fixedAsset',
+            'accountDevices.user',
             'authorizationGrants',
             'auditLogs' => fn($q) => $q->latest('occurred_at')->limit(100),
             'auditLogs.actorUser',
@@ -122,7 +167,7 @@ class SoftwareAccountController extends Controller
             ->orderBy('name')
             ->get();
         $departments = \App\Models\Department::orderBy('name')->get(['id', 'name']);
-        $availableEmails = EmailList::orderBy('email')->get(['id', 'email', 'user_name']);
+        $availableEmails = EmailList::with('department')->orderBy('email')->get(['id', 'email', 'user_name', 'department_id']);
         $availableDevices = \App\Models\DigitalAsset\SoftwareDevice::with('fixedAsset')
             ->where('device_status', 'active')
             ->orderBy('hostname')
@@ -137,6 +182,8 @@ class SoftwareAccountController extends Controller
             'availableEmails' => $availableEmails,
             'availableDevices' => $availableDevices,
             'officeAssets' => $officeAssets,
+            'canEdit' => auth()->user()?->can('update', $account) ?? false,
+            'canDelete' => auth()->user()?->can('delete', $account) ?? false,
         ]);
     }
 
@@ -361,5 +408,44 @@ class SoftwareAccountController extends Controller
         );
 
         return back()->with('success', 'Email associated with account.');
+    }
+
+    /**
+     * Delete / retire a software account.
+     */
+    public function destroy(SoftwareAccount $account)
+    {
+        $this->authorize('delete', $account);
+
+        DB::transaction(function () use ($account) {
+            SoftwareAccountAuditService::log(
+                action: 'account.deleted',
+                entityType: 'SoftwareAccount',
+                entityId: $account->id,
+                softwareAccountId: $account->id,
+                outcome: 'success',
+                metadata: [
+                    'account_name' => $account->account_name,
+                    'username' => $account->username,
+                    'platform' => $account->platform?->name,
+                ],
+                actorUserId: auth()->id()
+            );
+
+            // Clean up dependent records that restrict deletion
+            \App\Models\DigitalAsset\SoftwareAccountPicHistory::where('software_account_id', $account->id)->delete();
+            \App\Models\DigitalAsset\SoftwareAccountPic::where('software_account_id', $account->id)->delete();
+            \App\Models\DigitalAsset\SoftwareAccountPropertyHistory::where('software_account_id', $account->id)->delete();
+            \App\Models\DigitalAsset\SoftwareAccountEvidence::where('software_account_id', $account->id)->delete();
+            \App\Models\DigitalAsset\SoftwareAccountReview::where('software_account_id', $account->id)->delete();
+            \App\Models\DigitalAsset\SoftwareAccountDevice::where('software_account_id', $account->id)->delete();
+            \App\Models\DigitalAsset\SoftwareAccountEmail::where('software_account_id', $account->id)->delete();
+            DB::table('software_account_authorization_grants')->where('software_account_id', $account->id)->delete();
+
+            $account->delete();
+        });
+
+        return redirect()->route('digital-assets.accounts.index')
+            ->with('success', 'Software account deleted successfully.');
     }
 }

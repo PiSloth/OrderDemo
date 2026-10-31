@@ -122,4 +122,27 @@ class SoftwareAccountReviewWorkflowTest extends TestCase
             completedByUserId: $this->user->id
         );
     }
+
+    public function test_allows_review_completion_as_needs_action_when_properties_missing(): void
+    {
+        $review = $this->reviewService->scheduleReview(
+            account: $this->account,
+            reviewType: 'ad_hoc',
+            scheduledAt: now()->toDateTimeString(),
+            actorUserId: $this->user->id
+        );
+
+        $this->reviewService->startReview($review, $this->user->id);
+
+        $completed = $this->reviewService->completeReview(
+            review: $review,
+            result: 'needs_action',
+            completedByUserId: $this->user->id,
+            findings: ['gap' => 'missing required 2fa'],
+            notes: 'Requires remediation'
+        );
+
+        $this->assertEquals('completed', $completed->status);
+        $this->assertEquals('needs_action', $completed->result);
+    }
 }

@@ -129,7 +129,7 @@ class TodoListController extends Controller
         $monthsWithTasks = [];
         foreach ($monthCounts as $mKey => $count) {
             try {
-                $mDate = Carbon::createFromFormat('Y-m', $mKey)->startOfMonth();
+                $mDate = Carbon::parse($mKey . '-01')->startOfMonth();
                 $monthsWithTasks[] = [
                     'value' => $mKey,
                     'label' => $mDate->format('F Y'),
@@ -270,7 +270,7 @@ class TodoListController extends Controller
 
         // Calendar tasks for selectedMonth
         try {
-            $monthDate = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
+            $monthDate = Carbon::parse($selectedMonth . '-01')->startOfMonth();
         } catch (\Throwable $e) {
             $selectedMonth = now()->format('Y-m');
             $monthDate = now()->startOfMonth();
@@ -363,7 +363,7 @@ class TodoListController extends Controller
         $monthsWithTasks = [];
         foreach ($monthCounts as $mKey => $count) {
             try {
-                $mDate = Carbon::createFromFormat('Y-m', $mKey)->startOfMonth();
+                $mDate = Carbon::parse($mKey . '-01')->startOfMonth();
                 $monthsWithTasks[] = [
                     'value' => $mKey,
                     'label' => $mDate->format('F Y'),
@@ -409,6 +409,37 @@ class TodoListController extends Controller
         ]);
     }
 
+    public function options(): \Illuminate\Http\JsonResponse
+    {
+        $dueTimes = TodoDueTime::with(['category', 'priority'])->get();
+        $branches = Branch::orderBy('name')->get();
+        $departments = Department::orderBy('name')->get();
+        $categories = TodoCategory::all();
+        $users = User::query()
+            ->where('suspended', false)
+            ->with(['officePosition:id,name', 'department:id,name'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'department_id', 'branch_id', 'office_position_id']);
+
+        $itAdminDepartments = $departments->filter(function ($dept) {
+            $name = strtolower($dept->name);
+            return str_contains($name, 'it') || str_contains($name, 'admin');
+        })->values();
+
+        if ($itAdminDepartments->isEmpty()) {
+            $itAdminDepartments = $departments;
+        }
+
+        return response()->json([
+            'dueTimes' => $dueTimes,
+            'branches' => $branches,
+            'departments' => $departments,
+            'categories' => $categories,
+            'users' => $users,
+            'itAdminDepartments' => $itAdminDepartments,
+        ]);
+    }
+
     public function store(Request $request, \App\Services\Todo\TodoTaskService $taskService)
     {
         $validated = $request->validate([
@@ -421,6 +452,11 @@ class TodoListController extends Controller
             'requested_by_branch_id' => ['nullable', 'exists:branches,id'],
             'dueDate' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
+            'reference_type' => ['nullable', 'string', 'max:255'],
+            'reference_id' => ['nullable'],
+            'module' => ['nullable', 'string', 'max:100'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+            'action_type' => ['nullable', 'string', 'max:100'],
         ]);
 
         return DB::transaction(function () use ($validated, $request, $taskService) {
@@ -478,6 +514,20 @@ class TodoListController extends Controller
                 'requested_by_department_id' => $departmentId,
                 'due_date' => $dueDate,
             ]);
+
+            $refType = $request->input('reference_type') ?? ($validated['reference_type'] ?? null);
+            $refId = $request->input('reference_id') ?? ($validated['reference_id'] ?? null);
+            if ($refType && $refId) {
+                app(\App\Services\Todo\TodoReferenceService::class)->linkTaskToReference(
+                    $task,
+                    $refType,
+                    $refId,
+                    $request->input('reason') ?? ($validated['reason'] ?? $task->task),
+                    $request->input('module') ?? ($validated['module'] ?? null),
+                    $request->input('action_type') ?? ($validated['action_type'] ?? 'remediation'),
+                    $request->input('metadata')
+                );
+            }
 
             // Generate On-Demand KPI Instance if configured on the due time
             $dueTime = TodoDueTime::find($task->todo_due_time_id);

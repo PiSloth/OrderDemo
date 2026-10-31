@@ -3,6 +3,7 @@ import { usePage, Link } from '@inertiajs/react';
 import CreatePromoteActionModal from '../components/CreatePromoteActionModal';
 import ItSatisfactionModal from '../components/IT/ItSatisfactionModal';
 import EmployeeSkillMatrixModal from '../components/Training/EmployeeSkillMatrixModal';
+import CreateTaskModal from '../Pages/Todo/Components/CreateTaskModal';
 
 // Material UI Imports
 import {
@@ -1304,22 +1305,26 @@ export default function AsideLayout({
                                             >
                                                 <ListItemText primary="Compliance Reviews" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
-                                            <ListItemButton 
-                                                component={Link} 
-                                                href="/digital-assets/devices" 
-                                                selected={isCurrentUrl('/digital-assets/devices')}
-                                                sx={subItemButtonSx(isCurrentUrl('/digital-assets/devices'))}
-                                            >
-                                                <ListItemText primary="Device Inventory" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
-                                            </ListItemButton>
-                                            <ListItemButton 
-                                                component={Link} 
-                                                href="/digital-assets/audit-logs" 
-                                                selected={isCurrentUrl('/digital-assets/audit-logs')}
-                                                sx={subItemButtonSx(isCurrentUrl('/digital-assets/audit-logs'))}
-                                            >
-                                                <ListItemText primary="Security Audit Logs" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
-                                            </ListItemButton>
+                                            {can.hardwareDeviceView && (
+                                                <ListItemButton 
+                                                    component={Link} 
+                                                    href="/digital-assets/devices" 
+                                                    selected={isCurrentUrl('/digital-assets/devices')}
+                                                    sx={subItemButtonSx(isCurrentUrl('/digital-assets/devices'))}
+                                                >
+                                                    <ListItemText primary="Device Inventory" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                                </ListItemButton>
+                                            )}
+                                            {can.securityAuditTrailView && (
+                                                <ListItemButton 
+                                                    component={Link} 
+                                                    href="/digital-assets/audit-logs" 
+                                                    selected={isCurrentUrl('/digital-assets/audit-logs')}
+                                                    sx={subItemButtonSx(isCurrentUrl('/digital-assets/audit-logs'))}
+                                                >
+                                                    <ListItemText primary="Security Audit Logs" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                                </ListItemButton>
+                                            )}
                                         </List>
                                     </Collapse>
                                 </ListItem>
@@ -1530,6 +1535,7 @@ export default function AsideLayout({
             <CreatePromoteActionModal />
             <ItSatisfactionModal />
             <EmployeeSkillMatrixModal />
+            <CreateTaskModal isGlobal={true} />
         </Box>
     );
 }

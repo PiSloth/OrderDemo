@@ -33,7 +33,7 @@
                             altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
                             allowInput: true,
                             defaultDate: (alpine.monthYear && String(alpine.monthYear).length === 7) ? alpine.monthYear : null,
-                            appendTo: document.body,
+                            static: true,
                             onReady(selectedDates, dateStr, instance) {
                                 try {
                                     if (instance && instance.calendarContainer) {
@@ -115,7 +115,7 @@
                         altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
                         defaultDate: (alpine.dateFrom && alpine.dateTo) ? [alpine.dateFrom, alpine.dateTo] : null,
                         allowInput: true,
-                        appendTo: document.body,
+                        static: true,
                         onReady(selectedDates, dateStr, instance) {
                             try {
                                 if (instance && instance.calendarContainer) {
@@ -851,7 +851,7 @@
                         altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
                         defaultDate: (alpine.dateFrom && alpine.dateTo) ? [alpine.dateFrom, alpine.dateTo] : null,
                         allowInput: true,
-                        appendTo: document.body,
+                        static: true,
                         onReady(selectedDates, dateStr, instance) {
                             try {
                                 if (instance && instance.calendarContainer) {
@@ -1029,7 +1029,7 @@
                     altInputClass: 'block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white',
                     defaultDate: (alpine.dateFrom && alpine.dateTo) ? [alpine.dateFrom, alpine.dateTo] : null,
                     allowInput: true,
-                    appendTo: document.body,
+                    static: true,
                     onReady(selectedDates, dateStr, instance) {
                         try {
                             if (instance && instance.calendarContainer) {

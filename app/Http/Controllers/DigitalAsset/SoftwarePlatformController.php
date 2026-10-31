@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DigitalAsset\SoftwarePlatform;
 use App\Services\DigitalAsset\SoftwareAccountAuditService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,9 +16,14 @@ class SoftwarePlatformController extends Controller
     {
         $this->authorize('viewAny', SoftwarePlatform::class);
 
-        $platforms = SoftwarePlatform::withCount('accounts')
-            ->orderBy('name')
-            ->get();
+        $platforms = SoftwarePlatform::withCount([
+            'accounts',
+            'accounts as active_accounts_count' => function ($q) {
+                $q->where('lifecycle_status', 'active');
+            }
+        ])
+        ->orderBy('name')
+        ->get();
 
         $categories = [
             'email',
@@ -65,14 +71,18 @@ class SoftwarePlatformController extends Controller
         $this->authorize('update', $platform);
 
         $validated = $request->validate([
+            'code' => ['required', 'string', 'max:100', Rule::unique('software_platforms', 'code')->ignore($platform->id)],
             'name' => 'required|string|max:150',
             'category' => 'nullable|string|max:50',
             'status' => 'required|string|in:active,inactive',
         ]);
 
         // Prevent retirement if active accounts exist
-        if ($validated['status'] === 'inactive' && $platform->accounts()->where('lifecycle_status', 'active')->exists()) {
-            return back()->withErrors(['status' => 'Cannot deactivate platform: Active accounts still depend on this platform.']);
+        $activeAccountsCount = $platform->accounts()->where('lifecycle_status', 'active')->count();
+        if ($validated['status'] === 'inactive' && $activeAccountsCount > 0) {
+            return back()->withErrors([
+                'status' => "Cannot deactivate platform: {$activeAccountsCount} active account(s) are still associated with this platform. Please retire or reassign them first."
+            ]);
         }
 
         $platform->update($validated);
@@ -82,7 +92,7 @@ class SoftwarePlatformController extends Controller
             entityType: 'SoftwarePlatform',
             entityId: $platform->id,
             outcome: 'success',
-            metadata: ['status' => $platform->status],
+            metadata: ['code' => $platform->code, 'name' => $platform->name, 'status' => $platform->status],
             actorUserId: auth()->id()
         );
 

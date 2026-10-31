@@ -25,26 +25,49 @@ class SoftwarePropertyDefinitionPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('digital_asset.property_definition.view') || $user->isAdmin();
+        return $user->can('security_property_definition.view')
+            || $user->can('property_definition.view')
+            || $user->can('security_property.view')
+            || $user->can('digital_asset.property_definition.view')
+            || $user->isAdmin();
     }
 
     public function view(User $user, SoftwarePropertyDefinition $definition): bool
     {
-        return $user->can('digital_asset.property_definition.view') || $user->isAdmin();
+        return $user->can('security_property_definition.view')
+            || $user->can('property_definition.view')
+            || $user->can('security_property.view')
+            || $user->can('digital_asset.property_definition.view')
+            || $user->isAdmin();
     }
 
     public function create(User $user): bool
     {
-        return $user->can('digital_asset.property_definition.create') || $user->isAdmin();
+        return $user->can('security_property_definition.create')
+            || $user->can('property_definition.create')
+            || $user->can('security_property.create')
+            || $user->can('digital_asset.property_definition.create')
+            || $user->isAdmin();
     }
 
     public function update(User $user, SoftwarePropertyDefinition $definition): bool
     {
-        return $user->can('digital_asset.property_definition.update') || $user->isAdmin();
+        return $user->can('security_property_definition.update')
+            || $user->can('security_property_definition.edit')
+            || $user->can('property_definition.update')
+            || $user->can('property_definition.edit')
+            || $user->can('security_property.update')
+            || $user->can('security_property.edit')
+            || $user->can('digital_asset.property_definition.update')
+            || $user->isAdmin();
     }
 
     public function delete(User $user, SoftwarePropertyDefinition $definition): bool
     {
-        return $user->can('digital_asset.property_definition.delete') || $user->isAdmin();
+        return $user->can('security_property_definition.delete')
+            || $user->can('property_definition.delete')
+            || $user->can('security_property.delete')
+            || $user->can('digital_asset.property_definition.delete')
+            || $user->isAdmin();
     }
 }

@@ -212,6 +212,7 @@ Route::middleware(['auth'])->prefix('performance')->group(function () {
 
 
 Route::middleware(['auth'])->prefix('todo')->group(function () {
+    Route::get('/options', [TodoListController::class, 'options'])->name('todo.options');
     Route::get('/', [TodoListController::class, 'index'])->name('todo.index');
     Route::get('/list', [TodoListController::class, 'index'])->name('todo_list');
     Route::get('/dashboard', [TodoListController::class, 'dashboard'])->name('todo.dashboard');
@@ -593,6 +594,7 @@ Route::middleware(['auth'])->prefix('digital-assets')->name('digital-assets.')->
     Route::post('/accounts', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'store'])->name('accounts.store');
     Route::get('/accounts/{account}', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'show'])->name('accounts.show');
     Route::put('/accounts/{account}', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'update'])->name('accounts.update');
+    Route::delete('/accounts/{account}', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'destroy'])->name('accounts.destroy');
     Route::post('/accounts/{account}/properties', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'updateProperty'])->name('accounts.properties.update');
     Route::post('/property-histories/{history}/approve', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'approveProperty'])->name('accounts.properties.approve');
     Route::post('/property-histories/{history}/reject', [\App\Http\Controllers\DigitalAsset\SoftwareAccountController::class, 'rejectProperty'])->name('accounts.properties.reject');
@@ -623,12 +625,17 @@ Route::middleware(['auth'])->prefix('digital-assets')->name('digital-assets.')->
     Route::post('/accounts/{account}/reviews', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'schedule'])->name('reviews.schedule');
     Route::post('/reviews/{review}/start', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'start'])->name('reviews.start');
     Route::post('/reviews/{review}/complete', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'complete'])->name('reviews.complete');
+    Route::post('/reviews/{review}/todos', [\App\Http\Controllers\DigitalAsset\SoftwareAccountReviewController::class, 'createTodo'])->name('reviews.todos.create');
 
     // Devices
     Route::get('/devices', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'index'])->name('devices.index');
     Route::post('/devices', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'store'])->name('devices.store');
+    Route::put('/devices/{device}', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'update'])->name('devices.update');
+    Route::delete('/devices/{device}', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'destroy'])->name('devices.destroy');
     Route::post('/accounts/{account}/devices', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'link'])->name('devices.link');
     Route::post('/account-devices/{link}/verify', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'verifyLink'])->name('devices.verify');
+    Route::delete('/account-devices/{link}', [\App\Http\Controllers\DigitalAsset\SoftwareDeviceController::class, 'unlink'])->name('devices.unlink');
+
 
     // Audit Logs
     Route::get('/audit-logs', [\App\Http\Controllers\DigitalAsset\SoftwareAccountAuditLogController::class, 'index'])->name('audit.index');

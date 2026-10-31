@@ -25,12 +25,12 @@ class SoftwareAccountPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('digital_asset.account.view') || $user->isAdmin();
+        return $user->can('account.view') || $user->can('digital_asset.account.view') || $user->isAdmin();
     }
 
     public function view(User $user, SoftwareAccount $account): bool
     {
-        if ($user->can('digital_asset.account.view') || $user->isAdmin()) {
+        if ($user->can('account.view') || $user->can('digital_asset.account.view') || $user->isAdmin()) {
             return true;
         }
 
@@ -40,12 +40,12 @@ class SoftwareAccountPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('digital_asset.account.create') || $user->isAdmin();
+        return $user->can('account.create') || $user->can('digital_asset.account.create') || $user->isAdmin();
     }
 
     public function update(User $user, SoftwareAccount $account): bool
     {
-        if ($user->can('digital_asset.account.update') || $user->isAdmin()) {
+        if ($user->can('account.edit') || $user->can('account.update') || $user->can('digital_asset.account.update') || $user->isAdmin()) {
             return true;
         }
 
@@ -54,7 +54,7 @@ class SoftwareAccountPolicy
 
     public function delete(User $user, SoftwareAccount $account): bool
     {
-        return $user->can('digital_asset.account.retire') || $user->isAdmin();
+        return $user->can('account.delete') || $user->can('digital_asset.account.delete') || $user->can('digital_asset.account.retire') || $user->isAdmin();
     }
 
     public function managePics(User $user, SoftwareAccount $account): bool

@@ -2,6 +2,7 @@
 
 namespace App\Models\DigitalAsset;
 
+use App\Models\Traits\HasTodoReferences;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SoftwareAccountReview extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTodoReferences;
 
     protected $table = 'software_account_reviews';
 

@@ -26,6 +26,9 @@ class TodoTaskService
         $creator = $creator ?: Auth::user();
         $creatorId = $creator ? $creator->id : null;
         $dueTimeId = $data['selected_due_time_id'] ?? $data['todo_due_time_id'] ?? null;
+        if (!$dueTimeId) {
+            $dueTimeId = TodoDueTime::first()?->id;
+        }
         $dueDate = $data['due_date'] ?? null;
 
         $dueTimeObj = $dueTimeId ? TodoDueTime::with('category')->find($dueTimeId) : null;

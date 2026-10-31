@@ -127,6 +127,37 @@
     html {
         zoom: 0.75;
     }
+
+    /* Fix MUI Popover, Menu and Popper positioning displacement caused by html zoom (0.75 * 1.333333 = 1) */
+    body > .MuiPopover-root,
+    body > .MuiPopper-root {
+        zoom: 1.3333333333333333 !important;
+    }
+
+    body > .MuiPopover-root .MuiPopover-paper > *,
+    body > .MuiPopper-root > * {
+        zoom: 0.75 !important;
+    }
+}
+
+/* Fix MUI Tabs indicator position desynchronization caused by html zoom */
+.MuiTabs-root .MuiTabs-indicator {
+    display: none !important;
+}
+
+.MuiTab-root.Mui-selected {
+    position: relative;
+}
+
+.MuiTab-root.Mui-selected::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 8px;
+    right: 8px;
+    height: 2.5px;
+    background-color: currentColor;
+    border-radius: 2px 2px 0 0;
 }
 
 /* Compact, flat-edged, dark slim scrollbar for Aside Nav (Ultra-thin: 2.5px) */
@@ -168,7 +199,8 @@
 /* Flatpickr Dropdown Positioning & Styling (Ensures alignment and prevents drift under zoom / sticky nav) */
 .flatpickr-wrapper {
     position: relative;
-    display: inline-flex;
+    display: flex;
+    width: 100%;
 }
 
 .flatpickr-calendar.static {

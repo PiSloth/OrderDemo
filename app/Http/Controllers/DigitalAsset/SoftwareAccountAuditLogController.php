@@ -14,7 +14,19 @@ class SoftwareAccountAuditLogController extends Controller
 {
     public function index(Request $request): Response
     {
-        if (!auth()->user()->isSuperUser() && !auth()->user()->isAdmin() && !auth()->user()->can('digital_asset.audit.view')) {
+        $user = auth()->user();
+        $canView = $user->isSuperUser()
+            || $user->isAdmin()
+            || $user->isFromItDepartment()
+            || $user->can('security_audit_trial.view')
+            || $user->can('security_audit_trail.view')
+            || $user->can('security-audit-trial.view')
+            || $user->can('security-audit-trail.view')
+            || $user->can('audit_trail.view')
+            || $user->can('audit.view')
+            || $user->can('digital_asset.audit.view');
+
+        if (!$canView) {
             abort(403, 'Unauthorized. You do not have permission to view security audit logs.');
         }
 

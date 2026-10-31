@@ -19,6 +19,7 @@ class SoftwareAccountPic extends Model
         'user_id',
         'status',
         'assigned_at',
+        'assigned_by',
         'revoked_at',
         'revoked_by',
         'revocation_reason',
@@ -37,6 +38,11 @@ class SoftwareAccountPic extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function assignedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
     }
 
     public function revokedByUser(): BelongsTo

@@ -23,14 +23,17 @@ import {
     DialogContent,
     DialogActions,
     IconButton,
-    Tooltip
+    Tooltip,
+    Alert,
+    Snackbar
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Hub as HubIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Hub as HubIcon, Close as CloseIcon } from '@mui/icons-material';
 
 export default function PlatformsIndex({ platforms = [], categories = [] }) {
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedPlatform, setSelectedPlatform] = useState(null);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     const [createFormData, setCreateFormData] = useState({
         code: '',
@@ -40,6 +43,7 @@ export default function PlatformsIndex({ platforms = [], categories = [] }) {
     });
 
     const [editFormData, setEditFormData] = useState({
+        code: '',
         name: '',
         category: 'cloud',
         status: 'active',
@@ -51,6 +55,11 @@ export default function PlatformsIndex({ platforms = [], categories = [] }) {
             onSuccess: () => {
                 setCreateModalOpen(false);
                 setCreateFormData({ code: '', name: '', category: 'cloud', status: 'active' });
+                setSnackbar({ open: true, message: 'Platform created successfully.', severity: 'success' });
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors)[0] || 'Failed to create platform.';
+                setSnackbar({ open: true, message: msg, severity: 'error' });
             }
         });
     };
@@ -58,6 +67,7 @@ export default function PlatformsIndex({ platforms = [], categories = [] }) {
     const openEdit = (platform) => {
         setSelectedPlatform(platform);
         setEditFormData({
+            code: platform.code || '',
             name: platform.name || '',
             category: platform.category || 'other',
             status: platform.status || 'active',
@@ -72,6 +82,11 @@ export default function PlatformsIndex({ platforms = [], categories = [] }) {
             onSuccess: () => {
                 setEditModalOpen(false);
                 setSelectedPlatform(null);
+                setSnackbar({ open: true, message: 'Platform updated successfully.', severity: 'success' });
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors)[0] || 'Failed to update platform.';
+                setSnackbar({ open: true, message: msg, severity: 'error' });
             }
         });
     };
@@ -120,7 +135,12 @@ export default function PlatformsIndex({ platforms = [], categories = [] }) {
                                     <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
                                     <TableCell><Chip size="small" label={p.category || 'Other'} variant="outlined" /></TableCell>
                                     <TableCell>
-                                        <Chip size="small" color="primary" label={`${p.accounts_count || 0} Accounts`} />
+                                        <Chip
+                                            size="small"
+                                            color={(p.active_accounts_count ?? p.accounts_count ?? 0) > 0 ? "primary" : "default"}
+                                            label={`${p.active_accounts_count ?? p.accounts_count ?? 0} Accounts`}
+                                            variant={(p.active_accounts_count ?? p.accounts_count ?? 0) > 0 ? "filled" : "outlined"}
+                                        />
                                     </TableCell>
                                     <TableCell>
                                         <Chip
@@ -203,57 +223,108 @@ export default function PlatformsIndex({ platforms = [], categories = [] }) {
             </Dialog>
 
             {/* Modal: Edit Platform */}
-            <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} maxWidth="sm" fullWidth>
-                <form onSubmit={handleUpdate}>
-                    <DialogTitle sx={{ fontWeight: 700 }}>
-                        Edit Platform: {selectedPlatform?.code}
-                    </DialogTitle>
-                    <DialogContent dividers>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                            <TextField
-                                disabled
-                                fullWidth
-                                label="Platform Code"
-                                value={selectedPlatform?.code || ''}
-                                helperText="Platform code cannot be changed once created"
-                            />
-                            <TextField
-                                required
-                                fullWidth
-                                label="Platform Name"
-                                value={editFormData.name}
-                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                            />
-                            <TextField
-                                select
-                                fullWidth
-                                label="Category"
-                                value={editFormData.category}
-                                onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
-                            >
-                                {categories.map((c) => (
-                                    <MenuItem key={c} value={c}>{c}</MenuItem>
-                                ))}
-                            </TextField>
-                            <TextField
-                                select
-                                fullWidth
-                                label="Status"
-                                value={editFormData.status}
-                                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                                helperText="Platforms with active accounts cannot be deactivated"
-                            >
-                                <MenuItem value="active">Active</MenuItem>
-                                <MenuItem value="inactive">Inactive</MenuItem>
-                            </TextField>
-                        </Box>
-                    </DialogContent>
-                    <DialogActions sx={{ p: 2 }}>
-                        <Button onClick={() => setEditModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" variant="contained" color="primary">Save Changes</Button>
-                    </DialogActions>
-                </form>
-            </Dialog>
+            {(() => {
+                const activeCount = selectedPlatform?.active_accounts_count ?? selectedPlatform?.accounts_count ?? 0;
+                const hasActiveAccounts = activeCount > 0;
+
+                return (
+                    <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} maxWidth="sm" fullWidth>
+                        <form onSubmit={handleUpdate}>
+                            <DialogTitle sx={{ fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <EditIcon color="primary" />
+                                    <span>Edit Platform: {selectedPlatform?.name || selectedPlatform?.code}</span>
+                                </Box>
+                                <IconButton size="small" onClick={() => setEditModalOpen(false)}>
+                                    <CloseIcon fontSize="small" />
+                                </IconButton>
+                            </DialogTitle>
+                            <DialogContent dividers>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
+                                    {hasActiveAccounts && (
+                                        <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                                            This platform currently has <strong>{activeCount} active account(s)</strong>. It cannot be set to <strong>Inactive</strong> until all active accounts are retired or reassigned.
+                                        </Alert>
+                                    )}
+
+                                    <TextField
+                                        required
+                                        fullWidth
+                                        label="Platform Code (lowercase, snake_case)"
+                                        placeholder="e.g. google_workspace, github_org, aws_iam"
+                                        value={editFormData.code}
+                                        onChange={(e) => setEditFormData({ ...editFormData, code: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                                        helperText="Unique system identifier code for this platform"
+                                    />
+                                    <TextField
+                                        required
+                                        fullWidth
+                                        label="Platform Name"
+                                        placeholder="e.g. Google Workspace, GitHub"
+                                        value={editFormData.name}
+                                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                        helperText="Display name shown in lists and catalogs"
+                                    />
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        label="Category"
+                                        value={editFormData.category}
+                                        onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                                    >
+                                        {categories.map((c) => (
+                                            <MenuItem key={c} value={c}>{c}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        label="Status"
+                                        value={editFormData.status}
+                                        onChange={(e) => {
+                                            if (e.target.value === 'inactive' && hasActiveAccounts) {
+                                                return;
+                                            }
+                                            setEditFormData({ ...editFormData, status: e.target.value });
+                                        }}
+                                        helperText={
+                                            hasActiveAccounts
+                                                ? "Deactivation blocked: Active accounts are currently assigned to this platform."
+                                                : "Active platforms are available when registering new software accounts."
+                                        }
+                                    >
+                                        <MenuItem value="active">Active</MenuItem>
+                                        <MenuItem value="inactive" disabled={hasActiveAccounts}>
+                                            Inactive {hasActiveAccounts ? '(Disabled — Active Accounts Exist)' : ''}
+                                        </MenuItem>
+                                    </TextField>
+                                </Box>
+                            </DialogContent>
+                            <DialogActions sx={{ p: 2 }}>
+                                <Button onClick={() => setEditModalOpen(false)}>Cancel</Button>
+                                <Button type="submit" variant="contained" color="primary">Save Changes</Button>
+                            </DialogActions>
+                        </form>
+                    </Dialog>
+                );
+            })()}
+
+            {/* Notification Snackbar */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={5000}
+                onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+                    severity={snackbar.severity}
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </AsideLayout>
     );
 }

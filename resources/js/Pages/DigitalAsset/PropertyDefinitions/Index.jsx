@@ -29,7 +29,13 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 
-export default function PropertyDefinitionsIndex({ definitions = [], platforms = [], supportedDataTypes = [] }) {
+export default function PropertyDefinitionsIndex({
+    definitions = [],
+    platforms = [],
+    supportedDataTypes = [],
+    canCreate = false,
+    canUpdate = false
+}) {
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedDefinition, setSelectedDefinition] = useState(null);
@@ -142,14 +148,16 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
                         Configure extensible platform-specific and global security properties without database migrations.
                     </Typography>
                 </Box>
-                <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => setCreateModalOpen(true)}
-                    sx={{ textTransform: 'none', borderRadius: 2 }}
-                >
-                    Define Property
-                </Button>
+                {canCreate && (
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => setCreateModalOpen(true)}
+                        sx={{ textTransform: 'none', borderRadius: 2 }}
+                    >
+                        Define Property
+                    </Button>
+                )}
             </Box>
 
             <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 1 }}>
@@ -200,11 +208,15 @@ export default function PropertyDefinitionsIndex({ definitions = [], platforms =
                                         />
                                     </TableCell>
                                     <TableCell align="right">
-                                        <Tooltip title="Edit Property Definition">
-                                            <IconButton size="small" color="primary" onClick={() => openEdit(def)}>
-                                                <EditIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
+                                        {canUpdate ? (
+                                            <Tooltip title="Edit Property Definition">
+                                                <IconButton size="small" color="primary" onClick={() => openEdit(def)}>
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        ) : (
+                                            <Typography variant="caption" color="text.secondary">—</Typography>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))
