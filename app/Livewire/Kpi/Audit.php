@@ -337,7 +337,16 @@ class Audit extends Component
 
         $holiday = $holidayMap->get($dateKey);
         $dayRequest = $exclusionMaps['day'][$dateKey] ?? null;
-        $taskRequest = $exclusionMaps['task'][$assignment->id][$dateKey] ?? null;
+        $taskRequest = $assignment->id ? ($exclusionMaps['task'][$assignment->id][$dateKey] ?? null) : null;
+        if (!$taskRequest && $assignment->task_template_id) {
+            foreach ($exclusionMaps['requests'] ?? [] as $req) {
+                if ($req->request_type === 'task' && $req->requested_date?->toDateString() === $dateKey && $req->assignment?->task_template_id == $assignment->task_template_id) {
+                    $taskRequest = $req;
+                    break;
+                }
+            }
+        }
+        $isExclusion = (bool) ($holiday || $dayRequest || $taskRequest);
 
         $markers = $instances
             ->map(fn(KpiTaskInstance $instance) => $this->markerForInstanceOnDate($instance, $dateKey))
@@ -349,16 +358,20 @@ class Audit extends Component
                 'date' => $dateKey,
                 'markers' => $markers,
                 'label' => null,
-                'classes' => $this->defaultCellClasses($assignment, $day, false),
+                'classes' => $isExclusion
+                    ? 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                    : $this->defaultCellClasses($assignment, $day, false),
+                'exclusion_label' => $isExclusion ? ($holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion')) : null,
             ];
         }
 
-        if ($holiday || $dayRequest || $taskRequest) {
+        if ($isExclusion) {
             return [
                 'date' => $dateKey,
                 'markers' => collect(),
                 'label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
                 'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+                'exclusion_label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
             ];
         }
 
@@ -542,7 +555,7 @@ class Audit extends Component
                 continue;
             }
 
-            if (str_contains((string) $cell['classes'], 'bg-slate-200')) {
+            if ($cell['markers']->isEmpty() && str_contains((string) $cell['classes'], 'bg-slate-200')) {
                 $excluded++;
                 continue;
             }
@@ -590,7 +603,7 @@ class Audit extends Component
             'excluded' => $excluded,
             'pending' => $pending,
             'must_do' => $mustDo,
-            'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
+            'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0),
         ];
     }
 
@@ -617,7 +630,7 @@ class Audit extends Component
                     'pending' => $pending,
                     'excluded' => $excluded,
                     'must_do' => $mustDo,
-                    'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
+                    'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0),
                     'template_total_count' => $templateTotalCount,
                     'template_pass_count' => $templatePassCount,
                     'all_templates_pass' => $allTemplatesPass,
@@ -628,6 +641,7 @@ class Audit extends Component
                     ? $ruleEvaluator->evaluateGroup($summary['group'], [
                         'pass_rate' => $summary['percentage'],
                         'failed_count' => $summary['failed'],
+                        'must_do' => $summary['must_do'],
                         'total_spend_cost' => 0,
                     ])
                     : $ruleEvaluator->evaluateRule(null, []);
@@ -648,6 +662,7 @@ class Audit extends Component
         return [
             'pass_rate' => (float) ($summary['percentage'] ?? 0),
             'failed_count' => (int) ($summary['failed'] ?? 0),
+            'must_do' => (int) ($summary['must_do'] ?? 0),
             'total_spend_cost' => 0,
         ];
     }

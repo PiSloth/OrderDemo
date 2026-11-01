@@ -55,7 +55,9 @@ class KpiRuleEvaluationService
             ),
             default => $this->evaluatePassPercentage(
                 (float) ($metrics['pass_rate'] ?? 0),
-                $targetPercentage
+                $targetPercentage,
+                isset($metrics['must_do']) ? (int) $metrics['must_do'] : null,
+                (int) ($metrics['failed_count'] ?? 0)
             ),
         } + ['rule_type' => $ruleType];
     }
@@ -73,16 +75,21 @@ class KpiRuleEvaluationService
         ];
     }
 
-    protected function evaluatePassPercentage(float $actual, ?float $target): array
-    {
+    protected function evaluatePassPercentage(
+        float $actual,
+        ?float $target,
+        ?int $mustDo = null,
+        int $failedCount = 0
+    ): array {
         $target = $target ?? 0;
+        $passes = ($mustDo === 0 && $failedCount === 0) ? true : ($actual >= $target);
 
         return [
             'target_value' => $target,
             'actual_value' => $actual,
             'target_display' => number_format($target, 2) . '%',
             'actual_display' => number_format($actual, 2) . '%',
-            'passes_rule' => $actual >= $target,
+            'passes_rule' => $passes,
             'summary' => number_format($actual, 2) . '% / ' . number_format($target, 2) . '%',
         ];
     }

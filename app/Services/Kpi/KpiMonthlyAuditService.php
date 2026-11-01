@@ -40,7 +40,8 @@ class KpiMonthlyAuditService
 
         $mustDo = $rows->sum(fn ($r) => (int) ($r['summary']['must_do'] ?? 0));
         $passed = $rows->sum(fn ($r) => (int) ($r['summary']['passed'] ?? 0));
-        $percentage = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0;
+        $failed = $rows->sum(fn ($r) => (int) ($r['summary']['failed'] ?? 0));
+        $percentage = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0);
 
         $overall = [
             'must_do_count' => $mustDo,
@@ -239,6 +240,7 @@ class KpiMonthlyAuditService
             $ruleEvaluation = $this->ruleEvaluator->evaluateTemplate($template?->rule, [
                 'pass_rate' => (float) ($summary['percentage'] ?? 0),
                 'failed_count' => (int) ($summary['failed'] ?? 0),
+                'must_do' => (int) ($summary['must_do'] ?? 0),
                 'total_spend_cost' => 0,
             ]);
 
@@ -330,7 +332,7 @@ class KpiMonthlyAuditService
                     'pending' => $pending,
                     'excluded' => $excluded,
                     'must_do' => $mustDo,
-                    'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
+                    'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0),
                     'template_total_count' => $templateTotalCount,
                     'template_pass_count' => $templatePassCount,
                     'all_templates_pass' => $allTemplatesPass,
@@ -342,6 +344,7 @@ class KpiMonthlyAuditService
                     ? $this->ruleEvaluator->evaluateGroup($groupModel, [
                         'pass_rate' => $summary['percentage'],
                         'failed_count' => $summary['failed'],
+                        'must_do' => $summary['must_do'],
                         'total_spend_cost' => 0,
                     ])
                     : $this->ruleEvaluator->evaluateRule(null, []);
@@ -372,12 +375,13 @@ class KpiMonthlyAuditService
                 $passed = $groupRows->sum(fn ($r) => (int) ($r['summary']['passed'] ?? 0));
                 $failed = $groupRows->sum(fn ($r) => (int) ($r['summary']['failed'] ?? 0));
                 $mustDo = $groupRows->sum(fn ($r) => (int) ($r['summary']['must_do'] ?? 0));
-                $score = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0;
+                $score = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0);
 
                 $groupEvaluation = $groupModel
                     ? $this->ruleEvaluator->evaluateGroup($groupModel, [
                         'pass_rate' => $score,
                         'failed_count' => $failed,
+                        'must_do' => $mustDo,
                         'total_spend_cost' => 0,
                     ])
                     : $this->ruleEvaluator->evaluateRule(null, []);
@@ -468,7 +472,9 @@ class KpiMonthlyAuditService
                 'date' => $dateKey,
                 'markers' => $markers->all(),
                 'label' => null,
-                'classes' => $this->defaultCellClasses($assignment, $day, false),
+                'classes' => $isExclusion
+                    ? 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                    : $this->defaultCellClasses($assignment, $day, false),
                 'exclusion_label' => $isExclusion ? ($holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion')) : null,
             ];
         }
@@ -773,7 +779,7 @@ class KpiMonthlyAuditService
             'excluded' => $excluded,
             'pending' => $pending,
             'must_do' => $mustDo,
-            'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
+            'percentage' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0),
         ];
     }
 

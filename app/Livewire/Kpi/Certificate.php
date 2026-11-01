@@ -136,6 +136,7 @@ class Certificate extends Component
             $ruleEvaluation = $ruleEvaluator->evaluateTemplate($assignment->template?->rule, [
                 'pass_rate' => $summary['score'],
                 'failed_count' => $summary['late_count'] + $summary['absent_count'],
+                'must_do' => $summary['must_do_count'],
                 'total_spend_cost' => 0,
             ]);
 
@@ -160,12 +161,13 @@ class Certificate extends Component
                 $mustDo = $rows->sum('summary.must_do_count');
                 $lateCount = $rows->sum('summary.late_count');
                 $absentCount = $rows->sum('summary.absent_count');
-                $score = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0;
+                $score = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : (($lateCount + $absentCount) === 0 ? 100 : 0);
 
                 $groupEvaluation = $group
                     ? $ruleEvaluator->evaluateGroup($group, [
                         'pass_rate' => $score,
                         'failed_count' => $lateCount + $absentCount,
+                        'must_do' => $mustDo,
                         'total_spend_cost' => 0,
                     ])
                     : $ruleEvaluator->evaluateRule(null, []);
@@ -246,7 +248,7 @@ class Certificate extends Component
                 continue;
             }
 
-            if (str_contains((string) $cell['classes'], 'bg-slate-200')) {
+            if ($cell['markers']->isEmpty() && str_contains((string) $cell['classes'], 'bg-slate-200')) {
                 $excluded++;
                 continue;
             }
@@ -295,7 +297,7 @@ class Certificate extends Component
             'excluded_count' => $excluded,
             'pending_count' => $pending,
             'must_do_count' => $mustDo,
-            'score' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
+            'score' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0),
         ];
     }
 
@@ -455,7 +457,8 @@ class Certificate extends Component
     {
         $mustDo = $groups->sum('summary.must_do_count');
         $passed = $groups->sum('summary.passed_count');
-        $percentage = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0;
+        $failed = $groups->sum(fn ($g) => (int) (($g['summary']['late_count'] ?? 0) + ($g['summary']['absent_count'] ?? 0)));
+        $percentage = $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : ($failed === 0 ? 100 : 0);
 
         return [
             'must_do_count' => $mustDo,

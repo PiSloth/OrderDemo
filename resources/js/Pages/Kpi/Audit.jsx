@@ -1,11 +1,35 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import KpiLayout from '../../Layouts/KpiLayout';
 import AuditDetailModal from './Components/AuditDetailModal';
 import SearchableUserSelect from './Components/SearchableUserSelect';
 import ExclusionRequestModal from './Components/ExclusionRequestModal';
 import InboxModal from './Components/InboxModal';
 import TemplateEditModal from './Components/TemplateEditModal';
+
+export const checkNeedsMyApproval = (marker, authUserId, canApproveTasks) => {
+    if (!canApproveTasks || !authUserId || !marker?.instance) return false;
+    const instance = marker.instance;
+    const latestSubmission = instance.latest_submission;
+    if (!latestSubmission) return false;
+    const approvalSteps = latestSubmission.approval_steps || [];
+    if (!approvalSteps.length) return false;
+
+    const sortedSteps = [...approvalSteps].sort((a, b) => {
+        const orderA = Number(a.step_order ?? a.step ?? 0);
+        const orderB = Number(b.step_order ?? b.step ?? 0);
+        return orderA - orderB;
+    });
+
+    const myStepIndex = sortedSteps.findIndex(
+        (s) => s.status === 'pending' && String(s.approver_user_id) === String(authUserId)
+    );
+    if (myStepIndex === -1) return false;
+
+    const isBlockedByPrior = sortedSteps.slice(0, myStepIndex).some((s) => s.status !== 'approved');
+    return !isBlockedByPrior;
+};
 
 export default function Audit({
     month,
@@ -33,6 +57,7 @@ export default function Audit({
     const [taskSearch, setTaskSearch] = useState('');
     const [selectedInstanceId, setSelectedInstanceId] = useState(null);
     const [markerTypeFilter, setMarkerTypeFilter] = useState(null); // scoped type for navigation
+    const [onlyMyApprovals, setOnlyMyApprovals] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
@@ -150,11 +175,19 @@ export default function Audit({
         return counts;
     }, [allMarkersFlat]);
 
-    // Navigation list scoped to current type filter (null = all)
+    // Count of tasks currently waiting for my approval
+    const myPendingApprovalCount = useMemo(() => {
+        return allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks)).length;
+    }, [allMarkersFlat, authUserId, canApproveTasks]);
+
+    // Navigation list scoped to current type filter or my approvals (null = all)
     const scopedMarkers = useMemo(() => {
+        if (onlyMyApprovals) {
+            return allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks));
+        }
         if (!markerTypeFilter) return allMarkersFlat;
         return allMarkersFlat.filter((m) => m.type === markerTypeFilter);
-    }, [allMarkersFlat, markerTypeFilter]);
+    }, [allMarkersFlat, markerTypeFilter, onlyMyApprovals, authUserId, canApproveTasks]);
 
     // Find active marker by selectedInstanceId (resilient across data reloads)
     const selectedMarker = useMemo(() => {
@@ -285,7 +318,7 @@ export default function Audit({
 
         const isInScoped = scopedMarkers.some((m) => m.instance?.id === selectedInstanceId);
 
-        if (!isInScoped && markerTypeFilter) {
+        if (!isInScoped && (markerTypeFilter || onlyMyApprovals)) {
             if (scopedMarkers.length > 0) {
                 const targetIdx = Math.min(currentIndex ?? 0, scopedMarkers.length - 1);
                 const nextMarker = scopedMarkers[targetIdx >= 0 ? targetIdx : 0];
@@ -296,15 +329,17 @@ export default function Audit({
                 setIsModalOpen(false);
                 setSelectedInstanceId(null);
                 setMarkerTypeFilter(null);
+                setOnlyMyApprovals(false);
                 if (typeof document !== 'undefined') {
                     document.body.style.overflow = '';
                 }
             }
         }
-    }, [scopedMarkers, isModalOpen, selectedInstanceId, markerTypeFilter, currentIndex]);
+    }, [scopedMarkers, isModalOpen, selectedInstanceId, markerTypeFilter, onlyMyApprovals, currentIndex]);
 
     const handleOpenMarker = (marker) => {
         if (!marker || !marker.instance) return;
+        setOnlyMyApprovals(false);
         setMarkerTypeFilter(marker.type);
         setSelectedInstanceId(marker.instance.id);
         setIsModalOpen(true);
@@ -322,6 +357,7 @@ export default function Audit({
     };
 
     const handleTypeFilterChange = (type) => {
+        setOnlyMyApprovals(false);
         setMarkerTypeFilter(type);
         const scoped = type ? allMarkersFlat.filter((m) => m.type === type) : allMarkersFlat;
         if (scoped.length > 0) {
@@ -329,10 +365,28 @@ export default function Audit({
         }
     };
 
+    const handleToggleOnlyMyApproval = (enabled) => {
+        if (enabled) {
+            const myApprovals = allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks));
+            if (myApprovals.length === 0) {
+                toast('No tasks currently require your approval in this period.', { icon: 'ℹ️' });
+                return;
+            }
+            setOnlyMyApprovals(true);
+            const alreadyIn = myApprovals.some((m) => m.instance?.id === selectedInstanceId);
+            if (!alreadyIn) {
+                setSelectedInstanceId(myApprovals[0].instance?.id || null);
+            }
+        } else {
+            setOnlyMyApprovals(false);
+        }
+    };
+
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedInstanceId(null);
         setMarkerTypeFilter(null);
+        setOnlyMyApprovals(false);
         if (typeof document !== 'undefined') {
             document.body.style.overflow = '';
         }
@@ -432,6 +486,29 @@ export default function Audit({
                                         {pendingExclusionsCount > 99 ? '99+' : pendingExclusionsCount}
                                     </span>
                                 )}
+                            </button>
+                        )}
+
+                        {/* ── Needs My Approval quick filter button (approvers only) ── */}
+                        {canApproveTasks && myPendingApprovalCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const myApprovals = allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks));
+                                    if (myApprovals.length > 0) {
+                                        setOnlyMyApprovals(true);
+                                        setSelectedInstanceId(myApprovals[0].instance.id);
+                                        setIsModalOpen(true);
+                                    }
+                                }}
+                                className="relative flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                                title="Review tasks waiting for your approval"
+                            >
+                                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                                <span>To Approve</span>
+                                <span className="px-1.5 py-0.5 rounded-full bg-black/20 text-white text-[10px] font-bold">
+                                    {myPendingApprovalCount}
+                                </span>
                             </button>
                         )}
                     </div>
@@ -631,7 +708,7 @@ export default function Audit({
                                                                 ))}
                                                                 {cell.exclusion_label && (
                                                                     <span
-                                                                        className="text-[8px] leading-none font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter"
+                                                                        className="text-[8px] leading-none font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter"
                                                                         title={cell.exclusion_label}
                                                                     >
                                                                         excl
@@ -752,6 +829,9 @@ export default function Audit({
                     isSuperAdmin={isSuperAdmin}
                     canApproveTasks={canApproveTasks}
                     authUserId={authUserId}
+                    onlyMyApprovals={onlyMyApprovals}
+                    myPendingApprovalCount={myPendingApprovalCount}
+                    onToggleOnlyMyApproval={handleToggleOnlyMyApproval}
                 />
 
                 {/* Exclusion / Holiday Request Modal */}

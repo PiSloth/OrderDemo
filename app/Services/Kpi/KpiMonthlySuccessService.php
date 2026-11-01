@@ -67,7 +67,7 @@ class KpiMonthlySuccessService
             'absent_count' => $absent,
             'excluded_count' => $excluded,
             'pending_count' => $pending,
-            'score' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : 0,
+            'score' => $mustDo > 0 ? round(($passed / $mustDo) * 100, 2) : (($late + $absent) === 0 ? 100 : 0),
         ];
     }
 

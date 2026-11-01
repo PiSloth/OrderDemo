@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePage, Link } from '@inertiajs/react';
+import { Toaster } from 'react-hot-toast';
 import AsideLayout from './AsideLayout';
 import { PanelLeftOpen } from 'lucide-react';
 
@@ -161,6 +162,7 @@ export default function KpiLayout({ children, title }) {
                     <main className="flex-1 p-6">{children}</main>
                 </div>
             </div>
+            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         </AsideLayout>
     );
 }

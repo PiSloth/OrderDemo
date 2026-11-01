@@ -87,6 +87,9 @@ export default function AuditDetailModal({
     markerTypeFilter = null,
     markerTypeCounts = {},
     onTypeFilterChange,
+    onlyMyApprovals = false,
+    myPendingApprovalCount = 0,
+    onToggleOnlyMyApproval,
 }) {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
     const [rejectRemark, setRejectRemark] = useState('');
@@ -209,8 +212,8 @@ export default function AuditDetailModal({
                     onClick={(e) => e.stopPropagation()}
                 >
 
-                    {/* ── Status type filter pills ── */}
-                    {Object.keys(markerTypeCounts).length > 0 && (() => {
+                    {/* ── Status type filter pills & My Approval check button ── */}
+                    {(Object.keys(markerTypeCounts).length > 0 || canApproveTasks) && (() => {
                         const typeMeta = {
                             pending: { label: 'Needs Approval', color: 'amber', icon: '•' },
                             approved: { label: 'Approved', color: 'emerald', icon: '✓' },
@@ -225,27 +228,64 @@ export default function AuditDetailModal({
                             orange: { active: 'bg-orange-500 text-white border-orange-500', inactive: 'border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30' },
                         };
                         return (
-                            <div className="px-5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 flex-wrap flex-shrink-0">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-1">View:</span>
-                                {Object.entries(markerTypeCounts).map(([type, count]) => {
-                                    const meta = typeMeta[type] || { label: type, color: 'amber', icon: '•' };
-                                    const colors = colorMap[meta.color] || colorMap.amber;
-                                    const isActive = markerTypeFilter === type;
-                                    return (
-                                        <button
-                                            key={type}
-                                            type="button"
-                                            onClick={() => onTypeFilterChange?.(type)}
-                                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${isActive ? colors.active : `bg-white dark:bg-slate-900 ${colors.inactive}`}`}
+                            <div className="px-5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-2 flex-wrap flex-shrink-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-1">View:</span>
+                                    {Object.entries(markerTypeCounts).map(([type, count]) => {
+                                        const meta = typeMeta[type] || { label: type, color: 'amber', icon: '•' };
+                                        const colors = colorMap[meta.color] || colorMap.amber;
+                                        const isActive = !onlyMyApprovals && markerTypeFilter === type;
+                                        return (
+                                            <button
+                                                key={type}
+                                                type="button"
+                                                onClick={() => onTypeFilterChange?.(type)}
+                                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${isActive ? colors.active : `bg-white dark:bg-slate-900 ${colors.inactive}`}`}
+                                            >
+                                                <span>{meta.icon}</span>
+                                                <span>{meta.label}</span>
+                                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                                                    {count}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {canApproveTasks && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onToggleOnlyMyApproval?.(!onlyMyApprovals)}
+                                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer shadow-xs ${
+                                            onlyMyApprovals
+                                                ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/20 ring-2 ring-amber-400/40'
+                                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-amber-400 hover:text-amber-600 dark:hover:text-amber-400'
+                                        }`}
+                                        title="Show only tasks that need my approval"
+                                    >
+                                        <span
+                                            className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] font-black transition ${
+                                                onlyMyApprovals
+                                                    ? 'bg-white text-amber-600 border-white'
+                                                    : 'border-slate-400 dark:border-slate-500 bg-transparent text-transparent'
+                                            }`}
                                         >
-                                            <span>{meta.icon}</span>
-                                            <span>{meta.label}</span>
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                                {count}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
+                                            ✓
+                                        </span>
+                                        <span>Need My Approval</span>
+                                        <span
+                                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                                onlyMyApprovals
+                                                    ? 'bg-white/30 text-white'
+                                                    : myPendingApprovalCount > 0
+                                                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                            }`}
+                                        >
+                                            {myPendingApprovalCount}
+                                        </span>
+                                    </button>
+                                )}
                             </div>
                         );
                     })()}
@@ -275,6 +315,11 @@ export default function AuditDetailModal({
                         </div>
 
                         <div className="flex items-center gap-2">
+                            {onlyMyApprovals && (
+                                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-md px-2 py-1 mr-1">
+                                    <span>My Approval Queue</span>
+                                </span>
+                            )}
                             {/* Prev / Next navigation */}
                             {totalCount > 1 && (
                                 <div className="flex items-center gap-1 mr-2">
