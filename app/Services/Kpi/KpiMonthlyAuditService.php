@@ -461,41 +461,25 @@ class KpiMonthlyAuditService
             ->filter()
             ->values();
 
-        if ($isExclusion) {
-            $approvedMarker = $markers->first(fn ($m) => $m['type'] === 'approved');
-            if ($approvedMarker) {
-                return [
-                    'date' => $dateKey,
-                    'markers' => [$approvedMarker],
-                    'label' => null,
-                    'classes' => $this->defaultCellClasses($assignment, $day, false),
-                ];
-            }
-
-            return [
-                'date' => $dateKey,
-                'markers' => [],
-                'label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
-                'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
-            ];
-        }
-
+        // If generated task instances exist on this date, always preserve and display their markers
+        // so approvers and users can view, inspect, and approve them.
         if ($markers->isNotEmpty()) {
-            $hasExcludedOnly = $markers->every(fn ($m) => $m['type'] === 'excluded');
-            if ($hasExcludedOnly) {
-                return [
-                    'date' => $dateKey,
-                    'markers' => [],
-                    'label' => 'Exclusion',
-                    'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
-                ];
-            }
-
             return [
                 'date' => $dateKey,
                 'markers' => $markers->all(),
                 'label' => null,
                 'classes' => $this->defaultCellClasses($assignment, $day, false),
+                'exclusion_label' => $isExclusion ? ($holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion')) : null,
+            ];
+        }
+
+        if ($isExclusion) {
+            return [
+                'date' => $dateKey,
+                'markers' => [],
+                'label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
+                'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+                'exclusion_label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
             ];
         }
 
@@ -558,6 +542,15 @@ class KpiMonthlyAuditService
         }
 
         if ($status === 'excluded') {
+            if ($instance->latestSubmission && $instance->latestSubmission->approvalSteps->contains(fn ($s) => $s->status === 'pending')) {
+                return [
+                    'type' => 'pending',
+                    'label' => 'Pending Approval',
+                    'classes' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                    'instance' => $this->serializeInstance($instance),
+                ];
+            }
+
             return [
                 'type' => 'excluded',
                 'label' => 'Excluded',
@@ -719,7 +712,7 @@ class KpiMonthlyAuditService
                 continue;
             }
 
-            if (str_contains((string) $cell['classes'], 'bg-slate-200') || in_array((string) $cell['label'], ['Day exclusion', 'Task exclusion', 'Exclusion'], true)) {
+            if (empty($cell['markers']) && (str_contains((string) $cell['classes'], 'bg-slate-200') || in_array((string) $cell['label'], ['Day exclusion', 'Task exclusion', 'Exclusion'], true))) {
                 $excluded++;
                 continue;
             }

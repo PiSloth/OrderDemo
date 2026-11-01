@@ -107,7 +107,8 @@ export default function AuditDetailModal({
         )
         : null;
 
-    const isWaitingApproval = ['waiting_first_approval', 'waiting_final_approval'].includes(instance.status);
+    const isWaitingApproval = ['waiting_first_approval', 'waiting_final_approval'].includes(instance.status)
+        || approvalSteps.some((s) => s.status === 'pending');
     const showApproveBar = !!(myPendingStep && isWaitingApproval);
 
     const { data, setData, post, processing, errors } = useForm({

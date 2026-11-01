@@ -142,7 +142,7 @@ class KpiAvailabilityService
             return;
         }
 
-        if (in_array($instance->status, ['passed', 'failed_late'], true)) {
+        if (in_array($instance->status, ['passed', 'failed_late', 'waiting_first_approval', 'waiting_final_approval'], true)) {
             return;
         }
 
@@ -213,7 +213,7 @@ class KpiAvailabilityService
     protected function excludeOpenInstances(Builder $query, string $reason): void
     {
         $query
-            ->whereNotIn('status', ['passed', 'failed_late'])
+            ->whereNotIn('status', ['passed', 'failed_late', 'waiting_first_approval', 'waiting_final_approval'])
             ->get()
             ->each(fn(KpiTaskInstance $instance) => $this->excludeInstance($instance, $reason));
     }

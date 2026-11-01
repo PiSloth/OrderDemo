@@ -618,17 +618,25 @@ export default function Audit({
                                                         } ${cell.classes}`}
                                                     >
                                                         {cell.markers && cell.markers.length > 0 ? (
-                                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                            <div className="flex flex-col items-center justify-center gap-0.5">
                                                                 {cell.markers.map((m, mIdx) => (
                                                                     <button
                                                                         key={mIdx}
                                                                         onClick={() => handleOpenMarker(m)}
                                                                         className={`w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center shadow-xs transition hover:scale-110 cursor-pointer ${m.classes}`}
-                                                                        title={`${m.label} (${d.dayName} ${d.dayNum}) - Click to inspect`}
+                                                                        title={`${m.label} (${d.dayName} ${d.dayNum})${cell.exclusion_label ? ` [${cell.exclusion_label}]` : ''} - Click to inspect`}
                                                                     >
                                                                         {m.type === 'approved' ? '✓' : m.type === 'failed' ? '✕' : m.type === 'rejected' ? '!' : '•'}
                                                                     </button>
                                                                 ))}
+                                                                {cell.exclusion_label && (
+                                                                    <span
+                                                                        className="text-[8px] leading-none font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter"
+                                                                        title={cell.exclusion_label}
+                                                                    >
+                                                                        excl
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         ) : (
                                                             <span className="text-[10px] text-slate-400 font-mono">

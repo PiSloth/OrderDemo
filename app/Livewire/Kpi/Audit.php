@@ -344,13 +344,20 @@ class Audit extends Component
             ->filter()
             ->values();
 
-        if ($holiday || $dayRequest || $taskRequest) {
+        if ($markers->isNotEmpty()) {
             return [
                 'date' => $dateKey,
                 'markers' => $markers,
-                'label' => $markers->isEmpty()
-                    ? ($holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'))
-                    : null,
+                'label' => null,
+                'classes' => $this->defaultCellClasses($assignment, $day, false),
+            ];
+        }
+
+        if ($holiday || $dayRequest || $taskRequest) {
+            return [
+                'date' => $dateKey,
+                'markers' => collect(),
+                'label' => $holiday?->name ?? ($dayRequest ? 'Day exclusion' : 'Task exclusion'),
                 'classes' => 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
             ];
         }

@@ -62,6 +62,7 @@ export default function AsideLayout({
     title, 
     headerActions, 
     hideTopNav = false,
+    hideFloatingTrigger = false,
     noPadding = false,
     sidebarOpen: externalSidebarOpen,
     onToggleSidebar: externalOnToggleSidebar 
@@ -324,7 +325,7 @@ export default function AsideLayout({
             )}
 
             {/* Left Margin Sticky Floating Sidebar Trigger (Obsidian & Gold Luxury Tab) */}
-            {hideTopNav && (
+            {hideTopNav && !hideFloatingTrigger && (
                 <button
                     type="button"
                     onClick={handleDrawerToggle}
