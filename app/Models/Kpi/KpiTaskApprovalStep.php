@@ -23,4 +23,9 @@ class KpiTaskApprovalStep extends Model
     {
         return $this->belongsTo(User::class, 'approver_user_id');
     }
+
+    public function getStepAttribute()
+    {
+        return $this->attributes['step_order'] ?? null;
+    }
 }

@@ -44,7 +44,7 @@ class KpiAuditController extends Controller
             ->where('approver_user_id', $authId)
             ->where('status', 'pending')
             ->with([
-                'submission.approvalSteps' => fn ($q) => $q->select('id', 'task_submission_id', 'step', 'step_order', 'status'),
+                'submission.approvalSteps' => fn ($q) => $q->select('id', 'task_submission_id', 'step_order', 'status'),
                 'submission.instance' => fn ($q) => $q->select('id', 'user_id', 'task_date', 'period_start', 'period_end', 'due_at', 'submitted_at'),
             ])
             ->get()
@@ -53,7 +53,7 @@ class KpiAuditController extends Controller
                 if (!$submission || $submission->status === 'rejected') {
                     return false;
                 }
-                $order = $step->step_order ?? $step->step;
+                $order = $step->step_order;
                 return $submission->approvalSteps
                     ->where('step_order', '<', $order)
                     ->every(fn ($prev) => $prev->status === 'approved');
