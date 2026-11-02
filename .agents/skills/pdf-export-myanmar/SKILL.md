@@ -203,6 +203,13 @@ didDrawCell: (data) => {
 },
 ```
 
-### Step 4: Build Frontend Assets
+### Step 4: DOM Image Export (Copy to Clipboard / Download PNG)
 
-Always run `npm run build` after creating or modifying any frontend PDF export utility so `public/build/` assets are updated.
+When capturing DOM elements as images (e.g. "Copy as Image" or "Download PNG" buttons on KPI Certificate, Category Matrix, or Repair Request forms):
+- **Never use `html2canvas`** due to the `html { zoom: 0.75 }` text collision bug.
+- Use `captureElementToCanvas(elementRef.current)` from `resources/js/utils/domImageExport.js` (powered by `html-to-image`).
+- It automatically preloads and embeds Pyidaungsu base64 font CSS (`getPyidaungsuFontEmbedCSS`), applies 2x pixel ratio for retina sharpness, ignores `.no-export` / `.no-print` action bars, and delegates rendering to browser native SVG `<foreignObject>`, completely preventing word overlap.
+
+### Step 5: Build Frontend Assets
+
+Always run `npm run build` after creating or modifying any frontend PDF export utility or image export code so `public/build/` assets are updated.

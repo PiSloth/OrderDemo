@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import html2canvas from 'html2canvas';
+import { captureElementToCanvas } from '@/utils/domImageExport';
 import KpiLayout from '@/Layouts/KpiLayout';
 import SubmissionDetailModal from './Components/SubmissionDetailModal';
 import PhotoCarouselModal from './Components/PhotoCarouselModal';
@@ -71,19 +71,7 @@ export default function Certificate({ month, users, selectedUser, certificate, a
 
     const captureSummaryCanvas = async () => {
         if (!summaryCardRef.current) return null;
-        return await html2canvas(summaryCardRef.current, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            logging: false,
-            backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
-            ignoreElements: (el) => {
-                return (
-                    el.getAttribute('data-html2canvas-ignore') === 'true' ||
-                    el.classList.contains('no-export')
-                );
-            },
-        });
+        return await captureElementToCanvas(summaryCardRef.current);
     };
 
     const handleCopyImage = async () => {
@@ -242,7 +230,7 @@ export default function Certificate({ month, users, selectedUser, certificate, a
                 {selectedUser && certificate && (
                     <div id="kpi-certificate-print" className="max-w-[210mm] mx-auto space-y-4">
                         {/* Certificate Card / Summary Result Box */}
-                        <div ref={summaryCardRef} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
                             {/* Direct Report Link & Action Buttons */}
                             <div
                                 data-html2canvas-ignore="true"
@@ -313,7 +301,9 @@ export default function Certificate({ month, users, selectedUser, certificate, a
                                 </div>
                             </div>
 
-                            {/* Header: Employee Info */}
+                            {/* Captured Certificate Container */}
+                            <div ref={summaryCardRef} className="bg-white dark:bg-slate-900">
+                                {/* Header: Employee Info */}
                             <div className="px-6 py-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-900">
                                 <div>
                                     <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1">KPI Certificate</p>
@@ -429,6 +419,7 @@ export default function Certificate({ month, users, selectedUser, certificate, a
                                 {' '}/ {groups.length}
                             </div>
                         </div>
+                    </div>
 
                         {/* Passed Evidence Section */}
                         {passedEvidenceRows && passedEvidenceRows.length > 0 && (
