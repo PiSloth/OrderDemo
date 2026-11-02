@@ -148,6 +148,11 @@ class KpiAuditController extends Controller
                 'frequency' => $a->template?->frequency,
             ]);
 
+        $selectedUserDeptId = is_array($selectedUser)
+            ? ($selectedUser['department_id'] ?? null)
+            : ($selectedUser?->department_id ?? null);
+        $deptId = Auth::user()?->department_id ?? $selectedUserDeptId;
+
         // Pending exclusion requests (for inbox badge + inbox modal)
         $pendingExclusionsQuery = KpiExclusionRequest::query()
             ->with(['user.department', 'assignment.template.group'])
@@ -155,8 +160,7 @@ class KpiAuditController extends Controller
 
         if (Gate::allows('kpiViewCompanyLeaderboard') || Gate::allows('kpiManageTemplates')) {
             // all pending
-        } elseif ($selectedUser && $selectedUser->department_id) {
-            $deptId = Auth::user()?->department_id;
+        } elseif ($deptId) {
             $pendingExclusionsQuery->whereHas('user', fn(Builder $q) => $q->where('department_id', $deptId));
         } else {
             $pendingExclusionsQuery->whereRaw('1 = 0');
@@ -186,8 +190,7 @@ class KpiAuditController extends Controller
 
         if (Gate::allows('kpiViewCompanyLeaderboard') || Gate::allows('kpiManageTemplates')) {
             // all
-        } elseif ($selectedUser && $selectedUser->department_id) {
-            $deptId = Auth::user()?->department_id;
+        } elseif ($deptId) {
             $approvedExclusionsQuery->whereHas('user', fn(Builder $q) => $q->where('department_id', $deptId));
         }
 
@@ -216,8 +219,7 @@ class KpiAuditController extends Controller
 
         if (Gate::allows('kpiViewCompanyLeaderboard') || Gate::allows('kpiManageTemplates')) {
             // all
-        } elseif ($selectedUser && $selectedUser->department_id) {
-            $deptId = Auth::user()?->department_id;
+        } elseif ($deptId) {
             $approvedHolidaysQuery->whereHas('user', fn(Builder $q) => $q->where('department_id', $deptId));
         }
 

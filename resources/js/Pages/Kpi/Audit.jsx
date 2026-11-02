@@ -180,9 +180,9 @@ export default function Audit({
         return allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks)).length;
     }, [allMarkersFlat, authUserId, canApproveTasks]);
 
-    // Users who have tasks needing current user's approval
+    // Users who have tasks needing current user's approval in the selected month
     const usersNeedingMyApproval = useMemo(() => {
-        return (users || []).filter((u) => (u.pending_my_approvals_count || 0) > 0 || (u.total_pending_my_approvals_count || 0) > 0);
+        return (users || []).filter((u) => (u.pending_my_approvals_count || 0) > 0);
     }, [users]);
 
     // Navigation list scoped to current type filter or my approvals (null = all)
@@ -530,7 +530,7 @@ export default function Audit({
                             <div className="flex items-center gap-1.5 flex-wrap">
                                 {usersNeedingMyApproval.map((u) => {
                                     const isSelected = String(u.id) === String(selectedUserId);
-                                    const count = u.pending_my_approvals_count || u.total_pending_my_approvals_count;
+                                    const count = u.pending_my_approvals_count || 0;
                                     return (
                                         <button
                                             key={u.id}

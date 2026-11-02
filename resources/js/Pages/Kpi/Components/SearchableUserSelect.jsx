@@ -9,7 +9,7 @@ export default function SearchableUserSelect({ users = [], selectedUserId, onCha
     const selectedUser = users.find((u) => String(u.id) === String(selectedUserId)) || users[0];
 
     const usersNeedingApproval = useMemo(() => {
-        return users.filter((u) => (u.pending_my_approvals_count || 0) > 0 || (u.total_pending_my_approvals_count || 0) > 0);
+        return users.filter((u) => (u.pending_my_approvals_count || 0) > 0);
     }, [users]);
 
     const totalNeedingApprovalCount = usersNeedingApproval.length;
@@ -17,7 +17,7 @@ export default function SearchableUserSelect({ users = [], selectedUserId, onCha
     const filteredUsers = useMemo(() => {
         return users.filter((u) => {
             if (filterTab === 'needs_approval') {
-                const hasPending = (u.pending_my_approvals_count || 0) > 0 || (u.total_pending_my_approvals_count || 0) > 0;
+                const hasPending = (u.pending_my_approvals_count || 0) > 0;
                 if (!hasPending) return false;
             }
 
@@ -33,8 +33,8 @@ export default function SearchableUserSelect({ users = [], selectedUserId, onCha
     // Sort so users with pending approvals in current month appear first, then by name
     const displayUsers = useMemo(() => {
         return [...filteredUsers].sort((a, b) => {
-            const countA = (a.pending_my_approvals_count || 0) * 10 + (a.total_pending_my_approvals_count || 0);
-            const countB = (b.pending_my_approvals_count || 0) * 10 + (b.total_pending_my_approvals_count || 0);
+            const countA = a.pending_my_approvals_count || 0;
+            const countB = b.pending_my_approvals_count || 0;
             if (countA !== countB) return countB - countA;
             return a.name.localeCompare(b.name);
         });
@@ -161,8 +161,7 @@ export default function SearchableUserSelect({ users = [], selectedUserId, onCha
                             displayUsers.map((u) => {
                                 const isSelected = String(u.id) === String(selectedUserId);
                                 const pendingMonth = u.pending_my_approvals_count || 0;
-                                const pendingTotal = u.total_pending_my_approvals_count || 0;
-                                const hasPending = pendingMonth > 0 || pendingTotal > 0;
+                                const hasPending = pendingMonth > 0;
 
                                 return (
                                     <button
@@ -204,16 +203,12 @@ export default function SearchableUserSelect({ users = [], selectedUserId, onCha
                                         </div>
 
                                         <div className="flex items-center gap-2 shrink-0">
-                                            {pendingMonth > 0 ? (
+                                            {pendingMonth > 0 && (
                                                 <span className="px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-extrabold text-[10px] border border-amber-300 dark:border-amber-800 flex items-center gap-1">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                                                     {pendingMonth} to approve
                                                 </span>
-                                            ) : pendingTotal > 0 ? (
-                                                <span className="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[10px]">
-                                                    {pendingTotal} pending
-                                                </span>
-                                            ) : null}
+                                            )}
 
                                             {isSelected && (
                                                 <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
