@@ -180,6 +180,11 @@ export default function Audit({
         return allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks)).length;
     }, [allMarkersFlat, authUserId, canApproveTasks]);
 
+    // Users who have tasks needing current user's approval
+    const usersNeedingMyApproval = useMemo(() => {
+        return (users || []).filter((u) => (u.pending_my_approvals_count || 0) > 0 || (u.total_pending_my_approvals_count || 0) > 0);
+    }, [users]);
+
     // Navigation list scoped to current type filter or my approvals (null = all)
     const scopedMarkers = useMemo(() => {
         if (onlyMyApprovals) {
@@ -396,122 +401,160 @@ export default function Audit({
         <KpiLayout title="KPI Monthly Audit">
             <div className="space-y-6">
                 {/* Header & Controls Bar */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                </svg>
-                            </div>
-                            <span>KPI Monthly Audit Matrix</span>
-                        </h1>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                            Track daily task completion, monthly score percentages, and group rule evaluations.
-                        </p>
-                    </div>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 flex flex-col gap-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                    </svg>
+                                </div>
+                                <span>KPI Monthly Audit Matrix</span>
+                            </h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                Track daily task completion, monthly score percentages, and group rule evaluations.
+                            </p>
+                        </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* Task Search Input */}
-                        <div className="relative flex items-center min-w-[200px]">
-                            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <input
-                                type="text"
-                                value={taskSearch}
-                                onChange={(e) => setTaskSearch(e.target.value)}
-                                placeholder="Filter tasks in grid..."
-                                className="w-full h-10 pl-10 pr-8 text-xs rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-xs"
-                            />
-                            {taskSearch && (
+                        <div className="flex flex-wrap items-center gap-3">
+                            {/* Task Search Input */}
+                            <div className="relative flex items-center min-w-[200px]">
+                                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    value={taskSearch}
+                                    onChange={(e) => setTaskSearch(e.target.value)}
+                                    placeholder="Filter tasks in grid..."
+                                    className="w-full h-10 pl-10 pr-8 text-xs rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-xs"
+                                />
+                                {taskSearch && (
+                                    <button
+                                        onClick={() => setTaskSearch('')}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Month Picker */}
+                            <div className="relative flex items-center h-10 px-3.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition">
+                                <svg className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <input
+                                    type="month"
+                                    value={selectedMonth}
+                                    onChange={(e) => handleFilterChange(e.target.value, undefined)}
+                                    className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 border-none focus:outline-none cursor-pointer p-0"
+                                />
+                            </div>
+
+                            {/* Searchable Employee Dropdown */}
+                            {users.length > 0 && (
+                                <SearchableUserSelect
+                                    users={users}
+                                    selectedUserId={selectedUserId}
+                                    onChange={(newUserId) => handleFilterChange(undefined, newUserId)}
+                                />
+                            )}
+
+                            {/* ── Request button ── */}
+                            <button
+                                type="button"
+                                onClick={() => setRequestModalOpen(true)}
+                                className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-sm cursor-pointer"
+                                title="Submit holiday or exclusion request"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Request
+                            </button>
+
+                            {/* ── Inbox button (approvers only) ── */}
+                            {canApproveExclusions && (
                                 <button
-                                    onClick={() => setTaskSearch('')}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1"
+                                    type="button"
+                                    onClick={() => setInboxOpen(true)}
+                                    className="relative flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:border-amber-400 hover:text-amber-600 transition shadow-xs cursor-pointer"
+                                    title="View pending exclusion requests"
                                 >
-                                    ✕
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                    </svg>
+                                    Inbox
+                                    {pendingExclusionsCount > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                                            {pendingExclusionsCount > 99 ? '99+' : pendingExclusionsCount}
+                                        </span>
+                                    )}
+                                </button>
+                            )}
+
+                            {/* ── Needs My Approval quick filter button (approvers only) ── */}
+                            {canApproveTasks && myPendingApprovalCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const myApprovals = allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks));
+                                        if (myApprovals.length > 0) {
+                                            setOnlyMyApprovals(true);
+                                            setSelectedInstanceId(myApprovals[0].instance.id);
+                                            setIsModalOpen(true);
+                                        }
+                                    }}
+                                    className="relative flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                                    title="Review tasks waiting for your approval"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                                    <span>To Approve</span>
+                                    <span className="px-1.5 py-0.5 rounded-full bg-black/20 text-white text-[10px] font-bold">
+                                        {myPendingApprovalCount}
+                                    </span>
                                 </button>
                             )}
                         </div>
-
-                        {/* Month Picker */}
-                        <div className="relative flex items-center h-10 px-3.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition">
-                            <svg className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <input
-                                type="month"
-                                value={selectedMonth}
-                                onChange={(e) => handleFilterChange(e.target.value, undefined)}
-                                className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 border-none focus:outline-none cursor-pointer p-0"
-                            />
-                        </div>
-
-                        {/* Searchable Employee Dropdown */}
-                        {users.length > 0 && (
-                            <SearchableUserSelect
-                                users={users}
-                                selectedUserId={selectedUserId}
-                                onChange={(newUserId) => handleFilterChange(undefined, newUserId)}
-                            />
-                        )}
-
-                        {/* ── Request button ── */}
-                        <button
-                            type="button"
-                            onClick={() => setRequestModalOpen(true)}
-                            className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-sm cursor-pointer"
-                            title="Submit holiday or exclusion request"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Request
-                        </button>
-
-                        {/* ── Inbox button (approvers only) ── */}
-                        {canApproveExclusions && (
-                            <button
-                                type="button"
-                                onClick={() => setInboxOpen(true)}
-                                className="relative flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:border-amber-400 hover:text-amber-600 transition shadow-xs cursor-pointer"
-                                title="View pending exclusion requests"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                </svg>
-                                Inbox
-                                {pendingExclusionsCount > 0 && (
-                                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
-                                        {pendingExclusionsCount > 99 ? '99+' : pendingExclusionsCount}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-
-                        {/* ── Needs My Approval quick filter button (approvers only) ── */}
-                        {canApproveTasks && myPendingApprovalCount > 0 && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const myApprovals = allMarkersFlat.filter((m) => checkNeedsMyApproval(m, authUserId, canApproveTasks));
-                                    if (myApprovals.length > 0) {
-                                        setOnlyMyApprovals(true);
-                                        setSelectedInstanceId(myApprovals[0].instance.id);
-                                        setIsModalOpen(true);
-                                    }
-                                }}
-                                className="relative flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-sm cursor-pointer"
-                                title="Review tasks waiting for your approval"
-                            >
-                                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                                <span>To Approve</span>
-                                <span className="px-1.5 py-0.5 rounded-full bg-black/20 text-white text-[10px] font-bold">
-                                    {myPendingApprovalCount}
-                                </span>
-                            </button>
-                        )}
                     </div>
+
+                    {/* Quick Selector: Users Needing Current User's Approval */}
+                    {usersNeedingMyApproval.length > 0 && (
+                        <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 flex-wrap">
+                            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 shrink-0">
+                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                Employees Needing Your Approval:
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                {usersNeedingMyApproval.map((u) => {
+                                    const isSelected = String(u.id) === String(selectedUserId);
+                                    const count = u.pending_my_approvals_count || u.total_pending_my_approvals_count;
+                                    return (
+                                        <button
+                                            key={u.id}
+                                            type="button"
+                                            onClick={() => handleFilterChange(undefined, u.id)}
+                                            className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                                                isSelected
+                                                    ? 'bg-amber-500 text-white shadow-xs font-bold ring-2 ring-amber-400/50'
+                                                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50'
+                                            }`}
+                                            title={`Switch to ${u.name} (${count} tasks to approve)`}
+                                        >
+                                            <span className="truncate max-w-[130px]">{u.name}</span>
+                                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                                                isSelected ? 'bg-black/20 text-white' : 'bg-amber-200/80 dark:bg-amber-800/80 text-amber-900 dark:text-amber-200'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Group Summary Cards */}

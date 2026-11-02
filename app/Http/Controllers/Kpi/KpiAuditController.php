@@ -37,11 +37,78 @@ class KpiAuditController extends Controller
         $monthStart = $this->parseMonth($month);
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $accessibleUsers = $this->accessibleUsersQuery()->orderBy('name')->get(['id', 'name', 'email', 'department_id']);
+        $authId = Auth::id();
+
+        // Find actionable pending approval steps for this approver
+        $pendingApprovals = KpiTaskApprovalStep::query()
+            ->where('approver_user_id', $authId)
+            ->where('status', 'pending')
+            ->with([
+                'submission.approvalSteps' => fn ($q) => $q->select('id', 'task_submission_id', 'step', 'step_order', 'status'),
+                'submission.instance' => fn ($q) => $q->select('id', 'user_id', 'task_date', 'period_start', 'period_end', 'due_at', 'submitted_at'),
+            ])
+            ->get()
+            ->filter(function (KpiTaskApprovalStep $step) {
+                $submission = $step->submission;
+                if (!$submission || $submission->status === 'rejected') {
+                    return false;
+                }
+                $order = $step->step_order ?? $step->step;
+                return $submission->approvalSteps
+                    ->where('step_order', '<', $order)
+                    ->every(fn ($prev) => $prev->status === 'approved');
+            });
+
+        $monthPendingByUser = [];
+        $totalPendingByUser = [];
+        $pendingUserIds = [];
+
+        foreach ($pendingApprovals as $step) {
+            $inst = $step->submission?->instance;
+            if (!$inst || !$inst->user_id) continue;
+            $uid = (int) $inst->user_id;
+            $pendingUserIds[] = $uid;
+
+            $totalPendingByUser[$uid] = ($totalPendingByUser[$uid] ?? 0) + 1;
+
+            $anchorDate = $inst->task_date
+                ?? $inst->period_start
+                ?? $inst->period_end
+                ?? $inst->due_at
+                ?? $inst->submitted_at;
+
+            if ($anchorDate) {
+                $c = Carbon::parse($anchorDate);
+                if ($c->betweenIncluded($monthStart, $monthEnd)) {
+                    $monthPendingByUser[$uid] = ($monthPendingByUser[$uid] ?? 0) + 1;
+                }
+            } else {
+                $monthPendingByUser[$uid] = ($monthPendingByUser[$uid] ?? 0) + 1;
+            }
+        }
+
+        $pendingUserIds = array_values(array_unique($pendingUserIds));
+        $accessibleUsers = $this->accessibleUsersQuery($pendingUserIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'department_id'])
+            ->map(function ($u) use ($monthPendingByUser, $totalPendingByUser) {
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'department_id' => $u->department_id,
+                    'department' => $u->department ? [
+                        'id' => $u->department->id,
+                        'name' => $u->department->name,
+                    ] : null,
+                    'pending_my_approvals_count' => $monthPendingByUser[$u->id] ?? 0,
+                    'total_pending_my_approvals_count' => $totalPendingByUser[$u->id] ?? 0,
+                ];
+            });
 
         $selectedUserId = (int) $request->query('userId', Auth::id());
         if ($accessibleUsers->isNotEmpty() && !$accessibleUsers->contains('id', $selectedUserId)) {
-            $selectedUserId = $accessibleUsers->first()->id;
+            $selectedUserId = $accessibleUsers->first()['id'];
         }
 
         $selectedUser = $accessibleUsers->firstWhere('id', $selectedUserId);
@@ -487,7 +554,7 @@ class KpiAuditController extends Controller
         }
     }
 
-    protected function accessibleUsersQuery(): Builder
+    protected function accessibleUsersQuery(array $extraUserIds = []): Builder
     {
         $user = Auth::user();
 
@@ -499,7 +566,7 @@ class KpiAuditController extends Controller
             return $query->whereRaw('1 = 0');
         }
 
-        if (Gate::allows('kpiViewCompanyLeaderboard')) {
+        if (Gate::allows('isSuperAdmin') || Gate::allows('kpiViewCompanyLeaderboard')) {
             return $query;
         }
 
@@ -509,11 +576,23 @@ class KpiAuditController extends Controller
             || Gate::allows('kpiApproveExclusions')
             || Gate::allows('kpiApproveTasks')
         ) {
-            if ($user->department_id) {
-                return $query->where('department_id', $user->department_id);
-            }
+            return $query->where(function (Builder $q) use ($user, $extraUserIds): void {
+                if ($user->department_id) {
+                    $q->where('department_id', $user->department_id);
+                } else {
+                    $q->whereKey($user->id);
+                }
 
-            return $query->whereKey($user->id);
+                if (!empty($extraUserIds)) {
+                    $q->orWhereIn('id', $extraUserIds);
+                }
+            });
+        }
+
+        if (!empty($extraUserIds)) {
+            return $query->where(function (Builder $q) use ($user, $extraUserIds): void {
+                $q->whereKey($user->id)->orWhereIn('id', $extraUserIds);
+            });
         }
 
         return $query->whereKey($user->id);
