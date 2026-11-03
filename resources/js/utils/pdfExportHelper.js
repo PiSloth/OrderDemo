@@ -1,22 +1,28 @@
-import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { applyPyidaungsuFont } from './pdfFont';
 
 /**
- * Ensures the Pyidaungsu webfont is fully loaded in the browser before rendering.
+ * Ensures the Pyidaungsu webfont is fully loaded in the browser before measuring/drawing on 2D canvas.
  */
-const ensureFontLoaded = async () => {
+const ensurePyidaungsuFontLoaded = async () => {
     try {
-        if (document.fonts && document.fonts.load) {
+        if (typeof document !== 'undefined' && document.fonts && document.fonts.load) {
             await Promise.all([
-                document.fonts.load('12px Pyidaungsu'),
-                document.fonts.load('bold 12px Pyidaungsu'),
+                document.fonts.load('14px Pyidaungsu'),
+                document.fonts.load('bold 14px Pyidaungsu'),
             ]);
             await document.fonts.ready;
         }
     } catch (e) {
-        console.warn('Font loading check failed:', e);
+        console.warn('Pyidaungsu font load check warning:', e);
     }
 };
+
+/**
+ * Detect Myanmar or complex Unicode text (characters beyond ASCII range 0x00-0x7F).
+ */
+const hasComplexUnicode = (text) => /[^\x00-\x7F]/.test(String(text || ''));
 
 /**
  * Strips HTML tags if text contains markup, preserving plain text.
@@ -30,6 +36,341 @@ const cleanText = (text) => {
         return (div.textContent || div.innerText || '').trim();
     }
     return text.trim();
+};
+
+/**
+ * Tokenize Myanmar text for natural line wrapping using Intl.Segmenter with regex fallback.
+ */
+const tokenizeForMyanmarWrap = (paragraph) => {
+    if (!paragraph) return [''];
+    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+        try {
+            const segmenter = new Intl.Segmenter('my', { granularity: 'word' });
+            const tokens = [];
+            for (const seg of segmenter.segment(paragraph)) {
+                tokens.push(seg.segment);
+            }
+            if (tokens.length > 0) return tokens;
+        } catch {
+            // fallback below
+        }
+    }
+    return paragraph
+        .split(/( +|(?=[\u1000-\u1021\u1023-\u102A\u103F\u1040-\u104F])(?<![\u1031\u1039\u103A]))/g)
+        .filter(Boolean);
+};
+
+/**
+ * Render non-ASCII / Myanmar text block to offscreen PNG canvas at 4x DPI (384 DPI).
+ * Utilizes the browser's native HarfBuzz OpenType shaping engine for 100% correct
+ * Myanmar vowel, medial, and consonant rendering without word collisions or zoom bugs.
+ */
+const renderUnicodeTextBlockToPng = (
+    text,
+    {
+        fontSizePt = 8,
+        maxWidthMm = 40,
+        color = '#0f172a',
+        fontWeight = 'normal',
+        lineHeightMultiplier = 1.5,
+    } = {}
+) => {
+    const PX_PER_MM = 96 / 25.4;
+    const MM_PER_PX = 25.4 / 96;
+    const SCALE = 4; // 384 DPI print quality
+
+    const fontSizePx = fontSizePt * (96 / 72);
+    const maxWidthPx = Math.max(20, maxWidthMm * PX_PER_MM);
+    const fontSpec = `${fontWeight} ${fontSizePx}px 'Pyidaungsu', 'Padauk', 'Myanmar Text', 'Segoe UI', Arial, sans-serif`;
+
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    measureCtx.font = fontSpec;
+
+    const paragraphs = String(text || '').split('\n');
+    const wrappedLines = [];
+
+    for (const para of paragraphs) {
+        const trimmed = para.trim();
+        if (!trimmed) {
+            wrappedLines.push('');
+            continue;
+        }
+
+        const spaceTokens = trimmed.split(/( +)/).filter(Boolean);
+        const fineTokens = [];
+        for (const st of spaceTokens) {
+            if (measureCtx.measureText(st).width > maxWidthPx * 0.65 && !/^ +$/.test(st)) {
+                fineTokens.push(...tokenizeForMyanmarWrap(st));
+            } else {
+                fineTokens.push(st);
+            }
+        }
+
+        let currentLine = '';
+        for (const token of fineTokens) {
+            const candidate = currentLine ? currentLine + token : token.trimStart();
+            if (!candidate) continue;
+
+            if (measureCtx.measureText(candidate).width <= maxWidthPx || !currentLine) {
+                currentLine = candidate;
+            } else {
+                wrappedLines.push(currentLine.trimEnd());
+                currentLine = token.trimStart();
+            }
+        }
+        if (currentLine) {
+            wrappedLines.push(currentLine.trimEnd());
+        }
+    }
+
+    if (wrappedLines.length === 0) wrappedLines.push('');
+
+    const lineHeightPx = Math.ceil(fontSizePx * lineHeightMultiplier);
+    const topPadPx = Math.ceil(fontSizePx * 0.35);
+    const bottomPadPx = Math.ceil(fontSizePx * 0.45);
+    const totalHeightPx = wrappedLines.length * lineHeightPx + topPadPx + bottomPadPx;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(maxWidthPx * SCALE);
+    canvas.height = Math.ceil(totalHeightPx * SCALE);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+    ctx.font = fontSpec;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'alphabetic';
+
+    wrappedLines.forEach((line, idx) => {
+        if (!line) return;
+        const baselineY = topPadPx + idx * lineHeightPx + fontSizePx * 1.05;
+        ctx.fillText(line, 0, baselineY);
+    });
+
+    return {
+        dataUrl: canvas.toDataURL('image/png'),
+        widthMm: maxWidthMm,
+        heightMm: totalHeightPx * MM_PER_PX,
+        lineCount: wrappedLines.length,
+    };
+};
+
+/**
+ * Renders the multi-part Issue Details cell (Title, Description, Propose Solution)
+ * onto a 4x DPI offscreen canvas with color-coded labels and full Myanmar Unicode support.
+ */
+const renderIssueDetailsToPng = ({
+    title = '',
+    description = '',
+    proposedSolution = '',
+    maxWidthMm = 133,
+    fontSizePt = 8.2,
+}) => {
+    const PX_PER_MM = 96 / 25.4;
+    const MM_PER_PX = 25.4 / 96;
+    const SCALE = 4; // 384 DPI print quality
+
+    const fontSizePx = fontSizePt * (96 / 72);
+    const maxWidthPx = Math.max(30, maxWidthMm * PX_PER_MM);
+    const fontRegular = `normal ${fontSizePx}px 'Pyidaungsu', 'Padauk', 'Myanmar Text', 'Segoe UI', Arial, sans-serif`;
+    const fontBold = `bold ${fontSizePx}px 'Pyidaungsu', 'Padauk', 'Myanmar Text', 'Segoe UI', Arial, sans-serif`;
+
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+
+    const sections = [
+        { label: 'Title: ', labelColor: '#1e1b4b', text: String(title || '-'), textColor: '#0f172a' },
+        { label: 'Description: ', labelColor: '#4338ca', text: String(description || '-'), textColor: '#334155' },
+        { label: 'Propose Solution: ', labelColor: '#047857', text: String(proposedSolution || '-'), textColor: '#1f2937' },
+    ];
+
+    const linesToDraw = [];
+
+    sections.forEach((sec, sIdx) => {
+        measureCtx.font = fontBold;
+        const labelW = measureCtx.measureText(sec.label).width;
+
+        const paras = sec.text.split('\n');
+        let isFirstLineOfSec = true;
+
+        paras.forEach((para) => {
+            const trimmed = para.trim();
+            if (!trimmed) {
+                if (isFirstLineOfSec) {
+                    linesToDraw.push([
+                        { text: sec.label, isBold: true, color: sec.labelColor },
+                        { text: '-', isBold: false, color: sec.textColor },
+                    ]);
+                    isFirstLineOfSec = false;
+                }
+                return;
+            }
+
+            const spaceTokens = trimmed.split(/( +)/).filter(Boolean);
+            const fineTokens = [];
+            measureCtx.font = fontRegular;
+            for (const st of spaceTokens) {
+                if (measureCtx.measureText(st).width > maxWidthPx * 0.6 && !/^ +$/.test(st)) {
+                    fineTokens.push(...tokenizeForMyanmarWrap(st));
+                } else {
+                    fineTokens.push(st);
+                }
+            }
+
+            let curLineText = '';
+
+            for (const token of fineTokens) {
+                const availableW = isFirstLineOfSec ? (maxWidthPx - labelW) : maxWidthPx;
+                const candidate = curLineText ? curLineText + token : token.trimStart();
+                if (!candidate) continue;
+
+                if (measureCtx.measureText(candidate).width <= availableW || !curLineText) {
+                    // Check if candidate exceeds available width even as first token on line 1
+                    if (isFirstLineOfSec && !curLineText && measureCtx.measureText(candidate).width > availableW) {
+                        linesToDraw.push([
+                            { text: sec.label, isBold: true, color: sec.labelColor }
+                        ]);
+                        isFirstLineOfSec = false;
+                        curLineText = candidate;
+                    } else {
+                        curLineText = candidate;
+                    }
+                } else {
+                    if (isFirstLineOfSec) {
+                        linesToDraw.push([
+                            { text: sec.label, isBold: true, color: sec.labelColor },
+                            { text: curLineText.trimEnd(), isBold: false, color: sec.textColor },
+                        ]);
+                        isFirstLineOfSec = false;
+                    } else {
+                        linesToDraw.push([
+                            { text: curLineText.trimEnd(), isBold: false, color: sec.textColor },
+                        ]);
+                    }
+                    curLineText = token.trimStart();
+                }
+            }
+
+            if (curLineText) {
+                if (isFirstLineOfSec) {
+                    linesToDraw.push([
+                        { text: sec.label, isBold: true, color: sec.labelColor },
+                        { text: curLineText.trimEnd(), isBold: false, color: sec.textColor },
+                    ]);
+                    isFirstLineOfSec = false;
+                } else {
+                    linesToDraw.push([
+                        { text: curLineText.trimEnd(), isBold: false, color: sec.textColor },
+                    ]);
+                }
+            }
+        });
+
+        if (isFirstLineOfSec) {
+            linesToDraw.push([
+                { text: sec.label, isBold: true, color: sec.labelColor },
+                { text: '-', isBold: false, color: sec.textColor },
+            ]);
+        }
+
+        if (sIdx < sections.length - 1 && linesToDraw.length > 0) {
+            linesToDraw[linesToDraw.length - 1]._hasSectionGap = true;
+        }
+    });
+
+    const lineHeightPx = Math.ceil(fontSizePx * 1.48);
+    const sectionGapPx = Math.ceil(fontSizePx * 0.35);
+    const topPadPx = Math.ceil(fontSizePx * 0.35);
+    const bottomPadPx = Math.ceil(fontSizePx * 0.45);
+
+    let totalHeightPx = topPadPx + bottomPadPx;
+    linesToDraw.forEach((l) => {
+        totalHeightPx += lineHeightPx;
+        if (l._hasSectionGap) totalHeightPx += sectionGapPx;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(maxWidthPx * SCALE);
+    canvas.height = Math.ceil(totalHeightPx * SCALE);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+    ctx.textBaseline = 'alphabetic';
+
+    let currentY = topPadPx;
+
+    linesToDraw.forEach((lineParts) => {
+        const baselineY = currentY + fontSizePx * 1.05;
+        let currentX = 0;
+
+        lineParts.forEach((part) => {
+            ctx.font = part.isBold ? fontBold : fontRegular;
+            ctx.fillStyle = part.color;
+            ctx.fillText(part.text, currentX, baselineY);
+            currentX += ctx.measureText(part.text).width;
+        });
+
+        currentY += lineHeightPx;
+        if (lineParts._hasSectionGap) {
+            currentY += sectionGapPx;
+        }
+    });
+
+    return {
+        dataUrl: canvas.toDataURL('image/png'),
+        widthMm: maxWidthMm,
+        heightMm: totalHeightPx * MM_PER_PX,
+        lineCount: linesToDraw.length,
+    };
+};
+
+/**
+ * Renders the Priority badge (e.g. "P1\n(24/7 Clock)") centered onto an offscreen PNG canvas.
+ */
+const renderPriorityBadgeToPng = ({ name = 'N/A', code = '', is24h = false, maxWidthMm = 22 }) => {
+    const PX_PER_MM = 96 / 25.4;
+    const MM_PER_PX = 25.4 / 96;
+    const SCALE = 4;
+    const fontSizePt = 8.5;
+    const fontSizePx = fontSizePt * (96 / 72);
+    const maxWidthPx = Math.max(20, maxWidthMm * PX_PER_MM);
+    const fontSpec = `bold ${fontSizePx}px 'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
+    const subFontSpec = `600 ${fontSizePx * 0.8}px 'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
+
+    const color = code === 'P1' ? '#dc2626' : (code === 'P2' ? '#d97706' : '#2563eb');
+    const totalLines = is24h ? 2 : 1;
+    const lineHeightPx = Math.ceil(fontSizePx * 1.35);
+    const totalHeightPx = totalLines * lineHeightPx + Math.ceil(fontSizePx * 0.4);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(maxWidthPx * SCALE);
+    canvas.height = Math.ceil(totalHeightPx * SCALE);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const centerX = maxWidthPx / 2;
+    if (is24h) {
+        ctx.font = fontSpec;
+        ctx.fillStyle = color;
+        ctx.fillText(name, centerX, lineHeightPx * 0.55);
+
+        ctx.font = subFontSpec;
+        ctx.fillStyle = '#7c3aed';
+        ctx.fillText('(24/7 Clock)', centerX, lineHeightPx * 1.5);
+    } else {
+        ctx.font = fontSpec;
+        ctx.fillStyle = color;
+        ctx.fillText(name, centerX, totalHeightPx / 2);
+    }
+
+    return {
+        dataUrl: canvas.toDataURL('image/png'),
+        widthMm: maxWidthMm,
+        heightMm: totalHeightPx * MM_PER_PX,
+        lineCount: totalLines,
+    };
 };
 
 /**
@@ -76,121 +417,9 @@ const sortReportItems = (items = []) => {
 };
 
 /**
- * Generates single row HTML for the detailed issues table.
- */
-const createRowHtml = (item, rowNumber, formatDateCustom) => {
-    const isContinuous24h = item.priority_clock_type === 'continuous_24h' || item.priority_code === 'P1';
-    const priorityColor = item.priority_code === 'P1' ? '#dc2626' : (item.priority_code === 'P2' ? '#d97706' : '#2563eb');
-    
-    const titleText = cleanText(item.title);
-    const descText = cleanText(item.description);
-    const solText = cleanText(item.proposed_solution);
-
-    const formattedIssueAt = formatDateCustom ? formatDateCustom(item.issue_at) : (item.issue_at || 'N/A');
-    const formattedDueDate = formatDateCustom ? formatDateCustom(item.due_date) : (item.due_date || 'N/A');
-    const rowBg = rowNumber % 2 === 0 ? '#f8f5ff' : '#ffffff';
-
-    return `
-        <tr style="background-color: ${rowBg}; border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #4b5563; width: 35px; vertical-align: top; border-right: 1px solid #f1f5f9;">
-                ${rowNumber}
-            </td>
-            <td style="padding: 6px 12px; width: 520px; font-size: 11px; color: #111827; word-break: break-word; overflow-wrap: anywhere; white-space: normal; line-height: 1.45; font-family: 'Pyidaungsu', sans-serif; vertical-align: top; border-right: 1px solid #f1f5f9;">
-                <div style="margin-bottom: 3px;">
-                    <span style="font-weight: bold; color: #1e1b4b;">Title:</span>
-                    <span style="color: #0f172a; margin-left: 3px;">${titleText || '-'}</span>
-                </div>
-                <div style="margin-bottom: 3px;">
-                    <span style="font-weight: bold; color: #4338ca;">Description:</span>
-                    <span style="color: #334155; margin-left: 3px;">${descText || '-'}</span>
-                </div>
-                <div>
-                    <span style="font-weight: bold; color: #047857;">Propose Solution:</span>
-                    <span style="color: #1f2937; margin-left: 3px;">${solText || '-'}</span>
-                </div>
-            </td>
-            <td style="padding: 6px 10px; font-size: 10.5px; color: #374151; width: 140px; word-break: break-word; overflow-wrap: anywhere; white-space: normal; vertical-align: top; border-right: 1px solid #f1f5f9;">
-                ${item.category_name || 'N/A'}
-            </td>
-            <td style="padding: 6px 8px; text-align: center; font-size: 10.5px; width: 120px; vertical-align: top; border-right: 1px solid #f1f5f9;">
-                <div style="font-weight: bold; color: ${priorityColor};">${item.priority_name || 'N/A'}</div>
-                ${isContinuous24h ? `<div style="font-size: 9px; color: #7c3aed; font-weight: 600; margin-top: 2px;">(24/7 Clock)</div>` : ''}
-            </td>
-            <td style="padding: 6px 8px; text-align: center; font-size: 10px; color: #4b5563; width: 130px; white-space: nowrap; vertical-align: top; border-right: 1px solid #f1f5f9;">
-                ${formattedIssueAt}
-            </td>
-            <td style="padding: 6px 8px; text-align: center; font-size: 10px; color: #4b5563; width: 130px; white-space: nowrap; vertical-align: top;">
-                ${formattedDueDate}
-            </td>
-        </tr>
-    `;
-};
-
-/**
- * Dynamically partitions items into pages based on actual rendered row heights.
- * Ensures maximum page utilization without overflowing or clipping.
- */
-const partitionItemsDynamically = (sortedItems, formatDateCustom, measureContainer) => {
-    if (sortedItems.length === 0) return [[]];
-
-    // Measure each row's height in DOM
-    const testTable = document.createElement('table');
-    testTable.style.width = '1074px';
-    testTable.style.borderCollapse = 'collapse';
-    testTable.style.fontFamily = `'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
-    
-    testTable.innerHTML = `
-        <tbody>
-            ${sortedItems.map((item, idx) => createRowHtml(item, idx + 1, formatDateCustom)).join('')}
-        </tbody>
-    `;
-    measureContainer.appendChild(testTable);
-    const rowElements = testTable.querySelectorAll('tbody > tr');
-
-    const rowHeights = Array.from(rowElements).map((tr) => tr.offsetHeight || 50);
-    measureContainer.innerHTML = '';
-
-    // Constants for page heights (A4 Landscape = 793px)
-    const MAX_PAGE_BODY_HEIGHT = 580; // Available for rows on regular pages
-    const LAST_PAGE_BODY_HEIGHT = 440; // Available for rows on last page with signature
-
-    const pages = [];
-    let currentPage = [];
-    let currentHeight = 0;
-
-    for (let i = 0; i < sortedItems.length; i++) {
-        const item = sortedItems[i];
-        const rHeight = rowHeights[i];
-        const remainingItems = sortedItems.length - 1 - i;
-
-        // Check if remaining items could all fit on this page as the last page
-        const isPotentialLastPage = remainingItems === 0;
-        const maxAllowed = isPotentialLastPage ? LAST_PAGE_BODY_HEIGHT : MAX_PAGE_BODY_HEIGHT;
-
-        if (currentPage.length > 0 && currentHeight + rHeight > maxAllowed) {
-            pages.push(currentPage);
-            currentPage = [item];
-            currentHeight = rHeight;
-        } else {
-            currentPage.push(item);
-            currentHeight += rHeight;
-        }
-    }
-
-    if (currentPage.length > 0) {
-        pages.push(currentPage);
-    }
-
-    return pages;
-};
-
-/**
- * Exports the Detailed IT Issues List PDF with:
- * - Dynamic row packing (maximizes rows per page based on content height)
- * - Concatenated Title, Description, and Propose Solution with bold prefixes
- * - 100% native Myanmar Unicode text shaping (Pyidaungsu font)
- * - Sorting: Continuous 24/7 clock first, then by due date (today first)
- * - Multi-page pagination and signature blocks
+ * Exports the Detailed IT Issues List PDF using vector jsPDF + jspdf-autotable
+ * and 4x DPI offscreen 2D Canvas shaping for Myanmar Unicode (Pyidaungsu).
+ * Completely immune to html2canvas zoom scaling and word collision bugs.
  */
 export const exportDetailedIssuePDF = async ({
     report,
@@ -202,7 +431,7 @@ export const exportDetailedIssuePDF = async ({
     formatDateShort,
     formatDateCustom,
 }) => {
-    await ensureFontLoaded();
+    await ensurePyidaungsuFontLoaded();
 
     const { periodType = 'weekly', startDate, endDate, resolverType = 'all', selectedCategoryIds = [], selectedDepartmentIds = [] } = filters;
     const isSingle = startDate && endDate && startDate === endDate;
@@ -227,201 +456,367 @@ export const exportDetailedIssuePDF = async ({
     const exporterName = auth_user?.name || '';
     const exporterDept = auth_user?.department ? ` (${auth_user.department})` : '';
     const fullExporterText = exporterName ? `${exporterName}${exporterDept}` : '';
-    const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+    const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const generatedAt = new Date().toLocaleString();
 
-    // Sort items according to requirements
+    // Sort items according to business rules
     const rawItems = report.items || [];
     const sortedItems = sortReportItems(rawItems);
 
-    // Container for rendering hidden DOM elements
-    const renderContainer = document.createElement('div');
-    renderContainer.style.position = 'fixed';
-    renderContainer.style.left = '-99999px';
-    renderContainer.style.top = '0';
-    renderContainer.style.width = '1122px'; // Standard A4 Landscape width at 96 DPI
-    renderContainer.style.zIndex = '-9999';
-    renderContainer.style.backgroundColor = '#ffffff';
-    renderContainer.style.fontFamily = `'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
-    document.body.appendChild(renderContainer);
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
+    let fontName = 'helvetica';
     try {
-        // Dynamically partition items into pages based on actual rendered height
-        const pagesData = partitionItemsDynamically(sortedItems, formatDateCustom, renderContainer);
-        const totalPages = pagesData.length;
-
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        let currentItemNumber = 1;
-
-        for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
-            const pageItems = pagesData[pageIdx];
-            const isLastPage = pageIdx === totalPages - 1;
-
-            const pageElement = document.createElement('div');
-            pageElement.style.width = '1122px';
-            pageElement.style.minHeight = '793px'; // Standard A4 Landscape height
-            pageElement.style.maxHeight = '793px';
-            pageElement.style.height = '793px';
-            pageElement.style.padding = '18px 24px';
-            pageElement.style.boxSizing = 'border-box';
-            pageElement.style.backgroundColor = '#ffffff';
-            pageElement.style.position = 'relative';
-            pageElement.style.display = 'flex';
-            pageElement.style.flexDirection = 'column';
-            pageElement.style.justifyContent = 'space-between';
-
-            // Top Content (Header + Info Bar + Table)
-            const topWrapper = document.createElement('div');
-
-            // Header Banner
-            topWrapper.innerHTML = `
-                <div style="background-color: #3b0764; color: #ffffff; padding: 10px 16px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 16px; font-weight: bold; letter-spacing: 0.3px; font-family: 'Pyidaungsu', sans-serif;">Issue Tracking Detail Report</div>
-                        <div style="font-size: 10.5px; opacity: 0.9; margin-top: 2px;">${app_name} &nbsp;|&nbsp; ${resolverLabel}</div>
-                    </div>
-                    <div style="font-size: 10px; opacity: 0.85; text-align: right;">
-                        Generated: ${generatedAt}
-                    </div>
-                </div>
-
-                <div style="background-color: #f5f0ff; color: #3b0764; padding: 6px 16px; border-radius: 0 0 6px 6px; font-size: 10.5px; margin-bottom: 10px; border: 1px solid #e9d5ff; border-top: none;">
-                    <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 2px; flex-wrap: wrap; gap: 8px;">
-                        <span>${reportAtLabel}</span>
-                        <span>Resolver: ${resolverLabel}</span>
-                        <span>Categories: ${catLabel}</span>
-                        <span>Depts: ${deptLabel}</span>
-                    </div>
-                    <div style="font-size: 9.5px; color: #581c87; opacity: 0.9;">
-                        Continuous 24/7 Clock issues are listed first, followed by issues sorted by Due Date (today/upcoming first).
-                    </div>
-                </div>
-            `;
-
-            // Table Rows
-            let tableRowsHtml = '';
-            if (pageItems.length === 0) {
-                tableRowsHtml = `
-                    <tr>
-                        <td colspan="6" style="padding: 24px; text-align: center; color: #6b7280; font-size: 12px;">No issues found for the selected criteria.</td>
-                    </tr>
-                `;
-            } else {
-                pageItems.forEach((item) => {
-                    tableRowsHtml += createRowHtml(item, currentItemNumber++, formatDateCustom);
-                });
-            }
-
-            const tableHtml = `
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
-                    <thead>
-                        <tr style="background-color: #3b0764; color: #ffffff; font-size: 11px; text-align: center;">
-                            <th style="padding: 7px 6px; width: 35px; border-right: 1px solid #581c87;">#</th>
-                            <th style="padding: 7px 12px; width: 520px; text-align: left; border-right: 1px solid #581c87;">Issue Details (Title / Description / Solution)</th>
-                            <th style="padding: 7px 10px; width: 140px; text-align: left; border-right: 1px solid #581c87;">Category</th>
-                            <th style="padding: 7px 8px; width: 120px; border-right: 1px solid #581c87;">Priority</th>
-                            <th style="padding: 7px 8px; width: 130px; border-right: 1px solid #581c87;">Issue At</th>
-                            <th style="padding: 7px 8px; width: 130px;">Due Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRowsHtml}
-                    </tbody>
-                </table>
-            `;
-
-            topWrapper.innerHTML += tableHtml;
-            pageElement.appendChild(topWrapper);
-
-            // Bottom Section (Signature on last page, Footer on every page)
-            const bottomWrapper = document.createElement('div');
-
-            let signatureHtml = '';
-            if (isLastPage) {
-                signatureHtml = `
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; font-size: 10.5px; color: #374151;">
-                        <!-- Left Exporter -->
-                        <div style="width: 380px;">
-                            <div style="font-weight: bold; color: #1e293b; margin-bottom: 6px;">Report Exported By:</div>
-                            <div style="display: flex; align-items: baseline; margin-bottom: 8px;">
-                                <span style="width: 50px; font-weight: 500;">Name:</span>
-                                <span style="flex: 1; border-bottom: 1px solid #94a3b8; font-weight: bold; padding-left: 4px; color: #0f172a;">${fullExporterText}</span>
-                            </div>
-                            <div style="display: flex; align-items: baseline; margin-bottom: 8px;">
-                                <span style="width: 65px; font-weight: 500;">Signature:</span>
-                                <span style="flex: 1; border-bottom: 1px solid #94a3b8;">&nbsp;</span>
-                            </div>
-                            <div style="display: flex; align-items: baseline;">
-                                <span style="width: 50px; font-weight: 500;">Date:</span>
-                                <span style="padding-left: 4px; font-weight: 600;">${todayDate}</span>
-                            </div>
-                        </div>
-
-                        <!-- Right Acknowledged -->
-                        <div style="width: 380px;">
-                            <div style="font-weight: bold; color: #1e293b; margin-bottom: 6px;">Acknowledged By:</div>
-                            <div style="display: flex; align-items: baseline; margin-bottom: 8px;">
-                                <span style="width: 50px; font-weight: 500;">Name:</span>
-                                <span style="flex: 1; border-bottom: 1px solid #94a3b8;">&nbsp;</span>
-                            </div>
-                            <div style="display: flex; align-items: baseline; margin-bottom: 8px;">
-                                <span style="width: 65px; font-weight: 500;">Signature:</span>
-                                <span style="flex: 1; border-bottom: 1px solid #94a3b8;">&nbsp;</span>
-                            </div>
-                            <div style="display: flex; align-items: baseline;">
-                                <span style="width: 50px; font-weight: 500;">Date:</span>
-                                <span style="flex: 1; border-bottom: 1px solid #94a3b8;">&nbsp;</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            const footerHtml = `
-                <div style="margin-top: 8px; display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8; font-style: italic;">
-                    <div>${app_name} — IT Issue Detail Report — ${reportAtLabel}</div>
-                    <div>Page ${pageIdx + 1} of ${totalPages}</div>
-                </div>
-            `;
-
-            bottomWrapper.innerHTML = signatureHtml + footerHtml;
-            pageElement.appendChild(bottomWrapper);
-
-            renderContainer.innerHTML = '';
-            renderContainer.appendChild(pageElement);
-
-            const canvas = await html2canvas(pageElement, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-            });
-
-            const imgData = canvas.toDataURL('image/jpeg', 0.98);
-            if (pageIdx > 0) {
-                doc.addPage('a4', 'landscape');
-            }
-            doc.addImage(imgData, 'JPEG', 0, 0, 297, 210);
-        }
-
-        const filename = `IT_Issue_Detail_Report_${startDate || 'all'}_to_${endDate || 'all'}.pdf`;
-        doc.save(filename);
-    } finally {
-        if (renderContainer && renderContainer.parentNode) {
-            renderContainer.parentNode.removeChild(renderContainer);
-        }
+        fontName = await applyPyidaungsuFont(doc);
+    } catch (e) {
+        console.warn('Pyidaungsu font load error, using helvetica fallback:', e);
+        fontName = 'helvetica';
     }
+
+    const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
+    const pageHeight = doc.internal.pageSize.getHeight(); // 210mm
+    const margin = 12;
+    const contentWidth = pageWidth - margin * 2; // 273mm
+    let currentY = 12;
+
+    // ------------------------------------------------------------------
+    // 1. Top Header Banner
+    // ------------------------------------------------------------------
+    const headerH = 18;
+    doc.setFillColor(59, 7, 100); // #3b0764 Deep purple
+    doc.roundedRect(margin, currentY, contentWidth, headerH, 2, 2, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Issue Tracking Detail Report', margin + 6, currentY + 7);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(233, 213, 255); // #e9d5ff
+    doc.text(`${app_name}  |  ${resolverLabel}`, margin + 6, currentY + 13);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(226, 232, 240);
+    doc.text(`Generated: ${generatedAt}`, pageWidth - margin - 6, currentY + 7, { align: 'right' });
+
+    if (fullExporterText) {
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(216, 180, 254);
+        doc.text(`Exported by: ${cleanText(fullExporterText)}`, pageWidth - margin - 6, currentY + 13, { align: 'right' });
+    }
+
+    currentY += headerH + 2.5;
+
+    // ------------------------------------------------------------------
+    // 2. Filter Summary Bar
+    // ------------------------------------------------------------------
+    const filterH = 13;
+    doc.setFillColor(245, 240, 255); // #f5f0ff
+    doc.setDrawColor(233, 213, 255); // #e9d5ff
+    doc.setLineWidth(0.25);
+    doc.roundedRect(margin, currentY, contentWidth, filterH, 1.5, 1.5, 'FD');
+
+    const filterLine1 = `${reportAtLabel}     |     Resolver: ${resolverLabel}     |     Categories: ${catLabel}     |     Depts: ${deptLabel}`;
+    const filterLine2 = 'Continuous 24/7 Clock issues are listed first, followed by issues sorted by Due Date (today/upcoming first).';
+
+    if (hasComplexUnicode(filterLine1)) {
+        const filterImg = renderUnicodeTextBlockToPng(`${filterLine1}\n${filterLine2}`, {
+            fontSizePt: 7.5,
+            maxWidthMm: contentWidth - 8,
+            color: '#581c87',
+            lineHeightMultiplier: 1.5,
+        });
+        doc.addImage(filterImg.dataUrl, 'PNG', margin + 4, currentY + 1.8, filterImg.widthMm, filterImg.heightMm);
+    } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(88, 28, 135);
+        doc.text(filterLine1, margin + 4, currentY + 5.2);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(107, 33, 168);
+        doc.text(filterLine2, margin + 4, currentY + 9.8);
+    }
+
+    currentY += filterH + 4;
+
+    // ------------------------------------------------------------------
+    // 3. Issue Table Data Construction
+    // ------------------------------------------------------------------
+    const colWidths = [10, 137, 36, 26, 32, 32]; // Sum = 273mm
+
+    const tableRows = sortedItems.map((item, idx) => {
+        const isContinuous24h = item.priority_clock_type === 'continuous_24h' || item.priority_code === 'P1';
+
+        const formattedIssueAt = formatDateCustom ? formatDateCustom(item.issue_at) : (item.issue_at || 'N/A');
+        const formattedDueDate = formatDateCustom ? formatDateCustom(item.due_date) : (item.due_date || 'N/A');
+
+        return [
+            String(idx + 1),
+            {
+                title: cleanText(item.title),
+                description: cleanText(item.description),
+                proposedSolution: cleanText(item.proposed_solution),
+            },
+            cleanText(item.category_name || 'N/A'),
+            {
+                name: cleanText(item.priority_name || 'N/A'),
+                code: item.priority_code,
+                is24h: isContinuous24h,
+            },
+            formattedIssueAt.replace(', ', '\n'),
+            formattedDueDate.replace(', ', '\n'),
+        ];
+    });
+
+    const bodyRows = tableRows.length > 0 ? tableRows : [
+        [
+            {
+                content: 'No issues found for the selected criteria.',
+                colSpan: 6,
+                styles: { halign: 'center', textColor: [100, 116, 139], fontSize: 9, minCellHeight: 14 }
+            }
+        ]
+    ];
+
+    const tableConfig = {
+        startY: currentY,
+        head: [
+            ['#', 'Issue Details (Title / Description / Solution)', 'Category', 'Priority', 'Issued At', 'Due Date']
+        ],
+        body: bodyRows,
+        theme: 'grid',
+        margin: { top: 14, left: margin, right: margin, bottom: 14 },
+        styles: {
+            font: fontName,
+            fontSize: 8,
+            cellPadding: { top: 2.5, bottom: 2.5, left: 2.5, right: 2.5 },
+            lineColor: [226, 232, 240],
+            lineWidth: 0.15,
+            valign: 'middle',
+            textColor: [30, 41, 59],
+        },
+        headStyles: {
+            fillColor: [59, 7, 100], // Deep purple #3b0764
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8.5,
+            halign: 'center',
+        },
+        alternateRowStyles: {
+            fillColor: [248, 245, 255], // Light purple tint
+        },
+        columnStyles: {
+            0: { cellWidth: colWidths[0], halign: 'center', fontStyle: 'bold', textColor: [100, 116, 139] },
+            1: { cellWidth: colWidths[1], halign: 'left' },
+            2: { cellWidth: colWidths[2], halign: 'left', textColor: [51, 65, 85] },
+            3: { cellWidth: colWidths[3], halign: 'center' },
+            4: { cellWidth: colWidths[4], halign: 'center', textColor: [71, 85, 105], fontSize: 7.5 },
+            5: { cellWidth: colWidths[5], halign: 'center', textColor: [71, 85, 105], fontSize: 7.5 },
+        },
+        didParseCell: (data) => {
+            if (data.section === 'head') {
+                if (data.column.index === 1 || data.column.index === 2) {
+                    data.cell.styles.halign = 'left';
+                }
+            }
+            if (data.section === 'body') {
+                if (data.column.index === 1) {
+                    const raw = data.cell.raw;
+                    if (raw && typeof raw === 'object' && raw.title !== undefined) {
+                        const innerW = colWidths[1] - 4; // 133mm
+                        const detailsImg = renderIssueDetailsToPng({
+                            title: raw.title,
+                            description: raw.description,
+                            proposedSolution: raw.proposedSolution,
+                            maxWidthMm: innerW,
+                            fontSizePt: 8.2,
+                        });
+                        data.cell._detailsImg = detailsImg;
+                        data.cell.text = new Array(Math.max(1, detailsImg.lineCount)).fill(' ');
+                        data.cell.styles.minCellHeight = Math.max(8, detailsImg.heightMm + 2.5);
+                    }
+                } else if (data.column.index === 2) {
+                    const strVal = String(data.cell.raw || '');
+                    if (hasComplexUnicode(strVal)) {
+                        const innerW = colWidths[2] - 4; // 32mm
+                        const catImg = renderUnicodeTextBlockToPng(strVal, {
+                            fontSizePt: 8,
+                            maxWidthMm: innerW,
+                            color: '#334155',
+                            fontWeight: 'normal',
+                        });
+                        data.cell._catImg = catImg;
+                        data.cell.text = new Array(Math.max(1, catImg.lineCount)).fill(' ');
+                        data.cell.styles.minCellHeight = Math.max(data.cell.styles.minCellHeight || 0, catImg.heightMm + 2.5);
+                    }
+                } else if (data.column.index === 3) {
+                    const raw = data.cell.raw;
+                    if (raw && typeof raw === 'object' && raw.name !== undefined) {
+                        const innerW = colWidths[3] - 4; // 22mm
+                        const priImg = renderPriorityBadgeToPng({
+                            name: raw.name,
+                            code: raw.code,
+                            is24h: raw.is24h,
+                            maxWidthMm: innerW,
+                        });
+                        data.cell._priImg = priImg;
+                        data.cell.text = new Array(Math.max(1, priImg.lineCount)).fill(' ');
+                        data.cell.styles.minCellHeight = Math.max(data.cell.styles.minCellHeight || 0, priImg.heightMm + 2.5);
+                    }
+                }
+            }
+        },
+        didDrawCell: (data) => {
+            if (data.section === 'body') {
+                if (data.column.index === 1 && data.cell._detailsImg) {
+                    const img = data.cell._detailsImg;
+                    const drawX = data.cell.x + 2;
+                    const drawY = data.cell.y + Math.max(1, (data.cell.height - img.heightMm) / 2);
+                    doc.addImage(img.dataUrl, 'PNG', drawX, drawY, img.widthMm, img.heightMm);
+                } else if (data.column.index === 2 && data.cell._catImg) {
+                    const img = data.cell._catImg;
+                    const drawX = data.cell.x + 2;
+                    const drawY = data.cell.y + Math.max(1, (data.cell.height - img.heightMm) / 2);
+                    doc.addImage(img.dataUrl, 'PNG', drawX, drawY, img.widthMm, img.heightMm);
+                } else if (data.column.index === 3 && data.cell._priImg) {
+                    const img = data.cell._priImg;
+                    const drawX = data.cell.x + (data.cell.width - img.widthMm) / 2;
+                    const drawY = data.cell.y + Math.max(1, (data.cell.height - img.heightMm) / 2);
+                    doc.addImage(img.dataUrl, 'PNG', drawX, drawY, img.widthMm, img.heightMm);
+                }
+            }
+        },
+        didDrawPage: (data) => {
+            // Continuation header on page 2+
+            if (data.pageNumber > 1) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8);
+                doc.setTextColor(59, 7, 100);
+                doc.text('Issue Tracking Detail Report (Continued)', margin, 10);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Generated: ${generatedAt}`, pageWidth - margin, 10, { align: 'right' });
+            }
+        }
+    };
+
+    if (typeof autoTable === 'function') {
+        autoTable(doc, tableConfig);
+    } else if (typeof doc.autoTable === 'function') {
+        doc.autoTable(tableConfig);
+    }
+
+    // ------------------------------------------------------------------
+    // 4. Verification & Signature Block (Placed on Last Page)
+    // ------------------------------------------------------------------
+    const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 30;
+    const sigBlockH = 26;
+
+    let sigY = finalY + 6;
+    if (sigY + sigBlockH > pageHeight - margin - 8) {
+        doc.addPage('a4', 'landscape');
+        sigY = 20;
+    }
+
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.2);
+    doc.line(margin, sigY, pageWidth - margin, sigY);
+    sigY += 5;
+
+    const blockW = 105;
+    const leftX = margin + 4;
+    const rightX = pageWidth - margin - blockW - 4;
+
+    // Left: Report Exported By
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Report Exported By:', leftX, sigY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Name:', leftX, sigY + 6);
+
+    if (hasComplexUnicode(fullExporterText)) {
+        const nameImg = renderUnicodeTextBlockToPng(fullExporterText, {
+            fontSizePt: 8,
+            maxWidthMm: 75,
+            fontWeight: 'bold',
+            color: '#0f172a',
+        });
+        doc.addImage(nameImg.dataUrl, 'PNG', leftX + 16, sigY + 2.5, nameImg.widthMm, nameImg.heightMm);
+    } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(fullExporterText || '—', leftX + 16, sigY + 6);
+    }
+    doc.setDrawColor(148, 163, 184);
+    doc.line(leftX + 16, sigY + 7, leftX + blockW, sigY + 7);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Signature:', leftX, sigY + 12);
+    doc.line(leftX + 16, sigY + 13, leftX + blockW, sigY + 13);
+
+    doc.text('Date:', leftX, sigY + 18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(todayDate, leftX + 16, sigY + 18);
+
+    // Right: Acknowledged By
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Acknowledged By:', rightX, sigY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Name:', rightX, sigY + 6);
+    doc.setDrawColor(148, 163, 184);
+    doc.line(rightX + 16, sigY + 7, rightX + blockW, sigY + 7);
+
+    doc.text('Signature:', rightX, sigY + 12);
+    doc.line(rightX + 16, sigY + 13, rightX + blockW, sigY + 13);
+
+    doc.text('Date:', rightX, sigY + 18);
+    doc.line(rightX + 16, sigY + 19, rightX + blockW, sigY + 19);
+
+    // ------------------------------------------------------------------
+    // 5. Page Numbering & Bottom Footer (All Pages)
+    // ------------------------------------------------------------------
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        const footerLeft = `${app_name} — IT Issue Detail Report — ${cleanText(reportAtLabel)}`;
+        doc.text(footerLeft, margin, pageHeight - 6);
+        const footerRight = `Page ${i} of ${totalPages}`;
+        doc.text(footerRight, pageWidth - margin, pageHeight - 6, { align: 'right' });
+    }
+
+    const filename = `IT_Issue_Detail_Report_${startDate || 'all'}_to_${endDate || 'all'}.pdf`;
+    doc.save(filename);
 };
 
 /**
- * Exports the Category Summary Report PDF.
+ * Exports the Category Summary Report PDF using vector jsPDF + jspdf-autotable.
+ * Completely immune to html2canvas zoom scaling and word collision bugs.
  */
 export const exportCategorySummaryPDF = async ({
     report,
     filters = {},
     app_name = 'OrderDemo',
 }) => {
-    await ensureFontLoaded();
+    await ensurePyidaungsuFontLoaded();
 
     const { periodType = 'weekly', startDate, endDate, resolverType = 'all' } = filters;
 
@@ -476,136 +871,268 @@ export const exportCategorySummaryPDF = async ({
 
     const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    const renderContainer = document.createElement('div');
-    renderContainer.style.position = 'fixed';
-    renderContainer.style.left = '-99999px';
-    renderContainer.style.top = '0';
-    renderContainer.style.width = '793px'; // Standard A4 Portrait width at 96 DPI
-    renderContainer.style.zIndex = '-9999';
-    renderContainer.style.backgroundColor = '#ffffff';
-    renderContainer.style.fontFamily = `'Pyidaungsu', 'Segoe UI', Arial, sans-serif`;
-    document.body.appendChild(renderContainer);
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
+    let fontName = 'helvetica';
     try {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-        const pageElement = document.createElement('div');
-        pageElement.style.width = '793px';
-        pageElement.style.minHeight = '1122px'; // Standard A4 Portrait height
-        pageElement.style.maxHeight = '1122px';
-        pageElement.style.height = '1122px';
-        pageElement.style.padding = '24px 28px';
-        pageElement.style.boxSizing = 'border-box';
-        pageElement.style.backgroundColor = '#ffffff';
-        pageElement.style.display = 'flex';
-        pageElement.style.flexDirection = 'column';
-        pageElement.style.justifyContent = 'space-between';
-
-        let rowsHtml = '';
-        rows.forEach((r, idx) => {
-            const rowBg = idx % 2 === 1 ? '#f8f5ff' : '#ffffff';
-            const rateColor = r.rateNum >= 80 ? '#15803d' : (r.rateNum >= 50 ? '#a16207' : '#b91c1c');
-            rowsHtml += `
-                <tr style="background-color: ${rowBg}; border-bottom: 1px solid #e5e7eb;">
-                    <td style="padding: 8px 10px; text-align: center; font-size: 11px; font-weight: 600; color: #4b5563; border-right: 1px solid #f1f5f9;">${r.idx}</td>
-                    <td style="padding: 8px 12px; font-size: 12px; font-weight: 500; color: #111827; font-family: 'Pyidaungsu', sans-serif; border-right: 1px solid #f1f5f9;">${r.cat}</td>
-                    <td style="padding: 8px 10px; text-align: center; font-size: 11.5px; font-weight: bold; color: #15803d; border-right: 1px solid #f1f5f9;">${r.success}</td>
-                    <td style="padding: 8px 10px; text-align: center; font-size: 11.5px; font-weight: bold; color: #b91c1c; border-right: 1px solid #f1f5f9;">${r.fail}</td>
-                    <td style="padding: 8px 10px; text-align: center; font-size: 11.5px; font-weight: bold; color: #b91c1c; border-right: 1px solid #f1f5f9;">${r.failPoints}</td>
-                    <td style="padding: 8px 10px; text-align: center; font-size: 12px; font-weight: bold; color: ${rateColor};">${r.rate}</td>
-                </tr>
-            `;
-        });
-
-        const serviceCreditMsg = svcCredit > 0
-            ? `<div style="background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 6px; padding: 10px 14px; font-size: 11.5px; font-weight: bold; text-align: center; margin-top: 16px;">
-                ⚠️ Service Credit Refund Due: ${svcCredit}% — Maintenance credit must be applied for this period.
-               </div>`
-            : `<div style="background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px 14px; font-size: 11.5px; font-weight: bold; text-align: center; margin-top: 16px;">
-                ✓ No Service Credit Refund Required — SLA targets were met for this period.
-               </div>`;
-
-        pageElement.innerHTML = `
-            <div>
-                <!-- Banner -->
-                <div style="background-color: #3b0764; color: #ffffff; padding: 14px 20px; border-radius: 6px 6px 0 0;">
-                    <div style="font-size: 17px; font-weight: bold;">SLA & Service Credit — Category Summary Report</div>
-                    <div style="font-size: 11px; opacity: 0.9; margin-top: 3px;">${companyDisplay}</div>
-                    <div style="font-size: 10.5px; opacity: 0.8; margin-top: 2px;">Generated: ${todayDate}</div>
-                </div>
-
-                <!-- Info Block -->
-                <div style="background-color: #f0f0ff; color: #1e1e50; padding: 10px 20px; border-radius: 0 0 6px 6px; border: 1px solid #e0e0fc; border-top: none; margin-bottom: 16px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 10px; font-size: 11px;">
-                        <div>
-                            <div style="font-weight: bold; color: #3b0764; font-size: 10px; margin-bottom: 2px;">REPORT PERIOD</div>
-                            <div>${periodStr}</div>
-                        </div>
-                        <div>
-                            <div style="font-weight: bold; color: #3b0764; font-size: 10px; margin-bottom: 2px;">RESOLVER SCOPE</div>
-                            <div>${resolverLabel}</div>
-                        </div>
-                        <div>
-                            <div style="font-weight: bold; color: #3b0764; font-size: 10px; margin-bottom: 2px;">REPORT EXPLAINS</div>
-                            <div style="font-size: 10px; font-style: italic; color: #475569;">Shows SLA-passed/failed IT issues per category, weighted fail points, and resolution rate.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Table -->
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
-                    <thead>
-                        <tr style="background-color: #3b0764; color: #ffffff; font-size: 11.5px;">
-                            <th style="padding: 10px 8px; width: 40px; text-align: center; border-right: 1px solid #581c87;">#</th>
-                            <th style="padding: 10px 12px; text-align: left; border-right: 1px solid #581c87;">Category</th>
-                            <th style="padding: 10px 10px; width: 90px; text-align: center; border-right: 1px solid #581c87;">Success ✔</th>
-                            <th style="padding: 10px 10px; width: 90px; text-align: center; border-right: 1px solid #581c87;">Fail ✖</th>
-                            <th style="padding: 10px 10px; width: 95px; text-align: center; border-right: 1px solid #581c87;">Fail Points</th>
-                            <th style="padding: 10px 10px; width: 105px; text-align: center;">Success Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                    <tfoot>
-                        <tr style="background-color: #0d9488; color: #ffffff; font-size: 12px; font-weight: bold;">
-                            <td style="padding: 10px 8px; text-align: center;"></td>
-                            <td style="padding: 10px 12px;">GRAND TOTAL</td>
-                            <td style="padding: 10px 10px; text-align: center;">${totalSuccess}</td>
-                            <td style="padding: 10px 10px; text-align: center;">${totalFail}</td>
-                            <td style="padding: 10px 10px; text-align: center;">${totalFP}</td>
-                            <td style="padding: 10px 10px; text-align: center;">${grandRate}%</td>
-                        </tr>
-                    </tfoot>
-                </table>
-
-                ${serviceCreditMsg}
-            </div>
-
-            <!-- Footer -->
-            <div style="text-align: center; font-size: 10px; color: #94a3b8; font-style: italic; margin-top: 20px;">
-                Fail Point Weightage: P1 = 10 pts  |  P2 = 5 pts  |  P3/P4 = 1 pt
-            </div>
-        `;
-
-        renderContainer.innerHTML = '';
-        renderContainer.appendChild(pageElement);
-
-        const canvas = await html2canvas(pageElement, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.98);
-        doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-
-        const filename = `SLA_Category_Summary_${periodType}_${startDate || 'all'}_to_${endDate || 'all'}.pdf`;
-        doc.save(filename);
-    } finally {
-        if (renderContainer && renderContainer.parentNode) {
-            renderContainer.parentNode.removeChild(renderContainer);
-        }
+        fontName = await applyPyidaungsuFont(doc);
+    } catch (e) {
+        console.warn('Pyidaungsu font load error, using helvetica fallback:', e);
+        fontName = 'helvetica';
     }
+
+    const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+    const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2; // 182mm
+    let currentY = 14;
+
+    // ------------------------------------------------------------------
+    // 1. Top Header Banner
+    // ------------------------------------------------------------------
+    const headerH = 20;
+    doc.setFillColor(59, 7, 100); // #3b0764
+    doc.roundedRect(margin, currentY, contentWidth, headerH, 2, 2, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text('SLA & Service Credit — Category Summary Report', margin + 6, currentY + 7.5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(233, 213, 255);
+    doc.text(companyDisplay, margin + 6, currentY + 14);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(226, 232, 240);
+    doc.text(`Generated: ${todayDate}`, pageWidth - margin - 6, currentY + 7.5, { align: 'right' });
+
+    currentY += headerH + 3;
+
+    // ------------------------------------------------------------------
+    // 2. Info / Meta Block
+    // ------------------------------------------------------------------
+    const infoH = 14;
+    doc.setFillColor(240, 240, 255);
+    doc.setDrawColor(224, 224, 252);
+    doc.setLineWidth(0.25);
+    doc.roundedRect(margin, currentY, contentWidth, infoH, 1.5, 1.5, 'FD');
+
+    const colW = contentWidth / 3;
+
+    // Col 1: Report Period
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(59, 7, 100);
+    doc.text('REPORT PERIOD', margin + 4, currentY + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    doc.text(periodStr, margin + 4, currentY + 10);
+
+    // Col 2: Resolver Scope
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(59, 7, 100);
+    doc.text('RESOLVER SCOPE', margin + colW + 4, currentY + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    doc.text(resolverLabel, margin + colW + 4, currentY + 10);
+
+    // Col 3: Report Explains
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(59, 7, 100);
+    doc.text('REPORT EXPLAINS', margin + colW * 2 + 4, currentY + 5);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Shows SLA-passed/failed IT issues per category, weighted fail points, and resolution rate.', margin + colW * 2 + 4, currentY + 10, { maxWidth: colW - 6 });
+
+    currentY += infoH + 5;
+
+    // ------------------------------------------------------------------
+    // 3. Category Summary Table
+    // ------------------------------------------------------------------
+    const summaryColWidths = [12, 70, 25, 25, 25, 25]; // Sum = 182mm
+
+    const summaryTableRows = rows.map((r) => [
+        String(r.idx),
+        cleanText(r.cat),
+        String(r.success),
+        String(r.fail),
+        String(r.failPoints),
+        r.rate,
+    ]);
+
+    const summaryBody = summaryTableRows.length > 0 ? summaryTableRows : [
+        [
+            {
+                content: 'No category data available for the selected period.',
+                colSpan: 6,
+                styles: { halign: 'center', textColor: [100, 116, 139], fontSize: 9, minCellHeight: 12 }
+            }
+        ]
+    ];
+
+    const summaryFoot = [
+        ['', 'GRAND TOTAL', String(totalSuccess), String(totalFail), String(totalFP), `${grandRate}%`]
+    ];
+
+    const summaryTableConfig = {
+        startY: currentY,
+        head: [
+            ['#', 'Category', 'Success ✔', 'Fail ✖', 'Fail Points', 'Success Rate']
+        ],
+        body: summaryBody,
+        foot: summaryFoot,
+        theme: 'grid',
+        margin: { top: 14, left: margin, right: margin, bottom: 14 },
+        styles: {
+            font: fontName,
+            fontSize: 8.5,
+            cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+            lineColor: [226, 232, 240],
+            lineWidth: 0.15,
+            valign: 'middle',
+            textColor: [30, 41, 59],
+        },
+        headStyles: {
+            fillColor: [59, 7, 100],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8.5,
+            halign: 'center',
+        },
+        footStyles: {
+            fillColor: [13, 148, 136], // Teal #0d9488
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8.5,
+            halign: 'center',
+        },
+        alternateRowStyles: {
+            fillColor: [248, 245, 255],
+        },
+        columnStyles: {
+            0: { cellWidth: summaryColWidths[0], halign: 'center', fontStyle: 'bold', textColor: [100, 116, 139] },
+            1: { cellWidth: summaryColWidths[1], halign: 'left', fontStyle: 'bold' },
+            2: { cellWidth: summaryColWidths[2], halign: 'center', fontStyle: 'bold', textColor: [21, 128, 61] },
+            3: { cellWidth: summaryColWidths[3], halign: 'center', fontStyle: 'bold', textColor: [185, 28, 28] },
+            4: { cellWidth: summaryColWidths[4], halign: 'center', fontStyle: 'bold', textColor: [185, 28, 28] },
+            5: { cellWidth: summaryColWidths[5], halign: 'center', fontStyle: 'bold' },
+        },
+        didParseCell: (data) => {
+            if (data.section === 'head' && data.column.index === 1) {
+                data.cell.styles.halign = 'left';
+            }
+            if (data.section === 'foot' && data.column.index === 1) {
+                data.cell.styles.halign = 'left';
+            }
+            if (data.section === 'body' && data.column.index === 1) {
+                const strVal = String(data.cell.raw || '');
+                if (hasComplexUnicode(strVal)) {
+                    const innerW = summaryColWidths[1] - 4; // 66mm
+                    const catImg = renderUnicodeTextBlockToPng(strVal, {
+                        fontSizePt: 8.5,
+                        maxWidthMm: innerW,
+                        color: '#111827',
+                        fontWeight: 'bold',
+                    });
+                    data.cell._catImg = catImg;
+                    data.cell.text = new Array(Math.max(1, catImg.lineCount)).fill(' ');
+                    data.cell.styles.minCellHeight = Math.max(7, catImg.heightMm + 2.5);
+                }
+            }
+        },
+        didDrawCell: (data) => {
+            if (data.section === 'body' && data.column.index === 1 && data.cell._catImg) {
+                const img = data.cell._catImg;
+                const drawX = data.cell.x + 2;
+                const drawY = data.cell.y + Math.max(1, (data.cell.height - img.heightMm) / 2);
+                doc.addImage(img.dataUrl, 'PNG', drawX, drawY, img.widthMm, img.heightMm);
+            }
+        }
+    };
+
+    if (typeof autoTable === 'function') {
+        autoTable(doc, summaryTableConfig);
+    } else if (typeof doc.autoTable === 'function') {
+        doc.autoTable(summaryTableConfig);
+    }
+
+    // ------------------------------------------------------------------
+    // 4. Service Credit Callout & Footnote
+    // ------------------------------------------------------------------
+    const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 30;
+    let bannerY = finalY + 6;
+
+    if (bannerY + 22 > pageHeight - margin - 10) {
+        doc.addPage('a4', 'portrait');
+        bannerY = 20;
+    }
+
+    const bannerH = 12;
+    if (svcCredit > 0) {
+        doc.setFillColor(254, 242, 242);
+        doc.setDrawColor(254, 202, 202);
+        doc.setLineWidth(0.25);
+        doc.roundedRect(margin, bannerY, contentWidth, bannerH, 1.5, 1.5, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(185, 28, 28);
+        doc.text(
+            `Service Credit Refund Due: ${svcCredit}% — Maintenance credit must be applied for this period.`,
+            pageWidth / 2,
+            bannerY + 7.5,
+            { align: 'center' }
+        );
+    } else {
+        doc.setFillColor(240, 253, 244);
+        doc.setDrawColor(187, 247, 208);
+        doc.setLineWidth(0.25);
+        doc.roundedRect(margin, bannerY, contentWidth, bannerH, 1.5, 1.5, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(21, 128, 61);
+        doc.text(
+            '✓ No Service Credit Refund Required — SLA targets were met for this period.',
+            pageWidth / 2,
+            bannerY + 7.5,
+            { align: 'center' }
+        );
+    }
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+        'Fail Point Weightage: P1 = 10 pts  |  P2 = 5 pts  |  P3/P4 = 1 pt',
+        pageWidth / 2,
+        bannerY + bannerH + 6,
+        { align: 'center' }
+    );
+
+    // ------------------------------------------------------------------
+    // 5. Page Numbering & Footer
+    // ------------------------------------------------------------------
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        const footerLeft = `${app_name} — SLA Category Summary — ${cleanText(periodStr)}`;
+        doc.text(footerLeft, margin, pageHeight - 6);
+        const footerRight = `Page ${i} of ${totalPages}`;
+        doc.text(footerRight, pageWidth - margin, pageHeight - 6, { align: 'right' });
+    }
+
+    const filename = `SLA_Category_Summary_${periodType}_${startDate || 'all'}_to_${endDate || 'all'}.pdf`;
+    doc.save(filename);
 };
