@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AsideLayout from '@/Layouts/AsideLayout';
 import CreateIssueModal from '@/Components/IT/CreateIssueModal';
 import UserSelectModal from '@/Components/IT/UserSelectModal';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
-import { exportDetailedIssuePDF, exportCategorySummaryPDF } from '@/utils/pdfExportHelper';
+import { exportDetailedIssuePDF, exportCategorySummaryPDF, filterIssuesByActiveFilters } from '@/utils/pdfExportHelper';
 import StatusStepper from '@/Components/IT/StatusStepper';
 import {
     Box,
@@ -223,12 +223,23 @@ export default function Reports({ report, filters, categories = [], priorities =
     const [page, setPage] = useState(1);
     const pageSize = 6;
 
+    // Filter display items reactively so all top box and table filters apply to table display data
+    const displayItems = useMemo(() => {
+        return filterIssuesByActiveFilters(report.items || [], {
+            resolverType,
+            selectedCategoryIds,
+            selectedStatusCodes,
+            selectedDepartmentIds,
+            quickFilter,
+        });
+    }, [report.items, resolverType, selectedCategoryIds, selectedStatusCodes, selectedDepartmentIds, quickFilter]);
+
     useEffect(() => {
         setPage(1);
-    }, [report.items, periodType, resolverType, startDate, endDate, selectedCategoryIds, selectedStatusCodes, selectedDepartmentIds, quickFilter]);
+    }, [displayItems.length, periodType, resolverType, startDate, endDate, selectedCategoryIds, selectedStatusCodes, selectedDepartmentIds, quickFilter]);
 
-    const totalPages = Math.ceil((report.items || []).length / pageSize);
-    const paginatedItems = (report.items || []).slice((page - 1) * pageSize, page * pageSize);
+    const totalPages = Math.ceil((displayItems || []).length / pageSize);
+    const paginatedItems = (displayItems || []).slice((page - 1) * pageSize, page * pageSize);
 
     // ── Date Formatting Helpers ──────────────────────────────────────────────
     const formatDateCustom = (dateStr) => {
@@ -354,7 +365,7 @@ export default function Reports({ report, filters, categories = [], priorities =
     // Category Multi-Select Handler
     const handleCategoryChange = (event) => {
         const { target: { value } } = event;
-        const newCatIds = typeof value === 'string' ? value.split(',') : value;
+        const newCatIds = typeof value === 'string' ? value.split(',').map(Number).filter(Boolean) : value.map(Number);
         setSelectedCategoryIds(newCatIds);
         applyFilters({ category_ids: newCatIds });
     };
@@ -362,7 +373,7 @@ export default function Reports({ report, filters, categories = [], priorities =
     // Status Multi-Select Handler
     const handleStatusChange = (event) => {
         const { target: { value } } = event;
-        const newStatusCodes = typeof value === 'string' ? value.split(',') : value;
+        const newStatusCodes = typeof value === 'string' ? value.split(',').filter(Boolean) : value;
         setSelectedStatusCodes(newStatusCodes);
         applyFilters({ status_codes: newStatusCodes });
     };
@@ -370,7 +381,7 @@ export default function Reports({ report, filters, categories = [], priorities =
     // Resolver Department Multi-Select Handler
     const handleDepartmentChange = (event) => {
         const { target: { value } } = event;
-        const newDeptIds = typeof value === 'string' ? value.split(',').map(Number) : value;
+        const newDeptIds = typeof value === 'string' ? value.split(',').map(Number).filter(Boolean) : value.map(Number);
         setSelectedDepartmentIds(newDeptIds);
         applyFilters({ department_ids: newDeptIds });
     };
@@ -753,8 +764,15 @@ export default function Reports({ report, filters, categories = [], priorities =
                 startDate,
                 endDate,
                 resolverType,
+                selectedCategoryIds,
+                selectedStatusCodes,
+                selectedDepartmentIds,
+                quickFilter,
             },
             app_name,
+            categories,
+            statuses,
+            departments: resolverDepartments.length > 0 ? resolverDepartments : departments,
         });
     };
 
@@ -768,12 +786,15 @@ export default function Reports({ report, filters, categories = [], priorities =
                 endDate,
                 resolverType,
                 selectedCategoryIds,
+                selectedStatusCodes,
                 selectedDepartmentIds,
+                quickFilter,
             },
             auth_user,
             app_name,
             categories,
-            departments,
+            statuses,
+            departments: resolverDepartments.length > 0 ? resolverDepartments : departments,
             formatDateShort,
             formatDateCustom,
         });
@@ -859,7 +880,70 @@ export default function Reports({ report, filters, categories = [], priorities =
         );
     };
 
-    const summary = report.summary;
+    const summary = useMemo(() => {
+        const base = report.summary || {};
+        if (!displayItems) return base;
+
+        const isDefaultFilter =
+            (resolverType === 'all' || !resolverType) &&
+            (!selectedCategoryIds || selectedCategoryIds.length === 0) &&
+            (!selectedStatusCodes || selectedStatusCodes.length === 0) &&
+            (!selectedDepartmentIds || selectedDepartmentIds.length === 0) &&
+            (quickFilter === 'all' || !quickFilter);
+
+        if (isDefaultFilter) {
+            return base;
+        }
+
+        let passedCount = 0;
+        let onTrackCount = 0;
+        let failedCount = 0;
+        let lackTrackCount = 0;
+        let totalFailPoints = 0;
+        let totalPotentialPoints = 0;
+        let p1FailCount = 0;
+        let p2FailCount = 0;
+        let p3FailCount = 0;
+
+        displayItems.forEach((item) => {
+            const failWeight = item.fail_points > 0 ? item.fail_points : (item.priority_code === 'P1' ? 10 : (item.priority_code === 'P2' ? 5 : 1));
+            totalPotentialPoints += failWeight;
+
+            if (item.sla_status_code === 'PASSED') passedCount++;
+            else if (item.sla_status_code === 'ON_TRACK') onTrackCount++;
+            else if (item.sla_status_code === 'FAIL') {
+                failedCount++;
+                totalFailPoints += Number(item.fail_points || failWeight);
+                if (item.priority_code === 'P1') p1FailCount++;
+                else if (item.priority_code === 'P2') p2FailCount++;
+                else p3FailCount++;
+            } else if (item.sla_status_code === 'LACK_TRACK') lackTrackCount++;
+        });
+
+        const resolutionRate = totalPotentialPoints > 0
+            ? Math.max(0, parseFloat((((totalPotentialPoints - totalFailPoints) / totalPotentialPoints) * 100).toFixed(2)))
+            : 100.0;
+
+        let serviceCreditPct = 0;
+        if (resolutionRate < 90.0) serviceCreditPct = 20;
+        else if (resolutionRate < 95.0) serviceCreditPct = 10;
+        else if (resolutionRate < 99.0) serviceCreditPct = 5;
+
+        return {
+            total_issues: displayItems.length,
+            passed_issues: passedCount,
+            on_track_issues: onTrackCount,
+            failed_issues: failedCount,
+            lack_track_issues: lackTrackCount,
+            total_fail_points: totalFailPoints,
+            p1_fail_count: p1FailCount,
+            p2_fail_count: p2FailCount,
+            p3_fail_count: p3FailCount,
+            resolution_rate: resolutionRate,
+            service_credit_pct: serviceCreditPct,
+            deleted_issues_count: base.deleted_issues_count ?? 0,
+        };
+    }, [displayItems, report.summary, resolverType, selectedCategoryIds, selectedStatusCodes, selectedDepartmentIds, quickFilter]);
 
     return (
         <AsideLayout title="SLA & Service Credit Weekly/Monthly Reports">
@@ -1330,7 +1414,7 @@ export default function Reports({ report, filters, categories = [], priorities =
                     {/* Table header row: title left, column toggle & resolver filter right */}
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold">
-                            Issue Resolution & SLA Performance Detail ({report.items.length} Records)
+                            Issue Resolution & SLA Performance Detail ({displayItems.length} Records)
                         </Typography>
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -1484,10 +1568,10 @@ export default function Reports({ report, filters, categories = [], priorities =
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {report.items.length === 0 ? (
+                                {displayItems.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={visibleColumns.length} align="center" sx={{ py: 4 }}>
-                                            No issues recorded in this period.
+                                            No issues found matching the selected filter criteria.
                                         </TableCell>
                                     </TableRow>
                                 ) : (

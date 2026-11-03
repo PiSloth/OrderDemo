@@ -225,7 +225,6 @@ const renderIssueDetailsToPng = ({
                 if (!candidate) continue;
 
                 if (measureCtx.measureText(candidate).width <= availableW || !curLineText) {
-                    // Check if candidate exceeds available width even as first token on line 1
                     if (isFirstLineOfSec && !curLineText && measureCtx.measureText(candidate).width > availableW) {
                         linesToDraw.push([
                             { text: sec.label, isBold: true, color: sec.labelColor }
@@ -374,6 +373,104 @@ const renderPriorityBadgeToPng = ({ name = 'N/A', code = '', is24h = false, maxW
 };
 
 /**
+ * Filters items using the full active filter set (both top box filters and table filters)
+ * to guarantee that the displayed and exported report matches exactly what is filtered.
+ */
+export const filterIssuesByActiveFilters = (items = [], filters = {}) => {
+    const {
+        resolverType = 'all',
+        selectedCategoryIds = [],
+        selectedStatusCodes = [],
+        selectedDepartmentIds = [],
+        quickFilter = 'all',
+    } = filters;
+
+    const catIdSet = new Set((selectedCategoryIds || []).map(String).filter(Boolean));
+    const statusSet = new Set((selectedStatusCodes || []).map(String).filter(Boolean));
+    const deptIdSet = new Set((selectedDepartmentIds || []).map(String).filter(Boolean));
+
+    const toLocalDateStr = (dStr) => {
+        if (!dStr) return '';
+        const d = new Date(dStr);
+        if (isNaN(d.getTime())) return '';
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const tom = new Date();
+    tom.setDate(tom.getDate() + 1);
+    const tomorrowStr = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
+
+    return items.filter((item) => {
+        // 1. Trash / Deleted filter
+        const isDeleted = Boolean(item.is_deleted || item.deleted_at);
+        if (quickFilter === 'trash' || quickFilter === 'deleted') {
+            if (!isDeleted) return false;
+        } else {
+            if (isDeleted) return false;
+        }
+
+        // 2. Resolver Type filter (Table filter: All / Internal IT / 3rd-Party)
+        if (resolverType === 'third_party') {
+            if (!item.is_third_party_resolver) return false;
+        } else if (resolverType === 'internal') {
+            if (item.is_third_party_resolver) return false;
+        }
+
+        // 3. Category Filter
+        if (catIdSet.size > 0) {
+            const itemCatId = String(item.issue_category_id || '');
+            if (!catIdSet.has(itemCatId)) return false;
+        }
+
+        // 4. Status Filter
+        if (statusSet.size > 0) {
+            const itemStatusCode = String(item.status_code || '');
+            if (!statusSet.has(itemStatusCode)) return false;
+        }
+
+        // 5. Resolver Department Filter
+        if (deptIdSet.size > 0) {
+            const resDeptId = String(item.resolution_department_id || '');
+            const userDeptId = String(item.assigned_user_department_id || item.assigned_user?.department_id || '');
+            if (!deptIdSet.has(resDeptId) && !deptIdSet.has(userDeptId)) return false;
+        }
+
+        // 6. Quick Filters
+        if (quickFilter === 'today_due') {
+            const isClosed = Boolean(item.closed_date);
+            const isDone = ['CLOSED', 'DONE'].includes(String(item.status_code || '').toUpperCase());
+            if (isClosed || isDone) return false;
+            const itemDue = toLocalDateStr(item.due_date_raw);
+            if (itemDue !== todayStr) return false;
+        } else if (quickFilter === 'overdue') {
+            const isClosed = Boolean(item.closed_date);
+            const isDone = ['CLOSED', 'DONE'].includes(String(item.status_code || '').toUpperCase());
+            if (isClosed || isDone) return false;
+            if (!item.due_date_raw) return false;
+            const dueTime = new Date(item.due_date_raw).getTime();
+            if (isNaN(dueTime) || dueTime >= Date.now()) return false;
+        } else if (quickFilter === 'in_progress') {
+            const isClosed = Boolean(item.closed_date);
+            const isDone = ['CLOSED', 'DONE'].includes(String(item.status_code || '').toUpperCase());
+            if (isClosed || isDone) return false;
+            if (!item.due_date_raw) return false;
+            const itemDue = toLocalDateStr(item.due_date_raw);
+            if (itemDue <= todayStr) return false;
+        } else if (quickFilter === 'tomorrow_start') {
+            const isClosed = Boolean(item.closed_date);
+            const isDone = ['CLOSED', 'DONE'].includes(String(item.status_code || '').toUpperCase());
+            if (isClosed || isDone) return false;
+            const itemStart = toLocalDateStr(item.started_at_raw || item.issue_at_raw);
+            if (itemStart !== tomorrowStr) return false;
+        }
+
+        return true;
+    });
+};
+
+/**
  * Sorts report items:
  * 1. Top priority: Continuous 24/7 clock ('continuous_24h' or Level 1 / P1).
  * 2. Other types: Sorted by Due Date with today / earliest first.
@@ -417,23 +514,27 @@ const sortReportItems = (items = []) => {
 };
 
 /**
- * Exports the Detailed IT Issues List PDF using vector jsPDF + jspdf-autotable
- * and 4x DPI offscreen 2D Canvas shaping for Myanmar Unicode (Pyidaungsu).
- * Completely immune to html2canvas zoom scaling and word collision bugs.
+ * Helper to compute human-readable filter labels for report headers.
  */
-export const exportDetailedIssuePDF = async ({
-    report,
+const buildFilterLabels = ({
     filters = {},
-    auth_user = {},
-    app_name = 'OrderDemo',
     categories = [],
+    statuses = [],
     departments = [],
+    report = {},
     formatDateShort,
-    formatDateCustom,
 }) => {
-    await ensurePyidaungsuFontLoaded();
+    const {
+        periodType = 'weekly',
+        startDate,
+        endDate,
+        resolverType = 'all',
+        selectedCategoryIds = [],
+        selectedStatusCodes = [],
+        selectedDepartmentIds = [],
+        quickFilter = 'all',
+    } = filters;
 
-    const { periodType = 'weekly', startDate, endDate, resolverType = 'all', selectedCategoryIds = [], selectedDepartmentIds = [] } = filters;
     const isSingle = startDate && endDate && startDate === endDate;
     const reportAtLabel = isSingle
         ? `Report At: ${formatDateShort ? formatDateShort(startDate) : startDate}`
@@ -445,13 +546,68 @@ export const exportDetailedIssuePDF = async ({
         : resolverType === 'internal' ? 'Internal IT Team'
             : 'All Resolvers';
 
-    const catLabel = selectedCategoryIds && selectedCategoryIds.length > 0
-        ? categories.filter(c => selectedCategoryIds.includes(c.id)).map(c => c.name).join(', ')
+    const quickFilterNames = {
+        all: 'All Issues',
+        today_due: 'Today Due',
+        in_progress: 'In Progress',
+        tomorrow_start: 'Tomorrow Start',
+        overdue: 'Overdue',
+        trash: 'Trash / Archived',
+        deleted: 'Trash / Archived',
+    };
+    const quickFilterLabel = quickFilterNames[quickFilter] || 'All Issues';
+
+    const catIds = (selectedCategoryIds || []).map(String).filter(Boolean);
+    const catLabel = catIds.length > 0
+        ? categories.filter(c => catIds.includes(String(c.id))).map(c => c.name).join(', ') || `${catIds.length} Categories`
         : 'All Categories';
 
-    const deptLabel = selectedDepartmentIds && selectedDepartmentIds.length > 0
-        ? departments.filter(d => selectedDepartmentIds.includes(d.id)).map(d => d.name).join(', ')
+    const stCodes = (selectedStatusCodes || []).map(String).filter(Boolean);
+    const statusLabel = stCodes.length > 0
+        ? statuses.filter(s => stCodes.includes(String(s.code))).map(s => s.name || s.code).join(', ') || stCodes.join(', ')
+        : 'All Statuses';
+
+    const deptIds = (selectedDepartmentIds || []).map(String).filter(Boolean);
+    const deptLabel = deptIds.length > 0
+        ? departments.filter(d => deptIds.includes(String(d.id))).map(d => d.name).join(', ') || `${deptIds.length} Depts`
         : 'All Resolver Depts';
+
+    return {
+        reportAtLabel,
+        resolverLabel,
+        quickFilterLabel,
+        catLabel,
+        statusLabel,
+        deptLabel,
+    };
+};
+
+/**
+ * Exports the Detailed IT Issues List PDF applying ALL selected filters:
+ * Top box filters: Date range, Category, Status, Resolver Dept, Quick Filter
+ * Table filter: Resolver (All / Internal IT / 3rd-Party)
+ */
+export const exportDetailedIssuePDF = async ({
+    report,
+    filters = {},
+    auth_user = {},
+    app_name = 'OrderDemo',
+    categories = [],
+    statuses = [],
+    departments = [],
+    formatDateShort,
+    formatDateCustom,
+}) => {
+    await ensurePyidaungsuFontLoaded();
+
+    const {
+        reportAtLabel,
+        resolverLabel,
+        quickFilterLabel,
+        catLabel,
+        statusLabel,
+        deptLabel,
+    } = buildFilterLabels({ filters, categories, statuses, departments, report, formatDateShort });
 
     const exporterName = auth_user?.name || '';
     const exporterDept = auth_user?.department ? ` (${auth_user.department})` : '';
@@ -459,9 +615,10 @@ export const exportDetailedIssuePDF = async ({
     const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const generatedAt = new Date().toLocaleString();
 
-    // Sort items according to business rules
+    // 1. Filter raw items according to ALL active top box and table filters
     const rawItems = report.items || [];
-    const sortedItems = sortReportItems(rawItems);
+    const filteredItems = filterIssuesByActiveFilters(rawItems, filters);
+    const sortedItems = sortReportItems(filteredItems);
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -510,35 +667,39 @@ export const exportDetailedIssuePDF = async ({
     currentY += headerH + 2.5;
 
     // ------------------------------------------------------------------
-    // 2. Filter Summary Bar
+    // 2. Filter Summary Bar (Shows ALL active top box and table filters)
     // ------------------------------------------------------------------
-    const filterH = 13;
+    const filterH = 16.5;
     doc.setFillColor(245, 240, 255); // #f5f0ff
     doc.setDrawColor(233, 213, 255); // #e9d5ff
     doc.setLineWidth(0.25);
     doc.roundedRect(margin, currentY, contentWidth, filterH, 1.5, 1.5, 'FD');
 
-    const filterLine1 = `${reportAtLabel}     |     Resolver: ${resolverLabel}     |     Categories: ${catLabel}     |     Depts: ${deptLabel}`;
-    const filterLine2 = 'Continuous 24/7 Clock issues are listed first, followed by issues sorted by Due Date (today/upcoming first).';
+    const filterLine1 = `${reportAtLabel}     |     Resolver: ${resolverLabel}     |     Quick Filter: ${quickFilterLabel}`;
+    const filterLine2 = `Categories: ${catLabel}     |     Status: ${statusLabel}     |     Resolver Depts: ${deptLabel}`;
+    const filterLine3 = (filters.quickFilter === 'trash' || filters.quickFilter === 'deleted')
+        ? 'Viewing Trashed / Archived IT Issues.'
+        : 'Continuous 24/7 Clock issues are listed first, followed by issues sorted by Due Date (today/upcoming first).';
 
-    if (hasComplexUnicode(filterLine1)) {
-        const filterImg = renderUnicodeTextBlockToPng(`${filterLine1}\n${filterLine2}`, {
-            fontSizePt: 7.5,
+    if (hasComplexUnicode(filterLine1 + filterLine2 + filterLine3)) {
+        const filterImg = renderUnicodeTextBlockToPng(`${filterLine1}\n${filterLine2}\n${filterLine3}`, {
+            fontSizePt: 7.2,
             maxWidthMm: contentWidth - 8,
             color: '#581c87',
-            lineHeightMultiplier: 1.5,
+            lineHeightMultiplier: 1.45,
         });
-        doc.addImage(filterImg.dataUrl, 'PNG', margin + 4, currentY + 1.8, filterImg.widthMm, filterImg.heightMm);
+        doc.addImage(filterImg.dataUrl, 'PNG', margin + 4, currentY + 1.6, filterImg.widthMm, filterImg.heightMm);
     } else {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(88, 28, 135);
-        doc.text(filterLine1, margin + 4, currentY + 5.2);
+        doc.text(filterLine1, margin + 4, currentY + 4.8);
+        doc.text(filterLine2, margin + 4, currentY + 9.5);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
         doc.setTextColor(107, 33, 168);
-        doc.text(filterLine2, margin + 4, currentY + 9.8);
+        doc.text(filterLine3, margin + 4, currentY + 13.8);
     }
 
     currentY += filterH + 4;
@@ -575,7 +736,7 @@ export const exportDetailedIssuePDF = async ({
     const bodyRows = tableRows.length > 0 ? tableRows : [
         [
             {
-                content: 'No issues found for the selected criteria.',
+                content: 'No issues found matching the selected filter criteria.',
                 colSpan: 6,
                 styles: { halign: 'center', textColor: [100, 116, 139], fontSize: 9, minCellHeight: 14 }
             }
@@ -803,22 +964,36 @@ export const exportDetailedIssuePDF = async ({
         doc.text(footerRight, pageWidth - margin, pageHeight - 6, { align: 'right' });
     }
 
-    const filename = `IT_Issue_Detail_Report_${startDate || 'all'}_to_${endDate || 'all'}.pdf`;
+    const filename = `IT_Issue_Detail_Report_${filters.periodType || 'report'}_${filters.startDate || 'all'}_to_${filters.endDate || 'all'}.pdf`;
     doc.save(filename);
 };
 
 /**
- * Exports the Category Summary Report PDF using vector jsPDF + jspdf-autotable.
- * Completely immune to html2canvas zoom scaling and word collision bugs.
+ * Exports the Category Summary Report PDF applying ALL selected filters:
+ * Top box filters: Date range, Category, Status, Resolver Dept, Quick Filter
+ * Table filter: Resolver (All / Internal IT / 3rd-Party)
  */
 export const exportCategorySummaryPDF = async ({
     report,
     filters = {},
     app_name = 'OrderDemo',
+    categories = [],
+    statuses = [],
+    departments = [],
+    formatDateShort,
 }) => {
     await ensurePyidaungsuFontLoaded();
 
     const { periodType = 'weekly', startDate, endDate, resolverType = 'all' } = filters;
+
+    const {
+        reportAtLabel,
+        resolverLabel,
+        quickFilterLabel,
+        catLabel,
+        statusLabel,
+        deptLabel,
+    } = buildFilterLabels({ filters, categories, statuses, departments, report, formatDateShort });
 
     const companyDisplay =
         resolverType === 'third_party'
@@ -827,13 +1002,13 @@ export const exportCategorySummaryPDF = async ({
                 ? `${app_name}  (Internal IT)`
                 : `${app_name}  (All Resolvers)`;
 
-    const resolverLabel =
-        resolverType === 'third_party' ? 'Third-Party Developer Fix'
-            : resolverType === 'internal' ? 'Internal IT / User Fix'
-                : 'All Resolvers (Internal + Third-Party)';
+    // 1. Filter raw items according to ALL active top box and table filters
+    const rawItems = report.items || [];
+    const filteredItems = filterIssuesByActiveFilters(rawItems, filters);
 
+    // 2. Compute category counts and SLA stats based on filtered items
     const catMap = {};
-    (report.items || []).forEach((item) => {
+    filteredItems.forEach((item) => {
         const cat = item.category_name || 'Uncategorized';
         if (!catMap[cat]) catMap[cat] = { success: 0, fail: 0, failPoints: 0 };
         if (item.is_sla_failed) {
@@ -863,7 +1038,7 @@ export const exportCategorySummaryPDF = async ({
     const totalFP = rows.reduce((s, r) => s + r.failPoints, 0);
     const grandTotal = totalSuccess + totalFail;
     const grandRate = grandTotal > 0 ? ((totalSuccess / grandTotal) * 100).toFixed(1) : '0.0';
-    const svcCredit = report.summary?.service_credit_pct ?? 0;
+    const svcCredit = report.summary?.service_credit_pct ?? (grandRate < 90 ? 20 : (grandRate < 95 ? 10 : (grandRate < 99 ? 5 : 0)));
 
     const periodStr = startDate && endDate
         ? `${startDate}  →  ${endDate}`
@@ -912,47 +1087,40 @@ export const exportCategorySummaryPDF = async ({
     currentY += headerH + 3;
 
     // ------------------------------------------------------------------
-    // 2. Info / Meta Block
+    // 2. Info / Meta Block (Displays all active filters)
     // ------------------------------------------------------------------
-    const infoH = 14;
+    const infoH = 17;
     doc.setFillColor(240, 240, 255);
     doc.setDrawColor(224, 224, 252);
     doc.setLineWidth(0.25);
     doc.roundedRect(margin, currentY, contentWidth, infoH, 1.5, 1.5, 'FD');
 
-    const colW = contentWidth / 3;
+    const metaLine1 = `Period: ${periodStr}     |     Resolver: ${resolverLabel}     |     Quick Filter: ${quickFilterLabel}`;
+    const metaLine2 = `Categories: ${catLabel}     |     Status: ${statusLabel}     |     Resolver Depts: ${deptLabel}`;
+    const metaLine3 = 'Shows SLA-passed/failed IT issues per category, weighted fail points, and resolution rate.';
 
-    // Col 1: Report Period
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(59, 7, 100);
-    doc.text('REPORT PERIOD', margin + 4, currentY + 5);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(30, 41, 59);
-    doc.text(periodStr, margin + 4, currentY + 10);
+    if (hasComplexUnicode(metaLine1 + metaLine2 + metaLine3)) {
+        const metaImg = renderUnicodeTextBlockToPng(`${metaLine1}\n${metaLine2}\n${metaLine3}`, {
+            fontSizePt: 7.2,
+            maxWidthMm: contentWidth - 8,
+            color: '#3b0764',
+            lineHeightMultiplier: 1.45,
+        });
+        doc.addImage(metaImg.dataUrl, 'PNG', margin + 4, currentY + 1.6, metaImg.widthMm, metaImg.heightMm);
+    } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(59, 7, 100);
+        doc.text(metaLine1, margin + 4, currentY + 5);
+        doc.text(metaLine2, margin + 4, currentY + 9.8);
 
-    // Col 2: Resolver Scope
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(59, 7, 100);
-    doc.text('RESOLVER SCOPE', margin + colW + 4, currentY + 5);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(30, 41, 59);
-    doc.text(resolverLabel, margin + colW + 4, currentY + 10);
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7);
+        doc.setTextColor(71, 85, 105);
+        doc.text(metaLine3, margin + 4, currentY + 14.2);
+    }
 
-    // Col 3: Report Explains
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(59, 7, 100);
-    doc.text('REPORT EXPLAINS', margin + colW * 2 + 4, currentY + 5);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    doc.text('Shows SLA-passed/failed IT issues per category, weighted fail points, and resolution rate.', margin + colW * 2 + 4, currentY + 10, { maxWidth: colW - 6 });
-
-    currentY += infoH + 5;
+    currentY += infoH + 4;
 
     // ------------------------------------------------------------------
     // 3. Category Summary Table
@@ -971,7 +1139,7 @@ export const exportCategorySummaryPDF = async ({
     const summaryBody = summaryTableRows.length > 0 ? summaryTableRows : [
         [
             {
-                content: 'No category data available for the selected period.',
+                content: 'No category data available matching the selected filter criteria.',
                 colSpan: 6,
                 styles: { halign: 'center', textColor: [100, 116, 139], fontSize: 9, minCellHeight: 12 }
             }

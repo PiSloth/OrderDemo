@@ -96,7 +96,7 @@ class SlaReportService
                 });
             })
             ->when($resolverType === 'third_party', fn($q) => $q->where('is_third_party_resolver', true))
-            ->when($resolverType === 'internal', fn($q) => $q->where('is_third_party_resolver', false))
+            ->when($resolverType === 'internal', fn($q) => $q->where(fn($sub) => $sub->where('is_third_party_resolver', false)->orWhereNull('is_third_party_resolver')))
             ->when(!empty($catIds), fn($q) => $q->whereIn('issue_category_id', $catIds))
             ->when(!empty($stCodes), fn($q) => $q->whereHas('status', fn($s) => $s->whereIn('code', $stCodes)))
             ->when(!empty($deptIds), function ($q) use ($deptIds) {
@@ -211,6 +211,7 @@ class SlaReportService
                 'status_code' => $issue->status?->code ?? 'OPEN',
                 'issue_status_id' => $issue->issue_status_id,
                 'assigned_user_name' => $issue->assignedUser?->name ?? 'Unassigned',
+                'assigned_user_department_id' => $issue->assignedUser?->department_id,
                 'assigned_user_department_name' => $issue->assignedUser?->department?->name ?? $issue->resolutionDepartment?->name ?? null,
                 'issue_at' => $issue->issue_at?->format($formatPattern),
                 'due_date' => $issue->due_date?->format($formatPattern),
