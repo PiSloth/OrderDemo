@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { router } from '@inertiajs/react';
 import RepairRequestModal from './RepairRequestModal';
+import { formatDate, formatDateTime } from '@/utils/dateFormat';
 
 export default function TaskDetailModal({
     task,
@@ -13,7 +15,8 @@ export default function TaskDetailModal({
     currentUser = null,
     todoLists = [],
 }) {
-    if (!isOpen || !task) return null;
+    const isModalActive = Boolean(isOpen && task);
+    const safeTask = task || {};
 
     // A5 Repair Request Modal state
     const [showRepairModal, setShowRepairModal] = useState(false);
@@ -46,6 +49,7 @@ export default function TaskDetailModal({
 
     // Escape Key Listener (closes active sub-modal first, or main modal if no sub-modal is open)
     useEffect(() => {
+        if (!isModalActive) return;
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
@@ -68,16 +72,26 @@ export default function TaskDetailModal({
         };
         window.addEventListener('keydown', handleKeyDown, true);
         return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [commentToDelete, showCustomDateModal, showStatusModal, showResolverModal, showNegotiationModal, onClose]);
+    }, [isModalActive, commentToDelete, showCustomDateModal, showStatusModal, showResolverModal, showNegotiationModal, onClose]);
+
+    // Lock background page scroll while fullscreen modal is open
+    useEffect(() => {
+        if (typeof document === 'undefined' || !isModalActive) return;
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = prevOverflow;
+        };
+    }, [isModalActive]);
 
     // Timeline calculations
     const timelineMetrics = useMemo(() => {
         const now = new Date();
-        const createdAt = task.created_at ? new Date(task.created_at) : now;
-        const dueDate = task.due_date ? new Date(task.due_date) : now;
-        const totalDurationHours = task.due_time?.duration || 0;
-        const isClosed = !!task.closed_at;
-        const closedAt = isClosed ? new Date(task.closed_at) : null;
+        const createdAt = safeTask.created_at ? new Date(safeTask.created_at) : now;
+        const dueDate = safeTask.due_date ? new Date(safeTask.due_date) : now;
+        const totalDurationHours = safeTask.due_time?.duration || 0;
+        const isClosed = !!safeTask.closed_at;
+        const closedAt = isClosed ? new Date(safeTask.closed_at) : null;
 
         const totalScheduledMs = Math.max(1, dueDate.getTime() - createdAt.getTime());
         const elapsedEnd = isClosed ? closedAt : now;
@@ -130,49 +144,53 @@ export default function TaskDetailModal({
             isOverdue,
             progressColor,
         };
-    }, [task]);
+    }, [safeTask]);
 
     // Check pending action step requests by type
     const hasPendingDueDateRequest = useMemo(() => {
-        return (task.comments || []).some(
+        return (safeTask.comments || []).some(
             (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'due_date_change'
         );
-    }, [task.comments]);
+    }, [safeTask.comments]);
 
     const hasPendingStatusRequest = useMemo(() => {
-        return (task.comments || []).some(
+        return (safeTask.comments || []).some(
             (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'status_change'
         );
-    }, [task.comments]);
+    }, [safeTask.comments]);
 
     const pendingStatusComment = useMemo(() => {
-        return (task.comments || []).find(
+        return (safeTask.comments || []).find(
             (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'status_change'
         ) || null;
-    }, [task.comments]);
+    }, [safeTask.comments]);
 
     const isTaskClosed = useMemo(() => {
-        if (task.closed_at) return true;
-        const statusName = (task.status?.status || '').toLowerCase();
+        if (safeTask.closed_at) return true;
+        const statusName = (safeTask.status?.status || '').toLowerCase();
         return ['complete', 'success', 'done', 'finish', 'close', 'fail'].some((kw) => statusName.includes(kw));
-    }, [task]);
+    }, [safeTask]);
+
+    const isTaskOverdue = useMemo(() => {
+        return Boolean(!isTaskClosed && safeTask.due_date && timelineMetrics.isOverdue);
+    }, [isTaskClosed, safeTask.due_date, timelineMetrics.isOverdue]);
 
     const hasPendingResolverRequest = useMemo(() => {
-        return (task.comments || []).some(
+        return (safeTask.comments || []).some(
             (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'resolver_change'
         );
-    }, [task.comments]);
+    }, [safeTask.comments]);
 
     // Connected KPI Task Instances
     const connectedKpiInstances = useMemo(() => {
-        if (task.kpi_task_instances && task.kpi_task_instances.length > 0) {
-            return task.kpi_task_instances;
+        if (safeTask.kpi_task_instances && safeTask.kpi_task_instances.length > 0) {
+            return safeTask.kpi_task_instances;
         }
-        if (task.kpi_task_instance) {
-            return [task.kpi_task_instance];
+        if (safeTask.kpi_task_instance) {
+            return [safeTask.kpi_task_instance];
         }
         return [];
-    }, [task]);
+    }, [safeTask]);
 
     // Helper status styling
     const getStatusBadge = (statusObj) => {
@@ -246,6 +264,7 @@ export default function TaskDetailModal({
 
     // Quick 24h Due Date Extension Request
     const handleRequest24hExtension = () => {
+        if (isTaskOverdue || hasPendingDueDateRequest) return;
         const currentDue = task.due_date ? new Date(task.due_date) : new Date();
         const extended = new Date(currentDue.getTime() + 24 * 60 * 60 * 1000);
         const isoStr = new Date(extended.getTime() - extended.getTimezoneOffset() * 60000)
@@ -253,7 +272,7 @@ export default function TaskDetailModal({
             .slice(0, 16);
 
         submitComment({
-            comment: `Requested 24-Hour Due Date Extension (New Target: ${isoStr.replace('T', ' ')})`,
+            comment: `Requested 24-Hour Due Date Extension (New Target: ${formatDateTime(isoStr)})`,
             comment_type: 'action_step',
             action_data: {
                 type: 'due_date_change',
@@ -267,10 +286,10 @@ export default function TaskDetailModal({
     // Custom Due Date Request Submit
     const handleCustomDueDateSubmit = (e) => {
         e.preventDefault();
-        if (!customDueDate) return;
+        if (isTaskOverdue || hasPendingDueDateRequest || !customDueDate) return;
 
         submitComment({
-            comment: `Requested Custom Due Date Change to ${customDueDate.replace('T', ' ')}${customDateReason ? `. Reason: ${customDateReason}` : ''}`,
+            comment: `Requested Custom Due Date Change to ${formatDateTime(customDueDate)}${customDateReason ? `. Reason: ${customDateReason}` : ''}`,
             comment_type: 'action_step',
             action_data: {
                 type: 'due_date_change',
@@ -326,23 +345,23 @@ export default function TaskDetailModal({
     const isResolver = useMemo(() => {
         if (isSuperUser) return true;
         if (!currentUser) return false;
-        if (task.assigned_user_id && Number(task.assigned_user_id) === Number(currentUser.id)) return true;
-        const assignedDeptId = task.assigned_user?.department_id;
+        if (safeTask.assigned_user_id && Number(safeTask.assigned_user_id) === Number(currentUser.id)) return true;
+        const assignedDeptId = safeTask.assigned_user?.department_id;
         if (assignedDeptId && currentUser.department_id && Number(currentUser.department_id) === Number(assignedDeptId)) return true;
         return false;
-    }, [isSuperUser, currentUser, task]);
+    }, [isSuperUser, currentUser, safeTask]);
 
     const isRequester = useMemo(() => {
         if (isSuperUser) return true;
         if (!currentUser) return false;
-        if (task.created_by_user_id && Number(task.created_by_user_id) === Number(currentUser.id)) return true;
-        const requesterDeptId = task.created_by_user?.department_id;
+        if (safeTask.created_by_user_id && Number(safeTask.created_by_user_id) === Number(currentUser.id)) return true;
+        const requesterDeptId = safeTask.created_by_user?.department_id;
         if (requesterDeptId && currentUser.department_id && Number(currentUser.department_id) === Number(requesterDeptId)) return true;
-        if (!task.created_by_user_id && task.requested_by_department_id && currentUser.department_id && Number(currentUser.department_id) === Number(task.requested_by_department_id)) {
+        if (!safeTask.created_by_user_id && safeTask.requested_by_department_id && currentUser.department_id && Number(currentUser.department_id) === Number(safeTask.requested_by_department_id)) {
             return true;
         }
         return false;
-    }, [isSuperUser, currentUser, task]);
+    }, [isSuperUser, currentUser, safeTask]);
 
     const canRespondToComment = (c) => {
         if (!c || c.comment_type !== 'action_step' || c.action_status !== 'pending') return false;
@@ -417,60 +436,78 @@ export default function TaskDetailModal({
         });
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900 overflow-y-auto p-4 sm:p-6 lg:p-10 transition-all">
-            <div className="mx-auto w-full max-w-6xl space-y-6 flex-1 flex flex-col justify-between">
-                <div className="space-y-6">
-                    {/* Header Bar */}
-                    <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-5">
-                        <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-3">
-                                <span className="rounded-lg bg-indigo-100 px-3 py-1 text-xs font-mono font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                                    #TASK-{task.id}
-                                </span>
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                    {task.due_time?.category?.name || 'Task Category'}
-                                </span>
-                                <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadge(task.status)}`}>
-                                    {task.status?.status || 'Open'}
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
-                                    <span className="relative flex h-2 w-2">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                    </span>
-                                    Live Sync Active
-                                </span>
-                                {connectedKpiInstances.length > 0 && (
-                                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
-                                        🏆 {connectedKpiInstances.length} KPI Instance(s)
-                                    </span>
-                                )}
-                            </div>
-                            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                                {task.task}
-                            </h1>
-                        </div>
+    if (!isModalActive || typeof document === 'undefined') return null;
 
-                        <div className="flex items-center gap-2.5">
-                            <button
-                                type="button"
-                                onClick={() => setShowRepairModal(true)}
-                                className="inline-flex items-center gap-1.5 rounded-2xl border border-indigo-200 bg-indigo-50/90 px-3.5 py-2 text-xs font-black text-indigo-700 shadow-xs hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 dark:hover:bg-indigo-900/70 transition"
-                                title="Open formatted A5 Repair Request Form (Download PDF / Copy as Image)"
-                            >
-                                <span>📄</span> Repair Form (A5)
-                            </button>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                                title="Press ESC to exit"
-                            >
-                                <kbd className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-mono dark:bg-slate-700">ESC</kbd> Exit Fullscreen
-                            </button>
+    return createPortal(
+        <div className="fixed inset-0 !m-0 z-[9999] flex flex-col bg-white dark:bg-slate-900 overflow-y-auto transition-all">
+            {/* Sticky Header Bar (Status Badges & Task Title) */}
+            <div className="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 pb-4">
+                <div className="mx-auto w-full max-w-6xl flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-2 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="rounded-lg bg-indigo-100 px-3 py-1 text-xs font-mono font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                #TASK-{task.id}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                {task.due_time?.category?.name || 'Task Category'}
+                            </span>
+                            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadge(task.status)}`}>
+                                {task.status?.status || 'Open'}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                Live Sync Active
+                            </span>
+                            {connectedKpiInstances.length > 0 && (
+                                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+                                    🏆 {connectedKpiInstances.length} KPI Instance(s)
+                                </span>
+                            )}
                         </div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                            {task.task}
+                        </h1>
                     </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                        <button
+                            type="button"
+                            onClick={handleCopyLink}
+                            className={`inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-2 text-xs font-bold shadow-xs transition ${
+                                copiedTaskId === task.id
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+                                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                            }`}
+                            title="Copy direct share link to this task"
+                        >
+                            <span>{copiedTaskId === task.id ? '✅' : '🔗'}</span>
+                            <span>{copiedTaskId === task.id ? 'Copied Link!' : 'Copy Link'}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowRepairModal(true)}
+                            className="inline-flex items-center gap-1.5 rounded-2xl border border-indigo-200 bg-indigo-50/90 px-3.5 py-2 text-xs font-black text-indigo-700 shadow-xs hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 dark:hover:bg-indigo-900/70 transition"
+                            title="Open formatted A5 Repair Request Form (Download PDF / Copy as Image)"
+                        >
+                            <span>📄</span> ပြုပြင်ရန် တောင်းခံလွှာ
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            title="Press ESC to exit"
+                        >
+                            <kbd className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-mono dark:bg-slate-700">ESC</kbd> Exit Fullscreen
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-10 py-6 space-y-6 flex-1 flex flex-col justify-between">
+                <div className="space-y-6">
 
                     {/* Timeline Progress Bar */}
                     <div className="rounded-3xl border border-slate-200 bg-slate-50/90 p-5 dark:border-slate-800 dark:bg-slate-800/40 space-y-3">
@@ -513,14 +550,14 @@ export default function TaskDetailModal({
 
                         {timelineMetrics.isClosed ? (
                             <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                                <span>Started: {timelineMetrics.createdAt.toLocaleString()}</span>
-                                <span>Success: {timelineMetrics.closedAt.toLocaleString()}</span>
+                                <span>Started: {formatDateTime(timelineMetrics.createdAt)}</span>
+                                <span>Success: {formatDateTime(timelineMetrics.closedAt)}</span>
                             </div>
                         ) : (
                             <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                                <span>Started: {timelineMetrics.createdAt.toLocaleString()}</span>
+                                <span>Started: {formatDateTime(timelineMetrics.createdAt)}</span>
                                 <span className="font-extrabold text-slate-700 dark:text-slate-300">{timelineMetrics.progressPercentage}% Elapsed</span>
-                                <span>Due: {timelineMetrics.dueDate.toLocaleString()}</span>
+                                <span>Due: {formatDateTime(timelineMetrics.dueDate)}</span>
                             </div>
                         )}
                     </div>
@@ -552,34 +589,6 @@ export default function TaskDetailModal({
                                 {task.assigned_user?.name || 'Unassigned'}
                             </p>
                             <p className="text-xs text-slate-500 mt-1">{task.assigned_user?.email || '-'}</p>
-                        </div>
-                    </div>
-
-                    {/* Detailed Info Grid */}
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-800/30 space-y-4">
-                        <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Task Timeline & Ownership</h4>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm text-slate-700 dark:text-slate-300">
-                            <div>
-                                <span className="text-slate-400 block text-xs">Created By:</span>
-                                <span className="font-semibold text-slate-900 dark:text-white">
-                                    {task.created_by_user?.name || 'System'} ({task.created_by_user?.email || '-'})
-                                </span>
-                            </div>
-
-                            <div>
-                                <span className="text-slate-400 block text-xs">Created Date & Time:</span>
-                                <span className="font-semibold text-slate-900 dark:text-white">
-                                    {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}
-                                </span>
-                            </div>
-
-                            <div>
-                                <span className="text-slate-400 block text-xs">Cutoff Due Date:</span>
-                                <span className={`font-bold ${timelineMetrics.isOverdue && !task.status?.status?.toLowerCase().includes('complete') ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                                    {task.due_date ? task.due_date.replace('T', ' ') : 'N/A'}
-                                    {timelineMetrics.isOverdue && !task.status?.status?.toLowerCase().includes('complete') && ' (OVERDUE)'}
-                                </span>
-                            </div>
                         </div>
                     </div>
 
@@ -637,7 +646,7 @@ export default function TaskDetailModal({
                                                     <p>📋 Template: <span className="font-semibold text-slate-800 dark:text-slate-200">{instance.template.title}</span></p>
                                                 )}
                                                 <p className="flex items-center gap-3 pt-1">
-                                                    <span>⏰ Cutoff: <strong className="text-slate-800 dark:text-slate-200">{instance.due_at ? new Date(instance.due_at).toLocaleString() : (instance.task_date || 'N/A')}</strong></span>
+                                                    <span>⏰ Cutoff: <strong className="text-slate-800 dark:text-slate-200">{instance.due_at ? formatDateTime(instance.due_at) : formatDate(instance.task_date, 'N/A')}</strong></span>
                                                     <span className={`font-extrabold ${instance.is_on_time !== false ? 'text-emerald-600' : 'text-rose-600'}`}>
                                                         {instance.is_on_time !== false ? '✅ On-Time' : '⚠️ Late / Overdue'}
                                                     </span>
@@ -691,7 +700,7 @@ export default function TaskDetailModal({
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className="text-[11px] text-slate-400 font-normal">
-                                                        {c.created_at ? new Date(c.created_at).toLocaleString() : ''}
+                                                        {c.created_at ? formatDateTime(c.created_at, '') : ''}
                                                     </span>
                                                     {(isSuperUser || (currentUser && currentUser.id === c.user_id)) && (
                                                         <button
@@ -791,32 +800,44 @@ export default function TaskDetailModal({
                                         <button
                                             type="button"
                                             onClick={handleRequest24hExtension}
-                                            disabled={hasPendingDueDateRequest}
+                                            disabled={isTaskOverdue || hasPendingDueDateRequest}
                                             className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                                                hasPendingDueDateRequest
+                                                isTaskOverdue || hasPendingDueDateRequest
                                                     ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
                                                     : 'bg-amber-500/15 border-amber-300/80 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25'
                                             }`}
-                                            title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request a 24-hour extension on task due date"}
+                                            title={
+                                                isTaskOverdue
+                                                    ? 'Due date change requests are not allowed for overdue tasks'
+                                                    : hasPendingDueDateRequest
+                                                        ? 'A due date change request is already pending for this task'
+                                                        : 'Request a 24-hour extension on task due date'
+                                            }
                                         >
-                                            ⚡ Request 24h Extension {hasPendingDueDateRequest && '(Pending)'}
+                                            ⚡ Request 24h Extension {isTaskOverdue ? '(Overdue)' : hasPendingDueDateRequest ? '(Pending)' : ''}
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                if (hasPendingDueDateRequest) return;
+                                                if (isTaskOverdue || hasPendingDueDateRequest) return;
                                                 setCustomDueDate(task.due_date ? task.due_date.slice(0, 16) : '');
                                                 setShowCustomDateModal(true);
                                             }}
-                                            disabled={hasPendingDueDateRequest}
+                                            disabled={isTaskOverdue || hasPendingDueDateRequest}
                                             className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                                                hasPendingDueDateRequest
+                                                isTaskOverdue || hasPendingDueDateRequest
                                                     ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
                                                     : 'bg-blue-500/15 border-blue-300/80 text-blue-700 dark:text-blue-300 hover:bg-blue-500/25'
                                             }`}
-                                            title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request custom due date"}
+                                            title={
+                                                isTaskOverdue
+                                                    ? 'Due date change requests are not allowed for overdue tasks'
+                                                    : hasPendingDueDateRequest
+                                                        ? 'A due date change request is already pending for this task'
+                                                        : 'Request custom due date'
+                                            }
                                         >
-                                            📅 Custom Due Date {hasPendingDueDateRequest && '(Pending)'}
+                                            📅 Custom Due Date {isTaskOverdue ? '(Overdue)' : hasPendingDueDateRequest ? '(Pending)' : ''}
                                         </button>
                                         <button
                                             type="button"
@@ -901,7 +922,7 @@ export default function TaskDetailModal({
                             className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 transition"
                             title="Export or copy A5 formatted repair request voucher"
                         >
-                            <span>📄</span> Repair Form (A5)
+                            <span>📄</span> ပြုပြင်ရန် တောင်းခံလွှာ
                         </button>
                         <button
                             type="button"
@@ -949,15 +970,7 @@ export default function TaskDetailModal({
                                             ⏳ Closure Pending Requester Approval
                                         </span>
                                     )
-                                ) : isResolver ? (
-                                    <button
-                                        type="button"
-                                        onClick={handleCloseTask}
-                                        className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
-                                    >
-                                        📨 Request to Close Task
-                                    </button>
-                                ) : (
+                                ) : isResolver ? null : (
                                     <span className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                         ⏳ Awaiting Resolver Closure Request
                                     </span>
@@ -1281,6 +1294,7 @@ export default function TaskDetailModal({
                 users={users}
                 todoLists={todoLists}
             />
-        </div>
+        </div>,
+        document.body
     );
 }

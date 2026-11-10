@@ -4,7 +4,22 @@ import html2canvas from 'html2canvas';
 import TodoLayout from '../../Layouts/TodoLayout';
 import CreateTaskModal from './Components/CreateTaskModal';
 import TaskDetailModal from './Components/TaskDetailModal';
+import CalendarMonthSelector from './Components/CalendarMonthSelector';
 import { exportTodoReportPDF } from '@/utils/todoReportPdfExport';
+import { formatDate, formatDateTime } from '@/utils/dateFormat';
+
+function ClockVectorIcon({ className = 'h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0' }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+        </svg>
+    );
+}
 
 export default function Dashboard({
     todoLists = [],
@@ -27,7 +42,11 @@ export default function Dashboard({
     const user = auth?.user;
 
     // Filters state
-    const [selectedMonth, setSelectedMonth] = useState(filters?.filterMonth || 'all');
+    const defaultMonth = useMemo(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }, []);
+    const [selectedMonth, setSelectedMonth] = useState(filters?.filterMonth || defaultMonth);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState(filters?.filterDepartmentId || 'all');
     const [isExportingPdf, setIsExportingPdf] = useState(false);
     const [expandedGroups, setExpandedGroups] = useState({});
@@ -680,7 +699,12 @@ export default function Dashboard({
         setIsExportingPdf(true);
         try {
             const selectedMonthObj = availableMonths.find((m) => m.value === selectedMonth);
-            const selectedMonthLabel = selectedMonth === 'all' ? 'All Months' : (selectedMonthObj?.label || selectedMonth);
+            const formatFallbackMonth = (ym) => {
+                const [y, m] = String(ym).split('-').map(Number);
+                if (!y || !m) return ym;
+                return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            };
+            const selectedMonthLabel = selectedMonth === 'all' ? 'All Months' : (selectedMonthObj?.label || formatFallbackMonth(selectedMonth));
 
             const selectedDeptObj = departments.find((d) => String(d.id) === String(selectedDepartmentId));
             const selectedDepartmentName = selectedDepartmentId === 'all' ? 'All Departments' : (selectedDeptObj?.name || 'Selected Department');
@@ -780,19 +804,12 @@ export default function Dashboard({
                                 <label htmlFor="filter-month" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                                     <span>📅</span> Month:
                                 </label>
-                                <select
+                                <CalendarMonthSelector
                                     id="filter-month"
                                     value={selectedMonth}
-                                    onChange={(e) => setSelectedMonth(e.target.value)}
-                                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-indigo-500 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                >
-                                    <option value="all">All Months</option>
-                                    {availableMonths.map((m) => (
-                                        <option key={m.value} value={m.value}>
-                                            {m.label} ({m.count} tasks)
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setSelectedMonth(val)}
+                                    availableMonths={availableMonths}
+                                />
                             </div>
 
                             {/* Department Filter */}
@@ -816,11 +833,11 @@ export default function Dashboard({
                             </div>
 
                             {/* Reset Button */}
-                            {(selectedMonth !== 'all' || selectedDepartmentId !== 'all') && (
+                            {(selectedMonth !== defaultMonth || selectedDepartmentId !== 'all') && (
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        setSelectedMonth('all');
+                                        setSelectedMonth(defaultMonth);
                                         setSelectedDepartmentId('all');
                                     }}
                                     className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition"
@@ -1196,7 +1213,8 @@ export default function Dashboard({
                                 Categorized Operational Matrix
                             </span>
                             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                                <span>⏱️</span> Task Details Grouped by Due Time Types
+                                <ClockVectorIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                <span>Task Details Grouped by Due Time Types</span>
                             </h2>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Detailed task breakdown, SLA compliance, and individual progress grouped by due time configuration.
@@ -1251,8 +1269,9 @@ export default function Dashboard({
                                             className="flex flex-col lg:flex-row lg:items-center lg:justify-between p-5 bg-slate-50/80 hover:bg-slate-100/70 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 cursor-pointer select-none transition gap-4"
                                         >
                                             <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="text-base font-extrabold text-slate-900 dark:text-white">
-                                                    ⏱️ {group.categoryName || group.title}
+                                                <span className="inline-flex items-center gap-2 text-base font-extrabold text-slate-900 dark:text-white">
+                                                    <ClockVectorIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                                    <span>{group.categoryName || group.title}</span>
                                                 </span>
                                                 <span className="inline-flex items-center justify-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 leading-none">
                                                     {group.duration ? `${group.duration} Hours` : 'Standard'}
@@ -1314,7 +1333,7 @@ export default function Dashboard({
                                                                             {task.task}
                                                                         </button>
                                                                         <span className="text-[10.5px] text-slate-400">
-                                                                            Created {new Date(task.created_at).toLocaleDateString()}
+                                                                            Created {formatDate(task.created_at)}
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-5 py-3">
@@ -1328,7 +1347,7 @@ export default function Dashboard({
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-5 py-3 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                                                                        {task.due_date ? task.due_date.replace('T', ' ').slice(0, 16) : '-'}
+                                                                        {formatDateTime(task.due_date)}
                                                                     </td>
                                                                     <td className="px-5 py-3 text-center">
                                                                         <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-bold border leading-none text-center ${getStatusBadge(task.status)}`}>
@@ -1372,17 +1391,6 @@ export default function Dashboard({
                                                                                         <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
                                                                                             ⏳ Pending
                                                                                         </span>
-                                                                                    );
-                                                                                }
-                                                                                if (meta.isResolver) {
-                                                                                    return (
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            onClick={() => handleCloseTask(task.id)}
-                                                                                            className="rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
-                                                                                        >
-                                                                                            📨 Request Close
-                                                                                        </button>
                                                                                     );
                                                                                 }
                                                                                 return null;
@@ -1534,7 +1542,7 @@ export default function Dashboard({
                                             >
                                                 {task.task}
                                             </button>
-                                            <span className="text-[11px] text-slate-400">Created {new Date(task.created_at).toLocaleDateString()}</span>
+                                            <span className="text-[11px] text-slate-400">Created {formatDate(task.created_at)}</span>
                                         </td>
                                         <td className="px-5 py-4 font-semibold text-slate-600 dark:text-slate-300">
                                             {task.due_time?.category?.name || 'General Task'}
@@ -1547,8 +1555,8 @@ export default function Dashboard({
                                                 🏢 {task.assigned_user?.department?.name || task.department?.name || 'N/A'}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-4 font-semibold text-slate-600 dark:text-slate-300">
-                                            {task.due_date ? task.due_date.replace('T', ' ').slice(0, 16) : '-'}
+                                        <td className="px-5 py-4 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                            {formatDateTime(task.due_date)}
                                         </td>
                                         <td className="px-5 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -1584,17 +1592,6 @@ export default function Dashboard({
                                                             <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
                                                                 ⏳ Pending Approval
                                                             </span>
-                                                        );
-                                                    }
-                                                    if (meta.isResolver) {
-                                                        return (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleCloseTask(task.id)}
-                                                                className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
-                                                            >
-                                                                📨 Request Close
-                                                            </button>
                                                         );
                                                     }
                                                     return null;

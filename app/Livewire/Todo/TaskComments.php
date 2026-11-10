@@ -575,6 +575,11 @@ class TaskComments extends Component
             return;
         }
 
+        if ($this->task && $this->task->due_date && \Carbon\Carbon::parse($this->task->due_date)->isPast()) {
+            session()->flash('error', 'Due date change requests are not allowed because this task is already overdue.');
+            return;
+        }
+
         if ($this->hasPendingActionStep()) {
             session()->flash('error', 'Cannot create a new action step request while another action step is pending approval.');
             return;
@@ -592,6 +597,11 @@ class TaskComments extends Component
     public function submitCustomDueDateRequest()
     {
         if (!$this->ensureAssignedDepartmentAccess('Only users from the assigned user\'s department can request due date changes.')) {
+            return;
+        }
+
+        if ($this->task && $this->task->due_date && \Carbon\Carbon::parse($this->task->due_date)->isPast()) {
+            session()->flash('error', 'Due date change requests are not allowed because this task is already overdue.');
             return;
         }
 

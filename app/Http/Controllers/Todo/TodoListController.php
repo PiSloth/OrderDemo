@@ -848,6 +848,10 @@ class TodoListController extends Controller
                 return redirect()->back()->with('error', 'Only the assigned resolver (or a member of the resolver\'s department) can submit an action step request.');
             }
 
+            if ($actionData['type'] === 'due_date_change' && $task->due_date && Carbon::parse($task->due_date)->isPast()) {
+                return redirect()->back()->with('error', 'Due date change requests are not allowed because this task is already overdue.');
+            }
+
             $pendingSameType = TaskComment::where('todo_list_id', $task->id)
                 ->where('comment_type', 'action_step')
                 ->where('action_status', 'pending')

@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { applyPyidaungsuFont } from './pdfFont';
+import { formatDate, formatDateTime } from './dateFormat';
 
 /**
  * Strips HTML tags if text contains markup, preserving plain text.
@@ -21,26 +22,6 @@ const cleanText = (text) => {
         .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, '')
         .replace(/\s+/g, ' ')
         .trim();
-};
-
-/**
- * Format datetime into readable string
- */
-const formatDateTime = (dateStr) => {
-    if (!dateStr) return '-';
-    try {
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return String(dateStr).replace('T', ' ').slice(0, 16);
-        return d.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    } catch {
-        return String(dateStr);
-    }
 };
 
 /**
@@ -86,8 +67,8 @@ export const exportTodoReportPDF = async ({
     const exporterName = authUser?.name || 'Authorized User';
     const exporterDept = authUser?.department?.name || authUser?.department || '';
     const fullExporterText = exporterDept ? `${exporterName} (${exporterDept})` : exporterName;
-    const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const generatedAt = new Date().toLocaleString();
+    const todayDate = formatDate(new Date());
+    const generatedAt = formatDateTime(new Date());
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 

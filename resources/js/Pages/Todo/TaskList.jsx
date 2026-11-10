@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import TodoLayout from '../../Layouts/TodoLayout';
 import CreateTaskModal from './Components/CreateTaskModal';
 import TaskDetailModal from './Components/TaskDetailModal';
+import CalendarMonthSelector from './Components/CalendarMonthSelector';
 
 export default function TaskList({
     todoLists = [],
@@ -57,6 +58,7 @@ export default function TaskList({
     const [selectedTaskDetail, setSelectedTaskDetail] = useState(null); // task object for detailed view modal
     const [commentText, setCommentText] = useState('');
     const [copiedTaskId, setCopiedTaskId] = useState(null);
+    const hasAutoOpenedTaskRef = useRef(false);
 
     // Form state for creating task
     const { data: formData, setData: setFormData, post: postTask, processing: taskProcessing, reset: resetTaskForm, errors: formErrors } = useForm({
@@ -109,12 +111,13 @@ export default function TaskList({
             }
         }
 
-        if (typeof window !== 'undefined' && !selectedTaskDetail && !commentsTask) {
+        if (typeof window !== 'undefined' && !hasAutoOpenedTaskRef.current && !selectedTaskDetail && !commentsTask) {
             const urlParams = new URLSearchParams(window.location.search);
             const taskIdParam = urlParams.get('task_id');
             if (taskIdParam) {
                 const found = allTasks.find((t) => String(t.id) === String(taskIdParam));
                 if (found) {
+                    hasAutoOpenedTaskRef.current = true;
                     setSelectedTaskDetail(found);
                 }
             }
@@ -167,8 +170,9 @@ export default function TaskList({
         applyFilters({ sortBy: val });
     };
 
-    const handleMonthChange = (e) => {
-        const val = e.target.value;
+    const handleMonthChange = (valOrEvent) => {
+        const val = typeof valOrEvent === 'string' ? valOrEvent : valOrEvent?.target?.value;
+        if (!val) return;
         setSelectedMonth(val);
         applyFilters({ selectedMonth: val });
     };
@@ -687,52 +691,15 @@ export default function TaskList({
 
                         {/* Month Selector for Calendar */}
                         <div>
-                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Month</label>
-                            <select
+                            <label htmlFor="tasklist-filter-month" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Month</label>
+                            <CalendarMonthSelector
+                                id="tasklist-filter-month"
                                 value={selectedMonth}
                                 onChange={handleMonthChange}
-                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                            >
-                                {(() => {
-                                    const optionsMap = new Map();
-                                    
-                                    (monthsWithTasks || []).forEach((m) => {
-                                        optionsMap.set(m.value, {
-                                            value: m.value,
-                                            label: m.label,
-                                            count: m.count,
-                                        });
-                                    });
-
-                                    if (selectedMonth && !optionsMap.has(selectedMonth)) {
-                                        try {
-                                            const dateLabel = new Date(selectedMonth + '-01').toLocaleDateString('default', { month: 'long', year: 'numeric' });
-                                            optionsMap.set(selectedMonth, {
-                                                value: selectedMonth,
-                                                label: dateLabel,
-                                                count: 0,
-                                            });
-                                        } catch (e) {}
-                                    }
-
-                                    const sortedOptions = Array.from(optionsMap.values()).sort((a, b) => b.value.localeCompare(a.value));
-
-                                    if (sortedOptions.length === 0) {
-                                        const nowStr = new Date().toISOString().slice(0, 7);
-                                        return (
-                                            <option value={nowStr}>
-                                                {new Date().toLocaleDateString('default', { month: 'long', year: 'numeric' })}
-                                            </option>
-                                        );
-                                    }
-
-                                    return sortedOptions.map((m) => (
-                                        <option key={m.value} value={m.value}>
-                                            {m.label} ({m.count} tasks)
-                                        </option>
-                                    ));
-                                })()}
-                            </select>
+                                availableMonths={monthsWithTasks}
+                                allowAll={false}
+                                fullWidth={true}
+                            />
                         </div>
 
                         {/* Sort By */}
@@ -792,7 +759,16 @@ export default function TaskList({
                                     {new Date(selectedMonth + '-01').toLocaleDateString('default', { month: 'long', year: 'numeric' })} Calendar Matrix
                                 </h2>
                                 <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300">
-                                    {Object.values(calendarTasks || {}).reduce((acc, catMap) => acc + Object.values(catMap).reduce((s, cnt) => s + cnt, 0), 0)} month tasks
+                                    {Object.values(calendarTasks || {}).reduce(
+                                        (acc, catMap) =>
+                                            acc +
+                                            Object.values(catMap || {}).reduce(
+                                                (s, catGroup) => s + Number(catGroup?.count ?? catGroup?.tasks?.length ?? 0),
+                                                0
+                                            ),
+                                        0
+                                    )}{' '}
+                                    month tasks
                                 </span>
                             </div>
 
@@ -1073,15 +1049,7 @@ export default function TaskList({
                                                             );
                                                         }
                                                         if (meta.isResolver) {
-                                                            return (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleCloseTask(t.id)}
-                                                                    className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700"
-                                                                >
-                                                                    📨 Request Close
-                                                                </button>
-                                                            );
+                                                            return null;
                                                         }
                                                         return (
                                                             <span className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
@@ -1210,17 +1178,6 @@ export default function TaskList({
                                                                             </span>
                                                                         );
                                                                     }
-                                                                    if (meta.isResolver) {
-                                                                        return (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => handleCloseTask(t.id)}
-                                                                                className="rounded-lg bg-emerald-600 px-2.5 py-1 font-semibold text-white hover:bg-emerald-700"
-                                                                            >
-                                                                                📨 Request Close
-                                                                            </button>
-                                                                        );
-                                                                    }
                                                                     return null;
                                                                 })()}
                                                                 {t.todo_status_id && (
@@ -1332,17 +1289,6 @@ export default function TaskList({
                                                         <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
                                                             ⏳ Pending Approval
                                                         </span>
-                                                    );
-                                                }
-                                                if (meta.isResolver) {
-                                                    return (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => { handleCloseTask(t.id); setDayModalData(null); }}
-                                                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
-                                                        >
-                                                            📨 Request Close
-                                                        </button>
                                                     );
                                                 }
                                                 return null;
