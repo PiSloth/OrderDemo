@@ -310,7 +310,11 @@ class User extends Authenticatable implements FilamentUser
     public function isSuperUser(): bool
     {
         $role = strtolower($this->role ?? '');
-        return $this->isAdmin() || str_contains($role, 'super') || str_contains($role, 'admin');
+        $posName = strtolower((string) ($this->position?->name ?? ''));
+        return $this->isAdmin()
+            || str_contains($role, 'super')
+            || str_contains($role, 'admin')
+            || $posName === 'super admin';
     }
 
     public function softwareAccountPics(): HasMany

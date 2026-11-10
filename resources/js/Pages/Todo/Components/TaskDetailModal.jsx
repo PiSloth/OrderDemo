@@ -145,6 +145,18 @@ export default function TaskDetailModal({
         );
     }, [task.comments]);
 
+    const pendingStatusComment = useMemo(() => {
+        return (task.comments || []).find(
+            (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'status_change'
+        ) || null;
+    }, [task.comments]);
+
+    const isTaskClosed = useMemo(() => {
+        if (task.closed_at) return true;
+        const statusName = (task.status?.status || '').toLowerCase();
+        return ['complete', 'success', 'done', 'finish', 'close', 'fail'].some((kw) => statusName.includes(kw));
+    }, [task]);
+
     const hasPendingResolverRequest = useMemo(() => {
         return (task.comments || []).some(
             (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'resolver_change'
@@ -309,7 +321,61 @@ export default function TaskDetailModal({
         });
     };
 
-    const isSuperUser = currentUser?.is_super_user || currentUser?.role === 'admin' || currentUser?.role === 'super_user';
+    const isSuperUser = Boolean(currentUser?.is_super_user || currentUser?.role === 'admin' || currentUser?.role === 'super_user');
+
+    const isResolver = useMemo(() => {
+        if (isSuperUser) return true;
+        if (!currentUser) return false;
+        if (task.assigned_user_id && Number(task.assigned_user_id) === Number(currentUser.id)) return true;
+        const assignedDeptId = task.assigned_user?.department_id;
+        if (assignedDeptId && currentUser.department_id && Number(currentUser.department_id) === Number(assignedDeptId)) return true;
+        return false;
+    }, [isSuperUser, currentUser, task]);
+
+    const isRequester = useMemo(() => {
+        if (isSuperUser) return true;
+        if (!currentUser) return false;
+        if (task.created_by_user_id && Number(task.created_by_user_id) === Number(currentUser.id)) return true;
+        const requesterDeptId = task.created_by_user?.department_id;
+        if (requesterDeptId && currentUser.department_id && Number(currentUser.department_id) === Number(requesterDeptId)) return true;
+        if (!task.created_by_user_id && task.requested_by_department_id && currentUser.department_id && Number(currentUser.department_id) === Number(task.requested_by_department_id)) {
+            return true;
+        }
+        return false;
+    }, [isSuperUser, currentUser, task]);
+
+    const canRespondToComment = (c) => {
+        if (!c || c.comment_type !== 'action_step' || c.action_status !== 'pending') return false;
+        if (isSuperUser) return true;
+        if (!currentUser) return false;
+
+        const actionType = c.action_data?.type;
+        const isInNegotiation = actionType === 'due_date_change' && c.action_data?.negotiation_status === 'negotiating';
+        if (isInNegotiation && Array.isArray(c.action_data?.proposed_dates) && c.action_data.proposed_dates.length > 0) {
+            const lastProposal = c.action_data.proposed_dates[c.action_data.proposed_dates.length - 1];
+            if (lastProposal?.proposed_by && Number(lastProposal.proposed_by) !== Number(currentUser.id)) {
+                return isRequester || isResolver;
+            }
+            return false;
+        }
+
+        if (Number(c.user_id) === Number(currentUser.id)) return false;
+
+        if (actionType === 'resolver_change') {
+            const targetUserId = c.action_data?.new_assigned_user_id;
+            const targetUser = users.find((u) => Number(u.id) === Number(targetUserId));
+            if (targetUser?.department_id && currentUser.department_id && Number(currentUser.department_id) === Number(targetUser.department_id)) {
+                return true;
+            }
+            return Boolean(task.created_by_user_id && Number(task.created_by_user_id) === Number(currentUser.id));
+        }
+
+        if (actionType === 'due_date_change' || actionType === 'status_change') {
+            return isRequester;
+        }
+
+        return false;
+    };
 
     // Delete comment action trigger
     const handleDeleteComment = (commentId) => {
@@ -525,7 +591,9 @@ export default function TaskDetailModal({
                                     <span>🏆 Connected KPI Task Instances ({connectedKpiInstances.length})</span>
                                 </h4>
                                 <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
-                                    Auto-synchronized with KPI Instance Cutoff & Approvals
+                                    {isTaskClosed
+                                        ? '✅ Todo Task Closed — KPI Instance(s) Ready for Submission'
+                                        : '🔒 Close this Todo Task (Resolver Request → Requester Approval) to unlock KPI submission'}
                                 </span>
                             </div>
 
@@ -658,7 +726,7 @@ export default function TaskDetailModal({
                                                     </div>
 
                                                     {/* Accept / Reject / Counter-Offer Actions for Pending Requests */}
-                                                    {isPending && (
+                                                    {isPending && canRespondToComment(c) && (
                                                         <div className="flex items-center gap-2">
                                                             <button
                                                                 type="button"
@@ -689,6 +757,11 @@ export default function TaskDetailModal({
                                                             )}
                                                         </div>
                                                     )}
+                                                    {isPending && !canRespondToComment(c) && (
+                                                        <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                                            ⏳ Awaiting approval from Requester ({task.created_by_user?.department?.name || task.created_by_user?.name || 'Requester Dept'})
+                                                        </span>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -712,73 +785,75 @@ export default function TaskDetailModal({
                                     <span>⚡ Enable Action Step Request Mode</span>
                                 </label>
 
-                                {/* Action Step Preset Buttons */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleRequest24hExtension}
-                                        disabled={hasPendingDueDateRequest}
-                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                                            hasPendingDueDateRequest
-                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
-                                                : 'bg-amber-500/15 border-amber-300/80 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25'
-                                        }`}
-                                        title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request a 24-hour extension on task due date"}
-                                    >
-                                        ⚡ Request 24h Extension {hasPendingDueDateRequest && '(Pending)'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (hasPendingDueDateRequest) return;
-                                            setCustomDueDate(task.due_date ? task.due_date.slice(0, 16) : '');
-                                            setShowCustomDateModal(true);
-                                        }}
-                                        disabled={hasPendingDueDateRequest}
-                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                                            hasPendingDueDateRequest
-                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
-                                                : 'bg-blue-500/15 border-blue-300/80 text-blue-700 dark:text-blue-300 hover:bg-blue-500/25'
-                                        }`}
-                                        title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request custom due date"}
-                                    >
-                                        📅 Custom Due Date {hasPendingDueDateRequest && '(Pending)'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (hasPendingStatusRequest) return;
-                                            setRequestedStatusId(task.todo_status_id || '');
-                                            setShowStatusModal(true);
-                                        }}
-                                        disabled={hasPendingStatusRequest}
-                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                                            hasPendingStatusRequest
-                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
-                                                : 'bg-emerald-500/15 border-emerald-300/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25'
-                                        }`}
-                                        title={hasPendingStatusRequest ? "A status change request is already pending for this task" : "Request status change"}
-                                    >
-                                        🔄 Request Status Change {hasPendingStatusRequest && '(Pending)'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (hasPendingResolverRequest) return;
-                                            setRequestedResolverId(task.assigned_user_id || '');
-                                            setShowResolverModal(true);
-                                        }}
-                                        disabled={hasPendingResolverRequest}
-                                        className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                                            hasPendingResolverRequest
-                                                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
-                                                : 'bg-violet-500/15 border-violet-300/80 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25'
-                                        }`}
-                                        title={hasPendingResolverRequest ? "A resolver change request is already pending for this task" : "Request resolver change"}
-                                    >
-                                        👤 Request Resolver {hasPendingResolverRequest && '(Pending)'}
-                                    </button>
-                                </div>
+                                {/* Action Step Preset Buttons (Only Resolver / Resolver Dept can initiate requests) */}
+                                {!isTaskClosed && isResolver && (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleRequest24hExtension}
+                                            disabled={hasPendingDueDateRequest}
+                                            className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                                hasPendingDueDateRequest
+                                                    ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                    : 'bg-amber-500/15 border-amber-300/80 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25'
+                                            }`}
+                                            title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request a 24-hour extension on task due date"}
+                                        >
+                                            ⚡ Request 24h Extension {hasPendingDueDateRequest && '(Pending)'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (hasPendingDueDateRequest) return;
+                                                setCustomDueDate(task.due_date ? task.due_date.slice(0, 16) : '');
+                                                setShowCustomDateModal(true);
+                                            }}
+                                            disabled={hasPendingDueDateRequest}
+                                            className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                                hasPendingDueDateRequest
+                                                    ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                    : 'bg-blue-500/15 border-blue-300/80 text-blue-700 dark:text-blue-300 hover:bg-blue-500/25'
+                                            }`}
+                                            title={hasPendingDueDateRequest ? "A due date change request is already pending for this task" : "Request custom due date"}
+                                        >
+                                            📅 Custom Due Date {hasPendingDueDateRequest && '(Pending)'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (hasPendingStatusRequest) return;
+                                                setRequestedStatusId(task.todo_status_id || '');
+                                                setShowStatusModal(true);
+                                            }}
+                                            disabled={hasPendingStatusRequest}
+                                            className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                                hasPendingStatusRequest
+                                                    ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                    : 'bg-emerald-500/15 border-emerald-300/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25'
+                                            }`}
+                                            title={hasPendingStatusRequest ? "A status change request is already pending for this task" : "Request status change"}
+                                        >
+                                            🔄 Request Status Change {hasPendingStatusRequest && '(Pending)'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (hasPendingResolverRequest) return;
+                                                setRequestedResolverId(task.assigned_user_id || '');
+                                                setShowResolverModal(true);
+                                            }}
+                                            disabled={hasPendingResolverRequest}
+                                            className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                                                hasPendingResolverRequest
+                                                    ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                                                    : 'bg-violet-500/15 border-violet-300/80 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25'
+                                            }`}
+                                            title={hasPendingResolverRequest ? "A resolver change request is already pending for this task" : "Request resolver change"}
+                                        >
+                                            👤 Request Resolver {hasPendingResolverRequest && '(Pending)'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Textarea Input */}
@@ -837,18 +912,55 @@ export default function TaskDetailModal({
                         </button>
                         {!task.deleted_at ? (
                             <>
-                                {task.kpi_task_instance_id ? (
-                                    <span className="rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
-                                        🔒 Managed by KPI Approval
-                                    </span>
-                                ) : (
+                                {isTaskClosed ? (
+                                    <>
+                                        <span className="rounded-xl bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60">
+                                            ✅ Task Closed
+                                        </span>
+                                        {connectedKpiInstances.length > 0 && (
+                                            <a
+                                                href="/kpi/tasks"
+                                                className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700"
+                                            >
+                                                🏆 Submit KPI Instance →
+                                            </a>
+                                        )}
+                                    </>
+                                ) : pendingStatusComment ? (
+                                    canRespondToComment(pendingStatusComment) ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={handleCloseTask}
+                                                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
+                                            >
+                                                ✅ Approve & Close Task
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRespondActionStep(pendingStatusComment.id, 'reject')}
+                                                className="rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-rose-700"
+                                            >
+                                                ✕ Reject Request
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <span className="rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                            ⏳ Closure Pending Requester Approval
+                                        </span>
+                                    )
+                                ) : isResolver ? (
                                     <button
                                         type="button"
                                         onClick={handleCloseTask}
                                         className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
                                     >
-                                        Mark Completed / Close
+                                        📨 Request to Close Task
                                     </button>
+                                ) : (
+                                    <span className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                        ⏳ Awaiting Resolver Closure Request
+                                    </span>
                                 )}
                                 {task.todo_status_id && (
                                     <button

@@ -151,24 +151,24 @@ class TaskComment extends Model
 
         if ($this->isDueDateChangeRequest() || $this->isStatusChangeRequest()) {
             // Task creator / requester can approve
-            if ($task->created_by_user_id === $userId) {
+            if ($task->created_by_user_id && (int) $task->created_by_user_id === (int) $userId) {
                 return true;
             }
 
             // Users in the task creator / requester's department can approve
-            if ($task->createdByUser && $task->createdByUser->department_id && $user->department_id === $task->createdByUser->department_id) {
+            if ($task->createdByUser && $task->createdByUser->department_id && (int) $user->department_id === (int) $task->createdByUser->department_id) {
                 return true;
             }
 
-            // Users in requested_by_department can approve
-            if ($task->requested_by_department_id && $user->department_id === $task->requested_by_department_id) {
+            // Legacy fallback when created_by_user_id is absent
+            if (!$task->created_by_user_id && $task->requested_by_department_id && (int) $user->department_id === (int) $task->requested_by_department_id) {
                 return true;
             }
 
-            // If assignee is negotiating a counter-offer, allow creator or creator department to respond
+            // If in counter-offer negotiation, allow the other party (resolver or requester) who did not make the last proposal to respond
             if ($this->isInNegotiation()) {
                 $lastNegotiatorId = $this->getNegotiatorUserId();
-                if ($lastNegotiatorId && $lastNegotiatorId !== $userId) {
+                if ($lastNegotiatorId && (int) $lastNegotiatorId !== (int) $userId && ($task->isRequester($user) || $task->isResolver($user))) {
                     return true;
                 }
             }

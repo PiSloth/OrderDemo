@@ -155,6 +155,7 @@ class MyTasks extends Component
                 'assignment.firstApprover',
                 'assignment.finalApprover',
                 'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
+                'todoList.status',
             ])
             ->withCount('submissions')
             ->where('user_id', $this->targetUserId())
@@ -448,9 +449,32 @@ class MyTasks extends Component
         $this->submitTaskInternal($resizer, false);
     }
 
+    public function isTodoTaskClosed(KpiTaskInstance $instance): bool
+    {
+        $todoTask = $instance->relationLoaded('todoList')
+            ? $instance->todoList
+            : ($instance->todo_list_id ? \App\Models\TodoList::with('status')->find($instance->todo_list_id) : null);
+
+        if (!$todoTask && $instance->id && in_array($instance->period_type, ['todo_on_demand', 'on_demand'], true)) {
+            $todoTask = \App\Models\TodoList::with('status')
+                ->where('kpi_task_instance_id', $instance->id)
+                ->first();
+        }
+
+        if (!$todoTask) {
+            return true;
+        }
+
+        return $todoTask->isClosed();
+    }
+
     public function canSubmit(KpiTaskInstance $instance): bool
     {
         if (!$this->canModifyViewedTasks()) {
+            return false;
+        }
+
+        if (!$this->isTodoTaskClosed($instance)) {
             return false;
         }
 
@@ -490,6 +514,10 @@ class MyTasks extends Component
             return false;
         }
 
+        if (!$this->isTodoTaskClosed($instance)) {
+            return false;
+        }
+
         if ($this->isFinalized($instance)) {
             return false;
         }
@@ -522,6 +550,10 @@ class MyTasks extends Component
     {
         if (!$this->isSuperAdmin) {
             return null;
+        }
+
+        if (!$this->isTodoTaskClosed($instance)) {
+            return 'Please close the related Todo task first before submitting this KPI instance.';
         }
 
         if (!$this->isOverdue($instance)) {
@@ -577,7 +609,7 @@ class MyTasks extends Component
                 'assignment.firstApprover',
                 'assignment.finalApprover',
                 'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
-                'todoList',
+                'todoList.status',
             ])
             ->where('id', $this->selectedTaskInstanceId)
             ->where('user_id', $this->targetUserId())
@@ -599,6 +631,7 @@ class MyTasks extends Component
                 'assignment.firstApprover',
                 'assignment.finalApprover',
                 'submissions' => fn($query) => $query->latest('sequence')->latest('id'),
+                'todoList.status',
             ])
             ->where('id', $taskInstanceId)
             ->where('user_id', $this->targetUserId())
@@ -612,6 +645,12 @@ class MyTasks extends Component
 
     protected function ensureSubmissionAllowedWithMode(KpiTaskInstance $instance, bool $allowClosedWindow): void
     {
+        if (!$this->isTodoTaskClosed($instance)) {
+            throw ValidationException::withMessages([
+                'selectedTaskInstanceId' => 'Please close the related Todo task first before submitting this KPI instance.',
+            ]);
+        }
+
         if (!$instance->template) {
             throw ValidationException::withMessages([
                 'selectedTaskInstanceId' => 'Task template is missing.',

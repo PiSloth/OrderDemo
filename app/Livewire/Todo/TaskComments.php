@@ -286,7 +286,33 @@ class TaskComments extends Component
             // If it's a status change request, update the task status
             if (isset($comment->action_data['type']) && $comment->action_data['type'] === 'status_change') {
                 $task = $comment->todoList;
-                $task->update(['todo_status_id' => $comment->action_data['new_status_id']]);
+                $newStatusId = $comment->action_data['new_status_id'] ?? null;
+                $newStatus = $newStatusId ? TodoStatus::find($newStatusId) : null;
+                $statusName = strtolower((string) ($newStatus?->status ?? $comment->action_data['new_status_name'] ?? ''));
+
+                $isClosing = !empty($comment->action_data['is_close_request']);
+                if (!$isClosing && $statusName !== '') {
+                    foreach (['complete', 'success', 'done', 'finish', 'close', 'fail'] as $keyword) {
+                        if (str_contains($statusName, $keyword)) {
+                            $isClosing = true;
+                            break;
+                        }
+                    }
+                }
+
+                $updatePayload = ['todo_status_id' => $newStatusId];
+                if ($isClosing) {
+                    if ($task->due_date && $comment->created_at > $task->due_date) {
+                        $failedStatus = TodoStatus::where('status', 'like', '%fail%')->first();
+                        if ($failedStatus) {
+                            $updatePayload['todo_status_id'] = $failedStatus->id;
+                        }
+                    }
+                    $updatePayload['closed_by_user_id'] = Auth::id();
+                    $updatePayload['closed_at'] = now();
+                }
+
+                $task->update($updatePayload);
                 $this->loadTask(); // Refresh the task data in the component
             }
 
@@ -295,17 +321,6 @@ class TaskComments extends Component
                 $task = $comment->todoList;
                 $task->update(['assigned_user_id' => $comment->action_data['new_assigned_user_id']]);
                 $this->loadTask(); // Refresh the task data in the component
-            }
-
-            // Check if the action step request was created after the due date
-            // If so, mark the task as failed
-            $task = $comment->todoList;
-            if ($comment->created_at > $task->due_date) {
-                $failedStatus = TodoStatus::where('status', 'Failed')->first();
-                if ($failedStatus) {
-                    $task->update(['todo_status_id' => $failedStatus->id]);
-                    $this->loadTask(); // Refresh the task data in the component
-                }
             }
 
             // Create notification for the action step creator

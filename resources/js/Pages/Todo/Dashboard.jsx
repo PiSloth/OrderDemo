@@ -522,6 +522,44 @@ export default function Dashboard({
         return new Date(dueDateStr) < new Date();
     };
 
+    const isSuperUser = Boolean(user?.is_super_user || user?.role === 'admin' || user?.role === 'super_user');
+
+    const getTaskActionMeta = (t) => {
+        const statusName = (t.status?.status || '').toLowerCase();
+        const isClosed = Boolean(
+            t.closed_at || ['complete', 'success', 'done', 'finish', 'close', 'fail'].some((kw) => statusName.includes(kw))
+        );
+        const pendingStatusComment = (t.comments || []).find(
+            (c) => c.comment_type === 'action_step' && c.action_status === 'pending' && c.action_data?.type === 'status_change'
+        );
+        const isResolver = Boolean(
+            isSuperUser ||
+                (user &&
+                    (Number(t.assigned_user_id) === Number(user.id) ||
+                        (t.assigned_user?.department_id && Number(user.department_id) === Number(t.assigned_user.department_id))))
+        );
+        const isRequester = Boolean(
+            isSuperUser ||
+                (user &&
+                    (Number(t.created_by_user_id) === Number(user.id) ||
+                        (t.created_by_user?.department_id && Number(user.department_id) === Number(t.created_by_user.department_id)) ||
+                        (!t.created_by_user_id &&
+                            t.requested_by_department_id &&
+                            Number(user.department_id) === Number(t.requested_by_department_id))))
+        );
+        const canApprovePending = Boolean(
+            pendingStatusComment && (isSuperUser || (isRequester && Number(pendingStatusComment.user_id) !== Number(user?.id)))
+        );
+
+        return {
+            isClosed,
+            hasPendingStatus: Boolean(pendingStatusComment),
+            canApprovePending,
+            isResolver,
+            isRequester,
+        };
+    };
+
     // Actions
     const handleCloseTask = (taskId) => {
         router.patch(`/todo/tasks/${taskId}/close`, {}, {
@@ -1309,19 +1347,46 @@ export default function Dashboard({
                                                                             >
                                                                                 Details
                                                                             </button>
-                                                                            {task.kpi_task_instance_id ? (
-                                                                                <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
-                                                                                    🔒 KPI Lock
-                                                                                </span>
-                                                                            ) : (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => handleCloseTask(task.id)}
-                                                                                    className="rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
-                                                                                >
-                                                                                    Complete
-                                                                                </button>
-                                                                            )}
+                                                                            {(() => {
+                                                                                const meta = getTaskActionMeta(task);
+                                                                                if (meta.isClosed) {
+                                                                                    return (
+                                                                                        <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60">
+                                                                                            ✅ Closed
+                                                                                        </span>
+                                                                                    );
+                                                                                }
+                                                                                if (meta.hasPendingStatus) {
+                                                                                    if (meta.canApprovePending) {
+                                                                                        return (
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => handleCloseTask(task.id)}
+                                                                                                className="rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
+                                                                                            >
+                                                                                                ✅ Approve
+                                                                                            </button>
+                                                                                        );
+                                                                                    }
+                                                                                    return (
+                                                                                        <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                                                                            ⏳ Pending
+                                                                                        </span>
+                                                                                    );
+                                                                                }
+                                                                                if (meta.isResolver) {
+                                                                                    return (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => handleCloseTask(task.id)}
+                                                                                            className="rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
+                                                                                        >
+                                                                                            📨 Request Close
+                                                                                        </button>
+                                                                                    );
+                                                                                }
+                                                                                return null;
+                                                                            })()}
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -1494,19 +1559,46 @@ export default function Dashboard({
                                                 >
                                                     View Details
                                                 </button>
-                                                {task.kpi_task_instance_id ? (
-                                                    <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
-                                                        🔒 Managed by KPI Approval
-                                                    </span>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleCloseTask(task.id)}
-                                                        className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
-                                                    >
-                                                        Complete
-                                                    </button>
-                                                )}
+                                                {(() => {
+                                                    const meta = getTaskActionMeta(task);
+                                                    if (meta.isClosed) {
+                                                        return (
+                                                            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60">
+                                                                ✅ Closed
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (meta.hasPendingStatus) {
+                                                        if (meta.canApprovePending) {
+                                                            return (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleCloseTask(task.id)}
+                                                                    className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
+                                                                >
+                                                                    ✅ Approve & Close
+                                                                </button>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                                                ⏳ Pending Approval
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (meta.isResolver) {
+                                                        return (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleCloseTask(task.id)}
+                                                                className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
+                                                            >
+                                                                📨 Request Close
+                                                            </button>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
                                             </div>
                                         </td>
                                     </tr>

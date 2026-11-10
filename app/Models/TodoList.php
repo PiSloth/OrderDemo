@@ -147,6 +147,83 @@ class TodoList extends Model
     }
 
     /**
+     * Check whether this Todo task is closed / completed.
+     */
+    public function isClosed(): bool
+    {
+        if ($this->closed_at !== null) {
+            return true;
+        }
+
+        $statusName = strtolower((string) ($this->status?->status ?? ''));
+        if ($statusName === '') {
+            return false;
+        }
+
+        foreach (['complete', 'success', 'done', 'finish', 'close', 'fail'] as $keyword) {
+            if (str_contains($statusName, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine if the given user is a resolver (assignee or in assignee's department).
+     */
+    public function isResolver(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if (method_exists($user, 'isSuperUser') && $user->isSuperUser()) {
+            return true;
+        }
+
+        if ($this->assigned_user_id && (int) $this->assigned_user_id === (int) $user->id) {
+            return true;
+        }
+
+        $assignedDeptId = $this->assignedUser?->department_id;
+        if ($assignedDeptId && $user->department_id && (int) $user->department_id === (int) $assignedDeptId) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine if the given user is a requester (creator or in the same department as the creator).
+     */
+    public function isRequester(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if (method_exists($user, 'isSuperUser') && $user->isSuperUser()) {
+            return true;
+        }
+
+        if ($this->created_by_user_id && (int) $this->created_by_user_id === (int) $user->id) {
+            return true;
+        }
+
+        $requesterDeptId = $this->createdByUser?->department_id;
+        if ($requesterDeptId && $user->department_id && (int) $user->department_id === (int) $requesterDeptId) {
+            return true;
+        }
+
+        if (!$this->created_by_user_id && $this->requested_by_department_id && $user->department_id && (int) $user->department_id === (int) $this->requested_by_department_id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Helper to sync KPI instance approval status back to the Todo Task.
      */
     public static function syncKpiApproval(KpiTaskInstance $instance): void
@@ -167,8 +244,8 @@ class TodoList extends Model
 
             $task->update([
                 'todo_status_id' => $completedStatus ? $completedStatus->id : $task->todo_status_id,
-                'closed_by_user_id' => $task->created_by_user_id ?: $instance->user_id, // KPI Requester
-                'closed_at' => now(),
+                'closed_by_user_id' => $task->closed_by_user_id ?: ($task->created_by_user_id ?: $instance->user_id),
+                'closed_at' => $task->closed_at ?: now(),
             ]);
         } catch (\Throwable $e) {
             Log::error('Failed to sync KPI approval to Todo task: ' . $e->getMessage());

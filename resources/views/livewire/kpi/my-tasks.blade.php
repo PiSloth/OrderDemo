@@ -444,6 +444,11 @@
                                         <p>Status: {{ str_replace('_', ' ', $task->status) }}</p>
                                         <p>Submissions: {{ $task->submissions_count }}</p>
                                         <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}</p>
+                                        @if ($task->todoList)
+                                            <p class="sm:col-span-2 font-medium {{ $this->isTodoTaskClosed($task) ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">
+                                                Todo Task #{{ $task->todoList->id }}: {{ $this->isTodoTaskClosed($task) ? 'Closed ✓' : 'Open (Close Todo task first)' }}
+                                            </p>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -451,6 +456,11 @@
                                     @if ($task->status === 'passed')
                                         <span
                                             class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                    @elseif (!$this->isTodoTaskClosed($task))
+                                        <a href="{{ route('todo_list', ['task_id' => $task->todo_list_id]) }}"
+                                            class="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-800 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                            🔒 Close Todo Task First
+                                        </a>
                                     @elseif ($this->canDirectSubmitNoEvidence($task))
                                         <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                             class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
@@ -528,6 +538,11 @@
                                             <p>Submissions: {{ $task->submissions_count }}</p>
                                             <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}
                                             </p>
+                                            @if ($task->todoList)
+                                                <p class="sm:col-span-2 font-medium {{ $this->isTodoTaskClosed($task) ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">
+                                                    Todo Task #{{ $task->todoList->id }}: {{ $this->isTodoTaskClosed($task) ? 'Closed ✓' : 'Open (Close Todo task first)' }}
+                                                </p>
+                                            @endif
                                         </div>
                                     </div>
 
@@ -535,6 +550,11 @@
                                         @if ($task->status === 'passed')
                                             <span
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                        @elseif (!$this->isTodoTaskClosed($task))
+                                            <a href="{{ route('todo_list', ['task_id' => $task->todo_list_id]) }}"
+                                                class="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-800 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                                🔒 Close Todo Task First
+                                            </a>
                                         @elseif ($this->canDirectSubmitNoEvidence($task))
                                             <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
@@ -607,6 +627,11 @@
                                             <p>Submissions: {{ $task->submissions_count }}</p>
                                             <p>First Approver: {{ $task->assignment?->firstApprover?->name ?? '-' }}
                                             </p>
+                                            @if ($task->todoList)
+                                                <p class="sm:col-span-2 font-medium {{ $this->isTodoTaskClosed($task) ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">
+                                                    Todo Task #{{ $task->todoList->id }}: {{ $this->isTodoTaskClosed($task) ? 'Closed ✓' : 'Open (Close Todo task first)' }}
+                                                </p>
+                                            @endif
                                         </div>
                                     </div>
 
@@ -614,6 +639,11 @@
                                         @if ($task->status === 'passed')
                                             <span
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Passed</span>
+                                        @elseif (!$this->isTodoTaskClosed($task))
+                                            <a href="{{ route('todo_list', ['task_id' => $task->todo_list_id]) }}"
+                                                class="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-800 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                                🔒 Close Todo Task First
+                                            </a>
                                         @elseif ($this->canDirectSubmitNoEvidence($task))
                                             <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                                 class="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800">Submit</button>
@@ -935,7 +965,12 @@
 
                                 <!-- Right Actions Column -->
                                 <div class="flex w-full flex-col gap-3 lg:w-56">
-                                    @if ($this->canDirectSubmitNoEvidence($task))
+                                    @if (!$this->isTodoTaskClosed($task))
+                                        <a href="{{ route('todo_list', ['task_id' => $task->todo_list_id]) }}"
+                                            class="inline-flex items-center justify-center rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-semibold text-amber-800 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                            🔒 Close Todo Task First
+                                        </a>
+                                    @elseif ($this->canDirectSubmitNoEvidence($task))
                                         <button type="button" wire:click="submitNoEvidence({{ $task->id }})"
                                             x-on:click="close"
                                             class="inline-flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800">

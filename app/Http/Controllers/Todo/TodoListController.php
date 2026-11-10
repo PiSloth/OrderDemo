@@ -38,7 +38,7 @@ class TodoListController extends Controller
             'status',
             'dueTime.category',
             'dueTime.priority',
-            'comments.user',
+            'comments.user.department',
             'closedByUser.department',
             'kpiTaskInstance.user',
             'kpiTaskInstances.user.department',
@@ -216,7 +216,7 @@ class TodoListController extends Controller
                 'createdByUser.officePosition',
                 'department',
                 'requestedByBranch',
-                'comments.user',
+                'comments.user.department',
                 'kpiTaskInstance.user',
                 'kpiTaskInstances.user.department',
                 'kpiTaskInstances.template',
@@ -264,7 +264,7 @@ class TodoListController extends Controller
                 'createdByUser.officePosition',
                 'department',
                 'requestedByBranch',
-                'comments.user',
+                'comments.user.department',
             ])
             ->get();
 
@@ -291,7 +291,7 @@ class TodoListController extends Controller
                 'createdByUser.officePosition',
                 'department',
                 'requestedByBranch',
-                'comments.user',
+                'comments.user.department',
             ])
             ->whereDate('due_date', '>=', $startDate->toDateString())
             ->whereDate('due_date', '<=', $endDate->toDateString())
@@ -663,33 +663,148 @@ class TodoListController extends Controller
 
     public function closeTask($id)
     {
-        $task = TodoList::findOrFail($id);
+        $task = TodoList::with(['createdByUser', 'assignedUser', 'status'])->findOrFail($id);
 
-        // KPI Task Closure Constraint: If linked to a KPI Instance, block manual closure from Todo module
-        if ($task->kpi_task_instance_id) {
-            return redirect()->back()->with('error', 'This task is managed by KPI approval and cannot be closed manually from the Todo module.');
+        if ($task->isClosed()) {
+            return redirect()->back()->with('message', 'Task is already closed.');
         }
 
-        $now = now();
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->back()->with('error', 'Authentication required.');
+        }
+
+        $pendingStatusComment = TaskComment::where('todo_list_id', $task->id)
+            ->where('comment_type', 'action_step')
+            ->where('action_status', 'pending')
+            ->where('action_data->type', 'status_change')
+            ->latest()
+            ->first();
+
+        $isSuperUser = method_exists($user, 'isSuperUser') && $user->isSuperUser();
+
+        // 1. If a closure / status change request is already pending:
+        if ($pendingStatusComment) {
+            if ($pendingStatusComment->canUserRespond((int) $user->id)) {
+                $pendingStatusComment->update(['action_status' => 'accepted']);
+
+                $newStatusId = $pendingStatusComment->action_data['new_status_id'] ?? null;
+                $status = $newStatusId ? TodoStatus::find($newStatusId) : null;
+
+                $dueDate = $task->due_date ? Carbon::parse($task->due_date) : null;
+                if ($dueDate && $pendingStatusComment->created_at > $dueDate) {
+                    $status = TodoStatus::where('status', 'like', '%fail%')->first() ?: $status;
+                }
+
+                if (!$status) {
+                    $status = $this->resolveClosingStatus($task);
+                }
+
+                $task->update([
+                    'todo_status_id' => $status ? $status->id : $task->todo_status_id,
+                    'closed_by_user_id' => $user->id,
+                    'closed_at' => now(),
+                ]);
+
+                if ($pendingStatusComment->user_id && (int) $pendingStatusComment->user_id !== (int) $user->id) {
+                    \App\Models\TaskNotification::create([
+                        'type' => 'action_accepted',
+                        'title' => 'Task Closure Approved',
+                        'message' => "{$user->name} approved your request and closed task \"{$task->task}\".",
+                        'user_id' => $pendingStatusComment->user_id,
+                        'task_comment_id' => $pendingStatusComment->id,
+                        'todo_list_id' => $task->id,
+                        'is_read' => false,
+                    ]);
+                }
+
+                return redirect()->back()->with('message', 'Closure request approved and task closed successfully. Status: ' . ($status ? $status->status : 'Closed'));
+            }
+
+            return redirect()->back()->with('error', 'A closure / status change request is already pending. Waiting for approval from the requester\'s department.');
+        }
+
+        // 2. No pending request exists yet:
+        // If current user is the resolver (and not a non-assigned SuperUser overriding), submit a closure request for requester approval
+        $isAssignedResolver = $task->assigned_user_id && (int) $task->assigned_user_id === (int) $user->id;
+        if ($isAssignedResolver || (!$isSuperUser && $task->isResolver($user))) {
+            $targetStatus = $this->resolveClosingStatus($task);
+
+            $comment = TaskComment::create([
+                'todo_list_id' => $task->id,
+                'user_id' => $user->id,
+                'comment' => 'Requested to close task (Target Status: "' . ($targetStatus ? $targetStatus->status : 'Completed') . '")',
+                'comment_type' => 'action_step',
+                'action_status' => 'pending',
+                'action_data' => [
+                    'type' => 'status_change',
+                    'original_status_id' => $task->todo_status_id,
+                    'new_status_id' => $targetStatus?->id,
+                    'new_status_name' => $targetStatus?->status ?? 'Completed',
+                    'is_close_request' => true,
+                    'reason' => 'Resolver requested task closure for requester approval.',
+                ],
+            ]);
+
+            $this->createNotificationsForComment($comment, $task);
+
+            return redirect()->back()->with('message', 'Task closure request submitted! Waiting for approval from the requester\'s department.');
+        }
+
+        // SuperUser administrative override when no request is pending
+        if ($isSuperUser) {
+            $status = $this->resolveClosingStatus($task);
+
+            $task->update([
+                'todo_status_id' => $status ? $status->id : $task->todo_status_id,
+                'closed_by_user_id' => $user->id,
+                'closed_at' => now(),
+            ]);
+
+            return redirect()->back()->with('message', 'Task closed by Super User override. Status: ' . ($status ? $status->status : 'Updated'));
+        }
+
+        return redirect()->back()->with('error', 'To close this task, the assigned resolver must first submit a closure request, and the requester\'s department must approve it.');
+    }
+
+    protected function resolveClosingStatus(TodoList $task, $referenceTime = null): ?TodoStatus
+    {
+        $checkTime = $referenceTime ? Carbon::parse($referenceTime) : now();
         $dueDate = $task->due_date ? Carbon::parse($task->due_date) : null;
 
-        $status = null;
-        if ($dueDate && $now->greaterThan($dueDate)) {
-            $status = TodoStatus::where('status', 'like', '%fail%')->first() ?: TodoStatus::first();
-        } else {
-            $status = TodoStatus::where('status', 'like', '%success%')
-                ->orWhere('status', 'like', '%complete%')
-                ->orWhere('status', 'like', '%done%')
-                ->first() ?: TodoStatus::first();
+        if ($dueDate && $checkTime->greaterThan($dueDate)) {
+            return TodoStatus::where('status', 'like', '%fail%')->first()
+                ?: TodoStatus::where('status', 'like', '%success%')
+                    ->orWhere('status', 'like', '%complete%')
+                    ->orWhere('status', 'like', '%done%')
+                    ->first()
+                ?: TodoStatus::first();
         }
 
-        $task->update([
-            'todo_status_id' => $status ? $status->id : null,
-            'closed_by_user_id' => Auth::id(),
-            'closed_at' => $now,
-        ]);
+        return TodoStatus::where('status', 'like', '%success%')
+            ->orWhere('status', 'like', '%complete%')
+            ->orWhere('status', 'like', '%done%')
+            ->first() ?: TodoStatus::first();
+    }
 
-        return redirect()->back()->with('message', 'Task closed successfully. Status: ' . ($status ? $status->status : 'Updated'));
+    protected function isClosingStatus(?TodoStatus $status, array $actionData = []): bool
+    {
+        if (!empty($actionData['is_close_request'])) {
+            return true;
+        }
+
+        $name = strtolower((string) ($status?->status ?? $actionData['new_status_name'] ?? ''));
+        if ($name === '') {
+            return false;
+        }
+
+        foreach (['complete', 'success', 'done', 'finish', 'close', 'fail'] as $keyword) {
+            if (str_contains($name, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function archiveTask($id)
@@ -721,14 +836,18 @@ class TodoListController extends Controller
             'action_data' => ['nullable', 'array'],
         ]);
 
-        $task = TodoList::withTrashed()->findOrFail($id);
+        $task = TodoList::withTrashed()->with(['createdByUser', 'assignedUser'])->findOrFail($id);
 
         $commentType = $request->input('comment_type', 'normal');
         $actionStatus = $commentType === 'action_step' ? 'pending' : null;
         $actionData = $request->input('action_data');
 
-        // Prevent creating another pending request of the same type
+        // Only the resolver (assigned user / resolver department) or SuperUser can initiate structured action step requests
         if ($commentType === 'action_step' && isset($actionData['type'])) {
+            if (!$task->isResolver(Auth::user())) {
+                return redirect()->back()->with('error', 'Only the assigned resolver (or a member of the resolver\'s department) can submit an action step request.');
+            }
+
             $pendingSameType = TaskComment::where('todo_list_id', $task->id)
                 ->where('comment_type', 'action_step')
                 ->where('action_status', 'pending')
@@ -769,7 +888,7 @@ class TodoListController extends Controller
             return redirect(url()->previous(route('todo.dashboard')))->with('error', 'Action step comment not found.');
         }
 
-        $task = TodoList::find($comment->todo_list_id);
+        $task = TodoList::with(['createdByUser', 'assignedUser', 'status'])->find($comment->todo_list_id);
         if (!$task) {
             return redirect(url()->previous(route('todo.dashboard')))->with('error', 'Associated task not found.');
         }
@@ -781,6 +900,10 @@ class TodoListController extends Controller
             return redirect($fallback)->with('error', 'This action step is no longer pending.');
         }
 
+        if (!$comment->canUserRespond((int) Auth::id())) {
+            return redirect($fallback)->with('error', 'You do not have permission to respond to this request. Only the requester or members of the requester\'s department can approve or reject.');
+        }
+
         if ($action === 'accept') {
             $comment->update(['action_status' => 'accepted']);
 
@@ -788,24 +911,65 @@ class TodoListController extends Controller
                 $type = $comment->action_data['type'];
                 if ($type === 'due_date_change' && !empty($comment->action_data['new_due_date'])) {
                     $task->update(['due_date' => $comment->action_data['new_due_date']]);
-                } elseif ($type === 'status_change' && !empty($comment->action_data['new_status_id'])) {
-                    $task->update(['todo_status_id' => $comment->action_data['new_status_id']]);
+                } elseif ($type === 'status_change') {
+                    $newStatusId = $comment->action_data['new_status_id'] ?? null;
+                    $newStatus = $newStatusId ? TodoStatus::find($newStatusId) : null;
+
+                    if ($this->isClosingStatus($newStatus, $comment->action_data ?? [])) {
+                        $finalStatus = $newStatus;
+                        if ($task->due_date && $comment->created_at > $task->due_date) {
+                            $failedStatus = TodoStatus::where('status', 'like', '%fail%')->first();
+                            if ($failedStatus) {
+                                $finalStatus = $failedStatus;
+                            }
+                        }
+                        if (!$finalStatus) {
+                            $finalStatus = $this->resolveClosingStatus($task, $comment->created_at);
+                        }
+
+                        $task->update([
+                            'todo_status_id' => $finalStatus ? $finalStatus->id : ($newStatusId ?: $task->todo_status_id),
+                            'closed_by_user_id' => Auth::id(),
+                            'closed_at' => now(),
+                        ]);
+                    } elseif ($newStatusId) {
+                        $task->update(['todo_status_id' => $newStatusId]);
+                    }
                 } elseif ($type === 'resolver_change' && !empty($comment->action_data['new_assigned_user_id'])) {
                     $task->update(['assigned_user_id' => $comment->action_data['new_assigned_user_id']]);
                 }
             }
 
-            // If action request was created after due date -> mark failed if overdue
-            if ($comment->created_at > $task->due_date) {
-                $failedStatus = TodoStatus::where('status', 'Failed')->first();
-                if ($failedStatus) {
-                    $task->update(['todo_status_id' => $failedStatus->id]);
-                }
+            if ($comment->user_id && (int) $comment->user_id !== (int) Auth::id()) {
+                $approverName = Auth::user()?->name ?? 'A requester';
+                \App\Models\TaskNotification::create([
+                    'type' => 'action_accepted',
+                    'title' => 'Action Step Accepted',
+                    'message' => "{$approverName} accepted your action step request on \"{$task->task}\".",
+                    'user_id' => $comment->user_id,
+                    'task_comment_id' => $comment->id,
+                    'todo_list_id' => $task->id,
+                    'is_read' => false,
+                ]);
             }
 
             return redirect($fallback)->with('message', 'Action step request accepted successfully.');
         } elseif ($action === 'reject') {
             $comment->update(['action_status' => 'rejected']);
+
+            if ($comment->user_id && (int) $comment->user_id !== (int) Auth::id()) {
+                $rejectorName = Auth::user()?->name ?? 'A requester';
+                \App\Models\TaskNotification::create([
+                    'type' => 'action_rejected',
+                    'title' => 'Action Step Rejected',
+                    'message' => "{$rejectorName} rejected your action step request on \"{$task->task}\".",
+                    'user_id' => $comment->user_id,
+                    'task_comment_id' => $comment->id,
+                    'todo_list_id' => $task->id,
+                    'is_read' => false,
+                ]);
+            }
+
             return redirect($fallback)->with('message', 'Action step request rejected.');
         } elseif ($action === 'counter_offer') {
             $proposedDate = $request->input('proposed_date');
@@ -863,6 +1027,15 @@ class TodoListController extends Controller
 
         if ($task->created_by_user_id && $task->created_by_user_id !== $currentUserId) {
             $relevantUserIds[] = $task->created_by_user_id;
+        }
+
+        $requesterDeptId = $task->createdByUser?->department_id;
+        if ($requesterDeptId) {
+            $requesterDeptUsers = User::where('department_id', $requesterDeptId)
+                ->where('id', '!=', $currentUserId)
+                ->pluck('id')
+                ->all();
+            $relevantUserIds = array_merge($relevantUserIds, $requesterDeptUsers);
         }
 
         if ($task->requested_by_department_id) {
