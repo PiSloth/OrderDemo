@@ -61,6 +61,11 @@ use App\Livewire\Jewelry\Purchasing\Dashboard as JewelryPurchasingDashboard;
 use App\Livewire\Jewelry\Purchasing\Groups\Index as JewelryGroupsIndex;
 use App\Livewire\Jewelry\Purchasing\Groups\Show as JewelryGroupsShow;
 use App\Http\Controllers\Jewelry\JewelryTemplateController;
+use App\Http\Controllers\JewelrySales\JewelrySalesCustomerController;
+use App\Http\Controllers\JewelrySales\JewelrySalesDashboardController;
+use App\Http\Controllers\JewelrySales\JewelrySalesImportController;
+use App\Http\Controllers\JewelrySales\JewelrySalesInvoiceController;
+use App\Http\Controllers\JewelrySales\JewelrySalesProductController;
 use App\Livewire\Kpi\Manual;
 use App\Livewire\Order\Psi\CrateProduct;
 use App\Livewire\Order\Psi\CreateProduct;
@@ -114,7 +119,11 @@ Route::view('profile', 'profile')
 
 require __DIR__ . '/auth.php';
 
-Route::get('/', fn() => inertia('Welcome'))->name('welcome');
+Route::get('/', fn() => inertia('Welcome', [
+    'initialShowLogin' => false,
+    'canResetPassword' => Route::has('password.request'),
+    'status' => session('status'),
+]))->name('welcome');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/config', Config::class)
@@ -405,6 +414,18 @@ Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function
     Route::prefix('groups')->name('groups.')->group(function () {
         Route::get('/', JewelryGroupsIndex::class)->name('index');
         Route::get('/{group}', JewelryGroupsShow::class)->name('show');
+    });
+
+    Route::prefix('sales')->name('sales.')->group(function () {
+        Route::get('/', [JewelrySalesDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/import', [JewelrySalesImportController::class, 'index'])->name('import.index');
+        Route::post('/import', [JewelrySalesImportController::class, 'store'])->name('import.store');
+        Route::post('/import/branch-mappings', [JewelrySalesImportController::class, 'saveBranchMappings'])->name('import.branch_mappings');
+        Route::get('/customers', [JewelrySalesCustomerController::class, 'index'])->name('customers.index');
+        Route::get('/customers/{customer}', [JewelrySalesCustomerController::class, 'show'])->name('customers.show');
+        Route::get('/products', [JewelrySalesProductController::class, 'index'])->name('products.index');
+        Route::get('/invoices', [JewelrySalesInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/{sale}', [JewelrySalesInvoiceController::class, 'show'])->name('invoices.show');
     });
 });
 

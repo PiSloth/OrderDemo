@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Head, useForm } from '@inertiajs/react';
 
 /* ─────────────────────────────────────────────────────────────
    KEYFRAMES
@@ -30,6 +30,45 @@ const KEYFRAMES = `
   @keyframes decorSlideRight {
     from { opacity: 0; transform: translate(400px, 400px); }
     to   { opacity: 1; transform: translate(0, 0); }
+  }
+  /* Throwing login card in from below with a crisp springy arc */
+  @keyframes throwCardIn {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 120px, 0) scale(0.84) rotate(-3.5deg);
+      filter: blur(4px);
+    }
+    65% {
+      opacity: 1;
+      transform: translate3d(0, -10px, 0) scale(1.02) rotate(0.6deg);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+      filter: blur(0);
+    }
+  }
+  /* Throwing login card back out when returning to welcome */
+  @keyframes throwCardOut {
+    0% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(0, 110px, 0) scale(0.86) rotate(3deg);
+    }
+  }
+  /* Staggered form field reveal inside thrown card */
+  @keyframes fieldSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  /* Hide Edge/IE native password reveal button so only one eye icon shows */
+  #login-password::-ms-reveal,
+  #login-password::-ms-clear {
+    display: none;
   }
 `;
 
@@ -149,12 +188,12 @@ function SceneDecor({ side, decorVisible, children }) {
    Nav cards data
 ───────────────────────────────────────────────────────────── */
 const NAV_CARDS = [
-    { href: '#', icon: '📋', iconBg: 'linear-gradient(135deg,#e0e7ff,#c7d2fe)', title: 'View Order Histories', desc: 'Browse all past and recent orders.' },
-    { href: '#', icon: '✏️', iconBg: 'linear-gradient(135deg,#d1fae5,#a7f3d0)', title: 'Create New Order',     desc: 'Place a new order in the system.' },
-    { href: '#', icon: '🔍', iconBg: 'linear-gradient(135deg,#fef3c7,#fde68a)', title: 'Order Status',         desc: 'Track pending and arrived orders.' },
-    { href: '#', icon: '📊', iconBg: 'linear-gradient(135deg,#fce7f3,#fbcfe8)', title: 'Branch Performance',   desc: 'Analyze how each branch performs.' },
-    { href: '#', icon: '📈', iconBg: 'linear-gradient(135deg,#e0f2fe,#bae6fd)', title: 'Sales Rate',           desc: 'Visualize sales trends over time.' },
-    { href: '#', icon: '💎', iconBg: 'linear-gradient(135deg,#f3e8ff,#e9d5ff)', title: 'Top Products',         desc: 'View most demanded jewelry pieces.' },
+    { href: '#', icon: '✅', iconBg: 'linear-gradient(135deg,#e0e7ff,#c7d2fe)', title: 'Tasks & To-Do',         desc: 'Organize daily assignments, checklists, and team task progress.' },
+    { href: '#', icon: '📊', iconBg: 'linear-gradient(135deg,#d1fae5,#a7f3d0)', title: 'KPIs & Performance',    desc: 'Track targets, branch scorecards, and employee performance metrics.' },
+    { href: '#', icon: '🖥️', iconBg: 'linear-gradient(135deg,#e0f2fe,#bae6fd)', title: 'IT Operations',         desc: 'Manage IT support issues, digital accounts, and hardware assets.' },
+    { href: '#', icon: '🎓', iconBg: 'linear-gradient(135deg,#fef3c7,#fde68a)', title: 'Training & Skills',     desc: 'Coordinate staff trainings, assessments, and skill matrices.' },
+    { href: '#', icon: '📄', iconBg: 'linear-gradient(135deg,#fce7f3,#fbcfe8)', title: 'Documents & Reports',   desc: 'Access company document libraries, analytic boards, and reports.' },
+    { href: '#', icon: '🔄', iconBg: 'linear-gradient(135deg,#f3e8ff,#e9d5ff)', title: 'Daily Team Workflows',  desc: 'Streamline orders, calendars, approvals, and branch operations.' },
 ];
 
 function NavCard({ card }) {
@@ -192,9 +231,325 @@ function NavCard({ card }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Login Card — thrown into view from `/`
+───────────────────────────────────────────────────────────── */
+function LoginCard({ canResetPassword, status, onBack, isClosing, reduceMotion }) {
+    const emailInputRef = useRef(null);
+    const [showPassword, setShowPassword] = useState(false);
+    const [focusedField, setFocusedField] = useState(null);
+    const [submitHovered, setSubmitHovered] = useState(false);
+
+    const { data, setData, post, processing, errors, reset } = useForm({
+        email: '',
+        password: '',
+        remember: false,
+    });
+
+    useEffect(() => {
+        if (isClosing) return;
+        const timer = setTimeout(() => {
+            emailInputRef.current?.focus();
+        }, reduceMotion ? 20 : 280);
+        return () => clearTimeout(timer);
+    }, [isClosing, reduceMotion]);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        post('/login', {
+            onFinish: () => reset('password'),
+        });
+    };
+
+    const cardAnimation = reduceMotion
+        ? 'none'
+        : isClosing
+            ? 'throwCardOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards'
+            : 'throwCardIn 0.56s cubic-bezier(0.22, 1.22, 0.36, 1) forwards';
+
+    const inputStyle = (field, hasError) => ({
+        width: '100%',
+        boxSizing: 'border-box',
+        padding: field === 'password' ? '12px 44px 12px 14px' : '12px 14px',
+        borderRadius: 12,
+        border: `1.5px solid ${
+            hasError
+                ? '#ef4444'
+                : focusedField === field
+                    ? '#6366f1'
+                    : 'rgba(148, 163, 184, 0.45)'
+        }`,
+        background: 'rgba(255, 255, 255, 0.92)',
+        color: '#0f172a',
+        fontSize: '0.95rem',
+        outline: 'none',
+        boxShadow:
+            focusedField === field
+                ? '0 0 0 4px rgba(99, 102, 241, 0.14)'
+                : '0 1px 2px rgba(15, 23, 42, 0.04)',
+        transition: 'border-color 0.18s ease, box-shadow 0.18s ease',
+    });
+
+    const stagger = (delayMs) =>
+        reduceMotion
+            ? {}
+            : { animation: `fieldSlideUp 0.4s ${delayMs}ms ease both` };
+
+    return (
+        <div
+            style={{
+                width: '100%',
+                maxWidth: 440,
+                margin: '0 auto',
+                background: 'rgba(255, 255, 255, 0.88)',
+                backdropFilter: 'blur(18px)',
+                WebkitBackdropFilter: 'blur(18px)',
+                borderRadius: 24,
+                border: '1px solid rgba(165, 180, 252, 0.55)',
+                boxShadow:
+                    '0 24px 60px rgba(79, 70, 229, 0.16), 0 8px 24px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                padding: '28px 30px 30px',
+                boxSizing: 'border-box',
+                transformOrigin: 'center bottom',
+                animation: cardAnimation,
+            }}
+        >
+            {/* Top bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <button
+                    type="button"
+                    onClick={onBack}
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '6px 12px',
+                        borderRadius: 9999,
+                        border: '1px solid rgba(203, 213, 225, 0.85)',
+                        background: 'rgba(248, 250, 252, 0.9)',
+                        color: '#475569',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease, color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#eef2ff';
+                        e.currentTarget.style.color = '#4f46e5';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(248, 250, 252, 0.9)';
+                        e.currentTarget.style.color = '#475569';
+                    }}
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Back
+                </button>
+
+                <span
+                    style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: '#6366f1',
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        padding: '4px 10px',
+                        borderRadius: 9999,
+                    }}
+                >
+                    Account Sign In
+                </span>
+            </div>
+
+            {status && (
+                <div
+                    role="status"
+                    style={{
+                        marginBottom: 16,
+                        padding: '10px 14px',
+                        borderRadius: 12,
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        color: '#065f46',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                    }}
+                >
+                    {status}
+                </div>
+            )}
+
+            <form onSubmit={handleSubmit} noValidate>
+                {/* Email */}
+                <div style={{ marginBottom: 16, ...stagger(110) }}>
+                    <label
+                        htmlFor="login-email"
+                        style={{ display: 'block', fontSize: '0.84rem', fontWeight: 600, color: '#334155', marginBottom: 6 }}
+                    >
+                        Email
+                    </label>
+                    <input
+                        ref={emailInputRef}
+                        id="login-email"
+                        type="email"
+                        name="email"
+                        value={data.email}
+                        onChange={(e) => setData('email', e.target.value)}
+                        onFocus={() => setFocusedField('email')}
+                        onBlur={() => setFocusedField(null)}
+                        autoComplete="username"
+                        required
+                        placeholder="you@shwetatar.org"
+                        style={inputStyle('email', Boolean(errors.email))}
+                    />
+                    {errors.email && (
+                        <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: '#dc2626', fontWeight: 500 }}>
+                            {errors.email}
+                        </p>
+                    )}
+                </div>
+
+                {/* Password */}
+                <div style={{ marginBottom: 16, ...stagger(160) }}>
+                    <label
+                        htmlFor="login-password"
+                        style={{ display: 'block', fontSize: '0.84rem', fontWeight: 600, color: '#334155', marginBottom: 6 }}
+                    >
+                        Password
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                        <input
+                            id="login-password"
+                            type={showPassword ? 'text' : 'password'}
+                            name="password"
+                            value={data.password}
+                            onChange={(e) => setData('password', e.target.value)}
+                            onFocus={() => setFocusedField('password')}
+                            onBlur={() => setFocusedField(null)}
+                            autoComplete="current-password"
+                            required
+                            placeholder="••••••••"
+                            style={inputStyle('password', Boolean(errors.password))}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            style={{
+                                position: 'absolute',
+                                right: 10,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#64748b',
+                                cursor: 'pointer',
+                                padding: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            {showPassword ? (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                                    <line x1="1" y1="1" x2="23" y2="23" />
+                                </svg>
+                            ) : (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            )}
+                        </button>
+                    </div>
+                    {errors.password && (
+                        <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: '#dc2626', fontWeight: 500 }}>
+                            {errors.password}
+                        </p>
+                    )}
+                </div>
+
+                {/* Remember & Forgot Password */}
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        marginBottom: 22,
+                        flexWrap: 'wrap',
+                        ...stagger(200),
+                    }}
+                >
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85rem', color: '#475569' }}>
+                        <input
+                            type="checkbox"
+                            name="remember"
+                            checked={data.remember}
+                            onChange={(e) => setData('remember', e.target.checked)}
+                            style={{ width: 16, height: 16, accentColor: '#4f46e5', cursor: 'pointer' }}
+                        />
+                        Remember me
+                    </label>
+
+                    {canResetPassword && (
+                        <a
+                            href="/forgot-password"
+                            style={{ fontSize: '0.84rem', fontWeight: 600, color: '#4f46e5', textDecoration: 'none' }}
+                        >
+                            Forgot your password?
+                        </a>
+                    )}
+                </div>
+
+                {/* Submit */}
+                <div style={stagger(240)}>
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        onMouseEnter={() => setSubmitHovered(true)}
+                        onMouseLeave={() => setSubmitHovered(false)}
+                        style={{
+                            width: '100%',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            background: processing
+                                ? 'linear-gradient(135deg, #818cf8, #6366f1)'
+                                : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: '0.98rem',
+                            padding: '13px 24px',
+                            border: 'none',
+                            borderRadius: 12,
+                            cursor: processing ? 'not-allowed' : 'pointer',
+                            opacity: processing ? 0.8 : 1,
+                            boxShadow:
+                                submitHovered && !processing
+                                    ? '0 10px 26px rgba(99, 102, 241, 0.42)'
+                                    : '0 4px 16px rgba(99, 102, 241, 0.3)',
+                            transform: submitHovered && !processing ? 'translateY(-1px)' : 'none',
+                            transition: 'transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease',
+                        }}
+                    >
+                        {processing ? 'Signing in...' : 'Log in'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
-export default function Welcome() {
+export default function Welcome({ initialShowLogin = false, canResetPassword = true, status = null }) {
     const reduceMotion =
         typeof window !== 'undefined' &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -202,6 +557,8 @@ export default function Welcome() {
     const [ringsVisible,  setRingsVisible]  = useState(reduceMotion);
     const [decorVisible,  setDecorVisible]  = useState(reduceMotion);
     const [loginHovered,  setLoginHovered]  = useState(false);
+    const [showLogin,     setShowLogin]     = useState(initialShowLogin);
+    const [isClosing,     setIsClosing]     = useState(false);
 
     useEffect(() => {
         if (reduceMotion) return;
@@ -210,9 +567,62 @@ export default function Welcome() {
         return () => { clearTimeout(t1); clearTimeout(t2); };
     }, []);
 
+    useEffect(() => {
+        setShowLogin(initialShowLogin);
+        setIsClosing(false);
+    }, [initialShowLogin]);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            const onLoginPath = window.location.pathname === '/login';
+            setIsClosing(false);
+            setShowLogin(onLoginPath);
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && showLogin && !isClosing) {
+                closeLogin();
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showLogin, isClosing]);
+
+    const openLogin = (e) => {
+        e.preventDefault();
+        if (showLogin) return;
+        setIsClosing(false);
+        setShowLogin(true);
+        if (window.location.pathname !== '/login') {
+            window.history.pushState({ showLogin: true }, '', '/login');
+        }
+    };
+
+    const closeLogin = () => {
+        if (!showLogin || isClosing) return;
+        if (reduceMotion) {
+            setShowLogin(false);
+            if (window.location.pathname !== '/') {
+                window.history.pushState({ showLogin: false }, '', '/');
+            }
+            return;
+        }
+        setIsClosing(true);
+        setTimeout(() => {
+            setShowLogin(false);
+            setIsClosing(false);
+            if (window.location.pathname !== '/') {
+                window.history.pushState({ showLogin: false }, '', '/');
+            }
+        }, 260);
+    };
+
     return (
         <>
-            <Head title="Welcome" />
+            <Head title={showLogin ? 'Login' : 'Welcome'} />
             <style>{KEYFRAMES}</style>
 
             {/* ── Layer 0: full-page background (behind everything) ── */}
@@ -292,56 +702,119 @@ export default function Welcome() {
                 <div style={{ width: '100%', maxWidth: '960px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
                     {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, flexWrap: 'wrap', marginBottom: 12, animation: 'fadeInDown 0.55s ease both' }}>
-                        <div style={{ width: 100, height: 100, borderRadius: 20, background: 'linear-gradient(135deg,#fefce8,#fef9c3)', border: '3px solid #fbbf24', boxShadow: '0 8px 24px rgba(251,191,36,0.25), 0 2px 8px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                            <img src="/images/logo.png" alt="JewelTrack Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }} />
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            gap: 14,
+                            marginBottom: 4,
+                            maxWidth: 660,
+                            animation: reduceMotion ? 'none' : 'fadeInDown 0.55s ease both',
+                        }}
+                    >
+                        <div
+                            style={{
+                                width: 84,
+                                height: 84,
+                                borderRadius: 22,
+                                background: 'linear-gradient(135deg,#fefce8,#fef9c3)',
+                                border: '2.5px solid #fbbf24',
+                                boxShadow: '0 10px 28px rgba(251,191,36,0.22), 0 4px 12px rgba(99,102,241,0.10)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <img src="/images/logo.png" alt="ShweTatar Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }} />
                         </div>
+
                         <div>
-                            <p style={{ fontSize: 'clamp(0.85rem,2vw,0.95rem)', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6366f1', marginBottom: 4, margin: '0 0 4px 0' }}>
-                                Welcome to
+                            <p
+                                style={{
+                                    display: 'inline-block',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.14em',
+                                    textTransform: 'uppercase',
+                                    color: '#4f46e5',
+                                    background: 'rgba(99,102,241,0.10)',
+                                    padding: '5px 14px',
+                                    borderRadius: 9999,
+                                    margin: '0 0 10px 0',
+                                }}
+                            >
+                                Shwe Tatar • Office Management Software
                             </p>
-                            <h1 style={{ fontSize: 'clamp(2rem,5vw,3rem)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em', background: 'linear-gradient(135deg,#1e293b 0%,#334155 60%,#6366f1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>
-                                JewelTrack
+                            <h1
+                                style={{
+                                    fontSize: 'clamp(2rem,4.8vw,2.85rem)',
+                                    fontWeight: 900,
+                                    lineHeight: 1.08,
+                                    letterSpacing: '-0.025em',
+                                    background: 'linear-gradient(135deg,#0f172a 0%,#334155 55%,#4f46e5 100%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text',
+                                    margin: 0,
+                                }}
+                            >
+                                ShweTatar Workspace
                             </h1>
-                            <p style={{ fontSize: '0.97rem', color: '#64748b', marginTop: 6, fontWeight: 400, margin: '6px 0 0 0' }}>
-                                Manage luxurious jewelry orders with elegance and efficiency.
-                            </p>
                         </div>
                     </div>
 
                     {/* Divider */}
                     <div aria-hidden="true" style={{ width: 60, height: 3, borderRadius: 99, background: 'linear-gradient(90deg,#6366f1,#3b82f6)', margin: '28px auto', animation: 'fadeIn 0.5s 0.15s ease both' }} />
 
-                    {/* Nav cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16, width: '100%', animation: 'fadeInUp 0.55s 0.2s ease both' }}>
-                        {NAV_CARDS.map((card) => <NavCard key={card.title} card={card} />)}
-                    </div>
+                    {/* Interactive stage: Welcome cards <-> Thrown Login Card */}
+                    {!showLogin ? (
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            {/* Nav cards */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16, width: '100%', animation: reduceMotion ? 'none' : 'fadeInUp 0.55s 0.2s ease both' }}>
+                                {NAV_CARDS.map((card) => <NavCard key={card.title} card={card} />)}
+                            </div>
 
-                    {/* Login */}
-                    <div style={{ marginTop: 36, animation: 'fadeInUp 0.55s 0.35s ease both' }}>
-                        <a
-                            href="/login"
-                            style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 8,
-                                background: 'linear-gradient(135deg,#6366f1,#4f46e5)',
-                                color: '#fff', fontWeight: 700, fontSize: '1rem',
-                                padding: '13px 36px', borderRadius: 9999, textDecoration: 'none',
-                                boxShadow: loginHovered ? '0 8px 24px rgba(99,102,241,0.45)' : '0 4px 16px rgba(99,102,241,0.35)',
-                                transform: loginHovered ? 'translateY(-2px) scale(1.03)' : 'none',
-                                transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-                                letterSpacing: '0.01em',
-                            }}
-                            onMouseEnter={() => setLoginHovered(true)}
-                            onMouseLeave={() => setLoginHovered(false)}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                                <polyline points="10 17 15 12 10 7" />
-                                <line x1="15" y1="12" x2="3" y2="12" />
-                            </svg>
-                            Login
-                        </a>
-                    </div>
+                            {/* Login */}
+                            <div style={{ marginTop: 36, animation: reduceMotion ? 'none' : 'fadeInUp 0.55s 0.35s ease both' }}>
+                                <a
+                                    href="/login"
+                                    onClick={openLogin}
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                                        background: 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                                        color: '#fff', fontWeight: 700, fontSize: '1rem',
+                                        padding: '13px 36px', borderRadius: 9999, textDecoration: 'none',
+                                        boxShadow: loginHovered ? '0 8px 24px rgba(99,102,241,0.45)' : '0 4px 16px rgba(99,102,241,0.35)',
+                                        transform: loginHovered ? 'translateY(-2px) scale(1.03)' : 'none',
+                                        transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                                        letterSpacing: '0.01em',
+                                    }}
+                                    onMouseEnter={() => setLoginHovered(true)}
+                                    onMouseLeave={() => setLoginHovered(false)}
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                                        <polyline points="10 17 15 12 10 7" />
+                                        <line x1="15" y1="12" x2="3" y2="12" />
+                                    </svg>
+                                    Login
+                                </a>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ width: '100%', paddingTop: 4 }}>
+                            <LoginCard
+                                canResetPassword={canResetPassword}
+                                status={status}
+                                onBack={closeLogin}
+                                isClosing={isClosing}
+                                reduceMotion={reduceMotion}
+                            />
+                        </div>
+                    )}
 
                     {/* Footer */}
                     <footer style={{ marginTop: 40, fontSize: '0.82rem', color: '#94a3b8', textAlign: 'center', animation: 'fadeIn 0.5s 0.4s ease both' }}>

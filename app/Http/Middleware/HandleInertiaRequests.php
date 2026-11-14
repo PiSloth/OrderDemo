@@ -55,6 +55,7 @@ class HandleInertiaRequests extends Middleware
                     'is_it_department' => method_exists($request->user(), 'isFromItDepartment') ? $request->user()->isFromItDepartment() : false,
                 ] : null,
                 'can' => [
+                    'isSuperAdmin' => $request->user() ? $request->user()->can('isSuperAdmin') : false,
                     'kpiManageTemplates' => $request->user() ? $request->user()->can('kpiManageTemplates') : false,
                     'itSatisfactionView' => $request->user() ? (in_array(strtolower($request->user()->role ?? ''), ['super admin', 'super_admin', 'admin']) || $request->user()->can('it.satisfaction.view')) : false,
                     'itSatisfactionCreate' => $request->user() ? (in_array(strtolower($request->user()->role ?? ''), ['super admin', 'super_admin', 'admin']) || $request->user()->can('it.satisfaction.create')) : false,

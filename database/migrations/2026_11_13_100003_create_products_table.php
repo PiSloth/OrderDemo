@@ -1,0 +1,28 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->string('source_product_key', 64)->unique();
+            $table->string('product_name')->index();
+            $table->string('gold_type')->nullable()->index();
+            $table->string('item_name')->nullable()->index();
+            $table->string('category')->nullable()->index();
+            $table->string('goldsmith')->nullable()->index();
+            $table->string('length')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('products');
+    }
+};

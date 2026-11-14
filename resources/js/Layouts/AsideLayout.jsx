@@ -530,21 +530,23 @@ export default function AsideLayout({
                         </Box>
                     </Box>
 
-                    {/* Quick Action Button - Sleek Untitled UI Design */}
-                    <Box sx={{ px: 2, py: 1 }}>
+                    {/* Quick Action Buttons - Sleek Untitled UI Design */}
+                    <Box sx={{ px: 2, py: 1, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 1 }}>
                         <Button
-                            fullWidth
                             variant="contained"
-                            startIcon={<Plus size={16} />}
+                            startIcon={<Plus size={15} />}
                             onClick={() => { window.location.href = '/todo/list?createTask=1'; }}
                             sx={{
                                 bgcolor: '#0f172a',
                                 color: '#ffffff',
                                 fontWeight: 600,
-                                fontSize: '0.85rem',
+                                fontSize: '0.8rem',
                                 borderRadius: 2,
                                 textTransform: 'none',
                                 py: 0.9,
+                                px: 1.5,
+                                minWidth: 0,
+                                whiteSpace: 'nowrap',
                                 boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                                 '&:hover': { bgcolor: '#1e293b' },
                                 '.dark &': {
@@ -554,7 +556,35 @@ export default function AsideLayout({
                                 }
                             }}
                         >
-                            Create Todo Task
+                            Todo
+                        </Button>
+                        <Button
+                            component={Link}
+                            href="/jewelry/sales/invoices"
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<Search size={14} />}
+                            sx={{
+                                borderColor: '#cbd5e1',
+                                color: '#0f172a',
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                                borderRadius: 2,
+                                textTransform: 'none',
+                                py: 0.9,
+                                px: 1.25,
+                                minWidth: 0,
+                                whiteSpace: 'nowrap',
+                                '& .MuiButton-startIcon': { mr: 0.6, ml: 0 },
+                                '&:hover': { bgcolor: '#f1f5f9', borderColor: '#94a3b8' },
+                                '.dark &': {
+                                    borderColor: '#334155',
+                                    color: '#f8fafc',
+                                    '&:hover': { bgcolor: '#1e293b', borderColor: '#475569' }
+                                }
+                            }}
+                        >
+                            Voucher ပျောက်
                         </Button>
                     </Box>
 
@@ -1378,7 +1408,7 @@ export default function AsideLayout({
                             )}
 
                             {/* 14. Jewelry Group */}
-                            {matchesSearch('jewelry dashboard groups') && (
+                            {matchesSearch('jewelry dashboard groups sales analytics customers products invoices import') && (
                                 <ListItem disablePadding sx={{ display: 'block' }}>
                                     <ListItemButton 
                                         onClick={() => toggleGroup('jewelry')} 
@@ -1417,6 +1447,46 @@ export default function AsideLayout({
                                                 sx={subItemButtonSx(isCurrentUrl('/jewelry/groups'))}
                                             >
                                                 <ListItemText primary="Groups" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                            </ListItemButton>
+                                            <ListItemButton 
+                                                component={Link} 
+                                                href="/jewelry/sales" 
+                                                selected={isCurrentUrl('/jewelry/sales') && !isCurrentUrl('/jewelry/sales/')}
+                                                sx={subItemButtonSx(isCurrentUrl('/jewelry/sales') && !isCurrentUrl('/jewelry/sales/'))}
+                                            >
+                                                <ListItemText primary="Sales Analytics" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                            </ListItemButton>
+                                            <ListItemButton 
+                                                component={Link} 
+                                                href="/jewelry/sales/customers" 
+                                                selected={isCurrentUrl('/jewelry/sales/customers')}
+                                                sx={subItemButtonSx(isCurrentUrl('/jewelry/sales/customers'))}
+                                            >
+                                                <ListItemText primary="Customer Analysis" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                            </ListItemButton>
+                                            <ListItemButton 
+                                                component={Link} 
+                                                href="/jewelry/sales/products" 
+                                                selected={isCurrentUrl('/jewelry/sales/products')}
+                                                sx={subItemButtonSx(isCurrentUrl('/jewelry/sales/products'))}
+                                            >
+                                                <ListItemText primary="Product Analysis" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                            </ListItemButton>
+                                            <ListItemButton 
+                                                component={Link} 
+                                                href="/jewelry/sales/invoices" 
+                                                selected={isCurrentUrl('/jewelry/sales/invoices')}
+                                                sx={subItemButtonSx(isCurrentUrl('/jewelry/sales/invoices'))}
+                                            >
+                                                <ListItemText primary="Invoice Research" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                            </ListItemButton>
+                                            <ListItemButton 
+                                                component={Link} 
+                                                href="/jewelry/sales/import" 
+                                                selected={isCurrentUrl('/jewelry/sales/import')}
+                                                sx={subItemButtonSx(isCurrentUrl('/jewelry/sales/import'))}
+                                            >
+                                                <ListItemText primary="Import Sales Data" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
                                         </List>
                                     </Collapse>
@@ -1493,7 +1563,7 @@ export default function AsideLayout({
                             </ListItem>
                             {can.isSuperAdmin && (
                                 <ListItem disablePadding>
-                                    <ListItemButton component={Link} href="/config" sx={subItemButtonSx(isCurrentUrl('/config'))}>
+                                    <ListItemButton component="a" href="/config" sx={subItemButtonSx(isCurrentUrl('/config'))}>
                                         <ListItemIcon sx={{ minWidth: 28, color: 'text.secondary' }}>
                                             <Settings size={16} />
                                         </ListItemIcon>

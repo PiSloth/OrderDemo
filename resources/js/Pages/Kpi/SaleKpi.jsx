@@ -15,7 +15,7 @@ import BranchHeatmapMatrix from '../../Components/Kpi/BranchHeatmapMatrix';
 import TargetVsActualTrajectory from '../../Components/Kpi/TargetVsActualTrajectory';
 import PopularProductsTable from '../../Components/Kpi/PopularProductsTable';
 import TargetVsActualSummaryTable from '../../Components/Kpi/TargetVsActualSummaryTable';
-import { BarChart3, TrendingUp, Grid, Award, Menu as MenuIcon, PanelLeftClose } from 'lucide-react';
+import { BarChart3, TrendingUp, Grid, Award, Menu as MenuIcon, PanelLeftClose, RefreshCw } from 'lucide-react';
 
 // MUI Imports
 import {
@@ -371,7 +371,7 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
 
     // Render Column Charts
     useEffect(() => {
-        if (!dashboardData || loading) return;
+        if (activeTab !== 'overview' || !dashboardData || loading) return;
 
         const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
@@ -448,11 +448,12 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             theme: { mode: isDark ? 'dark' : 'light' }
         };
 
+        let gramChart = null;
         if (gramChartRef.current) {
             gramChartRef.current.innerHTML = '';
-            const chart = new ApexCharts(gramChartRef.current, gramOptions);
-            gramChartObjRef.current = chart;
-            chart.render();
+            gramChart = new ApexCharts(gramChartRef.current, gramOptions);
+            gramChartObjRef.current = gramChart;
+            gramChart.render();
         }
 
         // 2. Pcs Column Chart
@@ -528,18 +529,24 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             theme: { mode: isDark ? 'dark' : 'light' }
         };
 
+        let pcsChart = null;
         if (pcsChartRef.current) {
             pcsChartRef.current.innerHTML = '';
-            const chart = new ApexCharts(pcsChartRef.current, pcsOptions);
-            pcsChartObjRef.current = chart;
-            chart.render();
+            pcsChart = new ApexCharts(pcsChartRef.current, pcsOptions);
+            pcsChartObjRef.current = pcsChart;
+            pcsChart.render();
         }
 
-    }, [dashboardData, loading]);
+        return () => {
+            gramChart?.destroy();
+            pcsChart?.destroy();
+        };
+
+    }, [dashboardData, loading, activeTab]);
 
     // Render Line Chart
     useEffect(() => {
-        if (!dashboardData || loading) return;
+        if (activeTab !== 'overview' || !dashboardData || loading) return;
 
         const lc = dashboardData.line_chart || {};
         const labels = lc.labels || [];
@@ -721,14 +728,19 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
             }
         };
 
+        let lineChart = null;
         if (lineChartRef.current) {
             lineChartRef.current.innerHTML = '';
-            const chart = new ApexCharts(lineChartRef.current, lineOptions);
-            lineChartObjRef.current = chart;
-            chart.render();
+            lineChart = new ApexCharts(lineChartRef.current, lineOptions);
+            lineChartObjRef.current = lineChart;
+            lineChart.render();
         }
 
-    }, [dashboardData, loading, activeMetric]);
+        return () => {
+            lineChart?.destroy();
+        };
+
+    }, [dashboardData, loading, activeMetric, activeTab]);
 
     // Handle open global modal
     const openCreatePromoteModal = () => {
@@ -770,195 +782,192 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
 
             <div className="space-y-5 text-slate-800 dark:text-slate-100">
 
-                {/* Floating Glassmorphism Sticky Filter Bar */}
-                <div className="sticky top-2 sm:top-3 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-md shadow-slate-200/50 dark:shadow-none rounded-2xl p-2 sm:p-2.5 px-3 sm:px-4 flex items-center justify-between gap-3 flex-wrap transition-all">
-                    {/* Left: Branding & Title */}
-                    <div className="flex items-center gap-2.5">
-                        <img 
-                            src="/images/logo.png" 
-                            alt="STT Logo" 
-                            className="w-7 h-6 object-contain bg-white rounded-lg p-0.5 border border-slate-200 dark:border-slate-700" 
-                        />
-                        <div className="hidden sm:block">
-                            <h1 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                                Sale KPI Dashboard
-                            </h1>
-                            <p className="text-[10px] text-slate-400 leading-tight">
-                                Target vs Actual Analysis
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Right: Branch & Date Filter Controls, PA Badge & Rich Text Button */}
-                    <div className="flex items-center gap-2 flex-wrap justify-end">
-                        {/* Branch Filters - Custom Dropdown Checkbox */}
-                        <div className="relative" ref={branchDropdownRef}>
-                            <button
-                                type="button"
-                                onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-                                className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 transition flex items-center justify-between gap-1.5 min-w-36 shadow-xs"
-                            >
-                                <span className="truncate">
-                                    {selectedBranches.length === 0 
-                                        ? 'All Branches' 
-                                        : branches
-                                            .filter(b => selectedBranches.includes(b.id))
-                                            .map(b => capitalize(b.name))
-                                            .join(', ')
-                                    }
-                                </span>
-                                <ArrowDropDownIcon fontSize="small" className="text-slate-400" />
-                            </button>
-
-                            {branchDropdownOpen && (
-                                <div className="absolute right-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 space-y-0.5">
-                                    {/* Combined Reset Action inside Selection Dropdown */}
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setStartDate(defaultFrom);
-                                            setEndDate(defaultTo);
-                                            setSelectedBranches([]);
-                                            if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
-                                                dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
-                                            }
-                                            setBranchDropdownOpen(false);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-xs font-bold transition border-b border-slate-100 dark:border-slate-700 pb-2 mb-1"
-                                    >
-                                        <RefreshIcon fontSize="small" className="text-slate-500" />
-                                        <span>Reset All Filters</span>
-                                    </button>
-
-                                    {branches.map((b) => {
-                                        const isChecked = selectedBranches.includes(b.id);
-                                        return (
-                                            <label
-                                                key={b.id}
-                                                className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition select-none"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    onChange={() => {
-                                                        if (isChecked) {
-                                                            setSelectedBranches(selectedBranches.filter(id => id !== b.id));
-                                                        } else {
-                                                            setSelectedBranches([...selectedBranches, b.id]);
-                                                        }
-                                                    }}
-                                                    className="w-4 h-4 rounded border-slate-350 dark:border-slate-650 text-slate-900 focus:ring-slate-500 cursor-pointer"
-                                                />
-                                                <span className="text-xs text-slate-700 dark:text-slate-350 font-medium">
-                                                    {capitalize(b.name)}
-                                                </span>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                {/* Floating Glassmorphism Sticky Filter & Navigation Bar */}
+                <div className="sticky top-2 sm:top-3 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-md shadow-slate-200/50 dark:shadow-none rounded-2xl p-2.5 sm:p-3 px-3 sm:px-4 transition-all">
+                    {/* Row 1: Branding & Filter / Action Controls */}
+                    <div className="flex items-center justify-between gap-3 flex-nowrap">
+                        {/* Left: Branding & Title */}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                            <img 
+                                src="/images/logo.png" 
+                                alt="STT Logo" 
+                                className="w-7 h-6 object-contain bg-white rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 shrink-0" 
+                            />
+                            <div className="hidden sm:block">
+                                <h1 className="text-xs font-bold text-slate-900 dark:text-white leading-tight whitespace-nowrap">
+                                    Sale KPI Dashboard
+                                </h1>
+                                <p className="text-[10px] text-slate-400 leading-tight whitespace-nowrap">
+                                    Target vs Actual Analysis
+                                </p>
+                            </div>
                         </div>
 
-                        {/* Date Range Picker */}
-                        <input
-                            ref={dateRangeInputRef}
-                            type="text"
-                            placeholder="Select Date Range"
-                            className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-xs w-44"
-                        />
-
-                        {/* View Promote Actions Trigger Button displaying Detail Item Names */}
-                        {(() => {
-                            const paList = dashboardData?.promote_actions || [];
-                            let buttonText = 'PA (0)';
-                            if (paList.length === 1) {
-                                buttonText = paList[0].name;
-                            } else if (paList.length === 2) {
-                                buttonText = `${paList[0].name}, ${paList[1].name}`;
-                            } else if (paList.length > 2) {
-                                buttonText = `${paList[0].name}, ${paList[1].name} (+${paList.length - 2})`;
-                            }
-
-                            return (
+                        {/* Right: Branch & Date Filter Controls, PA Badge & Rich Text Button (Single Row) */}
+                        <div className="flex items-center gap-2 flex-nowrap justify-end min-w-0">
+                            {/* Branch Filters - Custom Dropdown Checkbox */}
+                            <div className="relative shrink-0" ref={branchDropdownRef}>
                                 <button
                                     type="button"
-                                    onClick={() => setShowPromoteActionsListModal(true)}
-                                    className="h-8 px-3 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs max-w-xs md:max-w-md"
-                                    title={paList.length > 0 ? paList.map(pa => pa.name).join(', ') : 'No active promote actions'}
+                                    onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+                                    className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 transition flex items-center justify-between gap-1.5 min-w-[130px] max-w-[180px] shadow-xs whitespace-nowrap"
                                 >
-                                    <CampaignIcon fontSize="small" />
                                     <span className="truncate">
-                                        {paList.length === 0 ? 'PA (0)' : `PA: ${buttonText}`}
+                                        {selectedBranches.length === 0 
+                                            ? 'All Branches' 
+                                            : branches
+                                                .filter(b => selectedBranches.includes(b.id))
+                                                .map(b => capitalize(b.name))
+                                                .join(', ')
+                                        }
                                     </span>
+                                    <ArrowDropDownIcon fontSize="small" className="text-slate-400 shrink-0" />
                                 </button>
-                            );
-                        })()}
 
-                        {/* Rich Text Report Studio Modal Trigger */}
-                        <button
-                            type="button"
-                            onClick={() => setShowRichTextReportModal(true)}
-                            className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
-                        >
-                            <DescriptionIcon fontSize="small" />
-                            <span>Rich Text Report</span>
-                        </button>
+                                {branchDropdownOpen && (
+                                    <div className="absolute right-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 space-y-0.5">
+                                        {/* Combined Reset Action inside Selection Dropdown */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setStartDate(defaultFrom);
+                                                setEndDate(defaultTo);
+                                                setSelectedBranches([]);
+                                                if (dateRangeInputRef.current && dateRangeInputRef.current._flatpickr) {
+                                                    dateRangeInputRef.current._flatpickr.setDate([defaultFrom, defaultTo]);
+                                                }
+                                                setBranchDropdownOpen(false);
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-xs font-bold transition border-b border-slate-100 dark:border-slate-700 pb-2 mb-1"
+                                        >
+                                            <RefreshIcon fontSize="small" className="text-slate-500" />
+                                            <span>Reset All Filters</span>
+                                        </button>
+
+                                        {branches.map((b) => {
+                                            const isChecked = selectedBranches.includes(b.id);
+                                            return (
+                                                <label
+                                                    key={b.id}
+                                                    className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition select-none"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => {
+                                                            if (isChecked) {
+                                                                setSelectedBranches(selectedBranches.filter(id => id !== b.id));
+                                                            } else {
+                                                                setSelectedBranches([...selectedBranches, b.id]);
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 rounded border-slate-350 dark:border-slate-650 text-slate-900 focus:ring-slate-500 cursor-pointer"
+                                                    />
+                                                    <span className="text-xs text-slate-700 dark:text-slate-350 font-medium">
+                                                        {capitalize(b.name)}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Date Range Picker */}
+                            <input
+                                ref={dateRangeInputRef}
+                                type="text"
+                                placeholder="Select Date Range"
+                                className="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-xs w-44 shrink-0"
+                            />
+
+                            {/* View Promote Actions Trigger Button displaying Detail Item Names */}
+                            {(() => {
+                                const paList = dashboardData?.promote_actions || [];
+                                let buttonText = 'PA (0)';
+                                if (paList.length === 1) {
+                                    buttonText = paList[0].name;
+                                } else if (paList.length === 2) {
+                                    buttonText = `${paList[0].name}, ${paList[1].name}`;
+                                } else if (paList.length > 2) {
+                                    buttonText = `${paList[0].name}, ${paList[1].name} (+${paList.length - 2})`;
+                                }
+
+                                return (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPromoteActionsListModal(true)}
+                                        className="h-8 px-3 rounded-xl bg-[#FEF08A] hover:bg-[#FDE047] text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs max-w-[180px] shrink-0 whitespace-nowrap"
+                                        title={paList.length > 0 ? paList.map(pa => pa.name).join(', ') : 'No active promote actions'}
+                                    >
+                                        <CampaignIcon fontSize="small" className="shrink-0" />
+                                        <span className="truncate">
+                                            {paList.length === 0 ? 'PA (0)' : `PA: ${buttonText}`}
+                                        </span>
+                                    </button>
+                                );
+                            })()}
+
+                            {/* Rich Text Report Studio Modal Trigger */}
+                            <button
+                                type="button"
+                                onClick={() => setShowRichTextReportModal(true)}
+                                className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs shrink-0 whitespace-nowrap"
+                            >
+                                <DescriptionIcon fontSize="small" className="shrink-0" />
+                                <span>Rich Text Report</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                {/* Navigation Tabs - Untitled UI Style */}
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
-                    <nav className="flex space-x-1 sm:space-x-2" aria-label="Tabs">
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('overview')}
-                            className={`flex items-center gap-2 py-2.5 px-3.5 text-xs font-semibold rounded-xl transition-all ${
-                                activeTab === 'overview'
-                                    ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
-                            }`}
-                        >
-                            <BarChart3 className="w-4 h-4" />
-                            <span>Overview & KPI Targets</span>
-                        </button>
+                    {/* Row 2: Report Swipe / Navigation Tabs inside Sticky Bar */}
+                    <div className="mt-2 pt-2 border-t border-slate-200/70 dark:border-slate-800/80">
+                        <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto" aria-label="Tabs">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('overview')}
+                                className={`flex items-center gap-2 py-1.5 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap shrink-0 ${
+                                    activeTab === 'overview'
+                                        ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                                }`}
+                            >
+                                <BarChart3 className="w-4 h-4 shrink-0" />
+                                <span>Overview & KPI Targets</span>
+                            </button>
 
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('comparison')}
-                            className={`flex items-center gap-2 py-2.5 px-3.5 text-xs font-semibold rounded-xl transition-all ${
-                                activeTab === 'comparison'
-                                    ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
-                            }`}
-                        >
-                            <TrendingUp className="w-4 h-4" />
-                            <span>Period Comparison & Trajectory</span>
-                        </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('comparison')}
+                                className={`flex items-center gap-2 py-1.5 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap shrink-0 ${
+                                    activeTab === 'comparison'
+                                        ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                                }`}
+                            >
+                                <TrendingUp className="w-4 h-4 shrink-0" />
+                                <span>Period Comparison & Trajectory</span>
+                            </button>
 
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('heatmap')}
-                            className={`flex items-center gap-2 py-2.5 px-3.5 text-xs font-semibold rounded-xl transition-all ${
-                                activeTab === 'heatmap'
-                                    ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
-                            }`}
-                        >
-                            <Grid className="w-4 h-4" />
-                            <span>Branch Heatmap & Popular Products</span>
-                        </button>
-                    </nav>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('heatmap')}
+                                className={`flex items-center gap-2 py-1.5 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap shrink-0 ${
+                                    activeTab === 'heatmap'
+                                        ? 'bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                                }`}
+                            >
+                                <Grid className="w-4 h-4 shrink-0" />
+                                <span>Branch Heatmap & Popular Products</span>
+                            </button>
+                        </nav>
+                    </div>
                 </div>
 
                 {/* Tab 1: Overview & KPI Targets */}
                 {activeTab === 'overview' && (
                     <div className="space-y-6">
-                        {loading && !dashboardData && (
-                            <div className="flex justify-center items-center py-12">
-                                <div className="w-8 h-8 border-4 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                        )}
-
                         {/* Section 1: Column Charts */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-3">
@@ -973,7 +982,17 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                 title="Grams Chart" 
                             />
                         </div>
-                        <div ref={gramChartRef} />
+                        <div className="relative min-h-[350px]">
+                            {loading && (
+                                <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xs flex items-center justify-center z-10 rounded-2xl">
+                                    <div className="flex items-center gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                                        <RefreshCw className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                        Loading chart data...
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={gramChartRef} />
+                        </div>
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-3">
@@ -988,7 +1007,17 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                                 title="Pieces Chart" 
                             />
                         </div>
-                        <div ref={pcsChartRef} />
+                        <div className="relative min-h-[350px]">
+                            {loading && (
+                                <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xs flex items-center justify-center z-10 rounded-2xl">
+                                    <div className="flex items-center gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                                        <RefreshCw className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                        Loading chart data...
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={pcsChartRef} />
+                        </div>
                     </div>
                 </div>
 
@@ -1044,7 +1073,17 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                         </div>
                     </div>
 
-                    <div ref={lineChartRef} />
+                    <div className="relative min-h-[350px]">
+                        {loading && (
+                            <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xs flex items-center justify-center z-10 rounded-2xl">
+                                <div className="flex items-center gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                    Loading trend data...
+                                </div>
+                            </div>
+                        )}
+                        <div ref={lineChartRef} />
+                    </div>
                 </div>
 
                 {/* Section: Monthly Target vs Actual Summary (with Flatpickr & Dual-Period Comparison) */}
@@ -1065,7 +1104,15 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                         <p className="text-xs text-slate-500">Branch ranking based on selected KPI performance ratio</p>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="relative min-h-[180px] overflow-x-auto">
+                        {loading && (
+                            <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xs flex items-center justify-center z-10 rounded-2xl">
+                                <div className="flex items-center gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                    Loading ranking data...
+                                </div>
+                            </div>
+                        )}
                         <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
                             <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs uppercase font-semibold">
                                 <tr>

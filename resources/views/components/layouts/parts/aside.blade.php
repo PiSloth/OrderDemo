@@ -1,5 +1,5 @@
 <aside id="asidebar"
-    class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0"
+    class="fixed inset-y-0 left-0 z-50 w-64 transition-transform -translate-x-full lg:translate-x-0"
     x-bind:class="{ 'translate-x-0': asideOpen }" aria-label="Sidenav">
     <style>
         .tree-submenu {
@@ -109,8 +109,8 @@
         $linkInactive = 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200';
     @endphp
     <div x-data="{ openGroup: '{{ $initialOpenGroup }}', search: '' }"
-        class="h-full px-3 py-4 overflow-y-auto aside-slim-scroll bg-white border-r border-slate-200 dark:bg-slate-900 dark:border-slate-800 flex flex-col justify-between">
-        <div>
+        class="h-full bg-white border-r border-slate-200 dark:bg-slate-900 dark:border-slate-800 flex flex-col overflow-hidden">
+        <div class="px-3 pt-4 pb-2 flex-shrink-0">
             <!-- Close button (Mobile) -->
             <button @click="$parent.asideOpen = false"
                 class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none lg:hidden">
@@ -141,16 +141,23 @@
                 </div>
             </div>
 
-            <!-- Quick Action Button -->
-            <div class="mb-3">
+            <!-- Quick Action Buttons -->
+            <div class="mb-1 grid grid-cols-[auto_1fr] gap-2">
                 <button type="button"
                     onclick="if (window.location.pathname.startsWith('/todo')) { window.dispatchEvent(new CustomEvent('open-create-todo-modal')); } else { window.location.href = '/todo/list?createTask=1'; }"
-                    class="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-100 py-2 px-3 text-xs font-semibold text-white dark:text-slate-900 shadow-sm transition hover:bg-slate-800 dark:hover:bg-white active:scale-95">
-                    <x-icon name="plus" class="w-4 h-4" />
-                    <span>Create Todo Task</span>
+                    class="flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 py-2 px-3 text-xs font-semibold text-white dark:text-slate-900 shadow-sm transition hover:bg-slate-800 dark:hover:bg-white active:scale-95 whitespace-nowrap">
+                    <x-icon name="plus" class="w-4 h-4 flex-shrink-0" />
+                    <span>Todo</span>
                 </button>
+                <a href="{{ route('jewelry.sales.invoices.index') }}"
+                    class="w-full flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 px-2.5 text-[11px] font-semibold text-slate-900 dark:text-slate-100 shadow-sm transition hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 whitespace-nowrap">
+                    <x-icon name="search" class="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Voucher ပျောက်</span>
+                </a>
             </div>
+        </div>
 
+        <div class="flex-1 overflow-y-auto aside-slim-scroll px-3 py-1">
             <!-- Navigation Links List (Synchronized Order) -->
             <ul class="space-y-1">
 
@@ -741,7 +748,7 @@
                 </li>
 
                 <!-- 14. Jewelry Group -->
-                <li x-show="!search || 'jewelry dashboard groups'.includes(search.toLowerCase())">
+                <li x-show="!search || 'jewelry dashboard groups sales analytics customers products invoices import'.includes(search.toLowerCase())">
                     <button type="button" @click="openGroup = openGroup === 'jewelry' ? '' : 'jewelry'"
                         class="w-full flex items-center justify-between p-2 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                         x-bind:class="openGroup === 'jewelry' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'">
@@ -767,6 +774,46 @@
                             <a wire:navigate href="{{ route('jewelry.groups.index') }}"
                                 class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
                                 <span class="ml-1">Groups</span>
+                            </a>
+                        </li>
+
+                        @php $active = request()->routeIs('jewelry.sales.dashboard'); @endphp
+                        <li>
+                            <a href="{{ route('jewelry.sales.dashboard') }}"
+                                class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <span class="ml-1">Sales Analytics</span>
+                            </a>
+                        </li>
+
+                        @php $active = request()->routeIs('jewelry.sales.customers.*'); @endphp
+                        <li>
+                            <a href="{{ route('jewelry.sales.customers.index') }}"
+                                class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <span class="ml-1">Customer Analysis</span>
+                            </a>
+                        </li>
+
+                        @php $active = request()->routeIs('jewelry.sales.products.*'); @endphp
+                        <li>
+                            <a href="{{ route('jewelry.sales.products.index') }}"
+                                class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <span class="ml-1">Product Analysis</span>
+                            </a>
+                        </li>
+
+                        @php $active = request()->routeIs('jewelry.sales.invoices.*'); @endphp
+                        <li>
+                            <a href="{{ route('jewelry.sales.invoices.index') }}"
+                                class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <span class="ml-1">Invoice Research</span>
+                            </a>
+                        </li>
+
+                        @php $active = request()->routeIs('jewelry.sales.import.*'); @endphp
+                        <li>
+                            <a href="{{ route('jewelry.sales.import.index') }}"
+                                class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                                <span class="ml-1">Import Sales Data</span>
                             </a>
                         </li>
                     </ul>
@@ -808,7 +855,7 @@
         </div>
 
         <!-- Bottom Utilities -->
-        <div class="pt-3 mt-4 border-t border-slate-200 dark:border-slate-800">
+        <div class="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">
             <ul class="space-y-1">
                 <li>
                     <a href="#"
@@ -838,5 +885,18 @@
                 @endcan
             </ul>
         </div>
+
+        <!-- User Profile Footer (Matching React AsideLayout) -->
+        @auth
+            <div class="p-3 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-white dark:bg-slate-900 flex-shrink-0">
+                <div class="w-9 h-9 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                    {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">{{ auth()->user()->name }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ auth()->user()->email }}</p>
+                </div>
+            </div>
+        @endauth
     </div>
 </aside>
