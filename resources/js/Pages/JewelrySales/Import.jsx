@@ -282,8 +282,7 @@ export default function Import({
                                             fullWidth
                                             size="small"
                                             label="Target Branch"
-                                            SelectProps={{ native: true }}
-                                            InputLabelProps={{ shrink: true }}
+                                            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
                                             value={mappingValues[alias] ?? ''}
                                             onChange={(e) =>
                                                 setMappingValues((prev) => ({
