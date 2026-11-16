@@ -291,13 +291,24 @@ export default function Invoices({ invoices, filterOptions = {}, filters = {} })
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {invoices.data.map((inv) => (
-                                        <TableRow key={inv.id} hover>
+                                    {invoices.data.map((inv) => {
+                                        const voucherType = /18k|w/i.test(String(inv.branch_name_raw || '')) ? '18k' : 'gold';
+                                        return (
+                                        <TableRow
+                                            key={inv.id}
+                                            hover
+                                            onClick={() => openVoucher(inv.id, voucherType)}
+                                            sx={{ cursor: 'pointer' }}
+                                        >
                                             <TableCell sx={{ fontWeight: 600 }}>{inv.sale_number}</TableCell>
                                             <TableCell>{String(inv.sale_at).replace('T', ' ').slice(0, 16)}</TableCell>
                                             <TableCell>
                                                 {inv.customer ? (
-                                                    <Link href={`/jewelry/sales/customers/${inv.customer.id}`} style={{ textDecoration: 'none', color: '#1976d2', fontWeight: 600 }}>
+                                                    <Link
+                                                        href={`/jewelry/sales/customers/${inv.customer.id}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        style={{ textDecoration: 'none', color: '#1976d2', fontWeight: 600 }}
+                                                    >
                                                         {inv.customer_name_snapshot || inv.customer.name}
                                                     </Link>
                                                 ) : (
@@ -320,12 +331,12 @@ export default function Invoices({ invoices, filterOptions = {}, filters = {} })
                                             <TableCell align="right" sx={{ fontWeight: 600 }}>
                                                 {Number(inv.invoice_total || 0).toLocaleString()} MMK
                                             </TableCell>
-                                            <TableCell align="right">
+                                            <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                                                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                                                     <Button size="small" startIcon={<Eye size={14} />} onClick={() => openInvoice(inv.id)}>
                                                         Items
                                                     </Button>
-                                                    {/18k|w/i.test(String(inv.branch_name_raw || '')) ? (
+                                                    {voucherType === '18k' ? (
                                                         <Button
                                                             size="small"
                                                             variant="outlined"
@@ -349,7 +360,8 @@ export default function Invoices({ invoices, filterOptions = {}, filters = {} })
                                                 </Stack>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                        );
+                                    })}
                                     {invoices.data.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={9} align="center">
@@ -444,22 +456,28 @@ export default function Invoices({ invoices, filterOptions = {}, filters = {} })
                     maxWidth="lg"
                     fullWidth
                 >
-                    <DialogTitle>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <span>
-                                {selectedVoucher?.type === '18k' ? '18K Voucher' : 'Gold Voucher'} —{' '}
-                                {selectedVoucher?.sale?.sale_number} (
-                                {selectedVoucher?.sale?.customer_name_snapshot || 'Walk-in'})
-                            </span>
-                            <Button
-                                variant="contained"
-                                size="small"
-                                startIcon={<Printer size={16} />}
-                                onClick={printVoucher}
-                            >
-                                Print
-                            </Button>
-                        </Stack>
+                    <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                        <Box component="span" sx={{ flex: 1, minWidth: 0 }}>
+                            {selectedVoucher?.type === '18k' ? '18K Voucher' : 'Gold Voucher'} —{' '}
+                            {selectedVoucher?.sale?.sale_number} (
+                            {selectedVoucher?.sale?.customer_name_snapshot || 'Walk-in'})
+                        </Box>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            size="medium"
+                            startIcon={<Printer size={18} />}
+                            onClick={printVoucher}
+                            sx={{
+                                minWidth: { xs: 140, sm: 200 },
+                                px: 4,
+                                fontWeight: 700,
+                                flexShrink: 0,
+                                ml: 'auto',
+                            }}
+                        >
+                            Print
+                        </Button>
                     </DialogTitle>
                     <DialogContent dividers sx={{ bgcolor: '#f5f5f5', overflowX: 'auto' }}>
                         {selectedVoucher?.type === '18k' ? (
