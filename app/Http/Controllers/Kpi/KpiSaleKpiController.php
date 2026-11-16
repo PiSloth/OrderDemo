@@ -1203,5 +1203,112 @@ class KpiSaleKpiController extends Controller
             ->orderBy('daily_reports.id')
             ->get();
     }
+
+    private function canonicalTemplatesPath(): string
+    {
+        return storage_path('app/kpi/canonical_templates.json');
+    }
+
+    private function readCanonicalTemplates(): array
+    {
+        $path = $this->canonicalTemplatesPath();
+        if (!file_exists($path)) {
+            return [];
+        }
+
+        $decoded = json_decode(file_get_contents($path), true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function writeCanonicalTemplates(array $templates): void
+    {
+        $path = $this->canonicalTemplatesPath();
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents(
+            $path,
+            json_encode(array_values($templates), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    /**
+     * List saved canonical templates from JSON file.
+     */
+    public function getCanonicalTemplates()
+    {
+        return response()->json([
+            'templates' => $this->readCanonicalTemplates(),
+        ]);
+    }
+
+    /**
+     * Create or update a canonical template in JSON file.
+     */
+    public function saveCanonicalTemplate(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => 'nullable|string|max:100',
+            'name' => 'required|string|max:120',
+            'rows' => 'required|array|min:1',
+            'rows.*.id' => 'required|string|max:100',
+            'rows.*.label' => 'required|string|max:120',
+            'rows.*.type_ids' => 'present|array',
+            'rows.*.type_ids.*' => 'integer',
+        ]);
+
+        $templates = $this->readCanonicalTemplates();
+        $templateId = $validated['id'] ?? ('tpl_' . uniqid());
+
+        $payload = [
+            'id' => $templateId,
+            'name' => trim($validated['name']),
+            'rows' => array_map(fn($row) => [
+                'id' => (string) $row['id'],
+                'label' => trim((string) $row['label']),
+                'type_ids' => array_values(array_unique(array_map('intval', $row['type_ids'] ?? []))),
+            ], $validated['rows']),
+            'updated_at' => Carbon::now()->toIso8601String(),
+        ];
+
+        $found = false;
+        foreach ($templates as $idx => $tpl) {
+            if (($tpl['id'] ?? null) === $templateId) {
+                $templates[$idx] = $payload;
+                $found = true;
+                break;
+            }
+        }
+
+        if (!$found) {
+            $templates[] = $payload;
+        }
+
+        $this->writeCanonicalTemplates($templates);
+
+        return response()->json([
+            'template' => $payload,
+            'templates' => array_values($templates),
+        ]);
+    }
+
+    /**
+     * Delete a canonical template from JSON file.
+     */
+    public function deleteCanonicalTemplate(string $id)
+    {
+        $templates = array_values(array_filter(
+            $this->readCanonicalTemplates(),
+            fn($tpl) => ($tpl['id'] ?? null) !== $id
+        ));
+
+        $this->writeCanonicalTemplates($templates);
+
+        return response()->json([
+            'templates' => $templates,
+        ]);
+    }
 }
 

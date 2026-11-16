@@ -13,49 +13,10 @@ import {
     Minus,
     CheckSquare,
     Square,
+    Plus,
+    Pencil,
 } from 'lucide-react';
-
-const CANONICAL_PRESETS = [
-    { id: 'all', label: 'All Types' },
-    { id: 'canonical_all', label: 'Canonical Summaries' },
-    { id: 'gold_pandora_g', label: 'Gold + Pandora (g)' },
-    { id: 'all_sale_g', label: 'Gold + Pandora + 18K (g)' },
-    { id: 'all_sale_pcs', label: 'Gold + Pandora + 18K (pcs)' },
-    { id: 'customer_entrance', label: 'Total Customer Entrance' },
-];
-
-const isWeightType = (t) => {
-    const n = (t.name || '').toLowerCase();
-    return Boolean(t.is_sale_gram) || n.includes('weight') || n.includes('weihgt') || n.includes('/ g');
-};
-
-const isPcsType = (t) => {
-    const n = (t.name || '').toLowerCase();
-    return Boolean(t.is_sale_quantity) || n.includes('(pcs)');
-};
-
-const isRepurchase = (t) => (t.name || '').toLowerCase().includes('repurchase');
-
-const matchesPreset = (presetId, t) => {
-    const n = (t.name || '').toLowerCase();
-    switch (presetId) {
-        case 'gold_pandora_g':
-            return (
-                !isRepurchase(t) &&
-                isWeightType(t) &&
-                (n.includes('ရွှေ') || n.includes('gold') || n.includes('pandora')) &&
-                !n.includes('18k')
-            );
-        case 'all_sale_g':
-            return Boolean(t.is_sale_gram) || (!isRepurchase(t) && isWeightType(t));
-        case 'all_sale_pcs':
-            return Boolean(t.is_sale_quantity) || (!isRepurchase(t) && isPcsType(t));
-        case 'customer_entrance':
-            return n.includes('customer');
-        default:
-            return false;
-    }
-};
+import CanonicalTemplateModal from './CanonicalTemplateModal';
 
 const sumMatchedTypes = (label, matchedTypes, branches, hasCompare) => {
     const values = {};
@@ -156,6 +117,9 @@ export default function DailyReportTypesSummaryTable({
     const [compareTo, setCompareTo] = useState('');
     const [canonicalMode, setCanonicalMode] = useState('all');
     const [customSelectedIds, setCustomSelectedIds] = useState([]);
+    const [templates, setTemplates] = useState([]);
+    const [templateModalOpen, setTemplateModalOpen] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [reportData, setReportData] = useState(null);
@@ -259,6 +223,19 @@ export default function DailyReportTypesSummaryTable({
         }
     };
 
+    const fetchTemplates = async () => {
+        try {
+            const res = await axios.get('/sale-kpi/canonical-templates');
+            setTemplates(res.data?.templates || []);
+        } catch (err) {
+            console.error('Error fetching canonical templates:', err);
+        }
+    };
+
+    useEffect(() => {
+        fetchTemplates();
+    }, []);
+
     useEffect(() => {
         fetchData();
     }, [primaryFrom, primaryTo, compareFrom, compareTo, enableCompare, JSON.stringify(selectedBranches)]);
@@ -276,46 +253,22 @@ export default function DailyReportTypesSummaryTable({
     const canonicalRows = useMemo(() => {
         if (!rawTypes.length) return [];
 
-        if (canonicalMode === 'canonical_all') {
-            return [
-                sumMatchedTypes(
-                    'Gold + Pandora (g)',
-                    rawTypes.filter((t) => matchesPreset('gold_pandora_g', t)),
+        const activeTemplate = templates.find((t) => t.id === canonicalMode);
+        if (activeTemplate) {
+            return (activeTemplate.rows || []).map((row) => {
+                const typeIds = Array.isArray(row.type_ids) ? row.type_ids.map(Number) : [];
+                const matched = rawTypes.filter((t) => typeIds.includes(Number(t.id)));
+                return sumMatchedTypes(
+                    row.label || 'Untitled Row',
+                    matched,
                     branches,
                     hasCompare
-                ),
-                sumMatchedTypes(
-                    'Gold + Pandora + 18K (g)',
-                    rawTypes.filter((t) => matchesPreset('all_sale_g', t)),
-                    branches,
-                    hasCompare
-                ),
-                sumMatchedTypes(
-                    'Gold + Pandora + 18K (pcs)',
-                    rawTypes.filter((t) => matchesPreset('all_sale_pcs', t)),
-                    branches,
-                    hasCompare
-                ),
-                sumMatchedTypes(
-                    'Total Customer Entrance',
-                    rawTypes.filter((t) => matchesPreset('customer_entrance', t)),
-                    branches,
-                    hasCompare
-                ),
-            ];
-        }
-
-        if (canonicalMode !== 'all') {
-            const preset = CANONICAL_PRESETS.find((p) => p.id === canonicalMode);
-            const matched = rawTypes.filter((t) => matchesPreset(canonicalMode, t));
-            return [
-                sumMatchedTypes(preset ? `${preset.label} [Canonical Sum]` : 'Canonical Sum', matched, branches, hasCompare),
-                ...matched,
-            ];
+                );
+            });
         }
 
         return rawTypes;
-    }, [rawTypes, canonicalMode, branches, hasCompare]);
+    }, [rawTypes, canonicalMode, templates, branches, hasCompare]);
 
     const customSumRow = useMemo(() => {
         if (customSelectedIds.length === 0) return null;
@@ -403,25 +356,61 @@ export default function DailyReportTypesSummaryTable({
                 </div>
             </div>
 
-            {/* Canonical Presets Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">
-                        Canonical:
-                    </span>
-                    {CANONICAL_PRESETS.map((preset) => (
-                        <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => setCanonicalMode(preset.id)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-                                canonicalMode === preset.id
-                                    ? 'bg-[#FEF08A] border-amber-300 text-slate-900 shadow-2xs'
-                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+            {/* Canonical Templates Bar (Horizontally Scrollable) */}
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 min-w-0 flex-1 whitespace-nowrap">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setEditingTemplate(null);
+                            setTemplateModalOpen(true);
+                        }}
+                        className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border border-dashed border-indigo-400 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition"
+                    >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>New Template</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setCanonicalMode('all')}
+                        className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                            canonicalMode === 'all'
+                                ? 'bg-[#FEF08A] border-amber-300 text-slate-900 shadow-2xs'
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                        All Types
+                    </button>
+
+                    {templates.map((tpl) => (
+                        <div
+                            key={tpl.id}
+                            className={`shrink-0 inline-flex items-center rounded-xl border transition-all ${
+                                canonicalMode === tpl.id
+                                    ? 'bg-indigo-100 dark:bg-indigo-900/50 border-indigo-400 dark:border-indigo-600 text-indigo-950 dark:text-indigo-100 shadow-2xs'
+                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
                             }`}
                         >
-                            {preset.label}
-                        </button>
+                            <button
+                                type="button"
+                                onClick={() => setCanonicalMode(tpl.id)}
+                                className="px-3 py-1.5 text-xs font-semibold"
+                            >
+                                {tpl.name}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditingTemplate(tpl);
+                                    setTemplateModalOpen(true);
+                                }}
+                                className="pr-2.5 pl-1 py-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
+                                title={`Edit "${tpl.name}"`}
+                            >
+                                <Pencil className="w-3 h-3" />
+                            </button>
+                        </div>
                     ))}
                 </div>
 
@@ -429,7 +418,7 @@ export default function DailyReportTypesSummaryTable({
                     <button
                         type="button"
                         onClick={() => setCustomSelectedIds([])}
-                        className="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
+                        className="shrink-0 text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
                     >
                         Clear custom selection ({customSelectedIds.length})
                     </button>
@@ -592,6 +581,28 @@ export default function DailyReportTypesSummaryTable({
                     </div>
                 )}
             </div>
+
+            <CanonicalTemplateModal
+                isOpen={templateModalOpen}
+                onClose={() => {
+                    setTemplateModalOpen(false);
+                    setEditingTemplate(null);
+                }}
+                template={editingTemplate}
+                availableTypes={rawTypes}
+                onSaved={(savedTemplate, allTemplates) => {
+                    setTemplates(allTemplates || []);
+                    if (savedTemplate?.id) {
+                        setCanonicalMode(savedTemplate.id);
+                    }
+                }}
+                onDeleted={(deletedId, allTemplates) => {
+                    setTemplates(allTemplates || []);
+                    if (canonicalMode === deletedId) {
+                        setCanonicalMode('all');
+                    }
+                }}
+            />
         </div>
     );
 }
