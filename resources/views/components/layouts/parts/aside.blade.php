@@ -123,7 +123,7 @@
             <div class="mb-3">
                 <a href="{{ route('order-dashboard') }}"
                     class="flex items-center p-1.5 text-slate-900 rounded-lg dark:text-white">
-                    <img src="{{ url('images/logo.png') }}" alt="STT Logo" class="w-9 h-7 mr-3 bg-white rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <img src="{{ url('images/logo.png') }}" alt="STT Logo" class="h-8 w-auto object-contain mr-3 bg-white rounded">
                     <div>
                         <p class="text-sm font-bold leading-tight">ShweTatar</p>
                         <small class="text-xs text-slate-500 dark:text-slate-400">Gold & Jewellery</small>
@@ -160,6 +160,16 @@
         <div class="flex-1 overflow-y-auto aside-slim-scroll px-3 py-1">
             <!-- Navigation Links List (Synchronized Order) -->
             <ul class="space-y-1">
+
+                <!-- Sale KPI (Standalone Link) -->
+                <li x-show="!search || 'sale kpi'.includes(search.toLowerCase())">
+                    @php $active = request()->routeIs('kpi.sale-kpi'); @endphp
+                    <a wire:navigate href="{{ route('kpi.sale-kpi') }}"
+                        class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
+                        <x-icon name="chart-bar" class="w-5 h-5 text-slate-400" />
+                        <span class="ml-3">Sale KPI</span>
+                    </a>
+                </li>
 
                 <!-- 1. Performance Group -->
                 <li x-show="!search || 'performance daily scores sale'.includes(search.toLowerCase())">
@@ -324,16 +334,6 @@
                             </a>
                         </li>
                     </ul>
-                </li>
-
-                <!-- 4. Sale KPI (Standalone Link) -->
-                <li x-show="!search || 'sale kpi'.includes(search.toLowerCase())">
-                    @php $active = request()->routeIs('kpi.sale-kpi'); @endphp
-                    <a wire:navigate href="{{ route('kpi.sale-kpi') }}"
-                        class="{{ $linkBase }} {{ $active ? $linkActive : $linkInactive }}">
-                        <x-icon name="chart-bar" class="w-5 h-5 text-slate-400" />
-                        <span class="ml-3">Sale KPI</span>
-                    </a>
                 </li>
 
                 <!-- 5. KPI Tasks Group -->

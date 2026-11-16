@@ -12,6 +12,8 @@ import ReportEditorContainer from '../../Components/ReportStudio/ReportEditorCon
 // Modular KPI Analysis Components
 import SaleComparisonChart from '../../Components/Kpi/SaleComparisonChart';
 import BranchHeatmapMatrix from '../../Components/Kpi/BranchHeatmapMatrix';
+import RemainingDailyTargetCard from '../../Components/Kpi/RemainingDailyTargetCard';
+import DailyReportTypesSummaryTable from '../../Components/Kpi/DailyReportTypesSummaryTable';
 import TargetVsActualTrajectory from '../../Components/Kpi/TargetVsActualTrajectory';
 import PopularProductsTable from '../../Components/Kpi/PopularProductsTable';
 import TargetVsActualSummaryTable from '../../Components/Kpi/TargetVsActualSummaryTable';
@@ -1021,6 +1023,13 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                     </div>
                 </div>
 
+                {/* Section: Daily Report Summary by Type (with Canonical & Compare Options) */}
+                <DailyReportTypesSummaryTable
+                    defaultFrom={startDate}
+                    defaultTo={endDate}
+                    selectedBranches={selectedBranches}
+                />
+
                 {/* Section 3: Line Chart */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1226,6 +1235,10 @@ export default function SaleKpi({ branches = [], departments = [], defaultFrom, 
                             selectedBranches={selectedBranches}
                             defaultFrom={startDate}
                             defaultTo={endDate}
+                        />
+                        <RemainingDailyTargetCard
+                            branches={branches}
+                            selectedBranches={selectedBranches}
                         />
                         <PopularProductsTable
                             branches={branches}

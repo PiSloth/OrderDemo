@@ -261,6 +261,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/sale-kpi/trajectory-data', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getTrajectoryData'])->name('kpi.sale-kpi.trajectory-data');
     Route::get('/sale-kpi/popular-products', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getPopularProducts'])->name('kpi.sale-kpi.popular-products');
     Route::get('/sale-kpi/target-actual-summary', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getTargetActualSummary'])->name('kpi.sale-kpi.target-actual-summary');
+    Route::get('/sale-kpi/daily-report-types-summary', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getDailyReportTypesSummary'])->name('kpi.sale-kpi.daily-report-types-summary');
+    Route::get('/sale-kpi/remaining-daily-target', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'getRemainingDailyTarget'])->name('kpi.sale-kpi.remaining-daily-target');
     Route::post('/sale-kpi/promote-actions', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'storePromoteAction'])->name('kpi.sale-kpi.promote-actions.store');
     Route::get('/sale-kpi/search-todos', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'searchTodos'])->name('kpi.sale-kpi.search-todos');
     Route::get('/sale-kpi/search-kpi-tasks', [\App\Http\Controllers\Kpi\KpiSaleKpiController::class, 'searchKpiTasks'])->name('kpi.sale-kpi.search-kpi-tasks');

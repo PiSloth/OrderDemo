@@ -21,7 +21,9 @@ import {
     ListItemText,
     Collapse,
     Avatar,
-    Chip
+    Chip,
+    Menu as MuiMenu,
+    MenuItem
 } from '@mui/material';
 
 // Untitled UI / Lucide Outline Icons (Exact matching shapes with Blade icons)
@@ -51,6 +53,8 @@ import {
     HelpCircle,
     Settings,
     ChevronDown,
+    ChevronUp,
+    LogOut,
     Plus,
     User as UserIcon
 } from 'lucide-react';
@@ -101,6 +105,8 @@ export default function AsideLayout({
         };
     }, [isControlled, externalOnToggleSidebar, sidebarOpen]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null);
+    const userMenuOpen = Boolean(userMenuAnchorEl);
     const [openGroups, setOpenGroups] = useState({
         performance: false,
         order: false,
@@ -285,7 +291,7 @@ export default function AsideLayout({
                                     component="img" 
                                     src="/images/logo.png" 
                                     alt="STT Logo" 
-                                    sx={{ width: 32, height: 26, bgcolor: '#fff', borderRadius: 1.5, p: 0.5, border: '1px solid', borderColor: 'divider' }} 
+                                    sx={{ height: 32, width: 'auto', objectFit: 'contain', bgcolor: '#fff', borderRadius: 1 }} 
                                 />
                                 <Box>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
@@ -419,7 +425,7 @@ export default function AsideLayout({
                                 component="img" 
                                 src="/images/logo.png" 
                                 alt="STT Logo" 
-                                sx={{ width: 32, height: 26, bgcolor: '#fff', borderRadius: 1.5, p: 0.5, border: '1px solid', borderColor: 'divider' }} 
+                                sx={{ height: 32, width: 'auto', objectFit: 'contain', bgcolor: '#fff', borderRadius: 1 }} 
                             />
                             <Box>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2, color: 'text.primary' }}>
@@ -618,6 +624,26 @@ export default function AsideLayout({
                     >
                         <List component="nav" size="small" disablePadding>
 
+                            {/* Sale KPI Item (Standalone Link) */}
+                            {matchesSearch('sale kpi') && (
+                                <ListItem disablePadding>
+                                    <ListItemButton 
+                                        component={Link} 
+                                        href="/sale-kpi" 
+                                        selected={isCurrentUrl('/sale-kpi')}
+                                        sx={navItemButtonSx(isCurrentUrl('/sale-kpi'))}
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 32, color: 'inherit' }}>
+                                            <BarChart3 size={18} className="nav-icon" />
+                                        </ListItemIcon>
+                                        <ListItemText 
+                                            primary="Sale KPI" 
+                                            primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 'inherit' }} 
+                                        />
+                                    </ListItemButton>
+                                </ListItem>
+                            )}
+
                             {/* 1. Performance Group */}
                             {matchesSearch('performance daily scores sale') && (
                                 <ListItem disablePadding sx={{ display: 'block' }}>
@@ -809,26 +835,6 @@ export default function AsideLayout({
                                             </ListItemButton>
                                         </List>
                                     </Collapse>
-                                </ListItem>
-                            )}
-
-                            {/* 4. Sale KPI Item (Standalone Link) */}
-                            {matchesSearch('sale kpi') && (
-                                <ListItem disablePadding>
-                                    <ListItemButton 
-                                        component={Link} 
-                                        href="/sale-kpi" 
-                                        selected={isCurrentUrl('/sale-kpi')}
-                                        sx={navItemButtonSx(isCurrentUrl('/sale-kpi'))}
-                                    >
-                                        <ListItemIcon sx={{ minWidth: 32, color: 'inherit' }}>
-                                            <BarChart3 size={18} className="nav-icon" />
-                                        </ListItemIcon>
-                                        <ListItemText 
-                                            primary="Sale KPI" 
-                                            primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 'inherit' }} 
-                                        />
-                                    </ListItemButton>
                                 </ListItem>
                             )}
 
@@ -1576,19 +1582,92 @@ export default function AsideLayout({
 
                     {/* User Profile Footer (Untitled UI Style) */}
                     {user && (
-                        <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: '#ffffff', '.dark &': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
-                            <Avatar sx={{ width: 36, height: 36, bgcolor: '#0f172a', color: '#ffffff', fontWeight: 600, fontSize: '0.875rem' }}>
-                                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                            </Avatar>
-                            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem', color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {user.name}
-                                </Typography>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {user.email}
-                                </Typography>
+                        <>
+                            <Box
+                                onClick={(e) => setUserMenuAnchorEl(e.currentTarget)}
+                                sx={{
+                                    p: 2,
+                                    borderTop: '1px solid',
+                                    borderColor: 'divider',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    bgcolor: '#ffffff',
+                                    cursor: 'pointer',
+                                    transition: 'background-color 0.15s ease',
+                                    '&:hover': { bgcolor: '#f8fafc' },
+                                    '.dark &': {
+                                        bgcolor: 'rgba(255,255,255,0.02)',
+                                        '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' }
+                                    }
+                                }}
+                            >
+                                <Avatar sx={{ width: 36, height: 36, bgcolor: '#0f172a', color: '#ffffff', fontWeight: 600, fontSize: '0.875rem' }}>
+                                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                                </Avatar>
+                                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem', color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {user.name}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {user.email}
+                                    </Typography>
+                                </Box>
+                                <IconButton
+                                    size="small"
+                                    aria-label="Account menu"
+                                    aria-haspopup="true"
+                                    aria-expanded={userMenuOpen ? 'true' : undefined}
+                                    sx={{ color: 'text.secondary', p: 0.5 }}
+                                >
+                                    <ChevronUp
+                                        size={16}
+                                        style={{
+                                            transition: 'transform 0.2s',
+                                            transform: userMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                                        }}
+                                    />
+                                </IconButton>
                             </Box>
-                        </Box>
+                            <MuiMenu
+                                anchorEl={userMenuAnchorEl}
+                                open={userMenuOpen}
+                                onClose={() => setUserMenuAnchorEl(null)}
+                                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                slotProps={{
+                                    paper: {
+                                        sx: {
+                                            minWidth: 180,
+                                            mb: 0.5,
+                                            borderRadius: 2,
+                                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                            border: '1px solid',
+                                            borderColor: 'divider'
+                                        }
+                                    }
+                                }}
+                            >
+                                <MenuItem
+                                    component="a"
+                                    href="/profile"
+                                    onClick={() => setUserMenuAnchorEl(null)}
+                                    sx={{ fontSize: '0.85rem', gap: 1.25, py: 1 }}
+                                >
+                                    <UserIcon size={16} />
+                                    Profile
+                                </MenuItem>
+                                <MenuItem
+                                    component="a"
+                                    href="/dologout"
+                                    onClick={() => setUserMenuAnchorEl(null)}
+                                    sx={{ fontSize: '0.85rem', gap: 1.25, py: 1, color: 'error.main' }}
+                                >
+                                    <LogOut size={16} />
+                                    Logout
+                                </MenuItem>
+                            </MuiMenu>
+                        </>
                     )}
                 </Box>
             </Drawer>

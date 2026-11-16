@@ -1,0 +1,597 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import axios from 'axios';
+import flatpickr from 'flatpickr';
+import 'flatpickr/dist/flatpickr.min.css';
+import {
+    Table,
+    Calendar,
+    RefreshCw,
+    AlertCircle,
+    Layers,
+    ArrowUpRight,
+    ArrowDownRight,
+    Minus,
+    CheckSquare,
+    Square,
+} from 'lucide-react';
+
+const CANONICAL_PRESETS = [
+    { id: 'all', label: 'All Types' },
+    { id: 'canonical_all', label: 'Canonical Summaries' },
+    { id: 'gold_pandora_g', label: 'Gold + Pandora (g)' },
+    { id: 'all_sale_g', label: 'Gold + Pandora + 18K (g)' },
+    { id: 'all_sale_pcs', label: 'Gold + Pandora + 18K (pcs)' },
+    { id: 'customer_entrance', label: 'Total Customer Entrance' },
+];
+
+const isWeightType = (t) => {
+    const n = (t.name || '').toLowerCase();
+    return Boolean(t.is_sale_gram) || n.includes('weight') || n.includes('weihgt') || n.includes('/ g');
+};
+
+const isPcsType = (t) => {
+    const n = (t.name || '').toLowerCase();
+    return Boolean(t.is_sale_quantity) || n.includes('(pcs)');
+};
+
+const isRepurchase = (t) => (t.name || '').toLowerCase().includes('repurchase');
+
+const matchesPreset = (presetId, t) => {
+    const n = (t.name || '').toLowerCase();
+    switch (presetId) {
+        case 'gold_pandora_g':
+            return (
+                !isRepurchase(t) &&
+                isWeightType(t) &&
+                (n.includes('ရွှေ') || n.includes('gold') || n.includes('pandora')) &&
+                !n.includes('18k')
+            );
+        case 'all_sale_g':
+            return Boolean(t.is_sale_gram) || (!isRepurchase(t) && isWeightType(t));
+        case 'all_sale_pcs':
+            return Boolean(t.is_sale_quantity) || (!isRepurchase(t) && isPcsType(t));
+        case 'customer_entrance':
+            return n.includes('customer');
+        default:
+            return false;
+    }
+};
+
+const sumMatchedTypes = (label, matchedTypes, branches, hasCompare) => {
+    const values = {};
+    const compare_values = {};
+    let total = 0;
+    let compare_total = 0;
+
+    branches.forEach((b) => {
+        let sum = 0;
+        let compSum = 0;
+        matchedTypes.forEach((t) => {
+            sum += Number(t.values?.[b] || 0);
+            if (hasCompare) {
+                compSum += Number(t.compare_values?.[b] || 0);
+            }
+        });
+        values[b] = Number(sum.toFixed(2));
+        total += sum;
+        if (hasCompare) {
+            compare_values[b] = Number(compSum.toFixed(2));
+            compare_total += compSum;
+        }
+    });
+
+    return {
+        id: `canonical-${label}`,
+        name: label,
+        isCanonical: true,
+        sourceCount: matchedTypes.length,
+        values,
+        total: Number(total.toFixed(2)),
+        ...(hasCompare
+            ? {
+                  compare_values,
+                  compare_total: Number(compare_total.toFixed(2)),
+              }
+            : {}),
+    };
+};
+
+const formatNum = (val) => {
+    const num = Number(val || 0);
+    if (Number.isInteger(num)) {
+        return num.toLocaleString('en-US');
+    }
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+};
+
+const renderDeltaBadge = (current, previous) => {
+    const curr = Number(current || 0);
+    const prev = Number(previous || 0);
+    if (prev === 0 && curr === 0) {
+        return (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400">
+                <Minus className="w-2.5 h-2.5" /> 0%
+            </span>
+        );
+    }
+    const pct = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+    const isUp = pct > 0;
+    const isDown = pct < 0;
+
+    return (
+        <span
+            className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${
+                isUp
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : isDown
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-slate-400'
+            }`}
+        >
+            {isUp && <ArrowUpRight className="w-2.5 h-2.5" />}
+            {isDown && <ArrowDownRight className="w-2.5 h-2.5" />}
+            {isUp ? '+' : ''}
+            {pct.toFixed(1)}%
+        </span>
+    );
+};
+
+export default function DailyReportTypesSummaryTable({
+    defaultFrom,
+    defaultTo,
+    selectedBranches = [],
+}) {
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
+
+    const [primaryFrom, setPrimaryFrom] = useState(defaultFrom || monthStart);
+    const [primaryTo, setPrimaryTo] = useState(defaultTo || monthEnd);
+    const [enableCompare, setEnableCompare] = useState(false);
+    const [compareFrom, setCompareFrom] = useState('');
+    const [compareTo, setCompareTo] = useState('');
+    const [canonicalMode, setCanonicalMode] = useState('all');
+    const [customSelectedIds, setCustomSelectedIds] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [reportData, setReportData] = useState(null);
+
+    const primaryRangeInputRef = useRef(null);
+    const compareRangeInputRef = useRef(null);
+    const primaryPickerRef = useRef(null);
+    const comparePickerRef = useRef(null);
+
+    useEffect(() => {
+        if (!primaryRangeInputRef.current) return;
+
+        primaryPickerRef.current = flatpickr(primaryRangeInputRef.current, {
+            mode: 'range',
+            dateFormat: 'Y-m-d',
+            defaultDate: [primaryFrom, primaryTo],
+            static: true,
+            onChange: (selectedDates, dateStr, instance) => {
+                if (selectedDates && selectedDates.length === 2) {
+                    setPrimaryFrom(instance.formatDate(selectedDates[0], 'Y-m-d'));
+                    setPrimaryTo(instance.formatDate(selectedDates[1], 'Y-m-d'));
+                }
+            },
+        });
+
+        return () => {
+            if (primaryPickerRef.current) {
+                primaryPickerRef.current.destroy();
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!enableCompare) {
+            if (comparePickerRef.current) {
+                comparePickerRef.current.destroy();
+                comparePickerRef.current = null;
+            }
+            setCompareFrom('');
+            setCompareTo('');
+            return;
+        }
+
+        if (enableCompare && compareRangeInputRef.current) {
+            const pStart = new Date(primaryFrom);
+            const pEnd = new Date(primaryTo);
+            const defaultCompStart =
+                compareFrom ||
+                new Date(pStart.setMonth(pStart.getMonth() - 1)).toISOString().split('T')[0];
+            const defaultCompEnd =
+                compareTo ||
+                new Date(pEnd.setMonth(pEnd.getMonth() - 1)).toISOString().split('T')[0];
+
+            setCompareFrom(defaultCompStart);
+            setCompareTo(defaultCompEnd);
+
+            comparePickerRef.current = flatpickr(compareRangeInputRef.current, {
+                mode: 'range',
+                dateFormat: 'Y-m-d',
+                defaultDate: [defaultCompStart, defaultCompEnd],
+                static: true,
+                onChange: (selectedDates, dateStr, instance) => {
+                    if (selectedDates && selectedDates.length === 2) {
+                        setCompareFrom(instance.formatDate(selectedDates[0], 'Y-m-d'));
+                        setCompareTo(instance.formatDate(selectedDates[1], 'Y-m-d'));
+                    }
+                },
+            });
+        }
+
+        return () => {
+            if (comparePickerRef.current) {
+                comparePickerRef.current.destroy();
+            }
+        };
+    }, [enableCompare]);
+
+    const fetchData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const params = {
+                start_date: primaryFrom,
+                end_date: primaryTo,
+            };
+            if (enableCompare && compareFrom && compareTo) {
+                params.compare_start_date = compareFrom;
+                params.compare_end_date = compareTo;
+            }
+            if (selectedBranches && selectedBranches.length > 0) {
+                params.branch_ids = selectedBranches.join(',');
+            }
+
+            const res = await axios.get('/sale-kpi/daily-report-types-summary', { params });
+            setReportData(res.data);
+        } catch (err) {
+            console.error('Error fetching daily report types summary:', err);
+            setError(err.response?.data?.message || 'Failed to load daily report types summary');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, [primaryFrom, primaryTo, compareFrom, compareTo, enableCompare, JSON.stringify(selectedBranches)]);
+
+    const branches = reportData?.branches || [];
+    const rawTypes = reportData?.types || [];
+    const hasCompare = Boolean(reportData?.has_compare);
+
+    const toggleCustomType = (typeId) => {
+        setCustomSelectedIds((prev) =>
+            prev.includes(typeId) ? prev.filter((id) => id !== typeId) : [...prev, typeId]
+        );
+    };
+
+    const canonicalRows = useMemo(() => {
+        if (!rawTypes.length) return [];
+
+        if (canonicalMode === 'canonical_all') {
+            return [
+                sumMatchedTypes(
+                    'Gold + Pandora (g)',
+                    rawTypes.filter((t) => matchesPreset('gold_pandora_g', t)),
+                    branches,
+                    hasCompare
+                ),
+                sumMatchedTypes(
+                    'Gold + Pandora + 18K (g)',
+                    rawTypes.filter((t) => matchesPreset('all_sale_g', t)),
+                    branches,
+                    hasCompare
+                ),
+                sumMatchedTypes(
+                    'Gold + Pandora + 18K (pcs)',
+                    rawTypes.filter((t) => matchesPreset('all_sale_pcs', t)),
+                    branches,
+                    hasCompare
+                ),
+                sumMatchedTypes(
+                    'Total Customer Entrance',
+                    rawTypes.filter((t) => matchesPreset('customer_entrance', t)),
+                    branches,
+                    hasCompare
+                ),
+            ];
+        }
+
+        if (canonicalMode !== 'all') {
+            const preset = CANONICAL_PRESETS.find((p) => p.id === canonicalMode);
+            const matched = rawTypes.filter((t) => matchesPreset(canonicalMode, t));
+            return [
+                sumMatchedTypes(preset ? `${preset.label} [Canonical Sum]` : 'Canonical Sum', matched, branches, hasCompare),
+                ...matched,
+            ];
+        }
+
+        return rawTypes;
+    }, [rawTypes, canonicalMode, branches, hasCompare]);
+
+    const customSumRow = useMemo(() => {
+        if (customSelectedIds.length === 0) return null;
+        const matched = rawTypes.filter((t) => customSelectedIds.includes(t.id));
+        return sumMatchedTypes(
+            `Custom Canonical Sum (${matched.length} types)`,
+            matched,
+            branches,
+            hasCompare
+        );
+    }, [rawTypes, customSelectedIds, branches, hasCompare]);
+
+    return (
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-5">
+            {/* Header & Controls */}
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-start gap-3">
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                        <Table className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
+                            Daily Report Summary by Type
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            Report at - {reportData?.period?.from || primaryFrom} &amp;{' '}
+                            {reportData?.period?.to || primaryTo}
+                            {hasCompare && reportData?.compare_period
+                                ? ` · Comparing vs ${reportData.compare_period.from} & ${reportData.compare_period.to}`
+                                : ''}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Date Range, Compare Toggle, Refresh */}
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                        <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Range:</span>
+                        <input
+                            ref={primaryRangeInputRef}
+                            type="text"
+                            readOnly
+                            placeholder="Select date range"
+                            className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none w-[170px] cursor-pointer"
+                        />
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setEnableCompare((prev) => !prev)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                            enableCompare
+                                ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Compare</span>
+                    </button>
+
+                    {enableCompare && (
+                        <div className="flex items-center gap-2 bg-indigo-50/50 dark:bg-indigo-950/30 px-3 py-1.5 rounded-xl border border-indigo-200/80 dark:border-indigo-800">
+                            <Calendar className="w-4 h-4 text-indigo-500 shrink-0" />
+                            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">Prev:</span>
+                            <input
+                                ref={compareRangeInputRef}
+                                type="text"
+                                readOnly
+                                placeholder="Compare range"
+                                className="bg-transparent text-xs font-semibold text-indigo-900 dark:text-indigo-100 outline-none w-[170px] cursor-pointer"
+                            />
+                        </div>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={fetchData}
+                        disabled={loading}
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                        title="Refresh report"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Canonical Presets Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">
+                        Canonical:
+                    </span>
+                    {CANONICAL_PRESETS.map((preset) => (
+                        <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setCanonicalMode(preset.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                                canonicalMode === preset.id
+                                    ? 'bg-[#FEF08A] border-amber-300 text-slate-900 shadow-2xs'
+                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            }`}
+                        >
+                            {preset.label}
+                        </button>
+                    ))}
+                </div>
+
+                {customSelectedIds.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setCustomSelectedIds([])}
+                        className="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
+                    >
+                        Clear custom selection ({customSelectedIds.length})
+                    </button>
+                )}
+            </div>
+
+            {/* Table Area */}
+            <div className="relative min-h-[200px]">
+                {loading && (
+                    <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xs flex items-center justify-center z-10 rounded-2xl">
+                        <div className="flex items-center gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                            <RefreshCw className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                            Loading report data...
+                        </div>
+                    </div>
+                )}
+
+                {error ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <AlertCircle className="w-8 h-8 text-rose-500 mb-2" />
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                            Unable to load report
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">{error}</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto rounded-2xl border border-slate-150 dark:border-slate-800">
+                        <table className="w-full text-xs text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">
+                                    <th className="py-3 px-4 min-w-[210px] sticky left-0 bg-slate-50 dark:bg-slate-800/95 z-10">
+                                        Type Name
+                                    </th>
+                                    {branches.map((branchName) => (
+                                        <th key={branchName} className="py-3 px-3 text-right whitespace-nowrap">
+                                            {branchName}
+                                        </th>
+                                    ))}
+                                    <th className="py-3 px-4 text-right whitespace-nowrap bg-amber-50/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-300">
+                                        Total
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                                {customSumRow && (
+                                    <tr className="bg-indigo-50/70 dark:bg-indigo-950/40 font-bold text-indigo-950 dark:text-indigo-100 border-b-2 border-indigo-200 dark:border-indigo-800">
+                                        <td className="py-3 px-4 sticky left-0 bg-indigo-50 dark:bg-indigo-950/80 z-10">
+                                            {customSumRow.name}
+                                        </td>
+                                        {branches.map((b) => (
+                                            <td key={b} className="py-3 px-3 text-right tabular-nums">
+                                                <div>{formatNum(customSumRow.values?.[b])}</div>
+                                                {hasCompare && (
+                                                    <div className="text-[10px] font-normal text-indigo-600/80 dark:text-indigo-300/80 flex items-center justify-end gap-1">
+                                                        <span>{formatNum(customSumRow.compare_values?.[b])}</span>
+                                                        {renderDeltaBadge(
+                                                            customSumRow.values?.[b],
+                                                            customSumRow.compare_values?.[b]
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        ))}
+                                        <td className="py-3 px-4 text-right tabular-nums bg-indigo-100/60 dark:bg-indigo-900/40">
+                                            <div>{formatNum(customSumRow.total)}</div>
+                                            {hasCompare && (
+                                                <div className="text-[10px] font-normal flex items-center justify-end gap-1">
+                                                    <span>{formatNum(customSumRow.compare_total)}</span>
+                                                    {renderDeltaBadge(customSumRow.total, customSumRow.compare_total)}
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                )}
+
+                                {canonicalRows.map((row) => {
+                                    const isCanonical = Boolean(row.isCanonical);
+                                    const isChecked = !isCanonical && customSelectedIds.includes(row.id);
+
+                                    return (
+                                        <tr
+                                            key={row.id}
+                                            className={
+                                                isCanonical
+                                                    ? 'bg-amber-50/70 dark:bg-amber-950/30 font-bold text-slate-900 dark:text-amber-100 border-b border-amber-200/80 dark:border-amber-800/60'
+                                                    : 'odd:bg-white even:bg-slate-50/60 dark:odd:bg-slate-900 dark:even:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors'
+                                            }
+                                        >
+                                            <td
+                                                className={`py-2.5 px-4 sticky left-0 z-10 ${
+                                                    isCanonical
+                                                        ? 'bg-amber-50 dark:bg-amber-950/90'
+                                                        : 'bg-inherit'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    {!isCanonical && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleCustomType(row.id)}
+                                                            className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                            title="Include in custom canonical sum"
+                                                        >
+                                                            {isChecked ? (
+                                                                <CheckSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                                            ) : (
+                                                                <Square className="w-3.5 h-3.5" />
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                    <span className={isCanonical ? 'font-bold' : 'font-medium text-slate-800 dark:text-slate-200'}>
+                                                        {row.name}
+                                                    </span>
+                                                </div>
+                                            </td>
+
+                                            {branches.map((b) => (
+                                                <td key={b} className="py-2.5 px-3 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                                                    <div>{formatNum(row.values?.[b])}</div>
+                                                    {hasCompare && (
+                                                        <div className="text-[10px] text-slate-400 flex items-center justify-end gap-1">
+                                                            <span>{formatNum(row.compare_values?.[b])}</span>
+                                                            {renderDeltaBadge(row.values?.[b], row.compare_values?.[b])}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            ))}
+
+                                            <td
+                                                className={`py-2.5 px-4 text-right tabular-nums font-bold ${
+                                                    isCanonical
+                                                        ? 'bg-amber-100/80 dark:bg-amber-900/40 text-amber-950 dark:text-amber-100'
+                                                        : 'bg-amber-50/40 dark:bg-amber-950/10 text-slate-900 dark:text-white'
+                                                }`}
+                                            >
+                                                <div>{formatNum(row.total)}</div>
+                                                {hasCompare && (
+                                                    <div className="text-[10px] font-normal flex items-center justify-end gap-1">
+                                                        <span>{formatNum(row.compare_total)}</span>
+                                                        {renderDeltaBadge(row.total, row.compare_total)}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+
+                                {!loading && canonicalRows.length === 0 && (
+                                    <tr>
+                                        <td
+                                            colSpan={branches.length + 2}
+                                            className="py-10 text-center text-xs text-slate-500 dark:text-slate-400"
+                                        >
+                                            No daily report records found for the selected range.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

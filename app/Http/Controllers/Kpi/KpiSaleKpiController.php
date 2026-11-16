@@ -946,5 +946,262 @@ class KpiSaleKpiController extends Controller
             ->pluck('total', 'daily_report_records.report_date')
             ->toArray();
     }
+
+    /**
+     * Get Remaining Daily Target (Avg) metrics and bar chart data for a month/branch.
+     */
+    public function getRemainingDailyTarget(Request $request)
+    {
+        $now = Carbon::now();
+        $year = (int) $request->input('year', $now->year);
+        $month = (int) $request->input('month', $now->month);
+        if ($month < 1 || $month > 12) {
+            $month = (int) $now->month;
+        }
+
+        $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $today = $now->copy()->startOfDay();
+
+        if ($today->lt($monthStart)) {
+            $asOf = $monthStart->copy()->subDay();
+        } elseif ($today->gt($monthEnd)) {
+            $asOf = $monthEnd->copy();
+        } else {
+            $asOf = $today->copy();
+        }
+
+        $daysInMonth = (int) $monthStart->daysInMonth;
+        $daysElapsed = $asOf->lt($monthStart) ? 0 : ($monthStart->copy()->diffInDays($asOf) + 1);
+        $daysRemaining = $asOf->lt($monthStart) ? $daysInMonth : max(0, $asOf->copy()->diffInDays($monthEnd));
+
+        $jewelryBranchIds = Branch::where('is_jewelry_shop', true)
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+
+        $branchId = $request->input('branch_id') ? (int) $request->input('branch_id') : null;
+        $branchIdsRaw = $request->input('branch_ids');
+
+        if ($branchId) {
+            $targetBranchIds = [$branchId];
+        } elseif (!empty($branchIdsRaw)) {
+            $parsed = is_array($branchIdsRaw) ? $branchIdsRaw : explode(',', (string) $branchIdsRaw);
+            $filtered = array_values(array_intersect($jewelryBranchIds, array_map('intval', array_filter($parsed))));
+            $targetBranchIds = !empty($filtered) ? $filtered : $jewelryBranchIds;
+        } else {
+            $targetBranchIds = $jewelryBranchIds;
+        }
+
+        $targetsQuery = BranchTarget::query()
+            ->where('year', (int) $monthStart->year)
+            ->where('month', (int) $monthStart->month)
+            ->whereIn('branch_id', $targetBranchIds);
+
+        $monthTargetGram = (float) $targetsQuery->clone()->sum('target_gram');
+        $monthTargetPcs = (int) $targetsQuery->clone()->sum('target_pcs');
+
+        $actualToDateGram = 0.0;
+        $actualToDatePcs = 0.0;
+
+        if ($daysElapsed > 0 && !empty($targetBranchIds)) {
+            $from = $monthStart->format('Y-m-d');
+            $to = $asOf->format('Y-m-d');
+
+            $actualToDateGram = (float) DailyReportRecord::query()
+                ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+                ->where('daily_reports.is_sale_gram', true)
+                ->whereIn('daily_report_records.branch_id', $targetBranchIds)
+                ->whereBetween('daily_report_records.report_date', [$from, $to])
+                ->sum('daily_report_records.number');
+
+            $actualToDatePcs = (float) DailyReportRecord::query()
+                ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+                ->where('daily_reports.is_sale_quantity', true)
+                ->whereIn('daily_report_records.branch_id', $targetBranchIds)
+                ->whereBetween('daily_report_records.report_date', [$from, $to])
+                ->sum('daily_report_records.number');
+        }
+
+        $remainingGram = max(0.0, $monthTargetGram - $actualToDateGram);
+        $remainingPcs = max(0.0, (float) $monthTargetPcs - $actualToDatePcs);
+
+        $avgSoFarGram = $daysElapsed > 0 ? ($actualToDateGram / $daysElapsed) : 0.0;
+        $avgSoFarPcs = $daysElapsed > 0 ? ($actualToDatePcs / $daysElapsed) : 0.0;
+
+        $requiredPerDayGram = $daysRemaining > 0 ? ($remainingGram / $daysRemaining) : 0.0;
+        $requiredPerDayPcs = $daysRemaining > 0 ? ($remainingPcs / $daysRemaining) : 0.0;
+
+        return response()->json([
+            'metrics' => [
+                'month_label' => $monthStart->format('F Y'),
+                'as_of' => $asOf->lt($monthStart) ? null : $asOf->format('M j, Y'),
+                'days_in_month' => $daysInMonth,
+                'days_elapsed' => $daysElapsed,
+                'days_remaining' => $daysRemaining,
+                'month_target_gram' => $monthTargetGram,
+                'month_target_pcs' => $monthTargetPcs,
+                'actual_to_date_gram' => $actualToDateGram,
+                'actual_to_date_pcs' => $actualToDatePcs,
+                'remaining_gram' => $remainingGram,
+                'remaining_pcs' => $remainingPcs,
+                'avg_so_far_gram' => $avgSoFarGram,
+                'avg_so_far_pcs' => $avgSoFarPcs,
+                'required_per_day_gram' => $requiredPerDayGram,
+                'required_per_day_pcs' => $requiredPerDayPcs,
+            ],
+            'chart' => [
+                'categories' => ['Gram (g)', 'Pcs'],
+                'series' => [
+                    [
+                        'name' => 'Avg/Day So Far',
+                        'data' => [
+                            round($avgSoFarGram, 2),
+                            round($avgSoFarPcs, 2),
+                        ],
+                    ],
+                    [
+                        'name' => 'Required Avg/Day (Remaining)',
+                        'data' => [
+                            round($requiredPerDayGram, 2),
+                            round($requiredPerDayPcs, 2),
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Get Daily Report Summary by Type across branches with optional period comparison.
+     */
+    public function getDailyReportTypesSummary(Request $request)
+    {
+        $start = $request->input('start_date')
+            ? Carbon::parse($request->input('start_date'))->startOfDay()
+            : Carbon::now()->startOfMonth()->startOfDay();
+        $end = $request->input('end_date')
+            ? Carbon::parse($request->input('end_date'))->endOfDay()
+            : Carbon::now()->endOfMonth()->endOfDay();
+
+        if ($end->lt($start)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+
+        $branchIdsRaw = $request->input('branch_ids');
+        $branchIds = [];
+        if (!empty($branchIdsRaw)) {
+            $parsed = is_array($branchIdsRaw) ? $branchIdsRaw : explode(',', (string) $branchIdsRaw);
+            $branchIds = array_values(array_filter(array_map('intval', $parsed)));
+        }
+
+        $primaryRows = $this->queryDailyReportTypeRows($start, $end, $branchIds);
+
+        $compareStartInput = $request->input('compare_start_date');
+        $compareEndInput = $request->input('compare_end_date');
+        $hasCompare = !empty($compareStartInput) && !empty($compareEndInput);
+        $compareRows = collect();
+        $compareStart = null;
+        $compareEnd = null;
+
+        if ($hasCompare) {
+            $compareStart = Carbon::parse($compareStartInput)->startOfDay();
+            $compareEnd = Carbon::parse($compareEndInput)->endOfDay();
+            if ($compareEnd->lt($compareStart)) {
+                [$compareStart, $compareEnd] = [$compareEnd->copy()->startOfDay(), $compareStart->copy()->endOfDay()];
+            }
+            $compareRows = $this->queryDailyReportTypeRows($compareStart, $compareEnd, $branchIds);
+        }
+
+        // Collect ordered unique branches and report types across primary + compare
+        $branchNames = $primaryRows->pluck('branch')
+            ->merge($compareRows->pluck('branch'))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $reportTypes = DailyReport::orderBy('id')
+            ->get(['id', 'name', 'is_sale_gram', 'is_sale_quantity']);
+
+        $primaryMap = [];
+        foreach ($primaryRows as $row) {
+            $primaryMap[$row->type_id][$row->branch] = (float) $row->result;
+        }
+
+        $compareMap = [];
+        foreach ($compareRows as $row) {
+            $compareMap[$row->type_id][$row->branch] = (float) $row->result;
+        }
+
+        $types = [];
+        foreach ($reportTypes as $rt) {
+            $values = [];
+            $total = 0.0;
+            $compValues = [];
+            $compTotal = 0.0;
+
+            foreach ($branchNames as $bName) {
+                $val = (float) ($primaryMap[$rt->id][$bName] ?? 0);
+                $values[$bName] = round($val, 2);
+                $total += $val;
+
+                if ($hasCompare) {
+                    $cVal = (float) ($compareMap[$rt->id][$bName] ?? 0);
+                    $compValues[$bName] = round($cVal, 2);
+                    $compTotal += $cVal;
+                }
+            }
+
+            $entry = [
+                'id' => (int) $rt->id,
+                'name' => $rt->name,
+                'is_sale_gram' => (bool) $rt->is_sale_gram,
+                'is_sale_quantity' => (bool) $rt->is_sale_quantity,
+                'values' => $values,
+                'total' => round($total, 2),
+            ];
+
+            if ($hasCompare) {
+                $entry['compare_values'] = $compValues;
+                $entry['compare_total'] = round($compTotal, 2);
+            }
+
+            $types[] = $entry;
+        }
+
+        return response()->json([
+            'branches' => $branchNames,
+            'types' => $types,
+            'has_compare' => $hasCompare,
+            'period' => [
+                'from' => $start->format('Y-M-d'),
+                'to' => $end->format('Y-M-d'),
+            ],
+            'compare_period' => $hasCompare ? [
+                'from' => $compareStart->format('Y-M-d'),
+                'to' => $compareEnd->format('Y-M-d'),
+            ] : null,
+        ]);
+    }
+
+    private function queryDailyReportTypeRows(Carbon $start, Carbon $end, array $branchIds = [])
+    {
+        return DailyReportRecord::select(
+            'branches.name AS branch',
+            'daily_reports.id AS type_id',
+            'daily_reports.name AS type',
+            DB::raw('SUM(daily_report_records.number) AS result')
+        )
+            ->leftJoin('branches', 'branches.id', 'daily_report_records.branch_id')
+            ->leftJoin('daily_reports', 'daily_reports.id', 'daily_report_records.daily_report_id')
+            ->whereBetween('daily_report_records.report_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->when(!empty($branchIds), fn($q) => $q->whereIn('daily_report_records.branch_id', $branchIds))
+            ->groupBy('branches.name', 'daily_reports.id', 'daily_reports.name')
+            ->orderBy('branches.name')
+            ->orderBy('daily_reports.id')
+            ->get();
+    }
 }
 
