@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
+import { Tooltip, Menu, MenuItem } from '@mui/material';
 import {
     Table,
     Calendar,
@@ -11,10 +12,10 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Minus,
-    CheckSquare,
-    Square,
     Plus,
     Pencil,
+    Download,
+    Info,
 } from 'lucide-react';
 import CanonicalTemplateModal from './CanonicalTemplateModal';
 
@@ -46,6 +47,11 @@ const sumMatchedTypes = (label, matchedTypes, branches, hasCompare) => {
         name: label,
         isCanonical: true,
         sourceCount: matchedTypes.length,
+        sourceTypes: matchedTypes.map((t) => ({
+            id: t.id,
+            name: t.name,
+            total: t.total,
+        })),
         values,
         total: Number(total.toFixed(2)),
         ...(hasCompare
@@ -116,10 +122,10 @@ export default function DailyReportTypesSummaryTable({
     const [compareFrom, setCompareFrom] = useState('');
     const [compareTo, setCompareTo] = useState('');
     const [canonicalMode, setCanonicalMode] = useState('all');
-    const [customSelectedIds, setCustomSelectedIds] = useState([]);
     const [templates, setTemplates] = useState([]);
     const [templateModalOpen, setTemplateModalOpen] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState(null);
+    const [exportAnchorEl, setExportAnchorEl] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [reportData, setReportData] = useState(null);
@@ -244,12 +250,6 @@ export default function DailyReportTypesSummaryTable({
     const rawTypes = reportData?.types || [];
     const hasCompare = Boolean(reportData?.has_compare);
 
-    const toggleCustomType = (typeId) => {
-        setCustomSelectedIds((prev) =>
-            prev.includes(typeId) ? prev.filter((id) => id !== typeId) : [...prev, typeId]
-        );
-    };
-
     const canonicalRows = useMemo(() => {
         if (!rawTypes.length) return [];
 
@@ -270,16 +270,99 @@ export default function DailyReportTypesSummaryTable({
         return rawTypes;
     }, [rawTypes, canonicalMode, templates, branches, hasCompare]);
 
-    const customSumRow = useMemo(() => {
-        if (customSelectedIds.length === 0) return null;
-        const matched = rawTypes.filter((t) => customSelectedIds.includes(t.id));
-        return sumMatchedTypes(
-            `Custom Canonical Sum (${matched.length} types)`,
-            matched,
-            branches,
-            hasCompare
-        );
-    }, [rawTypes, customSelectedIds, branches, hasCompare]);
+    const escapeCsvCell = (val) => {
+        const str = String(val ?? '');
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    const escapeHtml = (val) =>
+        String(val ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+    const getExportFilename = (ext) => {
+        const activeTpl = templates.find((t) => t.id === canonicalMode);
+        const modeSlug = activeTpl
+            ? activeTpl.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'template'
+            : 'all-types';
+        return `daily-report-summary-${modeSlug}-${primaryFrom}-to-${primaryTo}.${ext}`;
+    };
+
+    const triggerBlobDownload = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleDownloadCsv = () => {
+        setExportAnchorEl(null);
+        const headers = ['Type Name'];
+        branches.forEach((b) => {
+            headers.push(b);
+            if (hasCompare) headers.push(`${b} (Prev)`);
+        });
+        headers.push('Total');
+        if (hasCompare) headers.push('Total (Prev)');
+
+        const lines = [headers.map(escapeCsvCell).join(',')];
+        canonicalRows.forEach((row) => {
+            const cells = [row.name];
+            branches.forEach((b) => {
+                cells.push(row.values?.[b] ?? 0);
+                if (hasCompare) cells.push(row.compare_values?.[b] ?? 0);
+            });
+            cells.push(row.total ?? 0);
+            if (hasCompare) cells.push(row.compare_total ?? 0);
+            lines.push(cells.map(escapeCsvCell).join(','));
+        });
+
+        const csvContent = '\uFEFF' + lines.join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        triggerBlobDownload(blob, getExportFilename('csv'));
+    };
+
+    const handleDownloadExcel = () => {
+        setExportAnchorEl(null);
+        const headers = ['Type Name'];
+        branches.forEach((b) => {
+            headers.push(b);
+            if (hasCompare) headers.push(`${b} (Prev)`);
+        });
+        headers.push('Total');
+        if (hasCompare) headers.push('Total (Prev)');
+
+        const thead = `<tr>${headers.map((h) => `<th style="background:#f1f5f9;font-weight:bold;border:1px solid #cbd5e1;padding:6px;">${escapeHtml(h)}</th>`).join('')}</tr>`;
+        const tbody = canonicalRows
+            .map((row) => {
+                const cells = [`<td style="border:1px solid #cbd5e1;padding:6px;">${escapeHtml(row.name)}</td>`];
+                branches.forEach((b) => {
+                    cells.push(`<td style="border:1px solid #cbd5e1;padding:6px;text-align:right;">${escapeHtml(row.values?.[b] ?? 0)}</td>`);
+                    if (hasCompare) {
+                        cells.push(`<td style="border:1px solid #cbd5e1;padding:6px;text-align:right;">${escapeHtml(row.compare_values?.[b] ?? 0)}</td>`);
+                    }
+                });
+                cells.push(`<td style="border:1px solid #cbd5e1;padding:6px;text-align:right;font-weight:bold;">${escapeHtml(row.total ?? 0)}</td>`);
+                if (hasCompare) {
+                    cells.push(`<td style="border:1px solid #cbd5e1;padding:6px;text-align:right;">${escapeHtml(row.compare_total ?? 0)}</td>`);
+                }
+                return `<tr>${cells.join('')}</tr>`;
+            })
+            .join('');
+
+        const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body><table><thead>${thead}</thead><tbody>${tbody}</tbody></table></body></html>`;
+        const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        triggerBlobDownload(blob, getExportFilename('xls'));
+    };
 
     return (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-5">
@@ -343,6 +426,30 @@ export default function DailyReportTypesSummaryTable({
                             />
                         </div>
                     )}
+
+                    <button
+                        type="button"
+                        onClick={(e) => setExportAnchorEl(e.currentTarget)}
+                        disabled={loading || canonicalRows.length === 0}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                        title="Download as CSV or Excel"
+                    >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export</span>
+                    </button>
+
+                    <Menu
+                        anchorEl={exportAnchorEl}
+                        open={Boolean(exportAnchorEl)}
+                        onClose={() => setExportAnchorEl(null)}
+                    >
+                        <MenuItem onClick={handleDownloadCsv} sx={{ fontSize: '0.8rem' }}>
+                            Download CSV (.csv)
+                        </MenuItem>
+                        <MenuItem onClick={handleDownloadExcel} sx={{ fontSize: '0.8rem' }}>
+                            Download Excel (.xls)
+                        </MenuItem>
+                    </Menu>
 
                     <button
                         type="button"
@@ -413,16 +520,6 @@ export default function DailyReportTypesSummaryTable({
                         </div>
                     ))}
                 </div>
-
-                {customSelectedIds.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => setCustomSelectedIds([])}
-                        className="shrink-0 text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
-                    >
-                        Clear custom selection ({customSelectedIds.length})
-                    </button>
-                )}
             </div>
 
             {/* Table Area */}
@@ -463,47 +560,16 @@ export default function DailyReportTypesSummaryTable({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                                {customSumRow && (
-                                    <tr className="bg-indigo-50/70 dark:bg-indigo-950/40 font-bold text-indigo-950 dark:text-indigo-100 border-b-2 border-indigo-200 dark:border-indigo-800">
-                                        <td className="py-3 px-4 sticky left-0 bg-indigo-50 dark:bg-indigo-950/80 z-10">
-                                            {customSumRow.name}
-                                        </td>
-                                        {branches.map((b) => (
-                                            <td key={b} className="py-3 px-3 text-right tabular-nums">
-                                                <div>{formatNum(customSumRow.values?.[b])}</div>
-                                                {hasCompare && (
-                                                    <div className="text-[10px] font-normal text-indigo-600/80 dark:text-indigo-300/80 flex items-center justify-end gap-1">
-                                                        <span>{formatNum(customSumRow.compare_values?.[b])}</span>
-                                                        {renderDeltaBadge(
-                                                            customSumRow.values?.[b],
-                                                            customSumRow.compare_values?.[b]
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                        ))}
-                                        <td className="py-3 px-4 text-right tabular-nums bg-indigo-100/60 dark:bg-indigo-900/40">
-                                            <div>{formatNum(customSumRow.total)}</div>
-                                            {hasCompare && (
-                                                <div className="text-[10px] font-normal flex items-center justify-end gap-1">
-                                                    <span>{formatNum(customSumRow.compare_total)}</span>
-                                                    {renderDeltaBadge(customSumRow.total, customSumRow.compare_total)}
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                )}
-
                                 {canonicalRows.map((row) => {
                                     const isCanonical = Boolean(row.isCanonical);
-                                    const isChecked = !isCanonical && customSelectedIds.includes(row.id);
+                                    const sourceList = row.sourceTypes || [];
 
-                                    return (
+                                    const rowElement = (
                                         <tr
                                             key={row.id}
                                             className={
                                                 isCanonical
-                                                    ? 'bg-amber-50/70 dark:bg-amber-950/30 font-bold text-slate-900 dark:text-amber-100 border-b border-amber-200/80 dark:border-amber-800/60'
+                                                    ? 'bg-amber-50/70 dark:bg-amber-950/30 font-bold text-slate-900 dark:text-amber-100 border-b border-amber-200/80 dark:border-amber-800/60 hover:bg-amber-100/60 dark:hover:bg-amber-950/50 transition-colors'
                                                     : 'odd:bg-white even:bg-slate-50/60 dark:odd:bg-slate-900 dark:even:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors'
                                             }
                                         >
@@ -514,24 +580,13 @@ export default function DailyReportTypesSummaryTable({
                                                         : 'bg-inherit'
                                                 }`}
                                             >
-                                                <div className="flex items-center gap-2">
-                                                    {!isCanonical && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleCustomType(row.id)}
-                                                            className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                            title="Include in custom canonical sum"
-                                                        >
-                                                            {isChecked ? (
-                                                                <CheckSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                                                            ) : (
-                                                                <Square className="w-3.5 h-3.5" />
-                                                            )}
-                                                        </button>
-                                                    )}
+                                                <div className="flex items-center gap-1.5">
                                                     <span className={isCanonical ? 'font-bold' : 'font-medium text-slate-800 dark:text-slate-200'}>
                                                         {row.name}
                                                     </span>
+                                                    {isCanonical && (
+                                                        <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                                                    )}
                                                 </div>
                                             </td>
 
@@ -563,6 +618,39 @@ export default function DailyReportTypesSummaryTable({
                                                 )}
                                             </td>
                                         </tr>
+                                    );
+
+                                    if (!isCanonical) {
+                                        return rowElement;
+                                    }
+
+                                    return (
+                                        <Tooltip
+                                            key={row.id}
+                                            arrow
+                                            placement="top-start"
+                                            title={
+                                                <div className="p-1 space-y-1 text-xs">
+                                                    <div className="font-bold border-b border-white/20 pb-1">
+                                                        Canonical Items ({sourceList.length})
+                                                    </div>
+                                                    {sourceList.length === 0 ? (
+                                                        <div className="text-slate-300">No items selected</div>
+                                                    ) : (
+                                                        sourceList.map((st) => (
+                                                            <div key={st.id} className="flex items-center justify-between gap-4">
+                                                                <span>• {st.name}</span>
+                                                                <span className="font-semibold tabular-nums">
+                                                                    {formatNum(st.total)}
+                                                                </span>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            }
+                                        >
+                                            {rowElement}
+                                        </Tooltip>
                                     );
                                 })}
 
