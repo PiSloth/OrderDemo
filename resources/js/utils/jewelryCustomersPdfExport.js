@@ -158,10 +158,20 @@ export async function exportJewelryCustomersPdf({
 } = {}) {
     await ensurePyidaungsuFontLoaded();
 
+    const ownerSecret =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
+        encryption: {
+            userPassword: '',
+            ownerPassword: ownerSecret,
+            userPermissions: ['print'],
+        },
     });
 
     const pageWidth = doc.internal.pageSize.getWidth();
