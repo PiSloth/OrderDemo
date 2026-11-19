@@ -36,19 +36,20 @@ const tokenizeForMyanmarWrap = (paragraph) => {
         .filter(Boolean);
 };
 
-const renderUnicodeTextBlockToPng = (
+const renderUnicodeTextBlockToImage = (
     text,
     {
         fontSizePt = 9,
         maxWidthMm = 170,
         color = '#0f172a',
+        backgroundColor = null,
         fontWeight = 'normal',
         lineHeightMultiplier = 1.65,
+        scale = 2,
     } = {}
 ) => {
     const PX_PER_MM = 96 / 25.4;
     const MM_PER_PX = 25.4 / 96;
-    const SCALE = 4; // 384 DPI print quality
 
     const fontSizePx = fontSizePt * (96 / 72);
     const maxWidthPx = Math.max(24, maxWidthMm * PX_PER_MM);
@@ -97,17 +98,31 @@ const renderUnicodeTextBlockToPng = (
 
     if (wrappedLines.length === 0) wrappedLines.push('');
 
+    let maxLineWidthPx = 0;
+    for (const line of wrappedLines) {
+        if (!line) continue;
+        const w = measureCtx.measureText(line).width;
+        if (w > maxLineWidthPx) maxLineWidthPx = w;
+    }
+
+    const tightWidthPx = Math.max(12, Math.min(maxWidthPx, Math.ceil(maxLineWidthPx + 4)));
     const lineHeightPx = Math.ceil(fontSizePx * lineHeightMultiplier);
     const topPadPx = Math.ceil(fontSizePx * 0.35);
     const bottomPadPx = Math.ceil(fontSizePx * 0.45);
     const totalHeightPx = wrappedLines.length * lineHeightPx + topPadPx + bottomPadPx;
 
     const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(maxWidthPx * SCALE);
-    canvas.height = Math.ceil(totalHeightPx * SCALE);
+    canvas.width = Math.ceil(tightWidthPx * scale);
+    canvas.height = Math.ceil(totalHeightPx * scale);
 
     const ctx = canvas.getContext('2d');
-    ctx.scale(SCALE, SCALE);
+    ctx.scale(scale, scale);
+
+    if (backgroundColor) {
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0, 0, tightWidthPx, totalHeightPx);
+    }
+
     ctx.font = fontSpec;
     ctx.fillStyle = color;
     ctx.textBaseline = 'alphabetic';
@@ -118,9 +133,15 @@ const renderUnicodeTextBlockToPng = (
         ctx.fillText(line, 0, baselineY);
     });
 
+    const format = backgroundColor ? 'JPEG' : 'PNG';
+    const dataUrl = backgroundColor
+        ? canvas.toDataURL('image/jpeg', 0.88)
+        : canvas.toDataURL('image/png');
+
     return {
-        dataUrl: canvas.toDataURL('image/png'),
-        widthMm: maxWidthMm,
+        dataUrl,
+        format,
+        widthMm: tightWidthPx * MM_PER_PX,
         heightMm: totalHeightPx * MM_PER_PX,
         lineCount: wrappedLines.length,
     };
@@ -130,7 +151,11 @@ const renderUnicodeTextBlockToPng = (
  * Generate and download a PDF report of Jewelry Sales customers
  * containing Customer Name, Phone Number, and Sale Voucher Count.
  */
-export async function exportJewelryCustomersPdf({ customers = [], branchName = null } = {}) {
+export async function exportJewelryCustomersPdf({
+    customers = [],
+    branchName = null,
+    exportedBy = null,
+} = {}) {
     await ensurePyidaungsuFontLoaded();
 
     const doc = new jsPDF({
@@ -142,34 +167,103 @@ export async function exportJewelryCustomersPdf({ customers = [], branchName = n
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
-    let currentY = 16;
+    const contentWidth = pageWidth - margin * 2;
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.setTextColor(15, 23, 42);
-    doc.text('Jewelry Sales - Customer List', margin, currentY);
+    const warningText = 'ကန့်သတ်။ ပြင်ပသို့ ဖြန့်ဝေခြင်း မပြုရ။ ကျူးလွန်ပါက သက်ဆိုင်ရာ ဥပဒေအရ အရေးယူခြင်းခံရမည်';
+    const warningImg = renderUnicodeTextBlockToImage(warningText, {
+        fontSizePt: 8.5,
+        maxWidthMm: contentWidth,
+        color: '#b91c1c',
+        backgroundColor: '#ffffff',
+        fontWeight: 'bold',
+    });
 
-    currentY += 6;
+    const exportedByText = `Exported by: ${exportedBy || 'System'}`;
+    const exportedByImg = hasComplexUnicode(exportedByText)
+        ? renderUnicodeTextBlockToImage(exportedByText, {
+              fontSizePt: 8.5,
+              maxWidthMm: contentWidth,
+              color: '#334155',
+              backgroundColor: '#ffffff',
+          })
+        : null;
+
     const branchLabel = branchName ? `Branch: ${branchName}` : 'Branch: All Branches';
     const metaText = `${branchLabel}   |   Total Customers: ${customers.length.toLocaleString()}   |   Generated: ${new Date().toLocaleString()}`;
+    const metaImg = hasComplexUnicode(metaText)
+        ? renderUnicodeTextBlockToImage(metaText, {
+              fontSizePt: 8.5,
+              maxWidthMm: contentWidth,
+              color: '#475569',
+              backgroundColor: '#ffffff',
+          })
+        : null;
 
-    if (hasComplexUnicode(metaText)) {
-        const metaImg = renderUnicodeTextBlockToPng(metaText, {
-            fontSizePt: 8.5,
-            maxWidthMm: pageWidth - margin * 2,
-            color: '#475569',
-        });
-        doc.addImage(metaImg.dataUrl, 'PNG', margin, currentY - 3, metaImg.widthMm, metaImg.heightMm);
-        currentY += metaImg.heightMm + 3;
-    } else {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.setTextColor(71, 85, 105);
-        doc.text(metaText, margin, currentY);
-        currentY += 6;
-    }
+    const warningY = 8;
+    const titleY = warningY + warningImg.heightMm + 4.5;
+    const exportedByY = titleY + 5;
+    const metaY = exportedByY + (exportedByImg ? exportedByImg.heightMm + 1.5 : 4.5);
+    const dividerY = metaY + (metaImg ? metaImg.heightMm + 2 : 3.5);
+    const tableStartY = dividerY + 3;
+
+    const drawPageHeader = () => {
+        doc.addImage(
+            warningImg.dataUrl,
+            warningImg.format,
+            margin,
+            warningY,
+            warningImg.widthMm,
+            warningImg.heightMm,
+            'header-warning'
+        );
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Jewelry Sales - Customer List', margin, titleY);
+
+        if (exportedByImg) {
+            doc.addImage(
+                exportedByImg.dataUrl,
+                exportedByImg.format,
+                margin,
+                exportedByY - 3,
+                exportedByImg.widthMm,
+                exportedByImg.heightMm,
+                'header-exported-by'
+            );
+        } else {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(51, 65, 85);
+            doc.text(exportedByText, margin, exportedByY);
+        }
+
+        if (metaImg) {
+            doc.addImage(
+                metaImg.dataUrl,
+                metaImg.format,
+                margin,
+                metaY - 3,
+                metaImg.widthMm,
+                metaImg.heightMm,
+                'header-meta'
+            );
+        } else {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(71, 85, 105);
+            doc.text(metaText, margin, metaY);
+        }
+
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.25);
+        doc.line(margin, dividerY, pageWidth - margin, dividerY);
+    };
 
     const colWidths = [14, 86, 48, 34]; // 182mm total (A4 210mm - 28mm margins)
+    const imageCache = new Map();
+    let aliasCounter = 0;
 
     const body = customers.map((c, idx) => [
         String(idx + 1),
@@ -179,8 +273,8 @@ export async function exportJewelryCustomersPdf({ customers = [], branchName = n
     ]);
 
     autoTable(doc, {
-        startY: currentY,
-        margin: { left: margin, right: margin, bottom: 16 },
+        startY: tableStartY,
+        margin: { top: tableStartY, left: margin, right: margin, bottom: 16 },
         head: [['#', 'Customer Name', 'Phone Number', 'Sale Voucher Count']],
         body,
         theme: 'grid',
@@ -217,12 +311,22 @@ export async function exportJewelryCustomersPdf({ customers = [], branchName = n
                 const colW = colWidths[data.column.index] || 50;
                 const innerW = Math.max(15, colW - 5);
                 const isBoldCol = data.column.index === 1;
-                const unicodeImg = renderUnicodeTextBlockToPng(strVal, {
-                    fontSizePt: 8.5,
-                    maxWidthMm: innerW,
-                    color: isBoldCol ? '#0f172a' : '#334155',
-                    fontWeight: isBoldCol ? 'bold' : 'normal',
-                });
+                const bg = data.row.index % 2 === 1 ? '#f8fafc' : '#ffffff';
+                const cacheKey = `${strVal}|${isBoldCol ? 'b' : 'n'}|${bg}|${innerW}`;
+
+                let unicodeImg = imageCache.get(cacheKey);
+                if (!unicodeImg) {
+                    unicodeImg = renderUnicodeTextBlockToImage(strVal, {
+                        fontSizePt: 8.5,
+                        maxWidthMm: innerW,
+                        color: isBoldCol ? '#0f172a' : '#334155',
+                        backgroundColor: bg,
+                        fontWeight: isBoldCol ? 'bold' : 'normal',
+                    });
+                    unicodeImg.alias = `uimg_${aliasCounter++}`;
+                    imageCache.set(cacheKey, unicodeImg);
+                }
+
                 data.cell._unicodeImg = unicodeImg;
                 data.cell.text = new Array(Math.max(1, unicodeImg.lineCount)).fill(' ');
                 data.cell.styles.minCellHeight = Math.max(6.8, unicodeImg.heightMm + 2.4);
@@ -233,10 +337,11 @@ export async function exportJewelryCustomersPdf({ customers = [], branchName = n
                 const img = data.cell._unicodeImg;
                 const drawX = data.cell.x + 2.2;
                 const drawY = data.cell.y + Math.max(1, (data.cell.height - img.heightMm) / 2);
-                doc.addImage(img.dataUrl, 'PNG', drawX, drawY, img.widthMm, img.heightMm);
+                doc.addImage(img.dataUrl, img.format, drawX, drawY, img.widthMm, img.heightMm, img.alias);
             }
         },
         didDrawPage: (data) => {
+            drawPageHeader();
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
             doc.setTextColor(100, 116, 139);

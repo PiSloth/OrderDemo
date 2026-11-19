@@ -80,6 +80,7 @@ export default function Customers({ customers, stats = {}, branches = [], region
             await exportJewelryCustomersPdf({
                 customers: res.data?.customers || [],
                 branchName: res.data?.branch_name || null,
+                exportedBy: auth?.user?.name || null,
             });
         } catch (err) {
             console.error('Failed to export customers PDF:', err);
