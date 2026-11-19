@@ -427,6 +427,8 @@ Route::middleware(['auth'])->prefix('jewelry')->name('jewelry.')->group(function
         Route::post('/import', [JewelrySalesImportController::class, 'store'])->name('import.store');
         Route::post('/import/branch-mappings', [JewelrySalesImportController::class, 'saveBranchMappings'])->name('import.branch_mappings');
         Route::get('/customers', [JewelrySalesCustomerController::class, 'index'])->name('customers.index');
+        Route::get('/customers/export', [JewelrySalesCustomerController::class, 'export'])->name('customers.export');
+        Route::get('/customers/export-logs', [JewelrySalesCustomerController::class, 'exportLogs'])->name('customers.export_logs');
         Route::get('/customers/{customer}', [JewelrySalesCustomerController::class, 'show'])->name('customers.show');
         Route::get('/products', [JewelrySalesProductController::class, 'index'])->name('products.index');
         Route::get('/invoices', [JewelrySalesInvoiceController::class, 'index'])->name('invoices.index');

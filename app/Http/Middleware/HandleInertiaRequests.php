@@ -118,6 +118,16 @@ class HandleInertiaRequests extends Middleware
                         || $request->user()->can('hardware_device_inventory.delete')
                         || $request->user()->can('digital_asset.device.delete')
                     ) : false,
+                    'customerView' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->isAdmin()
+                        || $request->user()->can('customer.view')
+                    ) : false,
+                    'customerExport' => $request->user() ? (
+                        $request->user()->isSuperUser()
+                        || $request->user()->isAdmin()
+                        || $request->user()->can('customer.export')
+                    ) : false,
                 ],
             ],
             'flash' => [

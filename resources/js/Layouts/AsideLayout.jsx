@@ -1462,14 +1462,16 @@ export default function AsideLayout({
                                             >
                                                 <ListItemText primary="Sales Analytics" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
                                             </ListItemButton>
-                                            <ListItemButton 
-                                                component={Link} 
-                                                href="/jewelry/sales/customers" 
-                                                selected={isCurrentUrl('/jewelry/sales/customers')}
-                                                sx={subItemButtonSx(isCurrentUrl('/jewelry/sales/customers'))}
-                                            >
-                                                <ListItemText primary="Customer Analysis" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
-                                            </ListItemButton>
+                                            {can.customerView && (
+                                                <ListItemButton 
+                                                    component={Link} 
+                                                    href="/jewelry/sales/customers" 
+                                                    selected={isCurrentUrl('/jewelry/sales/customers')}
+                                                    sx={subItemButtonSx(isCurrentUrl('/jewelry/sales/customers'))}
+                                                >
+                                                    <ListItemText primary="Customer Analysis" primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: 'inherit' }} />
+                                                </ListItemButton>
+                                            )}
                                             <ListItemButton 
                                                 component={Link} 
                                                 href="/jewelry/sales/products" 

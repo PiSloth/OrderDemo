@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import axios from 'axios';
 import AsideLayout from '../../Layouts/AsideLayout';
+import { exportJewelryCustomersPdf } from '../../utils/jewelryCustomersPdfExport';
 import {
     Box,
     Button,
     Card,
     CardContent,
     Chip,
+    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     Grid,
     InputLabel,
@@ -23,32 +30,76 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { ArrowLeft, Eye } from 'lucide-react';
+import { ArrowLeft, Download, Eye, History } from 'lucide-react';
 
-export default function Customers({ customers, stats = {}, regions = [], townships = [], filters = {} }) {
+export default function Customers({ customers, stats = {}, branches = [], regions = [], townships = [], filters = {} }) {
+    const { auth } = usePage().props;
+    const canExport = Boolean(auth?.can?.customerExport);
     const [search, setSearch] = useState(filters.search || '');
+    const [branchId, setBranchId] = useState(filters.branch_id ? String(filters.branch_id) : '');
     const [regionId, setRegionId] = useState(filters.region_id || '');
     const [townshipId, setTownshipId] = useState(filters.township_id || '');
     const [segment, setSegment] = useState(filters.segment || '');
     const [sort, setSort] = useState(filters.sort || 'total_spent');
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
+    const [logsOpen, setLogsOpen] = useState(false);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [exportLogs, setExportLogs] = useState([]);
 
     const filteredTownships = regionId
         ? townships.filter((t) => String(t.region_id) === String(regionId))
         : townships;
 
+    const buildFilterParams = () => ({
+        search: search || undefined,
+        branch_id: branchId || undefined,
+        region_id: regionId || undefined,
+        township_id: townshipId || undefined,
+        segment: segment || undefined,
+        sort,
+    });
+
     const applyFilters = (page = 1) => {
         router.get(
             '/jewelry/sales/customers',
             {
-                search: search || undefined,
-                region_id: regionId || undefined,
-                township_id: townshipId || undefined,
-                segment: segment || undefined,
-                sort,
+                ...buildFilterParams(),
                 page,
             },
             { preserveState: true }
         );
+    };
+
+    const handleDownloadPdf = async () => {
+        if (downloadingPdf) return;
+        setDownloadingPdf(true);
+        try {
+            const res = await axios.get('/jewelry/sales/customers/export', {
+                params: buildFilterParams(),
+            });
+            await exportJewelryCustomersPdf({
+                customers: res.data?.customers || [],
+                branchName: res.data?.branch_name || null,
+            });
+        } catch (err) {
+            console.error('Failed to export customers PDF:', err);
+        } finally {
+            setDownloadingPdf(false);
+        }
+    };
+
+    const handleOpenLogs = async () => {
+        setLogsOpen(true);
+        setLogsLoading(true);
+        try {
+            const res = await axios.get('/jewelry/sales/customers/export-logs');
+            setExportLogs(res.data?.logs || []);
+        } catch (err) {
+            console.error('Failed to load export logs:', err);
+            setExportLogs([]);
+        } finally {
+            setLogsLoading(false);
+        }
     };
 
     return (
@@ -64,9 +115,22 @@ export default function Customers({ customers, stats = {}, regions = [], townshi
                             Deduplicated customer directory by normalized name & phone with region/township segmentation.
                         </Typography>
                     </Box>
-                    <Button component={Link} href="/jewelry/sales" variant="outlined" size="small" startIcon={<ArrowLeft size={16} />}>
-                        Sales Analytics
-                    </Button>
+                    <Stack direction="row" spacing={1}>
+                        {canExport && (
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<Download size={16} />}
+                                onClick={handleDownloadPdf}
+                                disabled={downloadingPdf}
+                            >
+                                {downloadingPdf ? 'Generating PDF...' : 'Download PDF'}
+                            </Button>
+                        )}
+                        <Button component={Link} href="/jewelry/sales" variant="outlined" size="small" startIcon={<ArrowLeft size={16} />}>
+                            Sales Analytics
+                        </Button>
+                    </Stack>
                 </Stack>
 
                 <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -106,7 +170,7 @@ export default function Customers({ customers, stats = {}, regions = [], townshi
 
                 <Card variant="outlined" sx={{ mb: 3 }}>
                     <CardContent>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }} flexWrap="wrap" useFlexGap>
                             <TextField
                                 label="Search name, phone, address"
                                 size="small"
@@ -115,6 +179,21 @@ export default function Customers({ customers, stats = {}, regions = [], townshi
                                 onKeyDown={(e) => e.key === 'Enter' && applyFilters(1)}
                                 sx={{ minWidth: 240 }}
                             />
+                            <FormControl size="small" sx={{ minWidth: 160 }}>
+                                <InputLabel>Branch</InputLabel>
+                                <Select
+                                    label="Branch"
+                                    value={branchId}
+                                    onChange={(e) => setBranchId(e.target.value)}
+                                >
+                                    <MenuItem value="">All Branches</MenuItem>
+                                    {branches.map((b) => (
+                                        <MenuItem key={b.id} value={String(b.id)}>
+                                            {b.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
                             <FormControl size="small" sx={{ minWidth: 150 }}>
                                 <InputLabel>Region</InputLabel>
                                 <Select
@@ -163,6 +242,14 @@ export default function Customers({ customers, stats = {}, regions = [], townshi
                             </FormControl>
                             <Button variant="contained" size="small" onClick={() => applyFilters(1)}>
                                 Filter
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<History size={16} />}
+                                onClick={handleOpenLogs}
+                            >
+                                Export Logs
                             </Button>
                         </Stack>
                     </CardContent>
@@ -241,6 +328,73 @@ export default function Customers({ customers, stats = {}, regions = [], townshi
                         )}
                     </CardContent>
                 </Card>
+
+                <Dialog open={logsOpen} onClose={() => setLogsOpen(false)} maxWidth="md" fullWidth>
+                    <DialogTitle>Customer Export Logs</DialogTitle>
+                    <DialogContent dividers>
+                        {logsLoading ? (
+                            <Stack alignItems="center" sx={{ py: 4 }}>
+                                <CircularProgress size={28} />
+                            </Stack>
+                        ) : (
+                            <TableContainer>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Date / Time</TableCell>
+                                            <TableCell>User</TableCell>
+                                            <TableCell>Branch</TableCell>
+                                            <TableCell align="right">Exported Rows</TableCell>
+                                            <TableCell>Filters</TableCell>
+                                            <TableCell>IP Address</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {exportLogs.map((log) => {
+                                            const f = log.filters || {};
+                                            const activeFilters = [
+                                                f.search ? `Search: "${f.search}"` : null,
+                                                f.segment ? `Segment: ${f.segment}` : null,
+                                                f.sort ? `Sort: ${f.sort}` : null,
+                                            ].filter(Boolean);
+                                            return (
+                                                <TableRow key={log.id} hover>
+                                                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{log.occurred_at || '-'}</TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="body2" fontWeight={600}>
+                                                            {log.actor_name}
+                                                        </Typography>
+                                                        {log.actor_email && (
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {log.actor_email}
+                                                            </Typography>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>{log.branch_name || 'All Branches'}</TableCell>
+                                                    <TableCell align="right">{Number(log.exported_count || 0).toLocaleString()}</TableCell>
+                                                    <TableCell>{activeFilters.length > 0 ? activeFilters.join(', ') : '-'}</TableCell>
+                                                    <TableCell>{log.ip_address || '-'}</TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                        {exportLogs.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={6} align="center">
+                                                    No export logs recorded yet.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setLogsOpen(false)} size="small">
+                            Close
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </Box>
         </AsideLayout>
     );
